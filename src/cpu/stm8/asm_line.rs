@@ -6,6 +6,7 @@ use crate::cpu::stm8::register::Register;
 
 #[derive(Clone, Debug)]
 pub struct ASMLine {
+    pub byte_count: u32,
     pub instruction: Instruction,
     pub reg1: Register,
     pub reg2: Register,
@@ -20,6 +21,7 @@ impl ASMLine {
 
     pub fn new() -> ASMLine {
         ASMLine {
+            byte_count: 0,
             instruction: Instruction::UNDEFINED,
             reg1: Register::UNDEFINED,
             reg2: Register::UNDEFINED,
@@ -32,6 +34,7 @@ impl ASMLine {
     }
 
     pub fn _clear(&mut self) {
+        self.byte_count = 0;
         self.instruction = Instruction::UNDEFINED;
         self.reg1 = Register::UNDEFINED;
         self.reg2 = Register::UNDEFINED;
@@ -47,7 +50,7 @@ impl ASMLine {
 impl fmt::Display for ASMLine {
 
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        
+
         if self.instruction == Instruction::UNDEFINED {
             return Ok(());
         }
@@ -61,14 +64,14 @@ impl fmt::Display for ASMLine {
                 self.label, self.instruction
             ),
 
-            // TNZ (0x4D), PM0044, page 155 
+            // TNZ (0x4D), PM0044, page 155
             Instruction::TNZ_A => write!(
                 f,
                 "{} {}",
                 self.label, self.instruction
             ),
 
-            // CLEAR (0x4F), PM0044, page 92 
+            // CLEAR (0x4F), PM0044, page 92
             Instruction::CLR_A => write!(
                 f,
                 "{} {}",

@@ -16,14 +16,30 @@ impl InstructionError {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Instruction {
 
+    // 0x08
+    // SLL ($15,SP)
+    // The instruction reads the byte stored in memory at the offset,
+    // shifts its bits one position to the left, and stores the new value back to the same address.
+    SLL_SP_OFFSET,
+
+    // 0x09
+    // RLC ($10,SP), page 134
+    RLC_SP_OFFSET,
+
+    // 0x16
+    LDW_Y_SP_OFFSET,
+
+    // 0x17
+    LDW_OFFSET_SP_Y,
+
     // 0x1E
     // LDW X,($50,SP)
     // PM0044, page 117
     LDW_X_SP_OFFSET,
 
     // 0x1F
-    // XLDW ($50,SP),X 
-    // (0x1F) LDW, (shortoff,SP) XLDW ($50,SP),X 
+    // XLDW ($50,SP),X
+    // (0x1F) LDW, (shortoff,SP) XLDW ($50,SP),X
     // PM0044, page 118
     LDW_SP_OFFSET_X,
 
@@ -32,44 +48,70 @@ pub enum Instruction {
 
     // 0x27
     // JREQ, PM0044, page 113
-    JREQ, 
+    JREQ,
 
     // 0x4F
     // CLEAR, PM0044, page 92
-    CLR_A, 
+    CLR_A,
 
     // 0x4D
     // TNZ, PM0044, page 155
-    TNZ_A, 
+    TNZ_A,
 
     // 0x52
     // SUB, PM0044, page 151
-    SUB_SP, 
+    SUB_SP,
 
     // 0x58, page 146
     // SLLW X
-    SLLW_X, 
+    SLLW_X,
+
+    // 0x5B
+    ADDW_SP_IMM,
 
     // 0x5C
     // INC, PM0044, page 106
-    INC, 
+    INC,
 
     // 0x5F
     // CLRW_X, PM0044, page 93
     CLRW_X,
+
+    // 0x72 0xF9
+    ADDW_Y_OFFSET_SP,
 
     // 0x72 0xFB
     ADDW_X_OFFSET_SP,
 
     // 0x81
     // RET, PM0044, page 131
-    RET, 
+    RET,
 
     // 0x82
     // INT, INTERRUPT
     INT,
 
-    // 0x96
+    // 0x8E
+    HALT,
+
+    // 0x8F
+    WFI,
+
+    // LDW Y,SP
+    // 0x90 0x96
+    LDW_Y_SP,
+
+    // CPW_Y_IMM
+    // 0x90 0xA3
+    CPW_Y_IMM,
+
+    // 0x90, 0x58
+    SLLW_Y,
+
+    // 0x90, 0x5C
+    INCW_Y,
+
+    // 0x90, 0x96
     // LDW X,SP
     LDW_X_SP,
 
@@ -78,11 +120,11 @@ pub enum Instruction {
 
     // 0xAE
     // LDW, LOAD
-    LDW_AE, 
+    LDW_AE,
 
-    // 0xCC  
+    // 0xCC
     // UNDOCUMENTED!!!!!!!!
-    CALL_CC, 
+    CALL_CC,
 
     // 0xCD
     // CALL, PM0044, page 88
@@ -90,6 +132,9 @@ pub enum Instruction {
 
     // 0xFE
     LDW_X_X,
+
+    // 0x90 0xFE
+    LDW_Y_Y,
 
     UNDEFINED,
 
@@ -102,6 +147,9 @@ impl FromStr for Instruction {
     fn from_str(input: &str) -> Result<Instruction, Self::Err> {
 
         match input.to_uppercase().as_ref() {
+
+            // 0x16
+            "LDW_Y_SP_OFFSET" => Ok(Instruction::LDW_Y_SP_OFFSET),
 
             // 0x1E
             "LDW_X_SP_OFFSET" => Ok(Instruction::LDW_X_SP_OFFSET),
@@ -142,7 +190,7 @@ impl FromStr for Instruction {
             "LDW_AE" => Ok(Instruction::LDW_AE),
 
             // 0xCC, UNDOCUMENTED !!!!!!!!
-            "CALL_CC" => Ok(Instruction::CALL_CC), 
+            "CALL_CC" => Ok(Instruction::CALL_CC),
 
             // 0xCD
             "CALL_CD" => Ok(Instruction::CALL_CD),
@@ -161,6 +209,16 @@ impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 
         match self {
+
+            // 0x08
+            Instruction::SLL_SP_OFFSET => write!(f, "SLL ($15,SP)"),
+            // 0x09
+            Instruction::RLC_SP_OFFSET => write!(f, "RLC ($10,SP)"),
+
+            // 0x16
+            Instruction::LDW_Y_SP_OFFSET => write!(f, "LDW Y,($50,SP)"),
+            // 0x17
+            Instruction::LDW_OFFSET_SP_Y => write!(f, "LDW ($50,SP),Y"),
 
             // 0x1E
             Instruction::LDW_X_SP_OFFSET => write!(f, "LDW X,($50,SP)"),
@@ -182,6 +240,9 @@ impl fmt::Display for Instruction {
             // 0x52
             Instruction::SUB_SP => write!(f, "sub_sp"),
 
+            // 0x5B
+            Instruction::ADDW_SP_IMM => write!(f, "addw sp, imm"),
+
             // 0x5C
             Instruction::INC => write!(f, "inc"),
 
@@ -191,6 +252,9 @@ impl fmt::Display for Instruction {
             // 0x58, page 146
             Instruction::SLLW_X => write!(f, "sllw_x"),
 
+            // 0x72 0xF9
+            Instruction::ADDW_Y_OFFSET_SP => write!(f, "ADDW_Y_OFFSET_SP"),
+
             // 0x72 0xFB
             Instruction::ADDW_X_OFFSET_SP => write!(f, "ADDW_X_OFFSET_SP"),
 
@@ -199,6 +263,24 @@ impl fmt::Display for Instruction {
 
             // 0x82
             Instruction::INT => write!(f, "int"),
+
+            // 0x8E
+            Instruction::HALT => write!(f, "halt"),
+
+            // 0x8F
+            Instruction::WFI => write!(f, "wfi"),
+
+            // 0x90, 0x58
+            Instruction::SLLW_Y => write!(f, "SLLW_Y"),
+
+            // 0x90, 0x5C
+            Instruction::INCW_Y => write!(f, "INCW_Y"),
+
+            // 0x90, 0xA3
+            Instruction::CPW_Y_IMM => write!(f, "CPW_Y_IMM"),
+
+            // 0x90
+            Instruction::LDW_Y_SP => write!(f, "LDW_Y_SP"),
 
             // 0x96
             Instruction::LDW_X_SP => write!(f, "LDW_X_SP"),
@@ -216,10 +298,11 @@ impl fmt::Display for Instruction {
 
             // 0xFE, page 117
             Instruction::LDW_X_X => write!(f, "LDW_X_X"),
+            Instruction::LDW_Y_Y => write!(f, "LDW_Y_Y"),
 
             Instruction::UNDEFINED => write!(f, "undefined"),
 
         }
-        
+
     }
 }

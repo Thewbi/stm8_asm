@@ -1,0 +1,161 @@
+                                      1 ;--------------------------------------------------------
+                                      2 ; File Created by SDCC : free open source ISO C Compiler
+                                      3 ; Version 4.5.0 #15242 (MINGW64)
+                                      4 ;--------------------------------------------------------
+                                      5 	.module sum
+                                      6 	
+                                      7 ;--------------------------------------------------------
+                                      8 ; Public variables in this module
+                                      9 ;--------------------------------------------------------
+                                     10 	.globl _main
+                                     11 ;--------------------------------------------------------
+                                     12 ; ram data
+                                     13 ;--------------------------------------------------------
+                                     14 	.area DATA
+                                     15 ;--------------------------------------------------------
+                                     16 ; ram data
+                                     17 ;--------------------------------------------------------
+                                     18 	.area INITIALIZED
+                                     19 ;--------------------------------------------------------
+                                     20 ; Stack segment in internal ram
+                                     21 ;--------------------------------------------------------
+                                     22 	.area SSEG
+      000000                         23 __start__stack:
+      000000                         24 	.ds	1
+                                     25 
+                                     26 ;--------------------------------------------------------
+                                     27 ; absolute external ram data
+                                     28 ;--------------------------------------------------------
+                                     29 	.area DABS (ABS)
+                                     30 
+                                     31 ; default segment ordering for linker
+                                     32 	.area HOME
+                                     33 	.area GSINIT
+                                     34 	.area GSFINAL
+                                     35 	.area CONST
+                                     36 	.area INITIALIZER
+                                     37 	.area CODE
+                                     38 
+                                     39 ;--------------------------------------------------------
+                                     40 ; interrupt vector
+                                     41 ;--------------------------------------------------------
+                                     42 	.area HOME
+      000000                         43 __interrupt_vect:
+      000000 82v00u00u00             44 	int s_GSINIT ; reset
+                                     45 ;--------------------------------------------------------
+                                     46 ; global & static initialisations
+                                     47 ;--------------------------------------------------------
+                                     48 	.area HOME
+                                     49 	.area GSINIT
+                                     50 	.area GSFINAL
+                                     51 	.area GSINIT
+      000000 CDr00r00         [ 4]   52 	call	___sdcc_external_startup
+      000003 4D               [ 1]   53 	tnz	a
+      000004 27 03            [ 1]   54 	jreq	__sdcc_init_data
+      000006 CCr00r04         [ 2]   55 	jp	__sdcc_program_startup
+      000009                         56 __sdcc_init_data:
+                                     57 ; stm8_genXINIT() start
+      000009 AEr00r00         [ 2]   58 	ldw x, #l_DATA
+      00000C 27 07            [ 1]   59 	jreq	00002$
+      00000E                         60 00001$:
+      00000E 72 4FuFFuFF      [ 1]   61 	clr (s_DATA - 1, x)
+      000012 5A               [ 2]   62 	decw x
+      000013 26 F9            [ 1]   63 	jrne	00001$
+      000015                         64 00002$:
+      000015 AEr00r00         [ 2]   65 	ldw	x, #l_INITIALIZER
+      000018 27 09            [ 1]   66 	jreq	00004$
+      00001A                         67 00003$:
+      00001A D6uFFuFF         [ 1]   68 	ld	a, (s_INITIALIZER - 1, x)
+      00001D D7uFFuFF         [ 1]   69 	ld	(s_INITIALIZED - 1, x), a
+      000020 5A               [ 2]   70 	decw	x
+      000021 26 F7            [ 1]   71 	jrne	00003$
+      000023                         72 00004$:
+                                     73 ; stm8_genXINIT() end
+                                     74 	.area GSFINAL
+      000000 CCr00r04         [ 2]   75 	jp	__sdcc_program_startup
+                                     76 ;--------------------------------------------------------
+                                     77 ; Home
+                                     78 ;--------------------------------------------------------
+                                     79 	.area HOME
+                                     80 	.area HOME
+      000004                         81 __sdcc_program_startup:
+      000004 CCr00r00         [ 2]   82 	jp	_main
+                                     83 ;	return from main will return to caller
+                                     84 ;--------------------------------------------------------
+                                     85 ; code
+                                     86 ;--------------------------------------------------------
+                                     87 	.area CODE
+                                     88 ;	sum.c: 1: int main() {
+                                     89 ;	-----------------------------------------
+                                     90 ;	 function main
+                                     91 ;	-----------------------------------------
+      000000                         92 _main:
+      000000 52 1A            [ 2]   93 	sub	sp, #26
+                                     94 ;	sum.c: 3: int data[11] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0xaa};
+      000002 5F               [ 1]   95 	clrw	x
+      000003 5C               [ 1]   96 	incw	x
+      000004 1F 01            [ 2]   97 	ldw	(0x01, sp), x
+      000006 AE 00 02         [ 2]   98 	ldw	x, #0x0002
+      000009 1F 03            [ 2]   99 	ldw	(0x03, sp), x
+      00000B AE 00 03         [ 2]  100 	ldw	x, #0x0003
+      00000E 1F 05            [ 2]  101 	ldw	(0x05, sp), x
+      000010 AE 00 04         [ 2]  102 	ldw	x, #0x0004
+      000013 1F 07            [ 2]  103 	ldw	(0x07, sp), x
+      000015 AE 00 05         [ 2]  104 	ldw	x, #0x0005
+      000018 1F 09            [ 2]  105 	ldw	(0x09, sp), x
+      00001A AE 00 06         [ 2]  106 	ldw	x, #0x0006
+      00001D 1F 0B            [ 2]  107 	ldw	(0x0b, sp), x
+      00001F AE 00 07         [ 2]  108 	ldw	x, #0x0007
+      000022 1F 0D            [ 2]  109 	ldw	(0x0d, sp), x
+      000024 AE 00 08         [ 2]  110 	ldw	x, #0x0008
+      000027 1F 0F            [ 2]  111 	ldw	(0x0f, sp), x
+      000029 AE 00 09         [ 2]  112 	ldw	x, #0x0009
+      00002C 1F 11            [ 2]  113 	ldw	(0x11, sp), x
+      00002E AE 00 0A         [ 2]  114 	ldw	x, #0x000a
+      000031 1F 13            [ 2]  115 	ldw	(0x13, sp), x
+      000033 AE 00 AA         [ 2]  116 	ldw	x, #0x00aa
+      000036 1F 15            [ 2]  117 	ldw	(0x15, sp), x
+                                    118 ;	sum.c: 5: int i = 0;
+      000038 5F               [ 1]  119 	clrw	x
+      000039 1F 19            [ 2]  120 	ldw	(0x19, sp), x
+                                    121 ;	sum.c: 6: while (data[i] != 0xaa) {
+      00003B                        122 00101$:
+	  
+	  ; load counter variable i and apply 16-bit stride element 0 = 0, element 1 = 2, element 2 = 4, element 3 = 6, ....
+      00003B 1E 19            [ 2]  123 	ldw		x, (0x19, sp)   	; into X load variable i. SP Offset 0x19 is i
+	  ; 0, 1
+      00003D 58               [ 2]  124 	sllw	x					; x = x * 2 (Stride 2 because the stack contains a u16 array where each element is 16-bit)
+      ; 0, 2
+	  
+	  ; compute stack pointer relative address to the element of the array indexed by the strided i
+	  00003E 1F 17            [ 2]  125 	ldw		(0x17, sp), x		; into dest=(0x17, SP) load src=X. Offset 0x17 is a 16-bit temp variable
+      ; 0x3f8 = 0, 0x3f8 = 2
+	  
+	  000040 96               [ 1]  126 	ldw		x, sp				; into dest=X          load src=SP.
+	  ; x = 0x3e1, x = 0x3e1
+      000041 5C               [ 1]  127 	incw	x
+	  ; x = 0x3e2 (994), x = 0x3e2 (994)
+      000042 72 FB 17         [ 2]  128 	addw	x, (0x17, sp)		; into x add (0x17, sp) ; add stackpointer to strided i
+	  ; x = 0x3e2, x = 0x3e4
+      
+	  ; load the element and compare it to 0x00aa
+	  000045 FE               [ 2]  129 	ldw		x, (x)
+	  ; x = 1, x = 2
+      000046 A3 00 AA         [ 2]  130 	cpw		x, #0x00aa
+	  
+	  
+      000049 27 07            [ 1]  131 	jreq	00103$
+                                    132 ;	sum.c: 7: i = i + data[i];
+      00004B 72 FB 19         [ 2]  133 	addw	x, (0x19, sp)
+      00004E 1F 19            [ 2]  134 	ldw	(0x19, sp), x
+      000050 20 E9            [ 2]  135 	jra	00101$
+      000052                        136 00103$:
+                                    137 ;	sum.c: 10: return 0;
+      000052 5F               [ 1]  138 	clrw	x
+                                    139 ;	sum.c: 11: }
+      000053 5B 1A            [ 2]  140 	addw	sp, #26
+      000055 81               [ 4]  141 	ret
+                                    142 	.area CODE
+                                    143 	.area CONST
+                                    144 	.area INITIALIZER
+                                    145 	.area CABS (ABS)

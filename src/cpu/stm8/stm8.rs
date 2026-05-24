@@ -25,13 +25,21 @@ pub struct STM8 {
     // flags (page 15, 16)
     pub zero_bit: bool,
     pub negative_bit: bool,
-    pub carry_bit: bool
+    pub carry_bit: bool,
+
+
+    // create decoder
+//        let mut thumb_decoder: ThumbDecoder = ThumbDecoder::new();
+       // let mut decoder: Decoder = Decoder::new();
+
+       pub decoder: Decoder
 }
 
 impl STM8 {
 
     pub fn new() -> STM8 {
-        STM8 { 
+        STM8 {
+
             halt: false,
 
             accumulator: 0,
@@ -54,13 +62,15 @@ impl STM8 {
             //
             //stack_pointer: 1024*64,
             stack_pointer: 0x03FF,
-            
+
             program_counter: 0,
 
             memory_blocks: HashMap::new(),
             zero_bit: false,
             negative_bit: false,
-            carry_bit: false
+            carry_bit: false,
+
+            decoder: Decoder::new()
         }
     }
 
@@ -145,19 +155,22 @@ impl STM8 {
         // Here, load an entire word to decode such cases
         let instruction: u32 = read_word_be(&self.memory_blocks, self.program_counter);
         let next_instruction: u32 = read_word_be(&self.memory_blocks, self.program_counter+4);
-        
+
         // DEBUG
         println!("Address: 0x{:02x?}, Instruction: 0x{:08x?}, Next Instruction: 0x{:08x?}", self.program_counter, instruction, next_instruction);
-
-        // create decoder
-//        let mut thumb_decoder: ThumbDecoder = ThumbDecoder::new();
-        let mut decoder: Decoder = Decoder::new();
 
         // decode machine code to ASMLine object
         let mut asm_line: ASMLine = ASMLine::new();
 //        thumb_decoder.decode(thumb_instruction, next_thumb_instruction, &mut asm_line);
-        decoder.decode(instruction, next_instruction, &mut asm_line);
+        self.decoder.decode(instruction, next_instruction, &mut asm_line);
 
+        // DEBUG
+        println!("self.program_counter: {:04X?}", self.program_counter);
+        println!("asm_line.byte_count: {:04X?}", asm_line.byte_count);
+        //if asm_line.byte_count == 0x38 {
+        if self.program_counter == 0x8065 {
+            println!("test");
+        }
         // execute the decoded instruction
         self.execute(&asm_line);
 
@@ -176,20 +189,36 @@ impl STM8 {
         let mut _pc_increment: i32 = 1;
         match asm_line.instruction {
 
+            Instruction::SLLW_Y => { _pc_increment = 2 }
+
+            Instruction::SLL_SP_OFFSET => { _pc_increment = 2 }
+
+            Instruction::RLC_SP_OFFSET => { _pc_increment = 2 }
+
             Instruction::JRA => { _pc_increment = 2 }
 
             Instruction::JREQ => { _pc_increment = 2 }
-            
+
+            Instruction::ADDW_SP_IMM => { _pc_increment = 2 }
+
             Instruction::LDW_X_SP_OFFSET => { _pc_increment = 2 }
             Instruction::LDW_SP_OFFSET_X => { _pc_increment = 2 }
 
+            Instruction::ADDW_Y_OFFSET_SP => { _pc_increment = 3 }
             Instruction::ADDW_X_OFFSET_SP => { _pc_increment = 3 }
 
             Instruction::SUB_SP => { _pc_increment = 2 }
 
             Instruction::CPW_X_IMM => { _pc_increment = 3 }
+            Instruction::CPW_Y_IMM => { _pc_increment = 4 }
 
             Instruction::LDW_AE => { _pc_increment = 3 }
+
+            Instruction::LDW_Y_SP => { _pc_increment = 2 }
+
+            Instruction::LDW_Y_Y => { _pc_increment = 2 }
+            Instruction::LDW_Y_SP_OFFSET => { _pc_increment = 2 }
+            Instruction::LDW_OFFSET_SP_Y => { _pc_increment = 2 }
 
             _ => { _pc_increment = 1 }
 
@@ -203,8 +232,72 @@ impl STM8 {
         // execute operation
         match asm_line.instruction {
 
+            // 0x08
+            Instruction::SLL_SP_OFFSET => {
+                println!("SLL subtype: SLL_SP_OFFSET");
+
+                let address = self.stack_pointer as i16 + asm_line.immediate as i16;
+                let mut data: u16 = read_halfword_be(&mut self.memory_blocks, address as u32);
+                data = data << 1;
+                write_halfword(&mut self.memory_blocks, address as u32, data as u16);
+            }
+
+            // 0x09
+            Instruction::RLC_SP_OFFSET => {
+                println!("RLC subtype: RLC_SP_OFFSET");
+
+                let address = self.stack_pointer as i16 + asm_line.immediate as i16;
+                let mut data: u8 = read_byte(&mut self.memory_blocks, address as u32);
+
+                self.carry_bit = ((data >> 7) & 1) == 1;
+
+                // TODO: shift left logial with carry!!!!!
+                println!("data: {:02X?}", data);
+                data = data << 1;
+                println!("data: {:02X?}", data);
+
+                write_byte(&mut self.memory_blocks, address as u32, data);
+
+                // flags
+                self.negative_bit = (data as i16) < 0;
+                self.zero_bit = data == 0;
+            }
+
+            // 0x16
+            //
+            // LDW Y,($50,SP)
+            // LDW dst,src
+            Instruction::LDW_Y_SP_OFFSET => {
+                println!("LDW subtype: LDW_Y_SP_OFFSET");
+
+                // add offset to value stored in current SP
+                let address:u16 = self.stack_pointer + asm_line.immediate as u16;
+
+                let data: u16 = read_halfword_be(&mut self.memory_blocks, address as u32);
+
+                println!("data: {:?}", data);
+
+                self.y_index = data;
+            }
+
+            // 0x17
+            // page 117
+            //
+            // LDW dst, src
+            Instruction::LDW_OFFSET_SP_Y => {
+                println!("LDW subtype: LDW_OFFSET_SP_Y");
+
+                // add offset to value stored in current SP
+                let address:u16 = self.stack_pointer + asm_line.immediate as u16;
+
+                //let data: u16 = read_halfword_be(&mut self.memory_blocks, address as u32);
+                write_halfword(&mut self.memory_blocks, address as u32, self.y_index);
+            }
+
             // 0x1E
             // LOAD Word (1E) from memory relative to Stackpointer into X register
+            //
+            // ldw destination, source
             Instruction::LDW_X_SP_OFFSET => {
                 println!("LDW subtype: LDW_X_SP_OFFSET");
 
@@ -213,16 +306,25 @@ impl STM8 {
 
                 let data: u16 = read_halfword_be(&mut self.memory_blocks, address as u32);
 
+                println!("data: {:?}", data);
+
                 self.x_index = data;
             }
 
             // 0x1F
             // LOAD Word (1F) from X register to memory relative to Stackpointer
+            //
+            // ldw destination, source
+            // ldw	(0x19, sp), x
+            //
+            // PM0044, page 118
             Instruction::LDW_SP_OFFSET_X => {
                 println!("LDW subtype: LDW_SP_OFFSET_X");
 
                 // add offset to value stored in current SP
                 let address:u16 = self.stack_pointer + asm_line.immediate as u16;
+
+                println!("address: {:08x?}", address);
 
                 write_halfword(&mut self.memory_blocks, address as u32, self.x_index as u16);
             }
@@ -309,7 +411,17 @@ impl STM8 {
                 self.zero_bit = self.x_index == 0;
 
                 // todo learn about the overflow flag
-                //self.overflow = 
+                //self.overflow =
+            }
+
+            // 0x5B
+            // ADDW SP,#$9
+            //
+            // ADDW dst,src
+            // dst <= dst + src
+            Instruction::ADDW_SP_IMM => {
+                println!("ADDW_SP_IMM");
+                self.stack_pointer = (self.stack_pointer as i32 + asm_line.immediate) as u16;
             }
 
             // 0x5C
@@ -317,15 +429,20 @@ impl STM8 {
             Instruction::INC => {
                 println!("INCW X");
 
-                // flags
-                self.negative_bit = false;
-                self.zero_bit = true;
+
 
                 // todo learn about the overflow flag
-                //self.overflow = 
+                //self.overflow =
 
                 //self.x_index = self.x_index + asm_line.immediate as u16;
                 self.x_index = self.x_index + 1;
+
+                println!("X: {:04x?}", self.x_index);
+                println!("X: {:04x?}", self.x_index);
+
+                // TODO: flags!
+                self.negative_bit = (self.x_index as i16) < 0;
+                self.zero_bit = self.x_index == 0;
             }
 
             // 0x5F
@@ -349,7 +466,7 @@ impl STM8 {
 
             // 0x52
             // SUB SP, PM0044, page 151
-            Instruction::SUB_SP => { 
+            Instruction::SUB_SP => {
                 println!("SUB_SP");
 
                 println!("BEFORE> self.stack_pointer: {:08x?}", self.stack_pointer);
@@ -366,7 +483,7 @@ impl STM8 {
             // Add word without carry
             // ADDW X,($10,SP)
             // page 64, 78
-            Instruction::ADDW_X_OFFSET_SP => { 
+            Instruction::ADDW_X_OFFSET_SP => {
                 println!("ADDW_X_OFFSET_SP");
 
                 // X <-- X + M(SP+shortoff)
@@ -377,14 +494,32 @@ impl STM8 {
 
                 println!("{:08x}", data);
 
+                println!("{:08X?} ({:?}) = {:?} + {:?}", (self.x_index + data), (self.x_index + data), self.x_index, data);
+
                 self.x_index = self.x_index + data;
+            }
+
+            Instruction::ADDW_Y_OFFSET_SP => {
+                println!("ADDW_Y_OFFSET_SP");
+
+                // Y <-- Y + M(SP+shortoff)
+
+                let address = self.stack_pointer + asm_line.immediate as u16;
+
+                let data = read_halfword_be(&self.memory_blocks, address as u32);
+
+                println!("{:08x}", data);
+
+                println!("{:08X?} ({:?}) = {:?} + {:?}", (self.x_index + data), (self.x_index + data), self.x_index, data);
+
+                self.y_index = self.y_index + data;
             }
 
             // 0x81
             // RET (0x81), PM0044, page 131
-            Instruction::RET => { 
+            Instruction::RET => {
                 println!("RET");
-                
+
                 // PCH <- M(++SP)
                 // PCL <- M(++SP)
 
@@ -401,7 +536,7 @@ impl STM8 {
                 println!("pc.lo: {:08x?}", temp_pc_lo);
 
                 let temp_pc:u16 = ((temp_pc_hi as u16) << 8) | ((temp_pc_lo  as u16) << 0);
-                
+
                 println!("RET, jumping back to address: {:08x?}", temp_pc);
 
                 self.program_counter = temp_pc as u32;
@@ -409,19 +544,95 @@ impl STM8 {
 
             // 0x82
             // INT, INTERRUPT (0x82)
-            Instruction::INT => { 
+            Instruction::INT => {
                 println!("INT");
                 println!("INT, jumping to address: {:06x?}", asm_line.immediate);
 
                 self.program_counter = asm_line.immediate as u32;
             }
 
-            // 0x96 
+            // 8E
+            Instruction::HALT => {
+                println!("HALT");
+            }
+
+            // 8F
+            Instruction::WFI => {
+                println!("WFI");
+            }
+
+            // LDW Y,SP
+            // 0x90 0x96
+            //
+            // LDW dst,src
+            // ldw destination Y, source SP
+            Instruction::LDW_Y_SP => {
+                println!("LDW_Y_SP");
+
+                // LDW <dst>,<src>
+                // LDW Y,SP
+
+                println!("SP: {:08x?}", self.stack_pointer);
+
+                self.stack_pointer = self.y_index;
+            }
+
+            // 0x90, 0x58, page 146
+            Instruction::SLLW_Y => {
+                println!("SLLW_Y");
+
+                self.carry_bit = ((self.y_index >> 15) & 1) == 1;
+
+                // peform the shift
+                self.y_index = self.y_index << 1;
+
+                // flags
+                self.negative_bit = ((self.y_index >> 15) & 1) == 1;
+                self.zero_bit = self.y_index == 0;
+            }
+
+            // 0x90, 0x5C, page 107
+            Instruction::INCW_Y => {
+                println!("INCW_Y");
+
+                self.y_index = self.y_index + 1;
+            }
+
+            // 0x90 0xA3
+            Instruction::CPW_Y_IMM=> {
+                println!("CPW_Y_IMM");
+
+                // The source byte is subtracted from the destination byte and the result is
+                // lost. However, N, Z, C flags of Condition Code (CC) register are updated
+                // according to the result. The destination is an index register, and the source
+                // is a memory or data word. This instruction generally is used just before a
+                // conditional jump instruction.
+
+                let result: i32 = self.y_index as i32 - asm_line.immediate;
+                println!("result: {:?} = {:?} - {:?}", result, self.y_index as i32, asm_line.immediate);
+
+                self.negative_bit = result < 0;
+                self.zero_bit = result == 0;
+            }
+
+            // 0x90 0xFE
+            Instruction::LDW_Y_Y => {
+                println!("LDW_Y_(Y)");
+
+                let data = read_halfword_be(&self.memory_blocks, self.y_index as u32);
+                println!("LDW_Y_(Y) loaded value: {:0?}", data);
+                self.y_index = data;
+            }
+
+            // 0x96
+            // ldw destination X, source SP
             Instruction::LDW_X_SP => {
                 println!("LDW_X_SP");
 
                 // LDW <dst>,<src>
                 // LDW X,SP
+
+                println!("SP: {:08x?}", self.stack_pointer);
 
                 self.x_index = self.stack_pointer;
 
@@ -454,8 +665,8 @@ impl STM8 {
             }
 
             // CALL (0xCD), PM
-            // 0xCC // 0xCD 
-            Instruction::CALL_CC | 
+            // 0xCC // 0xCD
+            Instruction::CALL_CC |
             Instruction::CALL_CD => {
                 println!("CALL subtype: CD");
                 println!("CALL subtype: CD, jumping to address: {:06x?}", asm_line.immediate);
@@ -466,7 +677,7 @@ impl STM8 {
 
                 let temp_pc_lo:u8 = ((temp_pc >> 0) & 0xFF) as u8;
                 let temp_pc_hi:u8 = ((temp_pc >> 8) & 0xFF) as u8;
-                
+
                 write_byte(&mut self.memory_blocks, self.stack_pointer as u32, temp_pc_lo);
                 self.stack_pointer = self.stack_pointer - 1;
                 write_byte(&mut self.memory_blocks, self.stack_pointer as u32, temp_pc_hi);
@@ -479,20 +690,34 @@ impl STM8 {
             }
 
             // 0xFE
-            // Load value from memory at address stored in register X and then store value into register X
+            // indexed mode
+            //
+            // Load value from memory at address stored in register X and then store value into register X.
+            //
+            // The LDW X, (X) instruction in STM8 assembly is a pointer-dereference operation
+            // that loads a 16-bit word from the memory address stored in X into register X.
+            // It uses the Indexed Addressing Mode with a zero offset.
+            // It functions similarly to X = * (uint16_t *)X in C.
+            //
+            // Take the value of X. Interpret it as an address. Load 16 bit out of memory at
+            // that address. Store the loaded value into X.
             Instruction::LDW_X_X => {
-                println!("LDW_X_X");
+                println!("LDW_X_(X)");
+
+                println!("LDW_X_(X) addr: {:08x?}", self.x_index);
 
                 let data = read_halfword_be(&self.memory_blocks, self.x_index as u32);
+
+                println!("LDW_X_(X) loaded value: {:0?}", data);
 
                 self.x_index = data;
             }
 
             Instruction::UNDEFINED => todo!(),
         }
-        
+
     }
-    
+
     pub(crate) fn halt(&self) -> bool {
         self.halt
     }

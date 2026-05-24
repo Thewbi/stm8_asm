@@ -1,8 +1,8 @@
 /*****************************************************************
- * 
+ *
  * This main file parses a .hex binary file.
  * If you want to process a .asm file, use the main.rs_asm file.
- * 
+ *
 ******************************************************************/
 
 use std::fs::File;
@@ -62,13 +62,14 @@ fn main() {
     //if let Ok(lines) = read_lines("res/samples/assembler_tutorial/loops_with_branches/a.hex") {
     //if let Ok(lines) = read_lines("res/instructions_pseudo/ldr/a.hex") {
     //if let Ok(lines) = read_lines("res/samples/assembler_tutorial/printing_strings_to_terminal/a.hex") {
-    if let Ok(lines) = read_lines("C:/aaa_se/stm8/loop_example/sum.ihx") {
+    //if let Ok(lines) = read_lines("res/C/samples/loop_example/sum.ihx") {
+    if let Ok(lines) = read_lines("res/C/samples/loop_example_2/sum.ihx") {
 
-        //let mut current_offset: u32 = 0x00800000; // for ARM Cortex-M4, always assume the default address 0x08000000        
+        //let mut current_offset: u32 = 0x00800000; // for ARM Cortex-M4, always assume the default address 0x08000000
         let mut current_offset: u32 = 0x00000000;
 
         let mut segment_started: bool = false;
-        
+
         // Consumes the iterator, returns an (Optional) String
         for line in lines.map_while(Result::ok) {
 
@@ -133,7 +134,7 @@ fn main() {
                     for idx in 4 .. 4 + payload_length {
 
                         println!("addr: 0x{:02x}, data: 0x{:02x}", (low_part + i), data[idx as usize]);
-                        
+
                         //memory_block.push(data[ idx as usize ]);
                         memory_block[(low_part + i) as usize] = data[idx as usize];
 
@@ -150,9 +151,9 @@ fn main() {
 
                 // Extended Segment Address Record
                 0x02 => {
-                    // Die im Datenfeld enthaltene Adresse wird dabei um 4 Bit nach links verschoben (entsprechend einer Multiplikation mit 
+                    // Die im Datenfeld enthaltene Adresse wird dabei um 4 Bit nach links verschoben (entsprechend einer Multiplikation mit
                     // 2^4 = 16) und bei den folgenden Data Records (Typ 00) zu den dort enthaltenen 16-Bit-Adressen addiert.
-                    // Der Extended Segment Address Record bleibt bis zur Änderung durch einen anderen Extended Segment Address Record wirksam. 
+                    // Der Extended Segment Address Record bleibt bis zur Änderung durch einen anderen Extended Segment Address Record wirksam.
 
                     println!("(02) Extended Segment Address Record");
                     // println!("(02) New Segment");
@@ -195,7 +196,7 @@ fn main() {
                 }
             }
 
-            
+
         }
 
         //println!("memory_blocks {:02x?}", memory_blocks);
@@ -207,15 +208,15 @@ fn main() {
     let mut _main_stack_pointer_value: u32 = 0;
     let mut _reset_handler_address: u32 = 0;
 
-    // for hex files compiled using a STM32 linker script 
+    // for hex files compiled using a STM32 linker script
     // stack_pointer value is stored at 0x08000000
     // reset handler address is stored at 0x08000004
     // The STM32 core will read four bytes, place them into the stack pointer (this is not implemented as ASM code but it is hardwired into the CPU)
     // then it will execute the next four byte as a jump to the reset handler
     //
-    //let load_real_hex_application: bool = true; 
+    //let load_real_hex_application: bool = true;
 
-    // for small assembler scripts without real STM32 cpu 
+    // for small assembler scripts without real STM32 cpu
     // there is just code located at 0x08000000
     // The simulated CPU should just execute the instructions located at 0x08000000 and not execute and hardwired CPU logic for the first bytes!
     let load_real_cortexm4_hex_application: bool = false;
@@ -249,7 +250,7 @@ fn main() {
 
         _reset_handler_address = read_word_le(&memory_blocks, _start_segment + 4);
         println!("reset_handler_address: {:02x?}", _reset_handler_address);
-        
+
         // detect THUMB
         if _reset_handler_address % 2 == 1 {
             println!("Thumb Detected!");
