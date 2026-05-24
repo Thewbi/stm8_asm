@@ -1,0 +1,30 @@
+
+a.out:     file format elf32-littlearm
+
+
+Disassembly of section .text:
+
+00008000 <_start>:
+    8000:	2003      	movs	r0, #3
+    8002:	2102      	movs	r1, #2
+    8004:	4288      	cmp	r0, r1
+    8006:	dc00      	bgt.n	800a <greater>
+    8008:	e000      	b.n	800c <default>
+
+0000800a <greater>:
+    800a:	2201      	movs	r2, #1
+
+0000800c <default>:
+    800c:	2202      	movs	r2, #2
+    800e:	df00      	svc	0
+
+Disassembly of section .ARM.attributes:
+
+00000000 <.ARM.attributes>:
+   0:	00001b41 	andeq	r1, r0, r1, asr #22
+   4:	61656100 	cmnvs	r5, r0, lsl #2
+   8:	01006962 	tsteq	r0, r2, ror #18
+   c:	00000011 	andeq	r0, r0, r1, lsl r0
+  10:	2d453705 	stclcs	7, cr3, [r5, #-20]	; 0xffffffec
+  14:	0d06004d 	stceq	0, cr0, [r6, #-308]	; 0xfffffecc
+  18:	02094d07 	andeq	r4, r9, #448	; 0x1c0

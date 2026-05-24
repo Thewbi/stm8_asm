@@ -1,0 +1,266 @@
+/*****************************************************************
+ * 
+ * This main file parses a .hex binary file.
+ * If you want to process a .asm file, use the main.rs_asm file.
+ * 
+******************************************************************/
+
+use std::fs::File;
+use std::io::{self, BufRead};
+use std::path::Path;
+
+use std::collections::HashMap;
+
+mod ast;
+use crate::ast::asm_line::ASMLine;
+use crate::encoder::thumb::thumb_decoder::ThumbDecoder;
+
+mod encoder;
+
+mod cpu;
+use crate::{cpu::cortex_m4::CortexM4};
+
+// The output is wrapped in a Result to allow matching on errors.
+// Returns an Iterator to the Reader of the lines of the file.
+fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>> where P: AsRef<Path>, {
+    let file = File::open(filename)?;
+    Ok(io::BufReader::new(file).lines())
+}
+
+use std::{fmt::Write, num::ParseIntError};
+
+pub fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
+        .collect()
+}
+
+pub fn encode_hex(bytes: &[u8]) -> String {
+    let mut s = String::with_capacity(bytes.len() * 2);
+    for &b in bytes {
+        write!(&mut s, "{:02x}", b).unwrap();
+    }
+    s
+}
+
+/**
+ * Little Endian (u16 from vector)
+ */
+fn read_word_le(memory_block_map: &HashMap<u32, Vec<u8>>, address: u32) -> u16 {
+
+    // DEBUG
+    println!("{:02x?}", address);
+
+    let high_part: u32 = address & 0xFFFF0000;
+    let low_part: u32 = address & 0x0000FFFF;
+
+    let low_part: usize = low_part.try_into().unwrap();
+
+    let memory_block = memory_block_map.get(&high_part).unwrap();
+
+    // the loader accesses a half-word and the next half-word since some instructions
+    // need an entire word even in thumb or thumb-2. At the very end of the .hex file,
+    // the loader should not access the half-word past the end of the file. If it
+    // does, return 0
+    if low_part < memory_block.len() {
+        u16::from_le_bytes(memory_block[low_part..low_part+2].try_into().unwrap())
+    } else {
+        0
+    }
+}
+
+/**
+ * Little Endian (u32 from vector)
+ */
+fn read_dword_le(memory_block_map: &HashMap<u32, Vec<u8>>, address: u32) -> u32 {
+
+    let high_part: u32 = address & 0xFFFF0000;
+    let low_part: u32 = address & 0x0000FFFF;
+
+    let low_part: usize = low_part.try_into().unwrap();
+
+    let memory_block = memory_block_map.get(&high_part).unwrap();
+
+    u32::from_le_bytes(memory_block[low_part..low_part+4].try_into().unwrap())
+}
+
+fn main() {
+
+    let mut memory_blocks = HashMap::new();
+    let mut _start_segment: u32 = 0x00800000; // for ARM Cortex-M4, always assume the default address 0x08000000
+
+    let mut _main_stack_pointer_value: u32 = 0;
+    let mut _reset_handler_address: u32 = 0;
+
+    let load_real_hex_application: bool = false;
+    //let load_real_hex_application: bool = true;
+    if load_real_hex_application {
+
+        //if let Ok(lines) = read_lines("C:/aaa_se/wdp/build_DEBUG_fse_122_rtos_md/src/output.hex") {
+        //if let Ok(lines) = read_lines("res/wdp/output.hex") {
+        //if let Ok(lines) = read_lines("res/samples/assembler_tutorial/first_program/a.hex") {
+        //if let Ok(lines) = read_lines("res/samples/assembler_tutorial/conditions_and_branches/a.hex") {
+        if let Ok(lines) = read_lines("res/samples/assembler_tutorial/loops_with_branches/a.hex") {
+
+            let mut current_offset: u32 = 0x00800000; // for ARM Cortex-M4, always assume the default address 0x08000000        
+            let mut segment_started: bool = false;
+            
+            // Consumes the iterator, returns an (Optional) String
+            for line in lines.map_while(Result::ok) {
+
+                // DEBUG
+                // println!("{}", line);
+
+                // remove colon
+                let without_colon = &line[1..];
+
+                let data = decode_hex(without_colon).unwrap();
+
+                // DEBUG
+                println!("{:02x?}", data);
+
+                // iHex Format: [: (1 Byte)] [LEN (1 Byte)] [LOAD_OFFSET (2 Byte)] [TYPE (1 Byte)] [DATA (LEN Byte)] [CHKSUM]
+
+                let payload_length = data[0];
+                //let offset = ((data[1] as u16) << 8) | data[2] as u16;
+                let record_type = data[3];
+
+                // println!("payload_length: {:02x?}, offset: {:02x?}, record_type: {:02x?}", payload_length, offset, record_type);
+
+                match record_type {
+
+                    // Data Record
+                    0x00 => {
+
+                        //println!("current_offset: {:?}", current_offset);
+                        //println!("memory_blocks_2 {:?}", memory_blocks_2);
+
+                        // some hex files do start with data lines without prior segment records!
+                        // In this case, add a memory_block to stire the data in
+                        if !segment_started {
+                            let memory_block: Vec<u8> = Vec::new();
+                            memory_blocks.insert(current_offset, memory_block);
+
+                            segment_started = true;
+                        }
+
+                        let memory_block: &mut Vec<u8> = memory_blocks.get_mut(&current_offset).unwrap();
+
+                        for idx in  4 .. 4 + payload_length  {
+                            memory_block.push(data[ idx as usize ]);
+                        }
+                    }
+
+                    // End of File Record
+                    0x01 => {
+                        println!("End of File!");
+                        segment_started = true;
+                        current_offset = 0;
+                    }
+
+                    0x03 => {
+                        println!("Start Segment Address Record!");
+                        _start_segment = ((data[7] as u32) << 24) | ((data[6] as u32) << 16) | ((data[5] as u32) << 8) | ((data[4] as u32) << 0);
+                    }
+
+                    // Extended Linear Address Record
+                    0x04 => {
+                        println!("New Segment");
+                        current_offset = ((data[4] as u32) << 24) | ((data[5] as u32) << 16) | ((0 as u32) << 8) | ((0 as u32) << 0);
+                        println!("New Segment Offset: {:02x?}", current_offset);
+
+                        let memory_block: Vec<u8> = Vec::new();
+                        memory_blocks.insert(current_offset, memory_block);
+
+                        segment_started = true;
+
+                        //println!("memory_blocks_2 {:?}", memory_blocks_2);
+                    }
+
+                    _ => {
+                        todo!();
+                    }
+                }
+
+                
+            }
+
+            //println!("memory_blocks {:02x?}", memory_blocks);
+
+        }
+
+
+        // The Cortex CPU starts operating from 0x08000000
+        // This address contains the interrupt vector table
+        // The first double word (4 byte) contain the value that needs to go into the main stack pointer
+        // The next double word (4 byte) contain the address of the reset handler
+        // The Cortex CPU jumps to the reset handler and executes it after power up / cold reset and after a hot reset
+
+        //
+        // read the address of the main stack pointer from 0x08000000
+        //
+
+        //let memory_block = memory_blocks.get(&0x08000000).unwrap();
+
+        // DEBUG
+        //
+        // let data_byte_0 = memory_block[0];
+        // let data_byte_1 = memory_block[1];
+        // let data_byte_2 = memory_block[2];
+        // let data_byte_3 = memory_block[3];
+        // println!("data_byte_0 {:02x?}", data_byte_0);
+        // println!("data_byte_1 {:02x?}", data_byte_1);
+        // println!("data_byte_2 {:02x?}", data_byte_2);
+        // println!("data_byte_3 {:02x?}", data_byte_3);
+
+        _main_stack_pointer_value = read_dword_le(&memory_blocks, 0x08000000);
+        println!("main_stack_pointer_value: {:02x?}", _main_stack_pointer_value);
+
+        _reset_handler_address = read_dword_le(&memory_blocks, 0x08000004);
+        println!("reset_handler_address: {:02x?}", _reset_handler_address);
+        
+        // detect THUMB
+        if _reset_handler_address % 2 == 1 {
+            println!("Thumb Detected!");
+            // remove the THUMB bit
+            _reset_handler_address = _reset_handler_address - 1;
+        } else {
+            todo!()
+        }
+
+    } else {
+
+        let _memory_block = memory_blocks.get(&_start_segment).unwrap();
+        _reset_handler_address = _start_segment;
+
+    }
+
+    let mut cortex_m4_cpu: CortexM4 = CortexM4::new();
+    cortex_m4_cpu.pc = _reset_handler_address;
+    while !cortex_m4_cpu.halt() {
+
+        println!("");
+        println!("----------------------------------------------------------------------");
+
+        // even in Thumb or Thumb-2 mode, some instructions still need 32 bit to be decoded.
+        // Here, load an entire word to decode such cases
+        let thumb_instruction: u16 = read_word_le(&memory_blocks, cortex_m4_cpu.pc);
+        let next_thumb_instruction: u16 = read_word_le(&memory_blocks, cortex_m4_cpu.pc + 2);
+        
+        // DEBUG
+        println!("Address: 0x{:02x?}, Instruction: 0x{:02x?}", cortex_m4_cpu.pc, thumb_instruction);
+
+        // create decoder
+        let mut thumb_decoder: ThumbDecoder = ThumbDecoder::new();
+
+        // decode machine code to ASMLine object
+        let mut asm_line: ASMLine = ASMLine::new();
+        thumb_decoder.decode(thumb_instruction, next_thumb_instruction, &mut asm_line);
+
+        // execut the decoded instruction
+        cortex_m4_cpu.execute(&asm_line);
+    }
+
+    println!("Done");
+}

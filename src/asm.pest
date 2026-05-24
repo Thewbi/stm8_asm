@@ -1,0 +1,453 @@
+//
+// TOKEN
+//
+
+HEX_NUMERIC = @{
+    "0x" ~ ( ASCII_HEX_DIGIT )+
+}
+
+NUMERIC = @{
+    ( "-" )? ~ ( ASCII_DIGIT )+
+}
+
+EQUALS_SIGN = {
+    "="
+}
+
+COLON = {
+    ":"
+}
+
+COMMA = {
+    ","
+}
+
+SEMICOLON = {
+    ";"
+}
+
+FUNCTION = {
+    "function"
+}
+
+YIELD = {
+    "yield"
+}
+
+AWAIT = {
+    "await"
+}
+
+LET = {
+    "let"
+}
+
+CONST = {
+    "const"
+}
+
+FOR = {
+    "for"
+}
+
+WHILE = {
+    "while"
+}
+
+SWITCH = {
+    "switch"
+}
+
+CASE = {
+    "case"
+}
+
+DEFAULT = {
+    "default"
+}
+
+BREAK = {
+    "break"
+}
+
+R0 = @{ ^"r0" }
+R1 = @{ ^"r1" }
+R2 = @{ ^"r2" }
+R3 = @{ ^"r3" }
+R4 = @{ ^"r4" }
+R5 = @{ ^"r5" }
+R6 = @{ ^"r6" }
+R7 = @{ ^"r7" } // Holds Syscall Number
+R8 = @{ ^"r8" }
+R9 = @{ ^"r9" }
+R10 = @{ ^"r10" }
+
+R11 = @{ ^"r11" } // also called "Frame Pointer" (FP)
+FP = @{ ^"fp" }
+
+R12 = @{ ^"r12" } // also called "Intra Procedural Call" (IP)
+IP = @{ ^"ip" }
+
+R13 = @{ ^"r13" } // also called "Stack Pointer" (SP)
+SP = @{ ^"sp" }
+
+R14 = @{ ^"r14" } // also called "Link Register" (LR)
+LR = @{ ^"lr" }
+
+R15 = @{ ^"r15" } // also called "Program Counter" (PC)
+PC = @{ ^"pc" }
+
+arm_register = {
+    R10 | R11 | R12 | R13 | R14 | R15 | R0 | R1 | R2 | R3 | R4 | R5 | R6 | R7 | R8 | R9
+    | FP | IP | SP | LR | PC
+}
+
+// use ${} compound_atomic so that an identifier cannot contain spaces!
+IDENTIFIER = ${
+    ( "%" | "." | "_" | ASCII_ALPHA ) ~ ( "_" | ASCII_ALPHA | ASCII_DIGIT )*
+}
+
+// Build-In rule NEWLINE: NEWLINE	any line feed format	"\n" | "\r\n" | "\r"
+
+NEWLINE = {
+    ( "\n" | "\r\n" | "\r" )
+}
+
+// Handling whitespace can be inconvenient for large grammars. Explicitly writing a whitespace rule and manually inserting it makes a grammar difficult to read and modify. pest provides a solution using the special rule WHITESPACE. If defined, it will be implicitly run, as many times as possible, at every tilde ~ and between every repetition (for example, * and +). For our INI parser, only spaces are legal whitespace.
+// We mark the WHITESPACE rule silent with a leading low line (underscore) _{ ... }. This way, even if it matches, it won't show up inside other rules. If it weren't silent, parsing would be much more complicated, since every call to Pairs::next(...) could potentially return Rule::WHITESPACE instead of the desired next regular rule.
+WHITESPACE = _{ ( " " | "\t" ) }
+
+// I do not understand why I need to explicitly allow comments in the grammar rules!
+// Why is the COMMENT rule different from the WHITESPACE rule?
+// "check if the current position matches ‘NEWLINE‘, and if it’s not then match an allowable character."
+// https://pest.rs/book/grammars/syntax.html#implicit-whitespace
+SINGLE_LINE_COMMENT = {
+    ( ( "//" | "#" | ";" | "@" ) ~ ( !("\n" | "\r\n" | "\r") ~ ANY )* )
+}
+
+MULTI_LINE_COMMENT = {
+    ( "/*" ~ ( !"*/" ~ ANY )* ~ "*/" )
+}
+
+//
+// RULES
+//
+
+translation_unit = {
+    SOI 
+    ~ ( 
+        single_line_comment_rule ~ NEWLINE |
+        multi_line_comment_rule ~ NEWLINE |
+        asm_line ~ single_line_comment_rule |
+        asm_line ~ multi_line_comment_rule |
+        asm_line ~ NEWLINE
+    )*
+    ~ ( 
+        single_line_comment_rule | 
+        multi_line_comment_rule | 
+        asm_line ~ ( single_line_comment_rule )? 
+        //|
+        //asm_line ~ ( multi_line_comment_rule )?
+    )
+    ~ EOI
+}
+
+single_line_comment_rule = {
+    SINGLE_LINE_COMMENT
+}
+
+multi_line_comment_rule = {
+    MULTI_LINE_COMMENT
+}
+
+asm_line = {
+    assembler_instruction_line |
+    cpu_instruction_line
+}
+
+assembler_instruction_line = {
+    ".word" ~ value_list |
+    ".section" ~ ( IDENTIFIER ) |
+    ".global" ~ ( IDENTIFIER ) |
+    ".syntax" ~ ( "unified" ) |
+    ".thumb" |
+    ".align" ~ NUMERIC |
+    ".type" ~ ( IDENTIFIER ~ COMMA ~ IDENTIFIER ) |
+    ".ltorg" |
+    ".text"
+}
+
+value_list = {
+    ( HEX_NUMERIC | NUMERIC | IDENTIFIER ) ~ ( COMMA ~ ( HEX_NUMERIC | NUMERIC | IDENTIFIER ) )*
+}
+
+opcode_rule = ${
+    opcode ~ ( conditional_execution )? ~ ( condition_flags_update_suffix )?
+}
+
+cpu_instruction_line = {
+    ( label )? ~ ( opcode_rule ~ ( param ~ ( COMMA ~ param ~ ( COMMA ~ param ~ ( COMMA ~ param )? )? )? )? )?
+}
+
+label = {
+    IDENTIFIER ~ COLON
+}
+
+// https://developer.arm.com/documentation/dui0231/b/arm-instruction-reference/conditional-execution?lang=en
+// https://developer.arm.com/documentation/den0042/0100/Unified-Assembly-Language-Instructions/Instruction-set-basics/Conditional-execution
+// Conditional execution
+// Almost all ARM instructions can include an optional condition code. This is shown in syntax descriptions as {cond}. 
+// An instruction with a condition code is only executed if the condition code flags in the CPSR meet the specified condition. 
+// The condition codes that you can use are shown in Table 4.2.
+conditional_execution = ${
+    ^"eq" | // (Z set) Equal
+    ^"ne" | // (Z clear) Not Equal
+    ^"cs" | // (C set) Carry set (identical to HS)
+    ^"hs" | // (C set) Higher or same
+    ^"cc" | // (C clear) Carry clear (identical to LO)
+    ^"lo" | // (C clear) Lower (unsigned < )
+    ^"mi" | // (N set) Negative
+    ^"pl" | // (N clear) Positive or zero
+    ^"vs" | // (V set)	Overflow
+    ^"vc" | // (V clear)	No overflow
+    ^"hi" | // (C set and Z clear)	Higher (unsigned <= )
+    ^"ls" | // (C clear or Z set)	Lower or same (unsigned <= )
+    ^"ge" | // (N and V the same)	Signed >=
+    ^"lt" | // (N and V different)	Signed <
+    ^"gt" | // (Z clear, and N and V the same)	Signed >
+    ^"le" | // (Z set, or N and V different)	Signed <=
+    ^"al" | // (Any	Always) (usually omitted)
+    ^"hi" // Higher (unsigned <=)
+}
+
+condition_flags_update_suffix = {
+    ^"s"
+}
+
+// https://developer.arm.com/documentation/dui0231/b/arm-instruction-reference
+opcode = {
+    ^"ADC" |
+    ^"ADD" |
+    ^"ADR" | // pseudo instruction
+    ^"ADRL" | // pseudo-instruction
+    ^"AND" | // logical and
+
+    ^"BAL" |
+    ^"BEQ" |
+    ^"BFI" |
+    ^"BGT" |
+    ^"BLT" | // This is the opcode B followed by the execution condition LT. This is not a opcode that really exists! It was introduced to make the pest grammar work!
+    ^"BLX" |
+    ^"BL" |
+    ^"BIC" |
+    ^"BKPT" |
+    ^"BX" |
+    ^"B" |
+
+    ^"CDP" |
+    ^"CDP2" |
+    ^"CLZ" |
+    ^"CMN" |
+    ^"CMP" |
+    ^"CPS" |
+    ^"CPY" |
+
+    ^"EOR" |
+
+    ^"LDC" |
+    ^"LDC2" |
+    ^"LDMIA" |
+    ^"LDM" |
+    ^"LDRB" |
+    ^"LDR.W" |
+    ^"LDR" |
+    ^"LDREX" |
+    ^"LSL" |
+    
+    ^"MAR" |
+    ^"MCR" |
+    ^"MCR2" |
+    ^"MCRR" |
+    ^"MCRR2" |
+    ^"MIA" |
+    ^"MIAPH" |
+    ^"MIAxy" |
+    ^"MLA" |
+    ^"MOV.W" |
+    ^"MOV" |
+    ^"MRA" |
+    ^"MRC" |
+    ^"MRC2" |
+    ^"MRRC" |
+    ^"MRRC2" |
+    ^"MRS" |
+    ^"MUL" |
+    ^"MVN" |
+
+    ^"NOP" |
+
+    ^"ORR" |
+
+    ^"PKHBT" |
+    ^"PKHTB" |
+    ^"PLD" |
+    ^"PUSH.W" |
+    ^"PUSH" |
+    ^"POP.W" |
+    ^"POP" |
+
+    ^"RET" |
+    ^"ROR" |
+
+    ^"QADD" |
+    ^"QDADD" |
+    ^"QDSUB" |
+    ^"QSUB" |
+    ^"QADD8" |
+    ^"QADD16" |
+    ^"QADDSUBX" |
+    ^"QSUB8" |
+    ^"QSUB16" |
+    ^"QSUBADDX" |
+
+    ^"REV" |
+    ^"REV16" |
+    ^"REVSH" |
+    ^"RFE" |
+    ^"RSB" |
+    ^"RSC" |
+
+    ^"SBC" |
+    ^"SADD8" |
+    ^"SADD16" |
+    ^"SADDSUBX" |
+    ^"SADD8TO16" |
+    ^"SADD8TO32" |
+    ^"SADD16TO32" |
+    ^"SDIV" | // signed divide
+    ^"SEL" |
+    ^"SETEND" |
+    ^"SHADD8" |
+    ^"SHADD16" |
+    ^"SHADDSUBX" |
+    ^"SHSUB8" |
+    ^"SHSUB16" |
+    ^"SHSUBADDX" |
+    ^"SMLAD" |
+    ^"SMLAL" |
+    ^"SMLALD" |
+    ^"SMLALxy" |
+    ^"SMLAWy" |
+    ^"SMLAxy" |
+    ^"SMLSD" |
+    ^"SMLSLD" |
+    ^"SMULL" |
+    ^"SMULWy" |
+    ^"SMULxy" |
+    ^"SMMLA" |
+    ^"SMMLS" |
+    ^"SMMUL" |
+    ^"SMUAD" |
+    ^"SMUSD" |
+    ^"SRS" |
+    ^"SSAT" |
+    ^"SSAT16" |
+    ^"SSUB8" |
+    ^"SSUB16" |
+    ^"SSUBADDX" |
+    ^"STC" |
+    ^"STC2" |
+    ^"STM" |
+    ^"STM" |
+    ^"STR" |
+    ^"STREX" |
+    ^"SUB" |
+    ^"SUNPK" |
+    ^"SWI" |
+    ^"SWP" |
+
+    ^"TEQ" |
+    ^"TST" |
+
+    ^"UADD8" |
+    ^"UADD16" |
+    ^"UADDSUBX" |
+    ^"UADD8TO16" |
+    ^"UADD8TO32" |
+    ^"UADD16TO32" |
+    ^"UHADD8" |
+    ^"UHADD16" |
+    ^"UHADDSUBX" |
+    ^"UHSUB8" |
+    ^"UHSUB16" |
+    ^"UHSUBADDX" |
+    ^"UMAAL" |
+    ^"UMLAL" |
+    ^"UMULL" |
+    ^"UQADD8" |
+    ^"UQADD16" |
+    ^"UQADDSUBX" |
+    ^"UQSUB8" |
+    ^"UQSUB16" |
+    ^"UQSUBADDX" |
+    ^"USAD8" |
+    ^"USADA8" |
+    ^"USAT" |
+    ^"USAT16" |
+    ^"USUB8" |
+    ^"USUB16" |
+    ^"USUBADDX" |
+    ^"UUNPK" |
+    ^"UXTB" |
+
+    ^"WFI"
+}
+
+shift_specifier = {
+    ^"LSL" |
+    ^"ASL" |
+    ^"LSR" |
+    ^"ASR"
+}
+
+param = {
+    register_list |
+    register_range |
+    ( shift_specifier )? ~ arm_register ~ ( "!" )? |
+    immediate |
+    memory_access |
+    load_specification |
+    ( "=" ) ~ IDENTIFIER |
+    label_target
+}
+
+label_target = {
+    IDENTIFIER
+}
+
+// https://stackoverflow.com/questions/21652884/is-the-hash-required-for-immediate-values-in-arm-assembly
+immediate = {
+    ( "#" | "$" )? ~ ( "-" )? ~ ( HEX_NUMERIC | NUMERIC )
+}
+
+// https://stackoverflow.com/questions/60395608/what-does-the-character-do-in-arm-assembly
+memory_access = {
+    "[" ~ arm_register ~ ( COMMA ~ immediate )? ~ "]" ~ ( "!" )?
+}
+
+// e.g. ldrb r8, [r3, r8, lsl #2]
+load_specification = {
+    "[" ~ arm_register ~ COMMA ~ arm_register ~ COMMA ~ shift_specifier ~ immediate ~ "]"
+}
+
+//relative_offset_expression = {
+//    "#" ~ ( "-" )? ~ NUMERIC
+//}
+
+register_list = {
+    "{" ~ ( ( arm_register ~ "-" ~ arm_register ) | arm_register ) ~ ( COMMA ~ ( ( arm_register ~ "-" ~ arm_register ) | arm_register ) )* ~ "}"
+}
+
+register_range = {
+    "{" ~ arm_register ~ "-" ~ arm_register ~ "}"
+}

@@ -1,0 +1,15 @@
+SINGLE_LINE_COMMENT = {
+    ( "//" ~ ( !("\n" | "\r\n" | "\r") ~ ANY )* )
+}
+
+NEWLINE = {
+    ( "\n" | "\r\n" | "\r" )
+}
+
+comment = {
+    SINGLE_LINE_COMMENT
+}
+
+comments = {
+	comment ~ NEWLINE ~ comment ~ NEWLINE ~ comment
+}

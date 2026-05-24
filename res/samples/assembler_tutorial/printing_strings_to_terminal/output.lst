@@ -1,0 +1,42 @@
+
+a.out:     file format elf32-littlearm
+
+
+Disassembly of section .text:
+
+00008000 <_start>:
+    8000:	2001      	movs	r0, #1
+    8002:	4903      	ldr	r1, [pc, #12]	; (8010 <_start+0x10>)
+    8004:	4a03      	ldr	r2, [pc, #12]	; (8014 <_start+0x14>)
+    8006:	2704      	movs	r7, #4
+    8008:	df00      	svc	0
+    800a:	2701      	movs	r7, #1
+    800c:	df00      	svc	0
+    800e:	80180000 	andshi	r0, r8, r0
+    8012:	000e0001 	andeq	r0, lr, r1
+	...
+
+Disassembly of section .data:
+
+00018018 <__data_start>:
+   18018:	6c6c6548 	cfstr64vs	mvdx6, [ip], #-288	; 0xfffffee0
+   1801c:	6f57206f 	svcvs	0x0057206f
+   18020:	21646c72 	smccs	18114	; 0x46c2
+   18024:	Address 0x00018024 is out of bounds.
+
+
+Disassembly of section .persistent:
+
+00018026 <__bss_end__-0x2>:
+	...
+
+Disassembly of section .ARM.attributes:
+
+00000000 <.ARM.attributes>:
+   0:	00001b41 	andeq	r1, r0, r1, asr #22
+   4:	61656100 	cmnvs	r5, r0, lsl #2
+   8:	01006962 	tsteq	r0, r2, ror #18
+   c:	00000011 	andeq	r0, r0, r1, lsl r0
+  10:	2d453705 	stclcs	7, cr3, [r5, #-20]	; 0xffffffec
+  14:	0d06004d 	stceq	0, cr0, [r6, #-308]	; 0xfffffecc
+  18:	02094d07 	andeq	r4, r9, #448	; 0x1c0

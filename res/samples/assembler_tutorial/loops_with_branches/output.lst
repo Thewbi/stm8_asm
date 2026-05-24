@@ -1,0 +1,48 @@
+
+a.out:     file format elf32-littlearm
+
+
+Disassembly of section .text:
+
+00008000 <_start>:
+    8000:	4805      	ldr	r0, [pc, #20]	; (8018 <exit+0x2>)
+    8002:	f04f 030a 	mov.w	r3, #10
+    8006:	6801      	ldr	r1, [r0, #0]
+    8008:	1852      	adds	r2, r2, r1
+
+0000800a <loop>:
+    800a:	6801      	ldr	r1, [r0, #0]
+    800c:	3004      	adds	r0, #4
+    800e:	4299      	cmp	r1, r3
+    8010:	d001      	beq.n	8016 <exit>
+    8012:	1852      	adds	r2, r2, r1
+    8014:	e7f9      	b.n	800a <loop>
+
+00008016 <exit>:
+    8016:	df00      	svc	0
+    8018:	0001801c 	andeq	r8, r1, ip, lsl r0
+
+Disassembly of section .data:
+
+0001801c <__data_start>:
+   1801c:	00000001 	andeq	r0, r0, r1
+   18020:	00000002 	andeq	r0, r0, r2
+   18024:	00000003 	andeq	r0, r0, r3
+   18028:	00000004 	andeq	r0, r0, r4
+   1802c:	00000005 	andeq	r0, r0, r5
+   18030:	00000006 	andeq	r0, r0, r6
+   18034:	00000007 	andeq	r0, r0, r7
+   18038:	00000008 	andeq	r0, r0, r8
+   1803c:	00000009 	andeq	r0, r0, r9
+   18040:	0000000a 	andeq	r0, r0, sl
+
+Disassembly of section .ARM.attributes:
+
+00000000 <.ARM.attributes>:
+   0:	00001b41 	andeq	r1, r0, r1, asr #22
+   4:	61656100 	cmnvs	r5, r0, lsl #2
+   8:	01006962 	tsteq	r0, r2, ror #18
+   c:	00000011 	andeq	r0, r0, r1, lsl r0
+  10:	2d453705 	stclcs	7, cr3, [r5, #-20]	; 0xffffffec
+  14:	0d06004d 	stceq	0, cr0, [r6, #-308]	; 0xfffffecc
+  18:	02094d07 	andeq	r4, r9, #448	; 0x1c0
