@@ -20,7 +20,7 @@ pub struct CortexM4 {
 impl CortexM4 {
 
     pub fn new() -> CortexM4 {
-        CortexM4 { 
+        CortexM4 {
             halt: false,
             reg_file: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             memory_blocks: HashMap::new(),
@@ -52,7 +52,7 @@ impl CortexM4 {
         // Here, load an entire word to decode such cases
         let thumb_instruction: u16 = read_halfword_le(&self.memory_blocks, pc);
         let next_thumb_instruction: u16 = read_halfword_le(&self.memory_blocks, pc + 2);
-        
+
         // DEBUG
         println!("Address: 0x{:02x?}, Instruction: 0x{:02x?}", pc, thumb_instruction);
 
@@ -79,22 +79,22 @@ impl CortexM4 {
         // determine size of instruction
         let mut _pc_increment: i32 = 2;
         match asm_line.instruction {
-            Instruction::BIC => { 
-                _pc_increment = 4; // wide instruction is 4 byte always even in thumb    
+            Instruction::BIC => {
+                _pc_increment = 4; // wide instruction is 4 byte always even in thumb
             },
             Instruction::BL => {
                 _pc_increment = asm_line.immediate + 4;
             },
-            Instruction::LDR_W => { 
+            Instruction::LDR_W => {
                 _pc_increment = 4; // wide instruction is 4 byte always even in thumb
             },
-            Instruction::MOV_W => { 
+            Instruction::MOV_W => {
                 _pc_increment = 4; // wide instruction is 4 byte always even in thumb
             },
-            Instruction::ORR_W => { 
+            Instruction::ORR_W => {
                 _pc_increment = 4; // wide instruction is 4 byte always even in thumb
             },
-            Instruction::STR_W => { 
+            Instruction::STR_W => {
                 _pc_increment = 4; // wide instruction is 4 byte always even in thumb
             },
             _ => { _pc_increment = 2 }
@@ -109,7 +109,7 @@ impl CortexM4 {
 
             Instruction::ASR => todo!(),
 
-            Instruction::ADD => { 
+            Instruction::ADD => {
                 println!("ADD");
 
                 if asm_line.reg2 == Register::UNDEFINED || asm_line.reg3 == Register::UNDEFINED {
@@ -135,7 +135,7 @@ impl CortexM4 {
 
             Instruction::B => todo!(),
 
-            Instruction::BAL => { 
+            Instruction::BAL => {
                 println!("BAL");
 
                 let temp_pc: i32 = pc as i32 + asm_line.jump_offset + 4; // +4 ??????
@@ -144,7 +144,7 @@ impl CortexM4 {
                 self.set_value_register(Register::PC, temp_pc.try_into().unwrap());
             },
 
-            Instruction::BEQ =>  { 
+            Instruction::BEQ =>  {
                 println!("BEQ");
 
                 if self.zero_bit {
@@ -155,23 +155,23 @@ impl CortexM4 {
                 }
             },
 
-            Instruction::BGT => { 
-                println!("BGT"); 
+            Instruction::BGT => {
+                println!("BGT");
             },
 
-            Instruction::BIC => { 
-                //pc_increment = 4; // wide instruction is 4 byte always even in thumb    
+            Instruction::BIC => {
+                //pc_increment = 4; // wide instruction is 4 byte always even in thumb
             },
 
             Instruction::BL => {
                 //pc_increment = asm_line.immediate + 4;
             },
 
-            Instruction::BX => { 
-                println!("BX"); 
+            Instruction::BX => {
+                println!("BX");
             },
 
-            Instruction::CMP => { 
+            Instruction::CMP => {
                 // A8.8.38 CMP (register), A8-370 - https://developer.arm.com/documentation/ddi0406/cb/Application-Level-Architecture/Instruction-Details/Alphabetical-list-of-instructions/CMP--register-
 
                 println!("CMP");
@@ -187,7 +187,7 @@ impl CortexM4 {
                 self.negative_bit = result < 0;
             },
 
-            Instruction::LDR => { 
+            Instruction::LDR => {
                 println!("LDR");
 
                 // should be the PC register
@@ -211,35 +211,35 @@ impl CortexM4 {
                 self.set_value_register(asm_line.reg1, val);
             },
 
-            Instruction::LDR_W => { 
+            Instruction::LDR_W => {
                 // println!("LDR.W");
                 //pc_increment = 4; // wide instruction is 4 byte always even in thumb
             },
 
-            Instruction::MOV => { 
+            Instruction::MOV => {
                 println!("MOV");
                 self.set_value_register(asm_line.reg1, asm_line.immediate);
             },
 
-            Instruction::MOV_W => { 
+            Instruction::MOV_W => {
                 println!("MOV_W");
                 self.set_value_register(asm_line.reg1, asm_line.immediate);
                 //pc_increment = 4; // wide instruction is 4 byte always even in thumb
             },
 
-            Instruction::ORR_W => { 
+            Instruction::ORR_W => {
                 // println!("ORR.W");
                 //pc_increment = 4; // wide instruction is 4 byte always even in thumb
             },
 
-            Instruction::PUSH => { 
-                //println!("PUSH"); 
+            Instruction::PUSH => {
+                //println!("PUSH");
             },
 
-            Instruction::STR => { 
+            Instruction::STR => {
                 println!("STR");
             },
-            Instruction::STR_W => { 
+            Instruction::STR_W => {
                 // println!("STR.W");
                 //pc_increment = 4; // wide instruction is 4 byte always even in thumb
             },
@@ -248,7 +248,7 @@ impl CortexM4 {
             //
             // https://developer.arm.com/documentation/dui0056/d/handling-processor-exceptions/swi-handlers/calling-swis-from-an-application
             //
-            // Die Rolle von R7: Bevor Sie SWI 0 aufrufen, legen Sie die ID des gewünschten Systemaufrufs in R7 ab. 
+            // Die Rolle von R7: Bevor Sie SWI 0 aufrufen, legen Sie die ID des gewünschten Systemaufrufs in R7 ab.
             // Die Nummer 1 steht beispielsweise für exit (Programm beenden), die Nummer 4 für write (Text ausgeben) [1].
             Instruction::SWI | Instruction::SVC => {
 
@@ -270,7 +270,7 @@ impl CortexM4 {
 
                             4 => {
                                 //println!("Printing fixed length string");
-                                
+
                                 // 0 == stdin, 1 == stdout, 2 == stderr
                                 // stdin: keyboard input into the terminal is forwarded to the process via stdin
                                 // stdout: output from the process to the terminal over stdin-stream is forwarded to the monitor
@@ -298,7 +298,7 @@ impl CortexM4 {
                             }
 
                         }
-                        
+
                     }
                     _ => {
                         todo!()
@@ -312,9 +312,9 @@ impl CortexM4 {
 
         }
 
-        
+
     }
-    
+
     pub(crate) fn halt(&self) -> bool {
         self.halt
     }

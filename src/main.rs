@@ -63,7 +63,9 @@ fn main() {
     //if let Ok(lines) = read_lines("res/instructions_pseudo/ldr/a.hex") {
     //if let Ok(lines) = read_lines("res/samples/assembler_tutorial/printing_strings_to_terminal/a.hex") {
     //if let Ok(lines) = read_lines("res/C/samples/loop_example/sum.ihx") {
-    if let Ok(lines) = read_lines("res/C/samples/loop_example_2/sum.ihx") {
+    //if let Ok(lines) = read_lines("res/C/samples/loop_example_2/sum.ihx") {
+    //if let Ok(lines) = read_lines("res/C/Users/lapto/dev/stm8/stm8/examples/uart/bin/uart.ihx") {
+    if let Ok(lines) = read_lines("C:/Users/lapto/dev/stm8/stm8/examples/uart/bin/uart.hex") {
 
         //let mut current_offset: u32 = 0x00800000; // for ARM Cortex-M4, always assume the default address 0x08000000
         let mut current_offset: u32 = 0x00000000;
@@ -295,9 +297,7 @@ fn main() {
 
     //let mut cpu: CortexM4 = CortexM4::new();
     let mut cpu: STM8 = STM8::new();
-
     cpu.memory_blocks = memory_blocks;
-
     cpu.set_pc(_reset_handler_address);
 
     while !cpu.halt() {
