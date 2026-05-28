@@ -44,6 +44,9 @@ pub enum Instruction {
     // 0x17
     LDW_OFFSET_SP_Y,
 
+    // 0x1D
+    SUBW_X_IMM,
+
     // 0x1E
     // LDW X,($50,SP)
     // PM0044, page 117
@@ -57,6 +60,12 @@ pub enum Instruction {
 
     // 0x20
     JRA,
+
+    // 0x24
+    JRNC,
+
+    // 0x25
+    JRC,
 
     // 0x26
     JRNE,
@@ -76,13 +85,17 @@ pub enum Instruction {
     // MOV, page 119
     MOV,
 
-    // 0x4F
-    // CLEAR, PM0044, page 92
-    CLR_A,
+    // 0x4B
+    // PUSH, PM0044, page 70
+    PUSH,
 
     // 0x4D
     // TNZ, PM0044, page 155
     TNZ_A,
+
+    // 0x4F
+    // CLEAR, PM0044, page 92
+    CLR_A,
 
     // 0x51
     // EXGW, PM0044, page 104
@@ -102,6 +115,10 @@ pub enum Instruction {
     // 0x5C
     // INC, PM0044, page 106
     INC,
+
+    // 0x5D
+    // TNZW, PM0044, page 156
+    TNZW,
 
     // 0x5F
     // CLRW_X, PM0044, page 93
@@ -125,6 +142,9 @@ pub enum Instruction {
     // INT, INTERRUPT
     INT,
 
+    // 0x89
+    PUSHW,
+
     // 0x8E
     HALT,
 
@@ -134,6 +154,9 @@ pub enum Instruction {
     // LDW Y,SP
     // 0x90 0x96
     LDW_Y_SP,
+
+    // LDW, Y, IMM
+    LDW_Y_IMM,
 
     // CPW_Y_IMM
     // 0x90 0xA3
@@ -154,6 +177,10 @@ pub enum Instruction {
 
     // 0x97
     LD_XL_A,
+
+    // A1
+    // CP A,#$10
+    CP_A_IMM,
 
     // 0xA3
     CPW_X_IMM,
@@ -307,6 +334,9 @@ impl fmt::Display for Instruction {
             // 0x17
             Instruction::LDW_OFFSET_SP_Y => write!(f, "LDW ($50,SP),Y"),
 
+            // 0x1D
+            Instruction::SUBW_X_IMM => write!(f, "SUBW X,#$5500"),
+
             // 0x1E
             Instruction::LDW_X_SP_OFFSET => write!(f, "LDW X,($50,SP)"),
             // 0x1F
@@ -314,6 +344,12 @@ impl fmt::Display for Instruction {
 
             // 0x20
             Instruction::JRA => write!(f, "jra"),
+
+            // 0x24, JRNC
+            Instruction::JRNC => write!(f, "jrnc"),
+
+            // 0x25, jump if carry flag is true (also called NOT EQUAL)
+            Instruction::JRC => write!(f, "jrc"),
 
             // 0x26, jump if zero flag is false (also called NOT EQUAL)
             Instruction::JRNE => write!(f, "jrne"),
@@ -330,11 +366,14 @@ impl fmt::Display for Instruction {
             // 0x35
             Instruction::MOV => write!(f, "mov"),
 
-            // 0x4F
-            Instruction::CLR_A => write!(f, "clr_a"),
+            // 0x4B
+            Instruction::PUSH => write!(f, "push"),
 
             // 0x4D
             Instruction::TNZ_A => write!(f, "tnz_a"),
+
+            // 0x4F
+            Instruction::CLR_A => write!(f, "clr_a"),
 
             // 0x51
             Instruction::EXGW => write!(f, "exgw"),
@@ -347,6 +386,9 @@ impl fmt::Display for Instruction {
 
             // 0x5C
             Instruction::INC => write!(f, "inc"),
+
+            // 0x5D
+            Instruction::TNZW => write!(f, "tnzw"),
 
             // 0x5F
             Instruction::CLRW_X => write!(f, "clrw_x"),
@@ -369,6 +411,9 @@ impl fmt::Display for Instruction {
             // 0x82
             Instruction::INT => write!(f, "int"),
 
+            // 0x89
+            Instruction::PUSHW => write!(f, "pushw"),
+
             // 0x8E
             Instruction::HALT => write!(f, "halt"),
 
@@ -381,11 +426,14 @@ impl fmt::Display for Instruction {
             // 0x90, 0x5C
             Instruction::INCW_Y => write!(f, "INCW_Y"),
 
-            // 0x90, 0xF6
-            Instruction::LD_A_Y => write!(f, "LD_A_Y"),
-
             // 0x90, 0xA3
             Instruction::CPW_Y_IMM => write!(f, "CPW_Y_IMM"),
+
+            // 0x90, 0xAE
+            Instruction::LDW_Y_IMM => write!(f, "LDW_Y_IMM"),
+
+            // 0x90, 0xF6
+            Instruction::LD_A_Y => write!(f, "LD_A_Y"),
 
             // 0x90
             Instruction::LDW_Y_SP => write!(f, "LDW_Y_SP"),
@@ -398,6 +446,9 @@ impl fmt::Display for Instruction {
 
             // 0x97
             Instruction::LD_XL_A => write!(f, "LD_XL_A"),
+
+            // 0xA1
+            Instruction::CP_A_IMM => write!(f, "CP_A_IMM"),
 
             // 0xA3
             Instruction::CPW_X_IMM=> write!(f, "CPW_X_IMM"),

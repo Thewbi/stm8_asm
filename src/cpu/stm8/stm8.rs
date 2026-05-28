@@ -76,6 +76,32 @@ impl STM8 {
         }
     }
 
+    pub fn push_return_address_to_stack(&mut self) {
+
+        // stack
+        // TODO: Push the current PC+2 onto the stack as two byte (Lo then Hi)
+        let temp_pc = self.program_counter + 2;
+
+        let temp_pc_lo:u8 = ((temp_pc >> 0) & 0xFF) as u8;
+        let temp_pc_hi:u8 = ((temp_pc >> 8) & 0xFF) as u8;
+
+        write_byte(&mut self.memory_blocks, self.stack_pointer as u32, temp_pc_lo);
+        self.stack_pointer = self.stack_pointer - 1;
+        write_byte(&mut self.memory_blocks, self.stack_pointer as u32, temp_pc_hi);
+        self.stack_pointer = self.stack_pointer - 1;
+    }
+
+    pub fn push_word_address_to_stack(&mut self, data: u16) {
+
+        let temp_pc_lo:u8 = ((data >> 0) & 0xFF) as u8;
+        let temp_pc_hi:u8 = ((data >> 8) & 0xFF) as u8;
+
+        write_byte(&mut self.memory_blocks, self.stack_pointer as u32, temp_pc_lo);
+        self.stack_pointer = self.stack_pointer - 1;
+        write_byte(&mut self.memory_blocks, self.stack_pointer as u32, temp_pc_hi);
+        self.stack_pointer = self.stack_pointer - 1;
+    }
+
     pub fn set_pc(&mut self, pc: u32) {
         //self.set_value_register(Register::PC, pc as i32);
         self.program_counter = pc;
@@ -209,6 +235,15 @@ impl STM8 {
 
             Instruction::JRA => { _pc_increment = 2 }
 
+            // 0x24
+            Instruction::JRNC => { _pc_increment = 2 }
+
+            // 0x25
+            Instruction::JRC => { _pc_increment = 2 }
+
+            // 0x26
+            Instruction::JRNE => { _pc_increment = 2 }
+
             // 0x27
             Instruction::JREQ => { _pc_increment = 2 }
 
@@ -217,6 +252,9 @@ impl STM8 {
 
             // 0x2E
             Instruction::JRSGE => { _pc_increment = 2 }
+
+            // 0x4B
+            Instruction::PUSH => { _pc_increment = 2 }
 
             // 0x51
             Instruction::EXGW => { _pc_increment = 1 }
@@ -231,6 +269,8 @@ impl STM8 {
 
             Instruction::SUB_SP => { _pc_increment = 2 }
 
+            Instruction::SUBW_X_IMM => { _pc_increment = 3 }
+
             Instruction::CPW_X_IMM => { _pc_increment = 3 }
             Instruction::CPW_Y_IMM => { _pc_increment = 4 }
 
@@ -240,8 +280,12 @@ impl STM8 {
             Instruction::LD_A_LONGMEM => { _pc_increment = 3; },
             Instruction::LDW_AE => { _pc_increment = 3 }
 
+            // 0x90 0x96
             Instruction::LDW_Y_SP => { _pc_increment = 2 }
             Instruction::LD_A_OFFSET_SP => { _pc_increment = 2 }
+
+            // 0x90, 0x5C
+            Instruction::INCW_Y => { _pc_increment = 2 }
 
             Instruction::LD_A_Y => { _pc_increment = 2 }
 
@@ -249,8 +293,11 @@ impl STM8 {
             Instruction::LDW_Y_SP_OFFSET => { _pc_increment = 2 }
             Instruction::LDW_OFFSET_SP_Y => { _pc_increment = 2 }
 
+            // A1
+            Instruction::CP_A_IMM => { _pc_increment = 2 }
+
             // 0xF6
-            Instruction::LD_A_MEMORY_X => { _pc_increment = 2 }
+            Instruction::LD_A_MEMORY_X => { _pc_increment = 1 }
 
             _ => { _pc_increment = 1 }
 
@@ -329,6 +376,8 @@ impl STM8 {
                 let address = self.stack_pointer as i16 + asm_line.immediate as i16;
                 write_byte(&mut self.memory_blocks, address as u32, 0);
 
+                println!("address: {:04x?} ({:?}), data={:?}", address, address, 0);
+
                 // flags
                 self.negative_bit = false;
                 self.zero_bit = true;
@@ -392,6 +441,15 @@ impl STM8 {
                 write_halfword(&mut self.memory_blocks, address as u32, self.y_index);
             }
 
+            // 0x1D
+            Instruction::SUBW_X_IMM => {
+                println!("SUBW X IMMEDIATE");
+
+                let temp: i16 = self.x_index as i16 - asm_line.immediate as i16;
+
+                self.x_index = temp as u16;
+            }
+
             // 0x1E
             // LOAD Word (1E) from memory relative to Stackpointer into X register
             //
@@ -438,17 +496,62 @@ impl STM8 {
                 println!("BEFORE> program_counter {:08x?}", self.program_counter);
                 println!("program_counter {:02x?}", offset);
 
+                // push return address onto stack
+//                self.push_return_address_to_stack();
+
+                // perform jump
                 self.program_counter = (self.program_counter as i32 + offset as i32) as u32;
 
                 println!("AFTER > program_counter {:08x?}", self.program_counter);
             }
 
+            // 0x24
+            Instruction::JRNC => {
+                println!("JRNC, Jump if carry_bit (C) NOT set");
+
+                if self.carry_bit == false {
+
+                    // push return address onto stack
+//                    self.push_return_address_to_stack();
+
+                    // perform jump
+                    self.program_counter = self.program_counter + asm_line.jump_offset as u32;
+                }
+
+                println!("JRNC, self.program_counter: {:08x?}", self.program_counter);
+            }
+
+            // 0x25
+            Instruction::JRC => {
+                println!("JRC, Jump if carry_bit (C) set");
+
+                if self.carry_bit == true {
+
+                    // push return address onto stack
+//                    self.push_return_address_to_stack();
+
+                    let result = self.program_counter as i64 + asm_line.jump_offset as i64;
+
+                    // perform jump
+                    self.program_counter = result as u32;
+                }
+
+                println!("JRC, self.program_counter: {:08x?}", self.program_counter);
+            }
+
             // 0x26
             Instruction::JRNE => {
-                println!("JRNE, Jump if zero-flag NOT set");
+                println!("JRNE, Jump if zero-flag (Z) NOT set");
 
                 if self.zero_bit == false {
-                    self.program_counter = self.program_counter + asm_line.jump_offset as u32;
+
+                    // push return address onto stack
+//                    self.push_return_address_to_stack();
+
+                    let temp: i32 = self.program_counter as i32 + ((asm_line.jump_offset as i8) as i32);
+
+                    // perform jump
+                    self.program_counter = temp as u32;
                 }
 
                 println!("JRNE, self.program_counter: {:08x?}", self.program_counter);
@@ -473,6 +576,11 @@ impl STM8 {
                 //println!("JREQ, self.program_counter: {:08x?}", self.program_counter);
 
                 if self.zero_bit {
+
+                    // push return address onto stack
+//                    self.push_return_address_to_stack();
+
+                    // perform jump
                     self.program_counter = self.program_counter + asm_line.jump_offset as u32;
                 }
 
@@ -480,10 +588,17 @@ impl STM8 {
             }
 
             // 0x2A
+            //
+            // Jump if N = 0 (plus)
             Instruction::JRPL => {
                 println!("JRPL, positive ( >= 0, N flag is not set )");
 
-                if !self.negative_bit {
+                if self.negative_bit == false {
+
+                    // push return address onto stack
+//                    self.push_return_address_to_stack();
+
+                    // perform jump
                     self.program_counter = self.program_counter + asm_line.jump_offset as u32;
                 }
             }
@@ -496,6 +611,11 @@ impl STM8 {
                 println!("JRSGE, Jump if Greater or Equal ( >= )");
 
                 if self.negative_bit ^ self.overflow_bit {
+
+                    // push return address onto stack
+//                    self.push_return_address_to_stack();
+
+                    // perform jump
                     self.program_counter = self.program_counter + asm_line.jump_offset as u32;
                 }
 
@@ -517,6 +637,25 @@ impl STM8 {
 
             }
 
+            // 0x4B
+            // PUSH
+            Instruction::PUSH => {
+                println!("PUSH");
+
+                write_byte(&mut self.memory_blocks, self.stack_pointer as u32, asm_line.immediate as u8);
+                self.stack_pointer = self.stack_pointer - 1;
+            }
+
+            // 0x4D
+            // TNZ A, Test not Zero A (0x4D)
+            Instruction::TNZ_A => {
+                println!("TNZ subtype: A");
+
+                // flags
+                self.negative_bit = self.accumulator < 0;
+                self.zero_bit = self.accumulator == 0;
+            }
+
             // 0x4F
             // CLR, CLEAR (0x4F)
             Instruction::CLR_A => {
@@ -528,16 +667,6 @@ impl STM8 {
                 // flags
                 self.negative_bit = false;
                 self.zero_bit = true;
-            }
-
-            // 0x4D
-            // TNZ A, Test not Zero A (0x4D)
-            Instruction::TNZ_A => {
-                println!("TNZ subtype: A");
-
-                // flags
-                self.negative_bit = self.accumulator < 0;
-                self.zero_bit = self.accumulator == 0;
             }
 
             // 0x51, page 104
@@ -600,6 +729,18 @@ impl STM8 {
                 self.zero_bit = self.x_index == 0;
             }
 
+            // 0x5D
+            // TNZW, PM0044, page 74 (0x5D)
+            //
+            // Test word for negative or zero
+            Instruction::TNZW => {
+                println!("TNZW X");
+
+                // flags
+                self.negative_bit = (self.x_index as i16) < 0;
+                self.zero_bit = self.x_index == 0;
+            }
+
             // 0x5F
             // CLRW X, Clear X (0x5F)
             Instruction::CLRW_X => {
@@ -635,9 +776,12 @@ impl STM8 {
             }
 
             // 0x72
+            //
             // Add word without carry
-            // ADDW X,($10,SP)
             // page 64, 78
+            //
+            // ADDW dst,src
+            // ADDW X,($10,SP)
             Instruction::ADDW_X_OFFSET_SP => {
                 println!("ADDW_X_OFFSET_SP");
 
@@ -652,6 +796,15 @@ impl STM8 {
                 println!("{:08X?} ({:?}) = {:?} + {:?}", (self.x_index + data), (self.x_index + data), self.x_index, data);
 
                 self.x_index = self.x_index + data;
+
+
+                // TODO!!!!!
+                // // flags
+                // V ⇒ (A15.M15 + M15.R15 + R15.A15) ⊕ (A14.M14 + M14.R14 + R14.A14) Set if the signed operation generates an overflow, cleared otherwise.
+                // H ⇒ X7.M7 + M7.R7 + R7.X7 Set if a carry occurred from bit 7 of the result, cleared otherwise.
+                // N ⇒ R15 Set if bit 15 of the result is set (negative value), cleared otherwise.
+                // Z ⇒ R15.R14.R13.R12.R11.R10.R9.R8.R7.R6.R5.R4.R3.R2.R1.R0 Set if the result is zero (0x0000), cleared otherwise.
+                // C ⇒ X15.M15 + M15.R15 + R15.X15 Set if a carry occurred from bit 15 of the result, cleared otherwise.
             }
 
             // 0x72
@@ -673,13 +826,19 @@ impl STM8 {
 
             // 0x7B, page 114
             //
+            // Load the destination BYTE with the source BYTE. (BYTE NOT WORD!)
+            //
             // LD dst,src
             // LD A,($12,SP)
             Instruction::LD_A_OFFSET_SP => {
 
                 let address = self.stack_pointer + asm_line.immediate as u16;
-                let data = read_halfword_be(&self.memory_blocks, address as u32);
-                println!("{:08x}", data);
+
+                //let data = read_halfword_be(&self.memory_blocks, address as u32);
+                let data = read_byte(&self.memory_blocks, address as u32);
+
+                //println!("address: data: {:08x}", address, address, data);
+                println!("address: {:04x?} ({:?}), data={:?}", address, address, data);
 
                 //println!("{:08X?} ({:?}) = {:?} + {:?}", (self.x_index + data), (self.x_index + data), self.x_index, data);
 
@@ -726,12 +885,19 @@ impl STM8 {
                 self.program_counter = asm_line.immediate as u32;
             }
 
-            // 8E
+            // 0x89, page 70, 129
+            Instruction::PUSHW => {
+                println!("PUSHW X");
+
+                self.push_word_address_to_stack(self.x_index as u16);
+            }
+
+            // 0x8E
             Instruction::HALT => {
                 println!("HALT");
             }
 
-            // 8F
+            // 0x8F
             Instruction::WFI => {
                 println!("WFI");
             }
@@ -788,6 +954,19 @@ impl STM8 {
 
                 self.negative_bit = result < 0;
                 self.zero_bit = result == 0;
+            }
+
+            // 0x90 0xAE
+            Instruction::LDW_Y_IMM=> {
+                println!("LDW_Y_IMM");
+
+                //let result: i32 = self.y_index as i32 - asm_line.immediate;
+                //println!("result: {:?} = {:?} - {:?}", result, self.y_index as i32, asm_line.immediate);
+
+                self.y_index = asm_line.immediate as u16;
+
+                self.negative_bit = (self.y_index as i16) < 0;
+                self.zero_bit = self.y_index == 0;
             }
 
             // 0x90 0xF6
@@ -858,7 +1037,7 @@ impl STM8 {
 
             // 0x97
             //
-            // LD dst,src
+            // LD dst, src
             // LD_XL_A
             Instruction::LD_XL_A => {
                 println!("LD_XL_A");
@@ -870,16 +1049,45 @@ impl STM8 {
 
                 //self.x_index = self.stack_pointer;
 
-                self.accumulator = (self.x_index & 0xFF) as i8;
+                //self.accumulator = (self.x_index & 0xFF) as i8;
+                self.x_index = self.x_index | (self.accumulator as u8) as u16;
 
                 // flags
-                self.negative_bit = self.accumulator < 0;
-                self.zero_bit = self.accumulator == 0;
+                self.negative_bit = (self.x_index as i16) < 0;
+                self.zero_bit = self.x_index == 0;
 
                 // add offset to value stored in current SP
                 //let address:u16 = self.stack_pointer;
 
                 //write_halfword(&mut self.memory_blocks, address as u32, self.x_index as u16);
+            }
+
+            // 0xA1
+            //
+            // CP dst,src
+            // CP A,#10
+            Instruction::CP_A_IMM => {
+                println!("CP subtype A_IMM");
+
+                // Compare word with immediate
+
+
+                let result: i32 = self.accumulator as i32 - asm_line.immediate as i8 as i32;
+                println!("result: {:?} = {:?} - {:?}", result, self.accumulator as i32, asm_line.immediate);
+
+                // todo! flag V (overflow)
+
+                // flags
+                self.negative_bit = result < 0;
+                self.zero_bit = result == 0;
+
+                // todo! flag C (carry)
+                //self.carry_bit = ((self.x_index >> 15) & 1) == 1;
+                //self.carry_bit = true;
+                //self.carry_bit = false;
+
+                // bit 9 of a 8 bit operation contains the carry
+                self.carry_bit = ((result >> 8) & 0x1) == 1;
             }
 
             // 0xA3
@@ -891,9 +1099,14 @@ impl STM8 {
                 let result: i32 = self.x_index as i32 - asm_line.immediate;
                 println!("result: {:?} = {:?} - {:?}", result, self.x_index as i32, asm_line.immediate);
 
+                // todo! flag V (overflow)
+
                 // flags
                 self.negative_bit = result < 0;
                 self.zero_bit = result == 0;
+
+                // todo! flag C (carry)
+
             }
 
             // 0xA4
@@ -921,10 +1134,23 @@ impl STM8 {
             }
 
             // 0xC6
+            //
+            // LD dst, src
+            // LD A, $5000
             Instruction::LD_A => {
                 println!("LD_A");
 
                 self.accumulator = asm_line.immediate as i8;
+
+                // 5230 == UART1 Status Register
+                if asm_line.immediate == 0x5230 {
+                    //self.accumulator = 0x80;
+                    self.accumulator = 0b10000000u8 as i8;
+                }
+
+                // flags
+                self.negative_bit = self.accumulator < 0;
+                self.zero_bit = self.accumulator == 0;
             }
 
             // 0xC7
@@ -933,9 +1159,15 @@ impl STM8 {
             Instruction::LD_A_LONGMEM => {
                 println!("LD_A_LONGMEM");
 
-                let address:u16 = self.accumulator as u16;
+                let src:u16 = self.accumulator as u16;
+                let dst:u16 = asm_line.immediate as u16;
 
-                write_halfword(&mut self.memory_blocks, address as u32, asm_line.immediate as u16);
+                // 0x5231 == UART1 Data Register
+                if dst == 0x5231 {
+                    println!("UART-DR: Writing: Address: {:04x?} Data: {:04x?} Data: {:?}", dst, src, (src as u8 as char));
+                }
+
+                write_halfword(&mut self.memory_blocks, dst as u32, src);
 
                 self.negative_bit = asm_line.immediate < 0;
                 self.zero_bit = asm_line.immediate == 0;
@@ -948,17 +1180,7 @@ impl STM8 {
                 println!("CALL subtype: CD");
                 println!("CALL subtype: CD, jumping to address: {:06x?}", asm_line.immediate);
 
-                // stack
-                // TODO: Push the current PC+2 onto the stack as two byte (Lo then Hi)
-                let temp_pc = self.program_counter + 2;
-
-                let temp_pc_lo:u8 = ((temp_pc >> 0) & 0xFF) as u8;
-                let temp_pc_hi:u8 = ((temp_pc >> 8) & 0xFF) as u8;
-
-                write_byte(&mut self.memory_blocks, self.stack_pointer as u32, temp_pc_lo);
-                self.stack_pointer = self.stack_pointer - 1;
-                write_byte(&mut self.memory_blocks, self.stack_pointer as u32, temp_pc_hi);
-                self.stack_pointer = self.stack_pointer - 1;
+                self.push_return_address_to_stack();
 
                 // registers
                 self.program_counter = asm_line.immediate as u32;
@@ -967,11 +1189,20 @@ impl STM8 {
             }
 
             // 0xF6
+            //
+            // page 114
+            //
+            // LD dst,src
+            // LD A,(X)
+            //
+            // Load BYTE!!!!
             Instruction::LD_A_MEMORY_X => {
-                _pc_increment = 2;
+                println!("LD_A_MEMORY_X");
 
-                let data = read_halfword_be(&self.memory_blocks, self.x_index as u32);
-                println!("LDW_X_(X) loaded value: {:0?}", data);
+                //let data = read_halfword_be(&self.memory_blocks, self.x_index as u32);
+                let data = read_byte(&self.memory_blocks, self.x_index as u32);
+
+                println!("LD_A_(X) loaded value: {:02x?}", data);
 
                 self.accumulator = data as i8;
             }
