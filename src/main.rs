@@ -45,15 +45,9 @@ pub fn encode_hex(bytes: &[u8]) -> String {
     s
 }
 
-fn main() {
+pub fn load_intel_hex(memory_block_map: &mut HashMap<u32, Vec<u8>>, filepath: &'static str) -> u32 {
 
-    // address where the CPU starts executing from
-    // for ARM Cortex-M4, always assume the default address 0x08000000
-    // This value is overriden by the type (03) record (Start Segment Address Record)
-    //let mut _start_segment: u32 = cpu::cortex_m4::cortex_m4::START_ADDRESS;
     let mut _start_segment: u32 = cpu::stm8::stm8::START_ADDRESS;
-
-    let mut memory_blocks = HashMap::new();
 
     //if let Ok(lines) = read_lines("C:/aaa_se/wdp/build_DEBUG_fse_122_rtos_md/src/output.hex") {
     //if let Ok(lines) = read_lines("res/wdp/output.hex") {
@@ -65,7 +59,8 @@ fn main() {
     //if let Ok(lines) = read_lines("res/C/samples/loop_example/sum.ihx") {
     //if let Ok(lines) = read_lines("res/C/samples/loop_example_2/sum.ihx") {
     //if let Ok(lines) = read_lines("res/C/Users/lapto/dev/stm8/stm8/examples/uart/bin/uart.ihx") {
-    if let Ok(lines) = read_lines("C:/Users/lapto/dev/stm8/stm8/examples/uart/bin/uart.hex") {
+    //if let Ok(lines) = read_lines("C:/Users/lapto/dev/stm8/stm8/examples/uart/bin/uart.hex") {
+    if let Ok(lines) = read_lines(filepath) {
 
         //let mut current_offset: u32 = 0x00800000; // for ARM Cortex-M4, always assume the default address 0x08000000
         let mut current_offset: u32 = 0x00000000;
@@ -121,16 +116,15 @@ fn main() {
                         // use the offset of the current line as global offset
                         current_offset = high_part;
 
-                        if !memory_blocks.contains_key(&current_offset) {
-                            //let memory_block: Vec<u8> = Vec::new(0, FFFF);
+                        if !memory_block_map.contains_key(&current_offset) {
                             let memory_block: Vec<u8> = vec![0; 0xFFFF];
-                            memory_blocks.insert(current_offset, memory_block);
+                            memory_block_map.insert(current_offset, memory_block);
                         }
 
                         segment_started = true;
                     }
 
-                    let memory_block: &mut Vec<u8> = memory_blocks.get_mut(&current_offset).unwrap();
+                    let memory_block: &mut Vec<u8> = memory_block_map.get_mut(&current_offset).unwrap();
 
                     let mut i = 0;
                     for idx in 4 .. 4 + payload_length {
@@ -165,9 +159,9 @@ fn main() {
                     current_offset = current_offset << 4;
                     println!("(02) New Segment Offset: {:02x?}", current_offset);
 
-                    if !memory_blocks.contains_key(&current_offset) {
+                    if !memory_block_map.contains_key(&current_offset) {
                         let memory_block: Vec<u8> = vec![0; 0xFFFF];
-                        memory_blocks.insert(current_offset, memory_block);
+                        memory_block_map.insert(current_offset, memory_block);
                     }
 
                     segment_started = true;
@@ -186,7 +180,7 @@ fn main() {
                     println!("(04) New Segment Offset: {:02x?}", current_offset);
 
                     let memory_block: Vec<u8> = Vec::new();
-                    memory_blocks.insert(current_offset, memory_block);
+                    memory_block_map.insert(current_offset, memory_block);
 
                     segment_started = true;
 
@@ -199,8 +193,178 @@ fn main() {
             }
         }
 
-        //println!("memory_blocks {:02x?}", memory_blocks);
+        //println!("memory_block_map {:02x?}", memory_block_map);
     }
+
+    _start_segment
+}
+
+pub fn load_motorola_srec_s19(memory_block_map: &mut HashMap<u32, Vec<u8>>, filepath: &'static str) -> u32 {
+
+    let debug: bool = false;
+
+    let mut _start_segment: u32 = cpu::stm8::stm8::START_ADDRESS;
+
+    if let Ok(lines) = read_lines(filepath) {
+
+        // Consumes the iterator, returns an (Optional) String
+        for line in lines.map_while(Result::ok) {
+
+            if debug {
+                // DEBUG
+                println!("{}", line);
+            }
+
+            // record type
+            let record_type = &line[0..2];
+
+            // record len
+            let record_len = &line[2..4];
+
+            // record address
+            let record_address = &line[4..8];
+
+            // payload
+            let mut chars = line.chars();
+            chars.next();
+            chars.next();
+            chars.next();
+            chars.next();
+            chars.next();
+            chars.next();
+            chars.next();
+            chars.next();
+
+            chars.next_back();
+            chars.next_back();
+
+            let record_data = chars.as_str();
+
+            if debug {
+                // DEBUG
+                println!("{} | {} | {:04x?} | {}", record_type, record_len, record_address, record_data);
+            }
+
+            let data = decode_hex(record_data).unwrap();
+
+            if debug {
+                // DEBUG
+                println!("{:02x?}", data);
+            }
+
+            match record_type {
+
+                // header (may contain an ASCII string)
+                "S0" => {
+                    //println!("{}", record_data.to_ascii_lowercase());
+
+                    let mut i = 0;
+                    let mut character: u8 = 0;
+                    for c in record_data.chars() {
+
+                        if i == 0 {
+
+                            let digit = c as u8;
+
+                            if digit >= 0x30 && digit <= 0x39 {
+                                character = (digit - 0x30) << 4;
+                            } else if digit >= 0x41 && digit <= 0x46 {
+                                character = (digit - 55) << 4;
+                            } else if digit >= 0x61 && digit <= 0x66 {
+                                character = (digit - 87) << 4;
+                            }
+
+                            i = i + 1;
+
+                        } else {
+
+                            let digit = c as u8;
+
+                            if digit >= 0x30 && digit <= 0x39 {
+                                character = character | (digit - 0x30) << 0;
+                            } else if digit >= 0x41 && digit <= 0x46 {
+                                character = character | (digit - 55) << 0;
+                            } else if digit >= 0x61 && digit <= 0x66 {
+                                character = character | (digit - 87) << 0;
+                            }
+
+                            //println!(" {:02x?} {}", character, character as char);
+                            print!("{}", character as char);
+                            i = 0;
+
+                        }
+                    }
+
+                    println!();
+                }
+
+                "S1" => {
+                    let line_offset = u32::from_str_radix(record_address, 16).expect("Cannot parse!");
+                    //println!("{:08x?}", line_offset);
+
+                    // build high and low part of the current line offset
+                    let high_part: u32 = line_offset & 0xFFFF0000;
+                    let low_part: u32 = line_offset & 0x0000FFFF;
+
+                    //println!("high_part: {:08x?}", high_part);
+                    //println!("low_part {:08x?}", low_part);
+
+                    if !memory_block_map.contains_key(&high_part) {
+                        let memory_block: Vec<u8> = vec![0; 0xFFFF];
+                        memory_block_map.insert(high_part, memory_block);
+                    }
+
+                    let memory_block: &mut Vec<u8> = memory_block_map.get_mut(&high_part).unwrap();
+
+                    //println!("{:08x?}", record_data);
+
+                    let data = decode_hex(record_data).unwrap();
+                    //let payload_length = decode_hex(record_len).unwrap();
+                    let payload_length = u32::from_str_radix(record_len, 16).expect("Cannot parse!");
+
+                    let mut i = 0;
+                    for idx in 0 .. payload_length-3 {
+
+                        //println!("addr: 0x{:02x}, data: 0x{:02x}", (low_part + i), data[idx as usize]);
+
+                        memory_block[(low_part + i) as usize] = data[idx as usize];
+
+                        i = i + 1;
+                    }
+                }
+
+                "S9" => {
+
+                }
+
+                _ => {
+                    todo!();
+                }
+
+            }
+
+        }
+
+    }
+
+    _start_segment
+}
+
+fn main() {
+
+    let debug: bool = false;
+
+    // address where the CPU starts executing from
+    // for ARM Cortex-M4, always assume the default address 0x08000000
+    // This value is overriden by the type (03) record (Start Segment Address Record)
+    //let mut _start_segment: u32 = cpu::cortex_m4::cortex_m4::START_ADDRESS;
+    let mut _start_segment: u32 = cpu::stm8::stm8::START_ADDRESS;
+
+    let mut memory_block_map = HashMap::new();
+
+    //_start_segment = load_intel_hex(&mut memory_block_map, "C:/Users/lapto/dev/stm8/stm8/examples/uart/bin/uart.hex");
+
+    _start_segment = load_motorola_srec_s19(&mut memory_block_map, "C:/Users/lapto/dev/rust/stm8_asm/res/STM8_Discovery_Cosmic/Cosmic/Debug/stm8s_105.s19");
 
     println!("_start_segment {:02x?}", _start_segment);
 
@@ -231,7 +395,7 @@ fn main() {
         // read the address of the main stack pointer from 0x08000000
         //
 
-        //let memory_block = memory_blocks.get(&0x08000000).unwrap();
+        //let memory_block = memory_block_map.get(&0x08000000).unwrap();
 
         // DEBUG
         //
@@ -244,10 +408,10 @@ fn main() {
         // println!("data_byte_2 {:02x?}", data_byte_2);
         // println!("data_byte_3 {:02x?}", data_byte_3);
 
-        _main_stack_pointer_value = read_word_le(&memory_blocks, _start_segment);
+        _main_stack_pointer_value = read_word_le(&memory_block_map, _start_segment);
         println!("main_stack_pointer_value: {:02x?}", _main_stack_pointer_value);
 
-        _reset_handler_address = read_word_le(&memory_blocks, _start_segment + 4);
+        _reset_handler_address = read_word_le(&memory_block_map, _start_segment + 4);
         println!("reset_handler_address: {:02x?}", _reset_handler_address);
 
         // detect THUMB
@@ -261,30 +425,38 @@ fn main() {
 
     } else {
 
-        println!("HEX File results: +++++++++++++++++");
-        for (key, value) in &memory_blocks {
+        if debug {
 
-            //println!("{}: {}", key, value);
-            println!("0x{:02x?}", key);
+            println!("HEX File results: +++++++++++++++++");
+            for (key, value) in &memory_block_map {
 
-            for i in 0..0xFFFF {
-                let byte_val = value[i as usize];
-                if byte_val != 0 {
-                    println!("{:02x?}: {:02x?} ", (key + i), byte_val);
+                println!("0x{:02x?}", key);
+
+                for i in 0..0xFFFF {
+                    let byte_val = value[i as usize];
+                    if byte_val != 0 {
+                        println!("{:02x?}: {:02x?} ", (key + i), byte_val);
+                    }
                 }
+
+                println!("");
             }
+            println!("+++++++++++++++++++++++++++++++++++");
 
-            println!("");
         }
-        println!("+++++++++++++++++++++++++++++++++++");
 
-        println!("_start_segment: 0x{:02x?}", _start_segment);
+        if debug {
+            println!("_start_segment: 0x{:02x?}", _start_segment);
+        }
         let high_part: u32 = _start_segment & 0xFFFF0000;
         let _low_part: u32 = _start_segment & 0x0000FFFF;
 
-        let _memory_block = memory_blocks.get(&high_part).unwrap();
+        let _memory_block = memory_block_map.get(&high_part).unwrap();
         _reset_handler_address = _start_segment;
-        println!("reset_handler_address: {:02x?}", _reset_handler_address);
+
+        if debug {
+            println!("reset_handler_address: {:02x?}", _reset_handler_address);
+        }
 
     }
 
@@ -294,7 +466,7 @@ fn main() {
 
     //let mut cpu: CortexM4 = CortexM4::new();
     let mut cpu: STM8 = STM8::new();
-    cpu.memory_blocks = memory_blocks;
+    cpu.memory_block_map = memory_block_map;
     cpu.set_pc(_reset_handler_address);
 
     while !cpu.halt() {
