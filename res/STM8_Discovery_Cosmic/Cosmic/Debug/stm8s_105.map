@@ -1,0 +1,558 @@
+
+Map of Debug\stm8s_105.sm8 from link file stm8s_105dbg.lkf - Fri May 29 07:23:20 2026
+
+
+                               --------
+                               Segments
+                               --------
+
+start 00008080 end 00008080 length     0 segment .const
+start 00008083 end 00008f08 length  3717 segment .text
+start 00008f08 end 00008f15 length    13 segment .cksum
+start 00004000 end 00004000 length     0 segment .eeprom
+start 00000001 end 00000009 length     8 segment .RUN_TIME_BUF
+start 0000000f end 0000001c length    13 segment .CLASS_B
+start 0000001c end 00000029 length    13 segment .CLASS_B_REV
+start 00000080 end 00000080 length     0 segment .bsct
+start 00000080 end 0000009d length    29 segment .ubsct
+start 0000009d end 0000009d length     0 segment .bit
+start 0000009d end 0000009d length     0 segment .share
+start 00000200 end 00000200 length     0 segment .data
+start 00000200 end 00000200 length     0 segment .bss
+start 00000600 end 00000604 length     4 segment .STACK_BOTTOM
+start 00000000 end 00000855 length  2133 segment .info.
+start 00000000 end 00002c1f length 11295 segment .debug
+start 00008000 end 00008080 length   128 segment .const
+start 00008080 end 00008083 length     3 segment .init
+
+
+                               -------
+                               Modules
+                               -------
+
+C:\aaa_se\COSMIC\CXSTM8\Lib\crtsi0.sm8:
+start 00008083 end 000080d3 length    80 section .text
+start 00000200 end 00000200 length     0 section .bss
+start 00000080 end 00000080 length     0 section .ubsct
+start 00000000 end 00000034 length    52 section .info.
+
+Debug\stm8_stl_clockrun.o:
+start 000080d3 end 00008126 length    83 section .text
+start 00000080 end 00000084 length     4 section .ubsct
+start 00000000 end 0000038e length   910 section .debug
+start 00000034 end 000000d7 length   163 section .info.
+
+Debug\stm8_stl_clockstart.o:
+start 00008126 end 000083fe length   728 section .text
+start 00000084 end 0000008a length     6 section .ubsct
+start 0000038e end 00000acd length  1855 section .debug
+start 000000d7 end 0000017c length   165 section .info.
+
+Debug\stm8_stl_crcrun.o:
+start 000083fe end 0000844d length    79 section .text
+start 00000acd end 00000dab length   734 section .debug
+start 0000017c end 0000021d length   161 section .info.
+
+Debug\stm8_stl_main.o:
+start 0000844d end 00008700 length   691 section .text
+start ******** end ******** length     0 section .ubsct *** removed ***
+start 00000dab end 00001193 length  1000 section .debug
+start 0000021d end 000002bc length   159 section .info.
+
+Debug\stm8_stl_startup.o:
+start 00008700 end 0000889f length   415 section .text
+start 0000008a end 00000093 length     9 section .ubsct
+start 00001193 end 00001757 length  1476 section .debug
+start 000002bc end 0000035e length   162 section .info.
+start 00000001 end 00000009 length     8 section .RUN_TIME_BUF
+start 0000000f end 0000001c length    13 section .CLASS_B
+start 00000600 end 00000604 length     4 section .STACK_BOTTOM
+start 0000001c end 00000029 length    13 section .CLASS_B_REV
+
+Debug\stm8_stl_transpram.o:
+start 0000889f end 00008a49 length   426 section .text
+start 00001757 end 00001aa7 length   848 section .debug
+start 0000035e end 00000402 length   164 section .info.
+
+Debug\_block_cksum160.o:
+start 00008a49 end 00008add length   148 section .text
+start 00001aa7 end 00001bf3 length   332 section .debug
+start 00000402 end 00000443 length    65 section .info.
+
+Debug\_classb_cksum160.o:
+start 00008add end 00008b15 length    56 section .text
+start 00001bf3 end 00001d00 length   269 section .debug
+start 00000443 end 00000485 length    66 section .info.
+
+Debug\stm8_stl_cpurun_csmc.o:
+start 00008b15 end 00008b7a length   101 section .text
+start 00001d00 end 00001db5 length   181 section .debug
+start 00000485 end 000004cb length    70 section .info.
+
+Debug\stm8_stl_cpustart_csmc.o:
+start 00008b7a end 00008c2e length   180 section .text
+start 00001db5 end 00001e82 length   205 section .debug
+start 000004cb end 00000513 length    72 section .info.
+
+Debug\stm8_stl_fullram_csmc.o:
+start 00008c2e end 00008c82 length    84 section .text
+start 00001e82 end 00001fbe length   316 section .debug
+start 00000513 end 0000055a length    71 section .info.
+
+Debug\main.o:
+start 00008c82 end 00008cc2 length    64 section .text
+start 00001fbe end 000021b6 length   504 section .debug
+start 0000055a end 000005f0 length   150 section .info.
+
+Debug\stm8s_it.o:
+start 00008cc2 end 00008eeb length   553 section .text
+start 000021b6 end 00002a58 length  2210 section .debug
+start 000005f0 end 0000068a length   154 section .info.
+
+(C:\aaa_se\COSMIC\CXSTM8\Lib\libm0.sm8)bmulx.o:
+start 00008eeb end 00008ef9 length    14 section .text
+start 0000068a end 000006ba length    48 section .info.
+
+(C:\aaa_se\COSMIC\CXSTM8\Lib\libm0.sm8)lreg.o:
+start 00000093 end 00000097 length     4 section .ubsct
+start 000006ba end 000006e9 length    47 section .info.
+
+(C:\aaa_se\COSMIC\CXSTM8\Lib\libm0.sm8)lursh.o:
+start 00008ef9 end 00008f08 length    15 section .text
+start 000006e9 end 00000719 length    48 section .info.
+
+(C:\aaa_se\COSMIC\CXSTM8\Lib\libm0.sm8)xreg.o:
+start 00000097 end 0000009a length     3 section .ubsct
+start 00000719 end 00000748 length    47 section .info.
+
+(C:\aaa_se\COSMIC\CXSTM8\Lib\libm0.sm8)yreg.o:
+start 0000009a end 0000009d length     3 section .ubsct
+start 00000748 end 00000777 length    47 section .info.
+
+Debug\stm8_interrupt_vector.o:
+start 00002a58 end 00002c1f length   455 section .debug
+start 00000777 end 0000081e length   167 section .info.
+start 00008000 end 00008080 length   128 section .const
+
+
+                             -----------
+                             Stack usage
+                             -----------
+
+Debug\_classb_cksum160.o:
+__checksum16                       >    2   (2)
+
+Debug\main.o:
+_assert_failed                     >    2   (2)
+_main                              >   14   (2)
+
+Debug\stm8_stl_clockrun.o:
+_STL_ClockFreqTest                      9   (3)
+
+Debug\stm8_stl_clockstart.o:
+_STL_ClockStartUpTest                  13   (7)
+_STL_HSE_CSSinit                        5   (5)
+_STL_InitClock_Xcross_Measurement       5   (5)
+_STL_LSIinit                            5   (5)
+_STL_MeasureLSIPeriod                   6   (6)
+_calc_captured_value                    6   (4)
+_switch_clock_system                    6   (6)
+
+Debug\stm8_stl_crcrun.o:
+_STL_crc16Run                           3   (3)
+
+Debug\stm8_stl_main.o:
+_STL_CheckStack                         3   (3)
+_STL_DoRunTimeChecks                   12   (3)
+_STL_InitRunTimeChecks                  7   (2)
+_STL_TimeBaseInit                       2   (2)
+
+Debug\stm8_stl_startup.o:
+_FailSafe                               2   (2)
+_STL_StartUp                       >   15   (2)
+_STL_WDGSelfTest                        2   (2)
+
+Debug\stm8_stl_transpram.o:
+_STL_TranspMarch                        8   (8)
+_STL_TranspMarchInit                    2   (2)
+
+Debug\stm8s_it.o:
+f_ADC1_IRQHandler                  >   10   (10)
+f_AWU_IRQHandler                   >   10   (10)
+f_CLK_IRQHandler                   >   18   (16)
+f_EEPROM_EEC_IRQHandler            >   10   (10)
+f_EXTI_PORTA_IRQHandler            >   10   (10)
+f_EXTI_PORTB_IRQHandler            >   10   (10)
+f_EXTI_PORTC_IRQHandler            >   10   (10)
+f_EXTI_PORTD_IRQHandler            >   10   (10)
+f_EXTI_PORTE_IRQHandler            >   10   (10)
+f_I2C_IRQHandler                   >   10   (10)
+f_NonHandledInterrupt              >    6   (6)
+f_SPI_IRQHandler                   >   10   (10)
+f_TIM1_CAP_COM_IRQHandler          >   10   (10)
+f_TIM1_UPD_OVF_TRG_BRK_IRQHandler  >   10   (10)
+f_TIM2_CAP_COM_IRQHandler          >   10   (10)
+f_TIM2_UPD_OVF_BRK_IRQHandler      >   10   (10)
+f_TIM3_CAP_COM_IRQHandler          >   10   (10)
+f_TIM3_UPD_OVF_BRK_IRQHandler      >   10   (10)
+f_TIM4_UPD_OVF_IRQHandler          >   25   (17)
+f_TLI_IRQHandler                   >   10   (10)
+f_TRAP_IRQHandler                  >    6   (6)
+f_UART2_RX_IRQHandler              >   10   (10)
+f_UART2_TX_IRQHandler              >   10   (10)
+
+Stack size: 40
+
+
+                              ---------
+                              Call tree
+                              ---------
+   1 > _STL_StartUp: (2)
+   2      + _FailSafe: (2)
+   3      + _STL_ClockStartUpTest: (7)
+   4      |    + _STL_HSE_CSSinit: (5)
+   5      |    + _STL_InitClock_Xcross_Measurement: (5)
+   6      |    + _STL_LSIinit: (5)
+   7      |    + _STL_MeasureLSIPeriod: (6)
+   8      |    + _calc_captured_value: (4)
+   9      |    + _switch_clock_system: (6)
+          | 
+  10      + _STL_StartUpCPUTest: (0)
+  11      + _STL_WDGSelfTest: (2)
+       
+  12 > __checksum16: (2)
+
+  13 > _assert_failed: (2)
+
+  14 > _main: (2)
+  15      + _STL_DoRunTimeChecks: (3)
+  16      |    + _FailSafe --> 2
+  17      |    + _STL_CheckStack: (3)
+  18      |    + _STL_ClockFreqTest: (3)
+  19      |    |    + _STL_MeasureLSIPeriod --> 7
+  20      |    |    + _calc_captured_value --> 8
+  21      |    |    + _switch_clock_system --> 9
+          |    | 
+  22      |    + _STL_crc16Run: (3)
+          | 
+  23      + _STL_InitRunTimeChecks: (2)
+  24      |    + _FailSafe --> 2
+  25      |    + _STL_InitClock_Xcross_Measurement --> 5
+  26      |    + _STL_TimeBaseInit: (2)
+  27      |    + _STL_TranspMarchInit: (2)
+          | 
+  28      + _switch_clock_system --> 9
+       
+  29 > f_ADC1_IRQHandler: (10)
+
+  30 > f_AWU_IRQHandler: (10)
+
+  31 > f_CLK_IRQHandler: (16)
+  32      + _FailSafe --> 2
+       
+  33 > f_EEPROM_EEC_IRQHandler: (10)
+
+  34 > f_EXTI_PORTA_IRQHandler: (10)
+
+  35 > f_EXTI_PORTB_IRQHandler: (10)
+
+  36 > f_EXTI_PORTC_IRQHandler: (10)
+
+  37 > f_EXTI_PORTD_IRQHandler: (10)
+
+  38 > f_EXTI_PORTE_IRQHandler: (10)
+
+  39 > f_I2C_IRQHandler: (10)
+
+  40 > f_NonHandledInterrupt: (6)
+
+  41 > f_SPI_IRQHandler: (10)
+
+  42 > f_TIM1_CAP_COM_IRQHandler: (10)
+
+  43 > f_TIM1_UPD_OVF_TRG_BRK_IRQHandler: (10)
+
+  44 > f_TIM2_CAP_COM_IRQHandler: (10)
+
+  45 > f_TIM2_UPD_OVF_BRK_IRQHandler: (10)
+
+  46 > f_TIM3_CAP_COM_IRQHandler: (10)
+
+  47 > f_TIM3_UPD_OVF_BRK_IRQHandler: (10)
+
+  48 > f_TIM4_UPD_OVF_IRQHandler: (17)
+  49      + _FailSafe --> 2
+  50      + _STL_TranspMarch: (8)
+       
+  51 > f_TLI_IRQHandler: (10)
+
+  52 > f_TRAP_IRQHandler: (6)
+
+  53 > f_UART2_RX_IRQHandler: (10)
+
+  54 > f_UART2_TX_IRQHandler: (10)
+
+  55   _FailSafe --> 2
+
+  56   _STL_CheckStack --> 17
+
+  57   _STL_ClockFreqTest --> 18
+
+  58   _STL_ClockStartUpTest --> 3
+
+  59   _STL_DoRunTimeChecks --> 15
+
+  60   _STL_HSE_CSSinit --> 4
+
+  61   _STL_InitClock_Xcross_Measurement --> 5
+
+  62   _STL_InitRunTimeChecks --> 23
+
+  63   _STL_LSIinit --> 6
+
+  64   _STL_MeasureLSIPeriod --> 7
+
+  65   _STL_StartUpCPUTest --> 10
+
+  66   _STL_TimeBaseInit --> 26
+
+  67   _STL_TranspMarch --> 50
+
+  68   _STL_TranspMarchInit --> 27
+
+  69   _STL_WDGSelfTest --> 11
+
+  70   _STL_crc16Run --> 22
+
+  71   _calc_captured_value --> 8
+
+  72   _switch_clock_system --> 9
+
+
+
+                               -------
+                               Symbols
+                               -------
+
+_BLOCKSIZE_s                        00000010   defined in Debug\stm8_stl_clockrun.o
+                                               used in Debug\_block_cksum160.o
+_CRCBlockIndex                      0000008e   defined in Debug\stm8_stl_startup.o section .ubsct
+                                               used in Debug\_block_cksum160.o
+_CRC_ERROR_s                        000000ff   defined in Debug\stm8_stl_crcrun.o
+                                               used in Debug\_block_cksum160.o
+_CRC_ONGOING_s                      00000001   defined in Debug\stm8_stl_crcrun.o
+                                               used in Debug\_block_cksum160.o
+_CtrlFlowCnt                        0000001a   defined in Debug\stm8_stl_startup.o section .CLASS_B
+                                               used in Debug\stm8_stl_clockrun.o
+                                                       Debug\stm8_stl_clockstart.o
+                                                       Debug\stm8_stl_crcrun.o
+                                                       Debug\stm8_stl_main.o
+                                                       Debug\stm8_stl_transpram.o
+                                                       Debug\stm8_stl_cpurun_csmc.o
+                                                       Debug\stm8_stl_cpustart_csmc.o
+_CtrlFlowCntInv                     00000027   defined in Debug\stm8_stl_startup.o section .CLASS_B_REV
+                                               used in Debug\stm8_stl_clockrun.o
+                                                       Debug\stm8_stl_clockstart.o
+                                                       Debug\stm8_stl_crcrun.o
+                                                       Debug\stm8_stl_main.o
+                                                       Debug\stm8_stl_transpram.o
+                                                       Debug\stm8_stl_cpurun_csmc.o
+                                                       Debug\stm8_stl_cpustart_csmc.o
+                                                       Debug\stm8_stl_fullram_csmc.o
+_CurrentCrc16                       00000011   defined in Debug\stm8_stl_startup.o section .CLASS_B
+                                               used in Debug\stm8_stl_crcrun.o
+                                                       Debug\_block_cksum160.o
+_CurrentCrc16Inv                    0000001e   defined in Debug\stm8_stl_startup.o section .CLASS_B_REV
+                                               used in Debug\stm8_stl_crcrun.o
+                                                       Debug\_block_cksum160.o
+_CurrentDesc                        0000000f   defined in Debug\stm8_stl_startup.o section .CLASS_B
+                                               used in Debug\_block_cksum160.o
+_CurrentDescInv                     0000001c   defined in Debug\stm8_stl_startup.o section .CLASS_B_REV
+                                               used in Debug\_block_cksum160.o
+_FULL_RAM_OK_s                      00000001   defined in Debug\stm8_stl_clockrun.o
+                                               used in Debug\stm8_stl_fullram_csmc.o
+_FailSafe                           00008700   defined in Debug\stm8_stl_startup.o section .text
+                                               used in Debug\stm8_stl_main.o
+                                                       Debug\stm8_stl_cpurun_csmc.o
+                                                       Debug\stm8_stl_cpustart_csmc.o
+                                                       Debug\stm8s_it.o
+_ISRCtrlFlowCnt                     00000018   defined in Debug\stm8_stl_startup.o section .CLASS_B
+                                               used in Debug\stm8_stl_main.o
+                                                       Debug\stm8_stl_transpram.o
+                                                       Debug\stm8s_it.o
+_ISRCtrlFlowCntInv                  00000025   defined in Debug\stm8_stl_startup.o section .CLASS_B_REV
+                                               used in Debug\stm8_stl_main.o
+                                                       Debug\stm8_stl_transpram.o
+                                                       Debug\stm8s_it.o
+_LastCtrlFlowCnt                    00000013   defined in Debug\stm8_stl_startup.o section .CLASS_B
+                                               used in Debug\stm8_stl_main.o
+_LastCtrlFlowCntInv                 00000020   defined in Debug\stm8_stl_startup.o section .CLASS_B_REV
+                                               used in Debug\stm8_stl_main.o
+_RAM_END_DEC_s                      000007ff   defined in Debug\stm8_stl_clockrun.o
+                                               used in Debug\stm8_stl_fullram_csmc.o
+_RAM_END_INC_s                      00000800   defined in Debug\stm8_stl_clockrun.o
+                                               used in Debug\stm8_stl_fullram_csmc.o
+_STL_CheckStack                     0000868d   defined in Debug\stm8_stl_main.o section .text
+_STL_ClockFreqTest                  000080d3   defined in Debug\stm8_stl_clockrun.o section .text
+                                               used in Debug\stm8_stl_main.o
+_STL_ClockStartUpTest               00008126   defined in Debug\stm8_stl_clockstart.o section .text
+                                               used in Debug\stm8_stl_startup.o
+_STL_DoRunTimeChecks                00008509   defined in Debug\stm8_stl_main.o section .text
+                                               used in Debug\main.o
+_STL_FlashCrc16Init                 00008a49   defined in Debug\_block_cksum160.o section .text
+                                               used in Debug\stm8_stl_crcrun.o
+                                                       Debug\stm8_stl_main.o
+_STL_FullRamMarchC                  00008c2e   defined in Debug\stm8_stl_fullram_csmc.o section .text
+                                               used in Debug\stm8_stl_startup.o
+_STL_HSE_CSSinit                    00008266   defined in Debug\stm8_stl_clockstart.o section .text
+_STL_InitClock_Xcross_Measurement   000082e9   defined in Debug\stm8_stl_clockstart.o section .text
+                                               used in Debug\stm8_stl_main.o
+_STL_InitRunTimeChecks              0000844d   defined in Debug\stm8_stl_main.o section .text
+                                               used in Debug\main.o
+_STL_LSIinit                        00008226   defined in Debug\stm8_stl_clockstart.o section .text
+_STL_MeasureLSIPeriod               0000835f   defined in Debug\stm8_stl_clockstart.o section .text
+                                               used in Debug\stm8_stl_clockrun.o
+_STL_RunTimeCPUTest                 00008b15   defined in Debug\stm8_stl_cpurun_csmc.o section .text
+                                               used in Debug\stm8_stl_main.o
+_STL_StartUp                        00008713   defined in Debug\stm8_stl_startup.o section .text
+                                               used in Debug\stm8_interrupt_vector.o
+_STL_StartUpCPUTest                 00008b7a   defined in Debug\stm8_stl_cpustart_csmc.o section .text
+                                               used in Debug\stm8_stl_startup.o
+_STL_TimeBaseInit                   000086d5   defined in Debug\stm8_stl_main.o section .text
+_STL_TranspMarch                    000088c3   defined in Debug\stm8_stl_transpram.o section .text
+                                               used in Debug\stm8s_it.o
+_STL_TranspMarchInit                0000889f   defined in Debug\stm8_stl_transpram.o section .text
+                                               used in Debug\stm8_stl_main.o
+_STL_WDGSelfTest                    00008864   defined in Debug\stm8_stl_startup.o section .text
+_STL_crc16Run                       000083fe   defined in Debug\stm8_stl_crcrun.o section .text
+                                               used in Debug\stm8_stl_main.o
+_TickCounter                        00000016   defined in Debug\stm8_stl_startup.o section .CLASS_B
+                                               used in Debug\stm8_stl_main.o
+                                                       Debug\stm8s_it.o
+_TickCounterInv                     00000023   defined in Debug\stm8_stl_startup.o section .CLASS_B_REV
+                                               used in Debug\stm8_stl_main.o
+                                                       Debug\stm8s_it.o
+_TimeBaseFlag                       00000015   defined in Debug\stm8_stl_startup.o section .CLASS_B
+                                               used in Debug\stm8_stl_main.o
+                                                       Debug\stm8s_it.o
+_TimeBaseFlagInv                    00000022   defined in Debug\stm8_stl_startup.o section .CLASS_B_REV
+                                               used in Debug\stm8_stl_main.o
+                                                       Debug\stm8s_it.o
+__block_checksum160                 00008a69   defined in Debug\_block_cksum160.o section .text
+                                               used in Debug\stm8_stl_crcrun.o
+__ckdesc__                          00008f08   defined in linker section .cksum
+                                               used in Debug\_block_cksum160.o
+                                                       Debug\_classb_cksum160.o
+__cktype__                          00000004   defined in Debug\_block_cksum160.o
+                                               *** not used ***
+__classb_checksum160                00008add   defined in Debug\_classb_cksum160.o section .text
+                                               used in Debug\stm8_stl_startup.o
+__clb_end                           0000007e   defined in command file
+                                               used in Debug\stm8_stl_transpram.o
+                                                       Debug\stm8s_it.o
+__clb_start                         0000000f   defined in command file
+                                               used in Debug\stm8_stl_transpram.o
+                                                       Debug\stm8s_it.o
+__endmem                            000005ff   defined in command file
+                                               *** not used ***
+__endzp                             0000009d   defined in command file section .ubsct
+                                               used in C:\aaa_se\COSMIC\CXSTM8\Lib\crtsi0.sm8
+__idesc__                           00008080   defined in linker section .init
+                                               used in C:\aaa_se\COSMIC\CXSTM8\Lib\crtsi0.sm8
+__memory                            00000200   defined in command file section .bss
+                                               used in C:\aaa_se\COSMIC\CXSTM8\Lib\crtsi0.sm8
+__stack                             000007ff   defined in command file
+                                               used in C:\aaa_se\COSMIC\CXSTM8\Lib\crtsi0.sm8
+                                                       Debug\stm8_stl_startup.o
+__startmem                          00000200   defined in command file section .bss
+                                               *** not used ***
+__stext                             00008083   defined in C:\aaa_se\COSMIC\CXSTM8\Lib\crtsi0.sm8 section .text
+                                               used in Debug\stm8_stl_startup.o
+__vectab                            00008000   defined in Debug\stm8_interrupt_vector.o section .const
+_aRunTimeRamBuf                     00000001   defined in Debug\stm8_stl_startup.o section .RUN_TIME_BUF
+                                               used in Debug\stm8_stl_transpram.o
+_aStackOverFlowPtrn                 00000600   defined in Debug\stm8_stl_startup.o section .STACK_BOTTOM
+                                               used in Debug\stm8_stl_main.o
+_assert_failed                      00008cc1   defined in Debug\main.o section .text
+_calc_captured_value                000082b1   defined in Debug\stm8_stl_clockstart.o section .text
+                                               used in Debug\stm8_stl_clockrun.o
+_debug_count                        ********   *** removed from Debug\stm8_stl_main.o ***
+_exit                               000080d1   defined in C:\aaa_se\COSMIC\CXSTM8\Lib\crtsi0.sm8 section .text
+_main                               00008c82   defined in Debug\main.o section .text
+                                               used in C:\aaa_se\COSMIC\CXSTM8\Lib\crtsi0.sm8
+_p_RunCrc16Chk                      0000008f   defined in Debug\stm8_stl_startup.o section .ubsct
+                                               used in Debug\_block_cksum160.o
+_p_RunCrc16ChkInv                   00000091   defined in Debug\stm8_stl_startup.o section .ubsct
+                                               used in Debug\_block_cksum160.o
+_p_RunTimeRamChk                    0000008c   defined in Debug\stm8_stl_startup.o section .ubsct
+                                               used in Debug\stm8_stl_transpram.o
+_p_RunTimeRamChkInv                 0000008a   defined in Debug\stm8_stl_startup.o section .ubsct
+                                               used in Debug\stm8_stl_transpram.o
+_switch_clock_system                000081e7   defined in Debug\stm8_stl_clockstart.o section .text
+                                               used in Debug\stm8_stl_clockrun.o
+                                                       Debug\main.o
+c_bmulx                             00008eeb   defined in (C:\aaa_se\COSMIC\CXSTM8\Lib\libm0.sm8)bmulx.o section .text
+                                               used in Debug\stm8_stl_clockrun.o
+                                                       Debug\stm8_stl_clockstart.o
+                                                       Debug\stm8s_it.o
+c_lreg                              00000093   defined in (C:\aaa_se\COSMIC\CXSTM8\Lib\libm0.sm8)lreg.o section .ubsct
+                                               used in Debug\stm8_stl_clockstart.o
+                                                       Debug\stm8s_it.o
+                                                       (C:\aaa_se\COSMIC\CXSTM8\Lib\libm0.sm8)lursh.o
+c_lursh                             00008ef9   defined in (C:\aaa_se\COSMIC\CXSTM8\Lib\libm0.sm8)lursh.o section .text
+                                               used in Debug\stm8_stl_clockstart.o
+c_x                                 00000097   defined in (C:\aaa_se\COSMIC\CXSTM8\Lib\libm0.sm8)xreg.o section .ubsct
+                                               used in C:\aaa_se\COSMIC\CXSTM8\Lib\crtsi0.sm8
+                                                       Debug\_block_cksum160.o
+                                                       Debug\_classb_cksum160.o
+                                                       Debug\stm8s_it.o
+                                                       (C:\aaa_se\COSMIC\CXSTM8\Lib\libm0.sm8)bmulx.o
+c_y                                 0000009a   defined in (C:\aaa_se\COSMIC\CXSTM8\Lib\libm0.sm8)yreg.o section .ubsct
+                                               used in C:\aaa_se\COSMIC\CXSTM8\Lib\crtsi0.sm8
+                                                       Debug\stm8s_it.o
+f_ADC1_IRQHandler                   00008dd2   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_AWU_IRQHandler                    00008cd1   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_CLK_IRQHandler                    00008cde   defined in Debug\stm8s_it.o section .text
+                                               used in Debug\stm8_interrupt_vector.o
+f_EEPROM_EEC_IRQHandler             00008ede   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_EXTI_PORTA_IRQHandler             00008d0f   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_EXTI_PORTB_IRQHandler             00008d1c   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_EXTI_PORTC_IRQHandler             00008d29   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_EXTI_PORTD_IRQHandler             00008d36   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_EXTI_PORTE_IRQHandler             00008d43   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_I2C_IRQHandler                    00008dab   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_NonHandledInterrupt               00008cc2   defined in Debug\stm8s_it.o section .text
+                                               used in Debug\stm8_interrupt_vector.o
+f_SPI_IRQHandler                    00008d50   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_TIM1_CAP_COM_IRQHandler           00008d6a   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_TIM1_UPD_OVF_TRG_BRK_IRQHandler   00008d5d   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_TIM2_CAP_COM_IRQHandler           00008d84   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_TIM2_UPD_OVF_BRK_IRQHandler       00008d77   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_TIM3_CAP_COM_IRQHandler           00008d9e   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_TIM3_UPD_OVF_BRK_IRQHandler       00008d91   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_TIM4_UPD_OVF_IRQHandler           00008ddf   defined in Debug\stm8s_it.o section .text
+                                               used in Debug\stm8_interrupt_vector.o
+f_TLI_IRQHandler                    00008cc4   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_TRAP_IRQHandler                   00008cc3   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_UART2_RX_IRQHandler               00008dc5   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***
+f_UART2_TX_IRQHandler               00008db8   defined in Debug\stm8s_it.o section .text
+                                               *** not used ***

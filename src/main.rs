@@ -197,12 +197,9 @@ fn main() {
                     todo!();
                 }
             }
-
-
         }
 
         //println!("memory_blocks {:02x?}", memory_blocks);
-
     }
 
     println!("_start_segment {:02x?}", _start_segment);
