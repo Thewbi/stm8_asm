@@ -16,6 +16,9 @@ impl InstructionError {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Instruction {
 
+    // 0x01
+    RRWA_X,
+
     // 0x08
     // SLL ($15,SP)
     // The instruction reads the byte stored in memory at the offset,
@@ -97,9 +100,15 @@ pub enum Instruction {
     // MOV, page 119
     MOV,
 
+    // 0x39
+    RLC_SHORTMEM,
+
     // 0x4B
     // PUSH, PM0044, page 70
     PUSH,
+
+    // 0x49
+    RLC_A,
 
     // 0x4D
     // TNZ, PM0044, page 155
@@ -136,6 +145,11 @@ pub enum Instruction {
     // CLRW_X, PM0044, page 93
     CLRW_X,
 
+    // 0x72, bitpos
+    // Bit Test and Jump if True
+    // page 87
+    BTJT,
+
     // 0x72 0xF9
     ADDW_Y_OFFSET_SP,
 
@@ -169,6 +183,9 @@ pub enum Instruction {
     // 0x8F
     WFI,
 
+    // 0x90, 0x01
+    RRWA_Y,
+
     // LDW SP,Y
     // 0x90, 0x94
     LDW_SP_Y,
@@ -177,9 +194,13 @@ pub enum Instruction {
     // 0x90 0x96
     LDW_Y_SP,
 
-    // LDW, Y, IMM
     // 0x90 0xAE
+    // LDW, Y, IMM
     LDW_Y_IMM,
+
+    // 0x90, 0xE3
+    // CPW X,($10,Y)
+    CPW_X_SHORTOFF_Y,
 
     // 0x90, 0x28
     JRNH,
@@ -299,6 +320,13 @@ pub enum Instruction {
     // 0x90 0xFE
     LDW_Y_Y,
 
+    // 0xEE, page 117
+    // LDW X,($50,X)
+    LDW_X_IMM_X,
+
+    // 0xF8
+    XOR_A_X,
+
     UNDEFINED,
 
 }
@@ -330,6 +358,9 @@ impl FromStr for Instruction {
 
             // 0x27
             "JREQ" => Ok(Instruction::JREQ),
+
+            // 0x49
+            "RLC_A" => Ok(Instruction::RLC_A),
 
             // 0x4D
             "TNZ_A" => Ok(Instruction::TNZ_A),
@@ -403,6 +434,9 @@ impl fmt::Display for Instruction {
 
         match self {
 
+            // 0x01
+            Instruction::RRWA_X => write!(f, "rrwa_x"),
+
             // 0x08
             Instruction::SLL_SP_OFFSET => write!(f, "SLL ($15,SP)"),
             // 0x09
@@ -465,8 +499,14 @@ impl fmt::Display for Instruction {
             // 0x35
             Instruction::MOV => write!(f, "mov"),
 
+            // 0x39
+            Instruction::RLC_SHORTMEM => write!(f, "rlc_shortmem"),
+
             // 0x4B
             Instruction::PUSH => write!(f, "push"),
+
+            // 0x49, page 134
+            Instruction::RLC_A => write!(f, "rlc_a"),
 
             // 0x4D
             Instruction::TNZ_A => write!(f, "tnz_a"),
@@ -494,6 +534,10 @@ impl fmt::Display for Instruction {
 
             // 0x58, page 146
             Instruction::SLLW_X => write!(f, "sllw_x"),
+
+            // 0x72, bitpos
+            // page 87
+            Instruction::BTJT => write!(f, "BTJT"),
 
             // 0x72 0xF9
             Instruction::ADDW_Y_OFFSET_SP => write!(f, "ADDW_Y_OFFSET_SP"),
@@ -525,6 +569,9 @@ impl fmt::Display for Instruction {
             // 0x8F
             Instruction::WFI => write!(f, "wfi"),
 
+            // 0x90, 0x01
+            Instruction::RRWA_Y => write!(f, "rrwa_y"),
+
             // 0x90, 0x28, page 68
             Instruction::JRNH => write!(f, "JRNH"),
 
@@ -545,6 +592,9 @@ impl fmt::Display for Instruction {
 
             // 0x90, 0xAE
             Instruction::LDW_Y_IMM => write!(f, "LDW_Y_IMM"),
+
+            // 0x90, 0xE3, page 95
+            Instruction::CPW_X_SHORTOFF_Y => write!(f, "CPW_X_SHORTOFF_Y"),
 
             // 0x90, 0xF6
             Instruction::LD_A_Y => write!(f, "LD_A_Y"),
@@ -629,12 +679,18 @@ impl fmt::Display for Instruction {
             // 0xCF
             Instruction::LDW_IMM_X => write!(f, "ldw_imm_x"),
 
+            // 0xEE
+            Instruction::LDW_X_IMM_X => write!(f, "LDW_X_IMM_X"),
+
             // 0xFA, page 114
             Instruction::LD_A_MEMORY_X => write!(f, "ld a, (x)"),
 
             // 0xFE, page 117
             Instruction::LDW_X_X => write!(f, "LDW_X_X"),
             Instruction::LDW_Y_Y => write!(f, "LDW_Y_Y"),
+
+            // 0xF8
+            Instruction::XOR_A_X => write!(f, "XOR_A_X"),
 
             Instruction::UNDEFINED => write!(f, "undefined"),
 

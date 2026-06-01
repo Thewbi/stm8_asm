@@ -21,6 +21,13 @@ impl Decoder {
 
         match first_byte {
 
+            // RRWA X
+            // page 139
+            0x01 => {
+                asm_line.instruction = Instruction::RRWA_X;
+                self.byte_count = self.byte_count + 1;
+            }
+
             // SLL ($15,SP)
             0x08 => {
                 //println!("SLL_SP_OFFSET");
@@ -228,6 +235,22 @@ impl Decoder {
                 self.byte_count = self.byte_count + 4;
             }
 
+            // RLC Shortmem, page 134
+            0x39 => {
+                asm_line.byte_count = self.byte_count;
+                asm_line.instruction = Instruction::RLC_SHORTMEM;
+                asm_line.immediate = ((encoded_instruction >> 16) & 0xFF) as i32;
+                self.byte_count = self.byte_count + 2;
+            }
+
+            // RLC A
+            // Rotate Left Logical through Carry, page 134
+            0x49 => {
+                asm_line.byte_count = self.byte_count;
+                asm_line.instruction = Instruction::RLC_A;
+                self.byte_count = self.byte_count + 1;
+            }
+
             // PUSH
             0x4B => {
                 //println!("PUSH");
@@ -319,13 +342,44 @@ impl Decoder {
                 //println!("second_byte: 0x{:02x?}", second_byte);
 
                 if second_byte >> 4 == 0x01 {
+
                     asm_line.instruction = Instruction::BSET;
                     asm_line.immediate = ((encoded_instruction >> 0) & 0xFFFF) as i32;
                     asm_line.jump_offset = ((encoded_instruction >> 16) & 0x0F) as i32;
 
+                    // TODO: verify correctness using real hardware
+                    // NOT SURE IF THIS IS times 2 (x2) or power of two (^2) datasheet uses ambiguous symbols.
+
                     //asm_line.jump_offset = asm_line.jump_offset.ilog2() as i32;
                     asm_line.jump_offset = asm_line.jump_offset / 2 as i32;
                     self.byte_count = self.byte_count + 4;
+
+                } else if second_byte >> 4 == 0x00 {
+
+                    // TODO: How does the decoder tell BTJT apart from BTJF?
+                    // The encoding is the same according to the PM0044, page 86 and page 87
+
+                    // BTJT - Bit Test and Jump if True, page 86
+                    // BTJF - Bit Test and Jump if False, page 87
+
+                    asm_line.instruction = Instruction::BTJT;
+
+                    // one byte pc-relative jump offset
+                    asm_line.jump_offset = ((next_encoded_instruction >> 24) & 0xFF) as i32;
+
+                    // address of byte to load from memory and check a bit in
+                    asm_line.immediate = ((encoded_instruction >> 0) & 0xFFFF) as i32;
+
+                    asm_line.bit_pos = ((encoded_instruction >> 16) & 0x0F) as u8;
+                    // convert n into pos (bit-position in destination byte)
+                    asm_line.bit_pos = asm_line.bit_pos / 2 ; //+ 1;
+
+                    // TODO: verify correctness using real hardware
+                    // NOT SURE IF THIS IS times 2 (x2) or power of two (^2) datasheet uses ambiguous symbols.
+
+                    //asm_line.jump_offset = asm_line.jump_offset.ilog2() as i32;
+                    //asm_line.jump_offset = asm_line.jump_offset / 2 as i32;
+                    self.byte_count = self.byte_count + 5;
 
                 } else {
 
@@ -413,6 +467,13 @@ impl Decoder {
 
                 match second_byte {
 
+                    // RRWA Y
+                    // page 139
+                    0x01 => {
+                        asm_line.instruction = Instruction::RRWA_Y;
+                        self.byte_count = self.byte_count + 1;
+                    }
+
                     // page
                     0x28 => {
                         asm_line.instruction = Instruction::JRNH;
@@ -470,6 +531,11 @@ impl Decoder {
                         asm_line.instruction = Instruction::LDW_Y_IMM;
                         asm_line.immediate = ((encoded_instruction >> 0) & 0xFFFF) as i32;
                         self.byte_count = self.byte_count + 4;
+                    }
+
+                    0xE3 => {
+                        asm_line.instruction = Instruction::CPW_X_SHORTOFF_Y;
+                        self.byte_count = self.byte_count + 3;
                     }
 
                     0xF6 => {
@@ -699,6 +765,12 @@ impl Decoder {
                 self.byte_count = self.byte_count + 3;
             }
 
+            0xEE => {
+                asm_line.instruction = Instruction::LDW_X_IMM_X;
+                asm_line.immediate = ((encoded_instruction >> 16) & 0x000000FF) as i32;
+                self.byte_count = self.byte_count + 2;
+            }
+
             // LD A,(X)
             0xF6 => {
                 //println!("LD A,(X)");
@@ -712,6 +784,14 @@ impl Decoder {
                 //println!("LDW X,(X)");
                 asm_line.byte_count = self.byte_count;
                 asm_line.instruction = Instruction::LDW_X_X;
+                self.byte_count = self.byte_count + 1;
+            }
+
+            // XOR_A_X, page 160
+            0xF8 => {
+                //println!("LDW X,(X)");
+                asm_line.byte_count = self.byte_count;
+                asm_line.instruction = Instruction::XOR_A_X;
                 self.byte_count = self.byte_count + 1;
             }
 

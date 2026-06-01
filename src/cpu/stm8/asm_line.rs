@@ -15,6 +15,7 @@ pub struct ASMLine {
     pub label: String,
     pub label_target: String,
     pub jump_offset: i32,
+    pub bit_pos: u8,
 }
 
 impl ASMLine {
@@ -30,6 +31,7 @@ impl ASMLine {
             label: String::new(),
             label_target: String::new(),
             jump_offset: 0,
+            bit_pos: 0,
         }
     }
 
@@ -43,6 +45,7 @@ impl ASMLine {
         self.label = String::new();
         self.label_target = String::new();
         self.jump_offset = 0;
+        self.bit_pos = 0;
     }
 
 }
