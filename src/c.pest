@@ -1,0 +1,857 @@
+//
+// TOKEN
+//
+
+HEX_NUMERIC = @{
+    "0x" ~ ( ASCII_HEX_DIGIT )+
+}
+
+NUMERIC = @{
+    ( "-" )? ~ ( ASCII_DIGIT )+
+}
+
+AMPERSAND = {
+    "&"
+}
+
+ASTERISK = {
+    "*"
+}
+
+COLON = {
+    ":"
+}
+
+COMMA = {
+    ","
+}
+
+EXCLAMATION_MARK = {
+    "!"
+}
+
+EQUALS_SIGN = {
+    "="
+}
+
+MINUS = {
+    "-"
+}
+
+PLUS = {
+    "+"
+}
+
+QUESTION_MARK = {
+    "?"
+}
+
+SEMICOLON = {
+    ";"
+}
+
+TILDE = {
+    "~"
+}
+
+ELLIPSIS = { "..." }
+
+RIGHT_ASSIGN = { ">>=" }
+LEFT_ASSIGN = { "<<=" }
+
+ADD_ASSIGN = { "+=" }
+SUB_ASSIGN = { "-=" }
+MUL_ASSIGN = { "*=" }
+DIV_ASSIGN = { "/=" }
+
+MOD_ASSIGN = { "%=" }
+AND_ASSIGN = { "&=" }
+XOR_ASSIGN = { "^=" }
+OR_ASSIGN = { "|=" }
+
+RIGHT_OP = { ">>" }
+LEFT_OP = { "<<" }
+INC_OP = { "++" }
+DEC_OP = { "--" }
+PTR_OP = { "->" }
+AND_OP = { "&&" }
+OR_OP = { "||" }
+LE_OP = { "<=" }
+GE_OP = { ">=" }
+EQ_OP = { "==" }
+NE_OP = { "!=" }
+
+
+BREAK = {
+    ^"break"
+}
+
+CASE = {
+    ^"case"
+}
+
+CONST = {
+    ^"const"
+}
+
+DEFAULT = {
+    ^"default"
+}
+
+ELSE = {
+    ^"else"
+}
+
+FUNCTION = {
+    ^"function"
+}
+
+FOR = {
+    ^"for"
+}
+
+IF = {
+    ^"if"
+}
+
+INT = {
+    ^"int"
+}
+
+RETURN = {
+    ^"return"
+}
+
+SIZEOF = {
+    ^"sizeof"
+}
+
+SWITCH = {
+    ^"switch"
+}
+
+VOID = {
+    ^"void"
+}
+
+VOLATILE = {
+    ^"volatile"
+}
+
+WHILE = {
+    ^"while"
+}
+
+// use ${} compound_atomic so that an identifier cannot contain spaces!
+IDENTIFIER = ${
+    //( "%" | "." | "_" | ASCII_ALPHA ) ~ ( "_" | ASCII_ALPHA | ASCII_DIGIT )*
+
+    ASCII_ALPHA ~ ( ASCII_ALPHA | ASCII_DIGIT )*
+}
+
+// Build-In rule NEWLINE: NEWLINE	any line feed format	"\n" | "\r\n" | "\r"
+//NEWLINE = {
+//    ( "\n" | "\r\n" | "\r" )
+//}
+
+// Handling whitespace can be inconvenient for large grammars. Explicitly writing a whitespace rule and manually inserting it 
+// makes a grammar difficult to read and modify. pest provides a solution using the special rule WHITESPACE. 
+// If defined, it will be implicitly run, as many times as possible, at every tilde ~ and between every repetition (for example, * and +). 
+// For our INI parser, only spaces are legal whitespace.
+// We mark the WHITESPACE rule silent with a leading low line (underscore) _{ ... }. This way, even if it matches, 
+// it won't show up inside other rules. If it weren't silent, parsing would be much more complicated, since every call to Pairs::next(...) 
+// could potentially return Rule::WHITESPACE instead of the desired next regular rule.
+//WHITESPACE = _{ ( " " | "\t" ) }
+WHITESPACE = _{ ( " " | NEWLINE ) }
+
+// I do not understand why I need to explicitly allow comments in the grammar rules!
+// Why is the COMMENT rule different from the WHITESPACE rule?
+// "check if the current position matches ‘NEWLINE‘, and if it’s not then match an allowable character."
+// https://pest.rs/book/grammars/syntax.html#implicit-whitespace
+SINGLE_LINE_COMMENT = {
+    ( ( "//" | "#" | ";" | "@" ) ~ ( !("\n" | "\r\n" | "\r") ~ ANY )* )
+}
+
+MULTI_LINE_COMMENT = {
+    ( "/*" ~ ( !"*/" ~ ANY )* ~ "*/" )
+}
+
+STRING_LITERAL = {
+    "\"" ~ (raw_string | escape)* ~ "\""
+}
+raw_string  = { (!("\\" | "\"") ~ ANY)+ }
+predefined  = { "n" | "r" | "t" | "\\" | "0" | "\"" | "'" }
+byte        = { "x" ~ hex{2} }
+unicode     = { "u" ~ "{" ~ unicode_hex ~ "}" }
+escape      = { "\\" ~ (predefined | byte | unicode) }
+hex         = _{ '0'..'9' | 'a'..'f' | 'A'..'F' }
+unicode_hex = { hex{1, 6} }
+
+//
+// RULES
+//
+
+//translation_unit
+//	: external_declaration
+//	| translation_unit external_declaration
+//	;
+translation_unit = {
+    SOI 
+    ~ ( 
+        single_line_comment_rule  
+        | multi_line_comment_rule 
+        | function_definition ~ ( single_line_comment_rule )?  
+        | function_definition ~ ( multi_line_comment_rule )?
+    )
+    ~ EOI
+}
+
+single_line_comment_rule = {
+    SINGLE_LINE_COMMENT
+}
+
+multi_line_comment_rule = {
+    MULTI_LINE_COMMENT
+}
+
+//%token IDENTIFIER CONSTANT STRING_LITERAL SIZEOF
+//%token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
+//%token AND_OP OR_OP MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
+//%token SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
+//%token XOR_ASSIGN OR_ASSIGN TYPE_NAME
+//
+//%token TYPEDEF EXTERN STATIC AUTO REGISTER
+//%token CHAR SHORT INT LONG SIGNED UNSIGNED FLOAT DOUBLE CONST VOLATILE VOID
+//%token STRUCT UNION ENUM ELLIPSIS
+//
+//%token CASE DEFAULT IF ELSE SWITCH WHILE DO FOR GOTO CONTINUE BREAK RETURN
+//
+//%start translation_unit
+//%%
+//
+//primary_expression
+//	: IDENTIFIER
+//	| CONSTANT
+//	| STRING_LITERAL
+//	| '(' expression ')'
+//	;
+primary_expression = {
+    IDENTIFIER
+    | HEX_NUMERIC
+    | NUMERIC
+    //| STRING_LITERAL
+    //| "(" ~ expression ~ ")"
+}
+
+//postfix_expression
+//	: primary_expression
+//	| postfix_expression '[' expression ']'
+//	| postfix_expression '(' ')'
+//	| postfix_expression '(' argument_expression_list ')'
+//	| postfix_expression '.' IDENTIFIER
+//	| postfix_expression PTR_OP IDENTIFIER
+//	| postfix_expression INC_OP
+//	| postfix_expression DEC_OP
+//	;
+postfix_expression = {
+    primary_expression ~ postfix_expression_list
+    | 
+    primary_expression
+}
+
+postfix_expression_list = {
+    INC_OP ~ postfix_expression_list
+    | INC_OP
+}
+
+//argument_expression_list
+//	: assignment_expression
+//	| argument_expression_list ',' assignment_expression
+//	;
+//
+//unary_expression
+//	: postfix_expression
+//	| INC_OP unary_expression
+//	| DEC_OP unary_expression
+//	| unary_operator cast_expression
+//	| SIZEOF unary_expression
+//	| SIZEOF '(' type_name ')'
+//	;
+unary_expression = {
+    postfix_expression
+    | INC_OP ~ unary_expression
+    | DEC_OP ~ unary_expression
+    | unary_operator ~ cast_expression
+    | SIZEOF ~ unary_expression
+    | SIZEOF ~ "(" ~ type_name ~ ")"
+}
+
+//unary_operator
+//	: '&'
+//	| '*'
+//	| '+'
+//	| '-'
+//	| '~'
+//	| '!'
+//	;
+unary_operator = {
+    AMPERSAND
+    | ASTERISK
+    | PLUS
+    | MINUS
+    | TILDE
+    | EXCLAMATION_MARK
+}
+
+//cast_expression
+//	: unary_expression
+//	| '(' type_name ')' cast_expression
+//	;
+cast_expression = {
+    "(" ~ type_name ~ ")" ~ cast_expression
+    | unary_expression
+}
+
+//multiplicative_expression
+//	: cast_expression
+//	| multiplicative_expression '*' cast_expression
+//	| multiplicative_expression '/' cast_expression
+//	| multiplicative_expression '%' cast_expression
+//	;
+multiplicative_expression = {
+    cast_expression ~ ASTERISK ~ multiplicative_expression
+    | cast_expression ~ "/" ~ multiplicative_expression
+    | cast_expression ~ "%" ~ multiplicative_expression
+    | 
+    cast_expression
+}
+
+//additive_expression
+//	: multiplicative_expression
+//	| additive_expression '+' multiplicative_expression
+//	| additive_expression '-' multiplicative_expression
+//	;
+additive_expression = {
+    multiplicative_expression ~ PLUS ~ additive_expression
+    | multiplicative_expression ~ MINUS ~ additive_expression
+    | multiplicative_expression
+}
+
+//shift_expression
+//	: additive_expression
+//	| shift_expression LEFT_OP additive_expression
+//	| shift_expression RIGHT_OP additive_expression
+//	;
+shift_expression = {
+    additive_expression ~ LEFT_OP ~ shift_expression
+    | additive_expression ~ RIGHT_OP ~ shift_expression
+    | additive_expression
+}
+
+//relational_expression
+//	: shift_expression
+//	| relational_expression ~ "<" ~ shift_expression
+//	| relational_expression ~ ">" ~ shift_expression
+//	| relational_expression ~ LE_OP ~ shift_expression
+//	| relational_expression ~ GE_OP ~ shift_expression
+//	;
+relational_expression = {
+    shift_expression ~ "<" ~ relational_expression
+    | shift_expression ~ ">" ~ relational_expression
+    | shift_expression ~ "<=" ~ relational_expression
+    | shift_expression ~ ">=" ~ relational_expression
+    | shift_expression
+}
+
+//equality_expression
+//	: relational_expression
+//	| equality_expression EQ_OP relational_expression
+//	| equality_expression NE_OP relational_expression
+//	;
+equality_expression = {
+    relational_expression ~ EQ_OP ~ equality_expression
+    | relational_expression ~ NE_OP ~ equality_expression
+    | relational_expression
+}
+
+//and_expression
+//	: equality_expression
+//	| and_expression '&' equality_expression
+//	;
+and_expression = {
+    equality_expression ~ AMPERSAND ~ and_expression
+    | equality_expression
+}
+
+//exclusive_or_expression
+//	: and_expression
+//	| exclusive_or_expression '^' and_expression
+//	;
+exclusive_or_expression = {
+    and_expression ~ "^" ~ exclusive_or_expression 
+    | and_expression
+}
+
+//inclusive_or_expression
+//	: exclusive_or_expression
+//	| inclusive_or_expression '|' exclusive_or_expression
+//	;
+inclusive_or_expression = {
+    exclusive_or_expression ~ "|" ~ inclusive_or_expression
+    | exclusive_or_expression
+}
+
+//logical_and_expression
+//	: inclusive_or_expression
+//	| logical_and_expression AND_OP inclusive_or_expression
+//	;
+logical_and_expression = {
+    inclusive_or_expression ~ AND_OP ~ logical_and_expression
+    | inclusive_or_expression
+}
+
+//logical_or_expression
+//	: logical_and_expression
+//	| logical_or_expression OR_OP logical_and_expression
+//	;
+logical_or_expression = {
+    logical_and_expression ~ OR_OP ~ logical_or_expression
+    | logical_and_expression
+}
+
+//conditional_expression
+//	: logical_or_expression
+//	| logical_or_expression '?' expression ':' conditional_expression
+//	;
+conditional_expression = {
+    logical_or_expression ~ QUESTION_MARK ~ expression ~ COLON ~ conditional_expression
+    | logical_or_expression
+}
+
+//assignment_expression
+//	: conditional_expression
+//	| unary_expression assignment_operator assignment_expression
+//	;
+assignment_expression = {
+    unary_expression ~ assignment_operator ~ assignment_expression
+    | conditional_expression
+}
+
+//assignment_operator
+//	: '='
+//	| MUL_ASSIGN
+//	| DIV_ASSIGN
+//	| MOD_ASSIGN
+//	| ADD_ASSIGN
+//	| SUB_ASSIGN
+//	| LEFT_ASSIGN
+//	| RIGHT_ASSIGN
+//	| AND_ASSIGN
+//	| XOR_ASSIGN
+//	| OR_ASSIGN
+//	;
+assignment_operator = {
+    EQUALS_SIGN
+    | MUL_ASSIGN
+    | DIV_ASSIGN
+    | MOD_ASSIGN
+    | ADD_ASSIGN
+    | SUB_ASSIGN
+    | LEFT_ASSIGN
+    | RIGHT_ASSIGN
+    | AND_ASSIGN
+    | XOR_ASSIGN
+    | OR_ASSIGN
+}
+
+//expression
+//	: assignment_expression
+//	| expression ',' assignment_expression
+//	;
+expression = {
+    //assignment_expression ~ COMMA ~ expression
+    //| 
+    assignment_expression
+}
+
+//constant_expression
+//	: conditional_expression
+//	;
+constant_expression = {
+    conditional_expression
+}
+
+//declaration
+//	: declaration_specifiers ';'
+//	| declaration_specifiers init_declarator_list ';'
+//	;
+declaration = {
+    declaration_specifiers ~ init_declarator_list ~ SEMICOLON
+    | declaration_specifiers ~ SEMICOLON
+}
+
+//declaration_specifiers
+//	: storage_class_specifier
+//	| storage_class_specifier declaration_specifiers
+//	| type_specifier
+//	| type_specifier declaration_specifiers
+//	| type_qualifier
+//	| type_qualifier declaration_specifiers
+//	;
+declaration_specifiers = {
+    type_specifier ~ declaration_specifiers
+    | type_specifier
+    | type_qualifier ~ declaration_specifiers
+    | type_qualifier
+}
+
+//init_declarator_list
+//	: init_declarator
+//	| init_declarator_list ',' init_declarator
+//	;
+init_declarator_list = {
+    init_declarator
+    | init_declarator ~ COMMA ~ init_declarator_list
+}
+
+//init_declarator
+//	: declarator
+//	| declarator '=' initializer
+//	;
+init_declarator = {
+    declarator ~ EQUALS_SIGN ~ initializer
+    | declarator
+}
+
+//storage_class_specifier
+//	: TYPEDEF
+//	| EXTERN
+//	| STATIC
+//	| AUTO
+//	| REGISTER
+//	;
+//
+//type_specifier
+//	: VOID
+//	| CHAR
+//	| SHORT
+//	| INT
+//	| LONG
+//	| FLOAT
+//	| DOUBLE
+//	| SIGNED
+//	| UNSIGNED
+//	| struct_or_union_specifier
+//	| enum_specifier
+//	| TYPE_NAME
+//	;
+
+type_specifier = {
+    VOID
+    | INT
+}
+
+//
+//struct_or_union_specifier
+//	: struct_or_union IDENTIFIER '{' struct_declaration_list '}'
+//	| struct_or_union '{' struct_declaration_list '}'
+//	| struct_or_union IDENTIFIER
+//	;
+//
+//struct_or_union
+//	: STRUCT
+//	| UNION
+//	;
+//
+//struct_declaration_list
+//	: struct_declaration
+//	| struct_declaration_list struct_declaration
+//	;
+//
+//struct_declaration
+//	: specifier_qualifier_list struct_declarator_list ';'
+//	;
+//
+//specifier_qualifier_list
+//	: type_specifier specifier_qualifier_list
+//	| type_specifier
+//	| type_qualifier specifier_qualifier_list
+//	| type_qualifier
+//	;
+specifier_qualifier_list = {
+    type_specifier
+}
+
+//struct_declarator_list
+//	: struct_declarator
+//	| struct_declarator_list ',' struct_declarator
+//	;
+//
+//struct_declarator
+//	: declarator
+//	| ':' constant_expression
+//	| declarator ':' constant_expression
+//	;
+//
+//enum_specifier
+//	: ENUM '{' enumerator_list '}'
+//	| ENUM IDENTIFIER '{' enumerator_list '}'
+//	| ENUM IDENTIFIER
+//	;
+//
+//enumerator_list
+//	: enumerator
+//	| enumerator_list ',' enumerator
+//	;
+//
+//enumerator
+//	: IDENTIFIER
+//	| IDENTIFIER '=' constant_expression
+//	;
+//
+//type_qualifier
+//	: CONST
+//	| VOLATILE
+//	;
+type_qualifier = {
+    CONST
+    | VOLATILE
+}
+
+//declarator
+//	: pointer direct_declarator
+//	| direct_declarator
+//	;
+declarator = {
+    direct_declarator
+}
+
+//direct_declarator
+//	: IDENTIFIER
+//	| '(' declarator ')'
+//	| direct_declarator '[' constant_expression ']'
+//	| direct_declarator '[' ']'
+//	| direct_declarator '(' parameter_type_list ')'
+//	| direct_declarator '(' identifier_list ')'
+//	| direct_declarator '(' ')'
+//	;
+direct_declarator = {
+    IDENTIFIER ~ direct_declarator
+    | IDENTIFIER 
+    | "(" ~ declarator ~ ")"
+    | "(" ~ ")"
+}
+
+//pointer
+//	: '*'
+//	| '*' type_qualifier_list
+//	| '*' pointer
+//	| '*' type_qualifier_list pointer
+//	;
+//
+//type_qualifier_list
+//	: type_qualifier
+//	| type_qualifier_list type_qualifier
+//	;
+//
+//parameter_type_list
+//	: parameter_list
+//	| parameter_list ',' ELLIPSIS
+//	;
+//
+//parameter_list
+//	: parameter_declaration
+//	| parameter_list ',' parameter_declaration
+//	;
+//
+//parameter_declaration
+//	: declaration_specifiers declarator
+//	| declaration_specifiers abstract_declarator
+//	| declaration_specifiers
+//	;
+//
+//identifier_list
+//	: IDENTIFIER
+//	| identifier_list ',' IDENTIFIER
+//	;
+//
+//type_name
+//	: specifier_qualifier_list
+//	| specifier_qualifier_list abstract_declarator
+//	;
+type_name = {
+    specifier_qualifier_list
+}
+
+//abstract_declarator
+//	: pointer
+//	| direct_abstract_declarator
+//	| pointer direct_abstract_declarator
+//	;
+//
+//direct_abstract_declarator
+//	: '(' abstract_declarator ')'
+//	| '[' ']'
+//	| '[' constant_expression ']'
+//	| direct_abstract_declarator '[' ']'
+//	| direct_abstract_declarator '[' constant_expression ']'
+//	| '(' ')'
+//	| '(' parameter_type_list ')'
+//	| direct_abstract_declarator '(' ')'
+//	| direct_abstract_declarator '(' parameter_type_list ')'
+//	;
+//
+//initializer
+//	: assignment_expression
+//	| '{' initializer_list '}'
+//	| '{' initializer_list ',' '}'
+//	;
+initializer = {
+    "{" ~ initializer_list ~ (COMMA)* ~ "}"
+    | assignment_expression
+}
+
+//initializer_list
+//	: initializer
+//	| initializer_list ',' initializer
+//	;
+initializer_list = {
+    initializer ~ COMMA ~ initializer_list
+    | initializer
+}
+
+//statement
+//	: labeled_statement
+//	| compound_statement
+//	| expression_statement
+//	| selection_statement
+//	| iteration_statement
+//	| jump_statement
+//	;
+statement = {
+    labeled_statement
+    | compound_statement
+    | expression_statement
+    | selection_statement
+    | iteration_statement
+    | jump_statement
+}
+
+//labeled_statement
+//	: IDENTIFIER ':' statement
+//	| CASE constant_expression ':' statement
+//	| DEFAULT ':' statement
+//	;
+labeled_statement = {
+    IDENTIFIER ~ COLON ~ statement
+    | CASE ~ constant_expression ~ COLON ~ statement
+    | DEFAULT ~ COLON ~ statement
+}
+
+//compound_statement
+//	: '{' '}'
+//	| '{' statement_list '}'
+//	| '{' declaration_list '}'
+//	| '{' declaration_list statement_list '}'
+//	;
+compound_statement = {
+    //"{" ~ declaration_list ~ statement_list ~ "}"
+    //| "{" ~ declaration_list ~ "}"
+    //| "{" ~ statement_list ~ "}"
+    "{" ~ declaration_or_statement_list ~ "}"
+    | "{" ~ "}"
+}
+
+//declaration_list
+//	: declaration
+//	| declaration_list declaration
+//	;
+declaration_list = {
+    declaration
+    | declaration ~ declaration_list
+}
+
+//statement_list
+//	: statement
+//	| statement_list statement
+//	;
+statement_list = {
+    //single_line_comment_rule  
+    //| multi_line_comment_rule 
+    statement ~ statement_list
+    | statement
+}
+
+declaration_or_statement_list = {
+    //single_line_comment_rule  
+    //| multi_line_comment_rule 
+    
+    declaration ~ declaration_or_statement_list
+    | statement ~ declaration_or_statement_list
+    
+    | declaration
+    | statement
+}
+
+//expression_statement
+//	: ';'
+//	| expression ';'
+//	;
+expression_statement = {
+    expression ~ SEMICOLON
+    | 
+    SEMICOLON
+}
+
+//selection_statement
+//	: IF '(' expression ')' statement
+//	| IF '(' expression ')' statement ELSE statement
+//	| SWITCH '(' expression ')' statement
+//	;
+selection_statement = {
+    IF ~ "(" ~ expression ~ ")" ~ statement ~ ( ELSE ~ statement )?
+    | SWITCH ~ "(" ~ expression ~ ")" ~ statement
+}
+
+//iteration_statement
+//	: WHILE '(' expression ')' statement
+//	| DO statement WHILE '(' expression ')' ';'
+//	| FOR '(' expression_statement expression_statement ')' statement
+//	| FOR '(' expression_statement expression_statement expression ')' statement
+//	;
+iteration_statement = {
+    WHILE ~ "(" ~ expression ~ ")" ~ statement
+    | FOR ~ "(" ~ expression_statement ~ expression_statement ~ expression ~ ")" ~ statement
+    | FOR ~ "(" ~ expression_statement ~ expression_statement ~ ")" ~ statement
+}
+
+//jump_statement
+//	: GOTO IDENTIFIER ';'
+//	| CONTINUE ';'
+//	| BREAK ';'
+//	| RETURN ';'
+//	| RETURN expression ';'
+//	;
+jump_statement = {
+    RETURN ~ expression ~ SEMICOLON
+    | 
+    RETURN ~ SEMICOLON
+}
+
+
+//external_declaration
+//	: function_definition
+//	| declaration
+//	;
+//
+
+//function_definition
+//	: declaration_specifiers declarator declaration_list compound_statement
+//	| declaration_specifiers declarator compound_statement
+//	| declarator declaration_list compound_statement
+//	| declarator compound_statement
+//	;
+
+function_definition = {
+    declaration_specifiers ~ declarator ~ compound_statement
+}
