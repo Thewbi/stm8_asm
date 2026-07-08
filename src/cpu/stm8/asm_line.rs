@@ -12,6 +12,7 @@ pub struct ASMLine {
     pub reg2: Register,
     pub reg3: Register,
     pub immediate: i32,
+    pub immediate_2: i32,
     pub label: String,
     pub label_target: String,
     pub jump_offset: i32,
@@ -28,6 +29,7 @@ impl ASMLine {
             reg2: Register::UNDEFINED,
             reg3: Register::UNDEFINED,
             immediate: 0,
+            immediate_2: 2,
             label: String::new(),
             label_target: String::new(),
             jump_offset: 0,
@@ -42,6 +44,7 @@ impl ASMLine {
         self.reg2 = Register::UNDEFINED;
         self.reg3 = Register::UNDEFINED;
         self.immediate = 0;
+        self.immediate_2 = 0;
         self.label = String::new();
         self.label_target = String::new();
         self.jump_offset = 0;
@@ -87,6 +90,13 @@ impl fmt::Display for ASMLine {
             Instruction::AND_A => write!(
                 f,
                 "{} and a, #{}",
+                self.label, self.immediate
+            ),
+
+            // 0xE4 (AND), page 79
+            Instruction::AND_A_X_OFFSET => write!(
+                f,
+                "{} and a, (#{}, x)",
                 self.label, self.immediate
             ),
 
@@ -161,6 +171,14 @@ impl fmt::Display for ASMLine {
             ),
 
             // CPL, page 97
+
+            // 0x43, page 97
+            Instruction::CPL_A => write!(
+                f,
+                "{} cpl a",
+                self.label
+            ),
+
             // CPLW, page 98
             // DEC, page 99
             // DECW, page 100
@@ -229,6 +247,14 @@ impl fmt::Display for ASMLine {
             // LD, page 114
             //
 
+            // 0x7B
+            // LD A,($12,SP)
+            Instruction::LD_A_OFFSET_SP => write!(
+                f,
+                "{} {} a, ({}, sp)",
+                self.label, self.instruction, self.immediate
+            ),
+
             // 0x90, 0xF6, page 114
             Instruction::LD_A_Y => write!(
                 f,
@@ -250,6 +276,20 @@ impl fmt::Display for ASMLine {
                 self.label, self.instruction, self.immediate
             ),
 
+            // 0xE6, page 114, LD A,($50,X)
+            Instruction::LD_A_OFFSET_X => write!(
+                f,
+                "{} {} a, ({:02x}, x)",
+                self.label, self.instruction, self.immediate
+            ),
+
+            // 0xE7, page 115
+            Instruction::LD_X_OFFSET_A => write!(
+                f,
+                "{} {} ({:02x}, x), a",
+                self.label, self.instruction, self.immediate
+            ),
+
             // 0xF7, page 115
             Instruction::LD_X_MEMORY_A => write!(
                 f,
@@ -265,6 +305,8 @@ impl fmt::Display for ASMLine {
             // LDW, page 117
             //
 
+            // 0x90, 0x96
+            // LDW X,SP
             Instruction::LDW_X_SP => write!(
                 f,
                 "{} ldw x, sp",
@@ -315,6 +357,15 @@ impl fmt::Display for ASMLine {
                 self.label, self.instruction
             ),
 
+            // page 117
+            // LDW $5000,X
+            // 0xCF MS LS
+            Instruction::LDW_IMM_X => write!(
+                f,
+                "{} {} {:04x}, x",
+                self.label, self.instruction, self.immediate
+            ),
+
             // 0xFE, page 117
             Instruction::LDW_X_X_MEMORY => write!(
                 f,
@@ -322,7 +373,24 @@ impl fmt::Display for ASMLine {
                 self.label, self.instruction
             ),
 
+            //
             // MOV, page 119
+            //
+
+            // 0x35
+            Instruction::MOV => write!(
+                f,
+                "{} mov 0x{:04x}, 0x{:02x}",
+                self.label, self.jump_offset, self.immediate 
+            ),
+
+            // 0x55
+            Instruction::MOV_LONGMEM_LONGMEM => write!(
+                f,
+                "{} mov 0x{:04x}, 0x{:04x}",
+                self.label, self.immediate_2, self.immediate
+            ),
+
             // MUL, page 120
             // NEG, page 121
             // NEGW, page 123
@@ -348,19 +416,44 @@ impl fmt::Display for ASMLine {
                 self.label, self.immediate
             ),
 
-            // // 0x1A, OR A,($10,SP), page 125
+            // 0x1A, OR A,($10,SP), page 125
             Instruction::OR_A_OFFSET_SP => write!(
                 f,
                 "{} or a, (#{}, SP)",
                 self.label, self.immediate
             ),
 
+            //
             // POP, page 126
+            //
+
+            Instruction::POP_A => write!(
+                f,
+                "{} pop a",
+                self.label
+            ),
+
+            //
             // POPW, page 127
+            //
+
+            // 0x85, page 127
+            Instruction::POPW => write!(
+                f,
+                "{} popw x",
+                self.label
+            ),
 
             //
             // PUSH, page 128
             //
+
+            // 0x4B, page 128
+            Instruction::PUSH => write!(
+                f,
+                "{} push #0x{:02x}",
+                self.label, self.immediate
+            ),
 
             Instruction::PUSH_A => write!(
                 f,
@@ -369,9 +462,32 @@ impl fmt::Display for ASMLine {
             ),
 
             // PUSHW, page 129
+
+            Instruction::PUSHW => write!(
+                f,
+                "{} pushw x",
+                self.label
+            ),
+
+            // Instruction::PUSHW_X => write!(
+            //     f,
+            //     "{} pushw y",
+            //     self.label
+            // ),
+
             // RCF, page 130
             // RET, page 131
+
+            //
             // RETF, page 132
+            //
+
+            Instruction::RETF => write!(
+                f,
+                "{} retf",
+                self.label
+            ),
+
             // RIM, page 133
             // RLC, page 134
 
@@ -412,7 +528,16 @@ impl fmt::Display for ASMLine {
                 self.label
             ),
 
+            //
             // RVF, page 140
+            //
+
+            Instruction::RVF => write!(
+                f,
+                "{} rvf",
+                self.label
+            ),
+
             // SBC, page  141
             // SCF, page 142
             // SIM, page 143
@@ -442,7 +567,25 @@ impl fmt::Display for ASMLine {
             // SRAW, page 148
             // SRL, page 149
             // SRLW, page 150
+
+            //
             // SUB, page 151
+            //
+
+            // 0x10
+            // SUB A,($10,SP), page 151
+            Instruction::SUB_A_OFFSET_SP => write!(
+                f,
+                "{} sub a, (0x{:02x}, sp)",
+                self.label, self.immediate
+            ),
+
+            // 0x52 XX, page 151
+            Instruction::SUB_SP => write!(
+                f,
+                "{} sub sp, 0x{:02x}",
+                self.label, self.immediate
+            ),
 
             //
             // SUBW, page 152
@@ -523,17 +666,19 @@ impl fmt::Display for ASMLine {
                 self.label, self.immediate
             ),
 
-            // 0xAE, page 117
-            Instruction::LDW_AE => write!(
-                f,
-                "{} ldw x, #{:04x?}",
-                self.label, self.immediate
-            ),
+            
 
             // 0xBF (LDW $50,X), page 117
             Instruction::LDW_IMM_SHORTMEM_X => write!(
                 f,
                 "{} ldw (0x{:02x}), x",
+                self.label, self.immediate
+            ),
+
+            // 0xCE
+            Instruction::LDW_X_IMM => write!(
+                f,
+                "{} ldw x, 0x{:04x}",
                 self.label, self.immediate
             ),
 
@@ -564,12 +709,19 @@ impl fmt::Display for ASMLine {
             // LDW
             //
 
-            // 0xAE (LOAD),
+            // 0xAE (LOAD), page 117
             Instruction::LDW_AE => write!(
                 f,
                 "{} {} #{}",
                 self.label, self.instruction, self.immediate
             ),
+
+            // // 0xAE, page 117
+            // Instruction::LDW_AE => write!(
+            //     f,
+            //     "{} ldw x, #{:04x?} ({:?})dec",
+            //     self.label, self.immediate, self.immediate
+            // ),
 
             // 0x90 0xCE, page 118
             Instruction::LDW_Y_IMM_LONGMEM => write!(
@@ -581,7 +733,7 @@ impl fmt::Display for ASMLine {
             // 0xC6 (LD_A)
             Instruction::LD_A => write!(
                 f,
-                "{} ld a, #{}",
+                "{} ld a, #0x{:04x}",
                 self.label, self.immediate
             ),
 
@@ -595,7 +747,7 @@ impl fmt::Display for ASMLine {
             // 0xC7 (LD_A_LONGMEM)
             Instruction::LD_A_LONGMEM => write!(
                 f,
-                "{} ld #{}, a",
+                "{} ld #0x{:04x}, a",
                 self.label, self.immediate
             ),
 

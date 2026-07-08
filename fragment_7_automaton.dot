@@ -1,0 +1,8 @@
+// https://dreampuf.github.io/GraphvizOnline
+
+digraph {
+	start_pointer [label= "", shape=none,height=.0,width=.0]
+	start_pointer -> 98;
+	99[label="99, Token: 15"];
+	98 -> 99[label="Symbol( )"];
+}

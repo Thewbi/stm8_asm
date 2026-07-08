@@ -1,0 +1,407 @@
+
+// Idea: 
+// In step 1, build a state machine from all regexes
+// In step 2, generate Rust code that has large switch statements that implement each state of the state machine
+//
+// StateMachine:
+// A state can be an emit state that emits a specific token.
+//
+// A transition is triggered by a specific character or the absence or negation (NOT) of a specific character.
+//
+// If the current state is the start state and
+//      - there is no more input, terminate without error
+//      - there is no transition for the current input character, terminate with an error
+//      - there is a transition for the current input character, consume the character and execute the transition
+//
+// If the current state is an emit-state and 
+//      - there is no more input, emit the current token and terminate without error
+//      - the current input character does not trigger a transition, emit the state's token and go back to the start state 
+//        and do not consume the input character and make the start state react to the input character.
+//      - the current input character does trigger a transition, do not emit but consume the input and execute the transition
+//
+// If the current state is not an emit state and
+//      - there is no more input, terminate with an error
+//      - there is a transition for the current input character, consume the character and execute the transition
+//
+// Optional characters:
+// NUMERIC = @{
+//    ( "-" )? ~ ( ASCII_DIGIT )+
+// }
+// From the current state create two transitions
+// 1. from the current state to the optional state and from the optional state to the consolidating state
+// 2. from the current state to the consolidating state.
+//
+// Groups:
+// "0x" ~ ( ASCII_HEX_DIGIT )+
+// 
+// ASCII_DIGIT is tranlated to transitions for 0,1,2,3,4,5,6,7,8,9
+// ASCII_HEX_DIGIT is tranlated to transitions for 0,1,2,3,4,5,6,7,8,9,a,b,c,d,e,f,A,B,C,D,E,F
+// ASCII_ALPHA is tranlated to transitions for ( [0..9] | [a..z] | [A..Z] )
+//
+// NEWLINE is translated to ( "\n" | "\r\n" | "\r" )
+//
+// !("a" | "b" | "c") is tranlated to three transitions which are triggered by !a, !b and !c respecively
+//
+// ( regex )+
+// the state points back to itself using the characters described by the "regex"
+//
+// OR
+// ( "%" | "." | "_" | ASCII_ALPHA ) ~ ( "_" | ASCII_ALPHA | ASCII_DIGIT )*
+// the current state transitions to all four of the ORed states 
+// and all four states each transition to all of the next three states
+
+use std::vec::IntoIter;
+use std::iter::Peekable;
+use std::collections::HashMap;
+
+#[derive(Debug, Clone, Copy)]
+pub enum TokenType {
+
+    SPACE,
+
+    LET,
+    LETTER,
+
+    SOI,
+    EOI,
+
+    NONE
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Token {
+    pub token_type: TokenType,
+}
+
+#[derive(Debug)]
+pub struct StateData {
+    pub name: String,
+    pub emit: bool,
+    pub token_type: TokenType,
+}
+
+// Using usize for safe, type-safe node indices
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NodeId(pub usize);
+
+// A transition (edge) contains the target node and the data/cost of the move
+#[derive(Debug, Clone)]
+pub struct Transition {
+    pub target: NodeId,
+    pub input: char, // Can be used for costs, conditions, etc.
+}
+
+pub struct Graph<N> {
+    pub nodes: HashMap<NodeId, N>, // Stores node data
+    pub adjacency_list: HashMap<NodeId, Vec<Transition>>, // Stores transitions
+}
+
+// https://smallcultfollowing.com/babysteps/blog/2015/04/06/modeling-graphs-in-rust-using-vector-indices/
+impl<N> Graph<N> {
+
+    pub fn new() -> Self {
+        Graph {
+            nodes: HashMap::new(),
+            adjacency_list: HashMap::new(),
+        }
+    }
+
+    pub fn add_node(&mut self, id: NodeId, data: N) {
+        self.nodes.insert(id, data);
+        self.adjacency_list.insert(id, Vec::new());
+    }
+
+    pub fn add_transition(&mut self, from: NodeId, to: NodeId, input: char) {
+        if self.nodes.contains_key(&from) && self.nodes.contains_key(&to) {
+            self.adjacency_list.entry(from).or_default().push(Transition {
+                target: to,
+                input,
+            });
+        }
+    }
+
+}
+
+pub struct Lexer {
+    peekable_char_iterator: Peekable<IntoIter<char>>,
+    graph: Graph<StateData>,
+    debug: bool,
+}
+
+impl Lexer {
+
+    pub fn new(char_vec: Vec<char>, graph: Graph<StateData>, debug: bool) -> Self {
+        Lexer {
+            peekable_char_iterator: char_vec.into_iter().peekable(),
+            graph: graph,
+            debug: debug,
+        }
+    }
+
+    pub fn next_token(&mut self) -> Token {
+
+        let start_node_id: NodeId;
+        start_node_id = NodeId(0);
+
+        let mut _current_node_id: NodeId;
+        _current_node_id = NodeId(0);
+
+        let mut next_node_id: NodeId;
+        next_node_id = NodeId(0);
+
+        loop {
+
+            let c = self.peekable_char_iterator.peek();
+            match c {
+
+                None => {
+                    break;
+                }
+
+                Some(c) => {
+
+                    if self.debug {
+                        println!("{}", c);
+                    }
+
+                    let mut _transition_found = false;
+
+                    if let Some(transitions) = self.graph.adjacency_list.get(&_current_node_id) {
+
+                        // DEBUG
+                        if self.debug {
+                            println!("Transitions from Start ({:?}):", _current_node_id);
+                            for t in transitions {
+                                println!(" -> Can go to NodeId({}) with input ['{}']", t.target.0, t.input);
+                            }
+                        }
+    
+                        // search transition for current character
+                        for t in transitions {
+                            if t.input == *c {
+
+                                if self.debug {
+                                    println!(" -> Using transition to NodeId({}) with input {}", t.target.0, t.input);
+                                }
+                                next_node_id = t.target;
+    
+                                _transition_found = true;
+
+                                break;
+                            }
+                        }
+    
+                        // check if there is a transition for the input
+                        if _transition_found {
+    
+                            // if a transition for the input character is available, follow it
+                            _current_node_id = next_node_id;
+                            self.peekable_char_iterator.next();
+    
+                        } else {
+    
+                            // retieve data stored in node because it contains the token type that this node emits
+                            let state_data = self.graph.nodes.get(&_current_node_id).expect("Node needs StateData!");
+
+                            // DEBUG
+                            if self.debug {
+                                println!("{:?}", state_data);
+                            }
+                            
+                            // if this is a node that emits a token, emit the token, do not consume the current input and go back to start.
+                            // If this node is not an emitter and there is no transition for the input, this is an error in the input
+                            if state_data.emit {
+
+                                // DEBUG
+                                if self.debug {
+                                    println!(">>>>>>>>> Emitting token type {:?}", state_data.token_type);
+                                }
+    
+                                // go back to start state, let the start state process the input
+                                _current_node_id = start_node_id;
+
+                                // return the token
+                                return Token { token_type: state_data.token_type };
+
+                            } else {
+
+                                // the input cannot be processed
+                                panic!("No transition from NodeId({:?}) with input ['{}'] and not an 'emitting' node", _current_node_id, c);
+
+                            }
+                        }
+                    }
+                }
+            }
+
+        }
+
+        // retieve data stored in node because it contains the token type that this node emits
+        let state_data = self.graph.nodes.get(&_current_node_id).expect("Node needs StateData!");
+
+        // DEBUG
+        if self.debug {
+            println!("{:?}", state_data);
+        }
+        
+        // emit the last token
+        if state_data.emit {
+
+            // DEBUG
+            if self.debug {
+                println!(">>>>>>>>> Emitting token type {:?}", state_data.token_type);
+            }
+
+            // go back to start state, let the start state process the input
+            _current_node_id = start_node_id;
+
+            return Token { token_type: state_data.token_type };
+
+        } else {
+
+            // DEBUG
+            if self.debug {
+                println!("End of Input at NodeId({:?}) and not an 'emitting' node", _current_node_id);
+            }
+
+            // mark the End of Input
+            return Token { token_type: TokenType::EOI };
+        }
+    }
+}
+
+fn main() {
+
+    // Next steps:
+    //
+    // build a graph construction API
+    //
+    // add_next_state()
+    // next_node_id = add_next_state(&graph, current_node_id, 'a', StateData { name: String::from("state_xyz"), emit: false, token_type: String::from("") })
+    // The idea is that add_next_state will create a new node only if none exists already!
+    //
+    // add_transition()
+    // add_transition(&graph, current_node_id, next_node_id, 'x')
+    // The idea is that a transition is only added if none exists already
+
+
+    let mut graph: Graph<StateData> = Graph::new();
+
+    let node_id_0 = NodeId(0);
+
+    let node_id_1 = NodeId(1); // l
+    let node_id_2 = NodeId(2); // e
+    let node_id_3 = NodeId(3); // t
+    let node_id_4 = NodeId(4); // t
+    let node_id_5 = NodeId(5); // e
+    let node_id_6 = NodeId(6); // r
+
+    let node_id_7 = NodeId(7); // ' '
+
+    graph.add_node(node_id_0, StateData { name: String::from("state_0"), emit: false, token_type: TokenType::NONE } );
+    graph.add_node(node_id_1, StateData { name: String::from("state_1"), emit: false, token_type: TokenType::NONE } );
+    graph.add_node(node_id_2, StateData { name: String::from("state_2"), emit: false, token_type: TokenType::NONE } );
+    graph.add_node(node_id_3, StateData { name: String::from("state_3"), emit: true, token_type: TokenType::LET } );
+    graph.add_node(node_id_4, StateData { name: String::from("state_4"), emit: false, token_type: TokenType::NONE } );
+    graph.add_node(node_id_5, StateData { name: String::from("state_5"), emit: false, token_type: TokenType::NONE } );
+    graph.add_node(node_id_6, StateData { name: String::from("state_6"), emit: true, token_type: TokenType::LETTER } );
+
+    graph.add_node(node_id_7, StateData { name: String::from("state_7"), emit: true, token_type: TokenType::SPACE } );
+
+    // whitespace is just consumed by the start node
+    graph.add_transition(node_id_0, node_id_7, ' ');
+
+    // token: "let", token_type: let
+    graph.add_transition(node_id_0, node_id_1, 'l');
+    graph.add_transition(node_id_1, node_id_2, 'e');
+    graph.add_transition(node_id_2, node_id_3, 't');
+    graph.add_transition(node_id_3, node_id_4, 't');
+    graph.add_transition(node_id_4, node_id_5, 'e');
+    graph.add_transition(node_id_5, node_id_6, 'r');
+
+    // DEBUG
+    // if let Some(transitions) = graph.adjacency_list.get(&start_id) {
+    //     println!("Transitions from Start ({:?}):", start_id);
+    //     for t in transitions {
+    //         println!(" -> Can go to NodeId({}) with input {}", t.target.0, t.input);
+    //     }
+    // }
+
+    //let input = String::from("let a = 5;");
+    let input = String::from("let     letter");
+    let char_vec: Vec<char> = input.chars().collect();
+    //let char_iterator = input.chars();
+
+    let mut lexer = Lexer::new(char_vec, graph, false);
+
+    let mut done: bool = false;
+    while !done {
+
+        let token = lexer.next_token();
+        match token.token_type {
+            
+            TokenType::EOI => { 
+                println!("{:?}", token); 
+                done = true;
+            }
+
+            _ => { println!("{:?}", token); }
+
+        }
+    }
+    
+
+
+
+    // let mut l = lexer::Lexer::new(input.chars().collect());
+    // l.read_char();
+    // loop {
+    //     let token = l.next_token();
+    //     if token == lexer::token::Token::EOF {
+    //         break;
+    //     } else {
+    //         println!("{:?}", token);
+    //     }
+    // }
+
+
+}
+
+
+
+
+/*
+#[derive(Debug)]
+pub struct StateData {
+    pub name: String,
+}
+
+fn main() {
+    let mut graph = Graph::new();
+
+    // 1. Define Nodes
+    let start_id = NodeId(1);
+    let middle_id = NodeId(2);
+    let end_id = NodeId(3);
+
+    graph.add_node(start_id, StateData { name: String::from("Start") });
+    graph.add_node(middle_id, StateData { name: String::from("Middle") });
+    graph.add_node(end_id, StateData { name: String::from("End") });
+
+    // 2. Define Transitions
+    // Start -> Middle (cost 10)
+    graph.add_transition(start_id, middle_id, 10);
+    // Middle -> End (cost 5)
+    graph.add_transition(middle_id, end_id, 5);
+    // Start -> End (cost 30) - bypassing Middle
+    graph.add_transition(start_id, end_id, 30);
+
+    // 3. Inspect the outgoing transitions from Start
+    if let Some(transitions) = graph.adjacency_list.get(&start_id) {
+        println!("Transitions from Start ({:?}):", start_id);
+        for t in transitions {
+            println!(" -> Can go to NodeId({}) with weight {}", t.target.0, t.weight);
+        }
+    }
+}
+*/

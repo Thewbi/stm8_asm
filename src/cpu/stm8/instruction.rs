@@ -155,6 +155,10 @@ pub enum Instruction {
     // SUB, PM0044, page 151
     SUB_SP,
 
+    // 0x55
+    // MOV longmem, longmem
+    MOV_LONGMEM_LONGMEM,
+
     // 0x58, page 146
     // SLLW X
     SLLW_X,
@@ -180,6 +184,9 @@ pub enum Instruction {
     // Bit Test and Jump if True
     // page 87
     BTJT,
+
+    // 0xE4, page 79
+    AND_A_X_OFFSET,
 
     // A9, page 76
     ADC_A_IMM,
@@ -220,6 +227,9 @@ pub enum Instruction {
 
     // 0x84
     POP_A,
+
+    // 0x85
+    POPW,
 
     // 0x87, page 132, Far Return from subroutine
     RETF,
@@ -405,6 +415,9 @@ pub enum Instruction {
     // 0xE6, page 114, LD A,($50,X)
     LD_A_OFFSET_X,
 
+    // 0xE7, page 115, LD ($50,X),A
+    LD_X_OFFSET_A,
+
     // 0xF1, page 94
     CP_A_X_MEMORY,
 
@@ -433,6 +446,12 @@ pub enum Instruction {
 
     // 0x90, 0xFE, page 118
     LDW_Y_Y_MEMORY,
+
+    // 0xBC, page 116
+    LDF_A_EXTMEM,
+
+    // 0x92 0xAF
+    LDF_A_X_OFFSET,
 
     // 0xF8
     XOR_A_X,
@@ -468,6 +487,9 @@ impl FromStr for Instruction {
 
             // 0x27
             "JREQ" => Ok(Instruction::JREQ),
+
+            // 0x4B
+            "PUSH" => Ok(Instruction::PUSH),
 
             // 0x49
             "RLC_A" => Ok(Instruction::RLC_A),
@@ -547,25 +569,25 @@ impl fmt::Display for Instruction {
         match self {
 
             // 0x01
-            Instruction::RRWA_X => write!(f, "rrwa_x"),
+            Instruction::RRWA_X => write!(f, "rrwa"),
 
             // 0x08
-            Instruction::SLL_SP_OFFSET => write!(f, "SLL ($15,SP)"),
+            Instruction::SLL_SP_OFFSET => write!(f, "sll"),
             // 0x09
-            Instruction::RLC_SP_OFFSET => write!(f, "RLC ($10,SP)"),
+            Instruction::RLC_SP_OFFSET => write!(f, "rlc"),
             // 0x0C
-            Instruction::INC_SP_OFFSET => write!(f, "INC ($10,SP)"),
+            Instruction::INC_SP_OFFSET => write!(f, "inc"),
             // 0x0F
-            Instruction::CLR_SP_OFFSET => write!(f, "CLR ($10,SP)"),
+            Instruction::CLR_SP_OFFSET => write!(f, "clr"),
 
             // 0x10
-            Instruction::SUB_A_OFFSET_SP => write!(f, "SUB_A_OFFSET_SP"),
+            Instruction::SUB_A_OFFSET_SP => write!(f, "sub"),
 
             // 0x1C
-            Instruction::ADDW_X_IMM => write!(f, "ADDW_X_IMM"),
+            Instruction::ADDW_X_IMM => write!(f, "addw"),
 
             // 0x13
-            Instruction::CPW_X_SP_OFFSET => write!(f, "CPW X,($10,SP)"),
+            Instruction::CPW_X_SP_OFFSET => write!(f, "cpw"),
 
             // 0x16, LDW Y,($50,SP)
             Instruction::LDW_Y_SP_OFFSET => write!(f, "ldw"),
@@ -579,7 +601,7 @@ impl fmt::Display for Instruction {
             Instruction::OR_A_OFFSET_SP => write!(f, "or"),
 
             // 0x1D
-            Instruction::SUBW_X_IMM => write!(f, "SUBW X,#$5500"),
+            Instruction::SUBW_X_IMM => write!(f, "subw"),
 
             // 0x1E, LDW X,($50,SP)
             Instruction::LDW_X_SP_OFFSET => write!(f, "ldw"),
@@ -602,7 +624,7 @@ impl fmt::Display for Instruction {
             Instruction::JREQ => write!(f, "jreq"),
 
             // 0x90 0x2C bb
-            Instruction::JRNM => write!(f, "JRNM"),
+            Instruction::JRNM => write!(f, "jrnm"),
 
             // 0x28
             Instruction::JRNV => write!(f, "jrnv"),
@@ -630,10 +652,10 @@ impl fmt::Display for Instruction {
             Instruction::RRC_SHORTMEM => write!(f, "rrc"),
 
             // 0x39
-            Instruction::RLC_SHORTMEM => write!(f, "rlc_shortmem"),
+            Instruction::RLC_SHORTMEM => write!(f, "rlc"),
 
             // 0x43
-            Instruction::CPL_A => write!(f, "cpl_a"), // Logical 1’s Complement of accumulator
+            Instruction::CPL_A => write!(f, "cpl"), // Logical 1’s Complement of accumulator
 
             // 0x48
             Instruction::SLL_A => write!(f, "sll"),
@@ -641,29 +663,32 @@ impl fmt::Display for Instruction {
             // 0x4A
             Instruction::DEC_A => write!(f, "dec"),
 
-            // 0x4B
+            // 0x4B, page 128
             Instruction::PUSH => write!(f, "push"),
 
             // 0x49, page 134
-            Instruction::RLC_A => write!(f, "rlc_a"),
+            Instruction::RLC_A => write!(f, "rlc"),
 
             // 0x4D
-            Instruction::TNZ_A => write!(f, "tnz_a"),
+            Instruction::TNZ_A => write!(f, "tnz"),
 
             // 0x4F
-            Instruction::CLR_A => write!(f, "clr_a"),
+            Instruction::CLR_A => write!(f, "clr"),
 
             // 0x51
             Instruction::EXGW => write!(f, "exgw"),
 
-            // 0x52
-            Instruction::SUB_SP => write!(f, "sub_sp"),
+            // 0x52, page 151
+            Instruction::SUB_SP => write!(f, "sub"),
+
+            // 0x55
+            Instruction::MOV_LONGMEM_LONGMEM => write!(f, "mov"),
 
             // 0x59
             Instruction::RLCW => write!(f, "rlcw"),
 
             // 0x5B
-            Instruction::ADDW_SP_IMM => write!(f, "addw sp, imm"),
+            Instruction::ADDW_SP_IMM => write!(f, "addw"),
 
             // 0x5C
             Instruction::INCW => write!(f, "incw"),
@@ -675,41 +700,41 @@ impl fmt::Display for Instruction {
             Instruction::TNZW => write!(f, "tnzw"),
 
             // 0x5F
-            Instruction::CLRW_X => write!(f, "clrw_x"),
+            Instruction::CLRW_X => write!(f, "clrw"),
 
             // 0x58, page 146
-            Instruction::SLLW_X => write!(f, "sllw_x"),
+            Instruction::SLLW_X => write!(f, "sllw"),
 
             // 0x6B, page 115
             Instruction::LD_OFFSET_SP_A => write!(f, "ld"),
 
             // 0x72, bitpos
             // page 87
-            Instruction::BTJT => write!(f, "BTJT"),
+            Instruction::BTJT => write!(f, "btjt"),
 
             // 0x72 0x5F, page 92
             Instruction::CLR_LONGMEM => write!(f, "clr"),
 
             // 0x72 0xA9, page 78
-            Instruction::ADDW_Y_IMM => write!(f, "ADDW_Y_IMM"),
+            Instruction::ADDW_Y_IMM => write!(f, "addw"),
 
             // 0x72 0xF9
-            Instruction::ADDW_Y_OFFSET_SP => write!(f, "ADDW_Y_OFFSET_SP"),
+            Instruction::ADDW_Y_OFFSET_SP => write!(f, "addw"),
 
             // 0x72 0xFB
-            Instruction::ADDW_X_OFFSET_SP => write!(f, "ADDW_X_OFFSET_SP"),
+            Instruction::ADDW_X_OFFSET_SP => write!(f, "addw"),
 
             // 0x72, 0x1a
-            Instruction::BSET => write!(f, "BSET"),
+            Instruction::BSET => write!(f, "bset"),
 
             // 0x72, 0x1b
-            Instruction::BRES => write!(f, "BRES"),
+            Instruction::BRES => write!(f, "bres"),
 
             // 0x7B
-            Instruction::LD_A_OFFSET_SP => write!(f, "LD A,($12,SP)"),
+            Instruction::LD_A_OFFSET_SP => write!(f, "ld"),
 
             // 0x7D
-            Instruction::TNZ_X => write!(f, "TNZ_X"),
+            Instruction::TNZ_X => write!(f, "tnz"),
 
             // 0x81
             Instruction::RET => write!(f, "ret"),
@@ -719,6 +744,9 @@ impl fmt::Display for Instruction {
 
             // 0x84
             Instruction::POP_A => write!(f, "pop"),
+
+            // 0x85
+            Instruction::POPW => write!(f, "popw"),
 
             // 0x87, page 132, Far Return from subroutine
             Instruction::RETF => write!(f, "retf"),
@@ -739,28 +767,28 @@ impl fmt::Display for Instruction {
             Instruction::WFI => write!(f, "wfi"),
 
             // 0x90, 0x01
-            Instruction::RRWA_Y => write!(f, "rrwa_y"),
+            Instruction::RRWA_Y => write!(f, "rrwa"),
 
             // 0x90, 0x28, page 68
-            Instruction::JRNH => write!(f, "JRNH"),
+            Instruction::JRNH => write!(f, "jrnh"),
 
             // 0x90, 0x29
-            Instruction::JRH => write!(f, "JRH"),
+            Instruction::JRH => write!(f, "jrh"),
 
             // 0x90, 0x58
-            Instruction::SLLW_Y => write!(f, "SLLW_Y"),
+            Instruction::SLLW_Y => write!(f, "sllw"),
 
             // 0x90, 0x7D
-            Instruction::TNZ_Y => write!(f, "TNZ_Y"),
+            Instruction::TNZ_Y => write!(f, "tnz"),
 
             // 0x90, 0x93, page 118
             Instruction::LDW_Y_X => write!(f, "ldw"),
 
             // 0x90, 0xA3
-            Instruction::CPW_Y_IMM => write!(f, "CPW_Y_IMM"),
+            Instruction::CPW_Y_IMM => write!(f, "cpw"),
 
             // 0x90, 0xAE
-            Instruction::LDW_Y_IMM => write!(f, "LDW_Y_IMM"),
+            Instruction::LDW_Y_IMM => write!(f, "ldw"),
 
             // 0x90, 0xB3
             Instruction::CPW_Y_SHORTMEM => write!(f, "cpw"),
@@ -769,10 +797,10 @@ impl fmt::Display for Instruction {
             Instruction::LDW_Y_IMM_LONGMEM => write!(f, "ldw"),
 
             // 0x90, 0xE3, page 95
-            Instruction::CPW_X_SHORTOFF_Y => write!(f, "CPW_X_SHORTOFF_Y"),
+            Instruction::CPW_X_SHORTOFF_Y => write!(f, "cpw"),
 
             // 0x90, 0xE8, page 160
-            Instruction::XOR_A_OFFSET_Y => write!(f, "XOR_A_OFFSET_Y"),
+            Instruction::XOR_A_OFFSET_Y => write!(f, "xor"),
 
             // 0x90, 0xEE, page 118
             Instruction::LDW_Y_SHORTOFF_Y => write!(f, "ldw"),
@@ -781,70 +809,79 @@ impl fmt::Display for Instruction {
             Instruction::LD_A_Y => write!(f, "ld"),
 
             // 0x90
-            Instruction::LDW_Y_SP => write!(f, "LDW_Y_SP"),
+            Instruction::LDW_Y_SP => write!(f, "ldw"),
+
+            // 0xBC, page 116
+            Instruction::LDF_A_EXTMEM => write!(f, "ldf"),
+
+            // 0x92 0xBC, page 116
+            Instruction::LDF_A_LONGPTR_E => write!(f, "ldf"),
+
+            // 0x92 0xAF
+            Instruction::LDF_A_X_OFFSET => write!(f, "ldf"),
 
             // 0x94
-            Instruction::LDW_SP_X => write!(f, "LDW_SP_X"),
+            Instruction::LDW_SP_X => write!(f, "ldw"),
 
             // 0x90 0x94
-            Instruction::LDW_SP_Y => write!(f, "LDW_SP_Y"),
+            Instruction::LDW_SP_Y => write!(f, "ldw"),
 
             // 0x93
             Instruction::LDW_X_Y => write!(f, "ldw"),
 
             // 0x95
-            Instruction::LD_XH_A => write!(f, "LD_XH_A"),
+            Instruction::LD_XH_A => write!(f, "ld"),
 
             // 0x96
-            Instruction::LDW_X_SP => write!(f, "LDW_X_SP"),
+            Instruction::LDW_X_SP => write!(f, "ldw"),
 
             // 0x97
-            Instruction::LD_XL_A => write!(f, "LD_XL_A"),
+            Instruction::LD_XL_A => write!(f, "ld"),
 
             // 0x98
-            Instruction::RCF => write!(f, "RCF"),
+            Instruction::RCF => write!(f, "rcf"),
 
             // 0x99
-            Instruction::SCF => write!(f, "SCF"),
+            Instruction::SCF => write!(f, "scf"),
 
             // 0x9A
-            Instruction::RIM => write!(f, "RIM"),
+            Instruction::RIM => write!(f, "rim"),
 
             // 0x9B
-            Instruction::SIM => write!(f, "SIM"),
+            Instruction::SIM => write!(f, "sim"),
 
             // 0x9C
-            Instruction::RVF => write!(f, "RVF"),
+            Instruction::RVF => write!(f, "rvf"),
 
             // 0x9D
-            Instruction::NOP => write!(f, "NOP"),
+            Instruction::NOP => write!(f, "nop"),
 
             // 0xA0
-            Instruction::SUB_A_IMM => write!(f, "SUB_A_IMM"),
+            Instruction::SUB_A_IMM => write!(f, "sub"),
 
             // 0xA1
-            Instruction::CP_A_IMM => write!(f, "CP_A_IMM"),
+            Instruction::CP_A_IMM => write!(f, "cp"),
 
             // 0xA3
             Instruction::CPW_X_IMM => write!(f, "cpw"),
 
             // 0xA4
-            Instruction::AND_A => write!(f, "AND_A"),
+            Instruction::AND_A => write!(f, "and"),
 
             // 0xA5
             Instruction::BCP_A_IMM => write!(f, "bcp"),
 
             // 0xA6
             // LD A,#$55
-            Instruction::LD_A_IMM => write!(f, "LD_A_IMM"),
+            Instruction::LD_A_IMM => write!(f, "ld"),
 
             // 0xA9, page 76
-            Instruction::ADC_A_IMM => write!(f, "ADC_A_IMM"),
+            Instruction::ADC_A_IMM => write!(f, "adc"),
 
             // 0xAA
-            Instruction::OR_A => write!(f, "OR_A"),
+            Instruction::OR_A => write!(f, "or"),
             // 0xAB
-            Instruction::ADD_A => write!(f, "ADD_A"),
+            Instruction::ADD_A => write!(f, "add"),
 
             // 0xAD
             Instruction::CALLR => write!(f, "CALLR"),
@@ -876,15 +913,21 @@ impl fmt::Display for Instruction {
             Instruction::CALL_CD => write!(f, "call_cd"),
 
             // 0xCE
-            Instruction::LDW_X_IMM => write!(f, "ldw_x_imm"),
+            Instruction::LDW_X_IMM => write!(f, "ldw"),
             // 0xCF
-            Instruction::LDW_IMM_X => write!(f, "ldw_imm_x"),
+            Instruction::LDW_IMM_X => write!(f, "ldw"),
 
             // 0xE1, page 94, CP A,($10,X)
             Instruction::CP_A_OFFSET_X => write!(f, "cp"),
 
+            // 0xE4, page 79
+            Instruction::AND_A_X_OFFSET => write!(f, "and"),
+
             // 0xE6, page 114, LD A,($50,X)
-            Instruction::LD_A_OFFSET_X => write!(f, "ldw"),
+            Instruction::LD_A_OFFSET_X => write!(f, "ld"),
+
+            // 0xE7, page 115, LD ($50,X),A
+            Instruction::LD_X_OFFSET_A => write!(f, "ld"),
 
             // 0xEE, page 117
             Instruction::LDW_X_IMM_X => write!(f, "ldw"),
@@ -904,10 +947,10 @@ impl fmt::Display for Instruction {
             Instruction::LDW_X_X_MEMORY => write!(f, "ldw"),
 
             // 0x90, 0xFE, page 118
-            Instruction::LDW_Y_Y_MEMORY => write!(f, "LDW_Y_(Y)"),
+            Instruction::LDW_Y_Y_MEMORY => write!(f, "ldw"),
 
             // 0xF8
-            Instruction::XOR_A_X => write!(f, "XOR_A_X"),
+            Instruction::XOR_A_X => write!(f, "xor"),
 
             Instruction::UNDEFINED => write!(f, "undefined"),
 

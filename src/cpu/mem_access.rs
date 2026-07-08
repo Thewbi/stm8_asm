@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+//use std::collections::HashMap;
+use std::collections::BTreeMap;
 
-pub fn read_byte(memory_block_map: &HashMap<u32, Vec<u8>>, address: u32) -> u8 {
+pub fn read_byte(memory_block_map: &BTreeMap<u32, Vec<u8>>, address: u32) -> u8 {
 
     // for (key, value) in memory_block_map {
     //     //println!("{}: {}", key, value);
@@ -29,7 +30,7 @@ pub fn read_byte(memory_block_map: &HashMap<u32, Vec<u8>>, address: u32) -> u8 {
     }
 }
 
-pub fn write_byte(memory_block_map: &mut HashMap<u32, Vec<u8>>, address: u32, data: u8) {
+pub fn write_byte(memory_block_map: &mut BTreeMap<u32, Vec<u8>>, address: u32, data: u8) {
 
     //println!("write_byte() {:08x?} = {}", address, data);
 
@@ -59,7 +60,7 @@ pub fn write_byte(memory_block_map: &mut HashMap<u32, Vec<u8>>, address: u32, da
 
 }
 
-pub fn write_halfword(memory_block_map: &mut HashMap<u32, Vec<u8>>, address: u32, data: u16) {
+pub fn write_halfword(memory_block_map: &mut BTreeMap<u32, Vec<u8>>, address: u32, data: u16) {
 
     //println!("write_halfword() {:08x?} = {}", address, data);
 
@@ -92,7 +93,7 @@ pub fn write_halfword(memory_block_map: &mut HashMap<u32, Vec<u8>>, address: u32
 /**
  * Little Endian (u16 from vector)
  */
-pub fn read_halfword_le(memory_block_map: &HashMap<u32, Vec<u8>>, address: u32) -> u16 {
+pub fn read_halfword_le(memory_block_map: &BTreeMap<u32, Vec<u8>>, address: u32) -> u16 {
 
     // for (key, value) in memory_block_map {
     //     //println!("{}: {}", key, value);
@@ -120,7 +121,7 @@ pub fn read_halfword_le(memory_block_map: &HashMap<u32, Vec<u8>>, address: u32) 
     }
 }
 
-pub fn read_halfword_be(memory_block_map: &HashMap<u32, Vec<u8>>, address: u32) -> u16 {
+pub fn read_halfword_be(memory_block_map: &BTreeMap<u32, Vec<u8>>, address: u32) -> u16 {
 
     // for (key, value) in memory_block_map {
     //     //println!("{}: {}", key, value);
@@ -151,7 +152,7 @@ pub fn read_halfword_be(memory_block_map: &HashMap<u32, Vec<u8>>, address: u32) 
 /**
  * Little Endian (u32 from vector)
  */
-pub fn read_word_le(memory_block_map: &HashMap<u32, Vec<u8>>, address: u32) -> u32 {
+pub fn read_word_le(memory_block_map: &BTreeMap<u32, Vec<u8>>, address: u32) -> u32 {
 
     let high_part: u32 = address & 0xFFFF0000;
     let low_part: u32 = address & 0x0000FFFF;
@@ -167,7 +168,7 @@ pub fn read_word_le(memory_block_map: &HashMap<u32, Vec<u8>>, address: u32) -> u
     val
 }
 
-pub fn read_word_be(memory_block_map: &HashMap<u32, Vec<u8>>, address: u32) -> u32 {
+pub fn read_word_be(memory_block_map: &BTreeMap<u32, Vec<u8>>, address: u32) -> u32 {
 
     let high_part: u32 = address & 0xFFFF0000;
     let low_part: u32 = address & 0x0000FFFF;
@@ -181,4 +182,46 @@ pub fn read_word_be(memory_block_map: &HashMap<u32, Vec<u8>>, address: u32) -> u
     //println!("{:02x}", val);
 
     val
+}
+
+pub fn print_memory(memory_block_map: &BTreeMap<u32, Vec<u8>>, start_address: i32, end_address: i32) {
+
+    println!("START print_memory. START_ADDRESS: 0x{:08x}, END_ADDRESS: 0x{:08x}", start_address, end_address);
+
+    // DEBUG
+    //let mem_address: i32 = address as i32;
+    let mem_start: i32;
+    let mem_end: i32;
+    let mut temp_mem: i32 = ((start_address/16)*16) as i32;
+    if temp_mem < 0 {
+        mem_start = 0;
+    } else {
+        mem_start = temp_mem;
+    }
+    temp_mem = ((end_address/16)*16) as i32;
+    if temp_mem > 0x18000 {
+        mem_end = 0x18000;
+    } else {
+        mem_end = temp_mem;
+    }
+    // self.print_memory(mem_start as u32, mem_end as u32);
+
+
+
+    let mut k = 0;
+    for temp_address in mem_start as u32..mem_end as u32 {
+
+        if k % 16 == 0 {
+            println!("");
+            print!("{:08x}  ", temp_address);
+        }
+
+        let data_byte: u8 = read_byte(&memory_block_map, temp_address);
+        print!("{:02x} ", data_byte);
+
+        k = k + 1;
+    }
+
+    println!("");
+    println!("END print_memory.");
 }

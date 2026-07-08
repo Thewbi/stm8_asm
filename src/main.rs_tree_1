@@ -1,0 +1,65 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::rc::Weak;
+
+// Übersicht mit KI               To construct a Weak<RefCell<T>>, you first create a strong Rc<RefCell<T>> to hold the data, and then downgrade it. A Weak pointer does not own the data, meaning it won't prevent the Rc from being dropped, which is highly useful for breaking cyclic references (e.g., in parent-child relationships).Here is how you define and construct it:
+
+// use std::rc::{Rc, Weak};
+// use std::cell::RefCell;
+
+// fn main() {
+//     // 1. Construct the shared data inside an Rc and RefCell
+//     let strong_ref: Rc<RefCell<i32>> = Rc::new(RefCell::new(42));
+
+//     // 2. Downgrade it to a Weak reference
+//     let weak_ref: Weak<RefCell<i32>> = Rc::downgrade(&strong_ref);
+
+//     // 3. To use the weak reference, you must first "upgrade" it to an Rc
+//     if let Some(upgraded) = weak_ref.upgrade() {
+//         // Now you can borrow and mutate the value at runtime
+//         *upgraded.borrow_mut() = 100;
+//         println!("Value inside: {}", upgraded.borrow());
+//     }
+// }
+
+// https://users.rust-lang.org/t/need-help-creating-a-tree-node-struct/79866
+struct Node {
+    value: String,
+    parent: Option<Weak<RefCell<Node>>>,
+    left: Option<Weak<RefCell<Node>>>,
+    right: Option<Weak<RefCell<Node>>>,
+    //children: Vec<Rc<RefCell<Node>>>,
+}
+
+fn postfix_to_infix(node: &mut Node, character: char) {
+
+    let mut child = Node{     
+        value: String::from(character.to_string()),
+        parent: None,
+        left: None,
+        right: None,
+        //children: !vec[],
+    };
+
+    let strong_ref: Rc<RefCell<Node>> = Rc::new(RefCell::new(child));
+    let weak_ref: Weak<RefCell<Node>> = Rc::downgrade(&strong_ref);
+
+    node.left = Some(weak_ref);
+}
+
+
+fn main() {
+
+    let mut root = Node{     
+        value: String::from("root"),
+        parent: None,
+        left: None,
+        right: None,
+        //children: !vec[],
+    };
+
+    postfix_to_infix(&mut root, 'c');
+
+    println!("test {:?}", root.left.unwrap());
+
+}

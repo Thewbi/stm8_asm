@@ -1,0 +1,453 @@
+/*****************************************************************
+ *
+ * This main file parses a .hex binary file.
+ * If you want to process a .asm file, use the main.rs_asm file.
+ *
+******************************************************************/
+
+#![allow(
+    dead_code,
+    unused_imports
+)]
+
+use std::env;
+
+//use std::path::Path;
+use std::path::PathBuf;
+
+use std::collections::BTreeMap;
+//use std::collections::HashMap;
+
+//use std::fs::File;
+
+//use std::io::BufWriter;
+//use std::io::Write;
+
+mod common;
+//use crate::common::hex::{decode_hex, encode_hex};
+use crate::common::file_handling::{read_lines, change_file_name};
+
+mod ast;
+
+mod encoder;
+
+mod cpu;
+//use crate::cpu::cortex_m4::cortex_m4::CortexM4;
+use crate::cpu::stm8::stm8::STM8;
+//use crate::cpu::mem_access::read_byte;
+use crate::cpu::mem_access::read_word_le;
+use crate::cpu::mem_access::write_byte;
+use crate::cpu::mem_access::print_memory;
+
+mod motorola_s19;
+use crate::motorola_s19::motorola_s19::{load_motorola_srec_s19, write_motorola_srec_s19};
+
+//mod intel_hex;
+//use crate::intel_hex::intel_hex::load_intel_hex;
+
+mod cosmic;
+use crate::cosmic::checksum::compute_cosmic_crc16;
+
+//pub fn load_symbol_from_map_file(symbol: &'static str, filepath: &'static str) -> u32 {
+pub fn load_symbol_from_map_file(symbol: &str, filepath: &str) -> u32 {
+
+    // let debug: bool = true;
+    let debug: bool = false;
+
+    if let Ok(lines) = read_lines(filepath) {
+
+        // consumes the iterator, returns an (Optional) String
+        for line in lines.map_while(Result::ok) {
+
+            // if debug {
+            //     println!("{}", line);
+            // }
+
+            if line.starts_with(symbol) {
+
+                if debug {
+                    println!("Symbol found: {}", line);
+                }
+
+                let mut split = line.split_whitespace();
+
+                // if debug {
+                //     println!("Symbol found: {:?}", split);
+
+                //     for part in split {
+                //         println!("{}", part)
+                //     }
+                // }
+
+                let mut _address_as_string = split.next().unwrap();
+                _address_as_string = split.next().unwrap();
+
+                if debug {
+                    println!("{:?}", _address_as_string);
+                }
+
+                let result = u32::from_str_radix(_address_as_string, 16);
+                match result {
+                    Ok(address) => {
+                        // let address = result.unwrap();
+                        if debug {
+                            println!("0x{:08x}", address);
+                        }
+                        return address;
+                    }
+                    Err(_error) => {
+                        continue;
+                    }
+                }
+
+                //let address = u32::from_str_radix(address_as_string, 16).expect("expected a hex numeric!");
+                //return address;
+            }
+        }
+    }
+
+    0x00
+}
+
+
+
+// Calling the application
+// Parameter -d for the data file (= Motorola srec .s19 file containing the application binary)
+// Parameter -m for the map file (= COSMIC compiler map file)
+//
+// rust_pest_asm.exe -d C:/aaa_se/Project_THZ/stvd/Debug/THZ100.s19 -m C:/aaa_se/Project_THZ/stvd/Debug/THZ100.map
+fn main() {
+
+    let mut s19_data_file:String = String::from("C:/aaa_se/Project_THZ/stvd/Debug/THZ100.s19");
+    let mut cosmic_map_file:String = String::from("C:/aaa_se/Project_THZ/stvd/Debug/THZ100.map");
+
+    let debug: bool = false;
+    //let debug: bool = true;
+
+    //let patch_binary_file = false;
+    let patch_binary_file = true;
+    if patch_binary_file {
+
+        let args: Vec<String> = env::args().collect();
+        //dbg!(args);
+
+        let mut read_data_file: bool = false;
+        let mut read_map_file: bool = false;
+
+        for parameter in args {
+
+            //println!("{:?}", parameter);
+
+            if read_data_file {
+                s19_data_file = parameter.clone();
+                read_data_file = false;
+            }
+            if read_map_file {
+                cosmic_map_file = parameter.clone();
+                read_map_file = false;
+            }
+
+            if parameter == "-d" {
+                read_data_file = true;
+            }
+            if parameter == "-m" {
+                read_map_file = true;
+            }
+        }
+
+        println!("Using data file: '{:?}'", s19_data_file);
+        println!("Using map file: '{:?}'", cosmic_map_file);
+
+        // address where the CPU starts executing from
+        // for ARM Cortex-M4, always assume the default address 0x08000000
+        // This value is overriden by the type (03) record (Start Segment Address Record)
+        //let mut _start_segment: u32 = cpu::cortex_m4::cortex_m4::START_ADDRESS;
+        let mut _start_segment: u32 = cpu::stm8::stm8::START_ADDRESS;
+        //_start_segment = load_intel_hex(&mut memory_block_map, "C:/Users/lapto/dev/stm8/stm8/examples/uart/bin/uart.hex");
+
+        let mut memory_block_map = BTreeMap::new();
+
+        //load_motorola_srec_s19(&mut memory_block_map, "C:/Users/lapto/dev/rust/stm8_asm/res/STM8_Discovery_Cosmic/Cosmic/Debug/stm8s_105.s19");
+        //load_motorola_srec_s19(&mut memory_block_map, "C:/Users/U5353/Downloads/stm8-safeclassb/Projects/STM8S_Discovery/Cosmic/Debug/stm8s_105.s19");
+        //load_motorola_srec_s19(&mut memory_block_map, "C:/Users/U5353/Downloads/THZ100.s19");
+        //load_motorola_srec_s19(&mut memory_block_map, "C:/aaa_se/Project_THZ/stvd/Debug/THZ100.s19");
+        //load_motorola_srec_s19(&mut memory_block_map, "C:/aaa_se/Project_THZ/stvd/Debug/THZ100temp.s19");
+        load_motorola_srec_s19(&mut memory_block_map, s19_data_file.as_str());
+        
+        //
+        // compute checksum
+        //
+
+        //println!("_start_segment {:02x?}", _start_segment);
+
+        //let mut temp_address = 0x00008000;
+        //let mut data_byte: u8 = read_byte(&memory_block_map, temp_address);
+        //println!("0x{:08x} {:02x}  ", temp_address, data_byte);
+
+        //temp_address = 0x00008001;
+        //data_byte = read_byte(&memory_block_map, temp_address);
+        //println!("0x{:08x} {:02x}  ", temp_address, data_byte);
+
+        //
+        // prepare address range over which to compute the checksum
+        // 
+
+        // // DEBUG - only compute a small fraction of the memory
+        // let crc16_range_start = 0x8000;
+        // let crc16_range_end = 0x8004;
+
+        // let invert_2: bool = false;
+        // let crc16_debug: u16 = compute_cosmic_crc16(&mut memory_block_map, crc16_range_start, crc16_range_end, invert_2);
+        // println!("{:04x}", crc16_debug);
+
+        // Use the beginning of the descriptor as the end of the range over which the checksum is computed
+        let crc16_range_start:u32 = 0x8000; // include the interrupt vector at 0x8000 just as the STL (classb) does and just like COSMIC does
+        let checksum_descriptor_address = load_symbol_from_map_file("__chcksum_start", cosmic_map_file.as_str());
+        let crc16_range_end:u32 = checksum_descriptor_address - 0; // - 0 is correct
+
+        // // TESTING
+        // let crc16_range_start:u32 = 0x8000;
+        // let crc16_range_end:u32 = 0x8008;
+
+        //
+        // compute COSMICs CRC16 that is also computed by the Class B STM8 STL.
+        // 
+
+        let invert: bool = false;
+        //let invert: bool = true;
+        let crc16: u16 = compute_cosmic_crc16(&mut memory_block_map, crc16_range_start, crc16_range_end, invert);
+
+        //
+        // insert checksum descriptor into the .s19 file
+        //
+        
+        // load the variable from the linker script out of the map file which contains the start of
+        // the checksum descriptor. This is also the hardcoded value 0x16200
+        // When the firmware grows, this value needs to be updated!
+        let address_to_modify = load_symbol_from_map_file("__testme_start", cosmic_map_file.as_str());
+        //let address_to_modify_hi = (address_to_modify >> 16) & 0xFFFF;
+        //let address_to_modify_lo = (address_to_modify >>  0) & 0xFFFF;
+
+        println!("Computing checksum ...");
+        println!("Checksum-Range start address: 0x{:08x}", crc16_range_start);
+        println!("Checksum-Range end address is symbol: '__chcksum_start' from map file minus 1 byte: 0x{:08x}", crc16_range_end);
+        println!("Checksum is computed to: 0x{:04x}", crc16);
+        println!("Checksum Descriptor address is loaded from symbol: '__testme_start' from map file: 0x{:08x}", address_to_modify);
+        println!("Checksum Descriptor is inserted into .s19 file at: 0x{:08x}", address_to_modify);
+        println!("Checksum-Range start address (4 Byte) is inserted into .s19 file at: 0x{:08x}", address_to_modify + 0);
+        println!("Checksum-Range end address (4 Byte)  is inserted into .s19 file at: 0x{:08x}", address_to_modify + 4);
+        println!("Checksum (2 Byte)  is inserted into .s19 file at: 0x{:08x}", address_to_modify + 8);
+        
+        // start addresss (0x8000)
+        //
+        // TESTING: When loading a uint32_t from address 0x16200, the variable has to contain the value 0x8000.
+        write_byte(&mut memory_block_map, address_to_modify + 0, ((crc16_range_start >> 24) & 0xFF) as u8);
+        write_byte(&mut memory_block_map, address_to_modify + 1, ((crc16_range_start >> 16) & 0xFF) as u8);
+        write_byte(&mut memory_block_map, address_to_modify + 2, ((crc16_range_start >> 8) & 0xFF) as u8);
+        write_byte(&mut memory_block_map, address_to_modify + 3, ((crc16_range_start >> 0) & 0xFF) as u8);
+
+        // end addresss (0x8000)
+        // __chcksum_start is where the original COSMIC checksum descriptor starts. This is a segment
+        // that the linker places right behind the firwmare (.text segment). Because it is directly
+        // behind the .text segment it marks the end of the firmware to compute the checksum over.
+        //
+        // TESTING: When loading a uint32_t from address 0x16200 + 4, the variable has to contain the value __chcksum_start - 4.
+        let _checksum_end_address = load_symbol_from_map_file("__chcksum_start", cosmic_map_file.as_str());
+        write_byte(&mut memory_block_map, address_to_modify + 4, ((crc16_range_end >> 24) & 0xFF) as u8);
+        write_byte(&mut memory_block_map, address_to_modify + 5, ((crc16_range_end >> 16) & 0xFF) as u8);
+        write_byte(&mut memory_block_map, address_to_modify + 6, ((crc16_range_end >> 8) & 0xFF) as u8);
+        write_byte(&mut memory_block_map, address_to_modify + 7, ((crc16_range_end >> 0) & 0xFF) as u8);
+
+        // checksum - write the two checksum bytes
+        //
+        // TESTING: When loading a uint16_t from address 0x16200 + 8, the variable has to contain the checksum that
+        // this application outputs when run over the original .s19 file
+        write_byte(&mut memory_block_map, address_to_modify + 8, ((crc16 >> 8) & 0xFF) as u8);
+        write_byte(&mut memory_block_map, address_to_modify + 9, ((crc16 >> 0) & 0xFF) as u8);
+
+        //
+        // write modified data to a new file
+        //
+
+        // TODO
+        // https://stackoverflow.com/questions/65640610/get-the-containing-folder-of-a-file
+
+        let path = PathBuf::from(s19_data_file);
+        //let dir = path.parent().unwrap();
+        //let new_path = path.parent().append("THZ100_crc.s19");
+
+        // https://stackoverflow.com/questions/66212180/how-do-i-change-the-file-name-of-a-path-without-changing-its-directory-or-extens
+        let new_path:PathBuf = change_file_name(path, "THZ100_crc");
+
+        //write_motorola_srec_s19(&mut memory_block_map, "C:/aaa_se/Project_THZ/stvd/Debug/THZ100_crc.s19");
+        //write_motorola_srec_s19(&mut memory_block_map, "THZ100_crc.s19");
+        let _ = write_motorola_srec_s19(&mut memory_block_map, new_path.to_str().expect("Path should be valid!"));
+
+        //
+        // DEBUG - print data
+        //
+
+        if debug {
+            let address_start:i32 = 0x8000;
+            let address_end:i32 = 0x16280;
+            print_memory(&mut memory_block_map, address_start, address_end);
+        }
+
+    }
+/*
+    // DEBUG print hex file
+
+    println!("HEX File results: +++++++++++++++++");
+    for (key, value) in &memory_block_map {
+
+        println!("Block: 0x{:08x}", key);
+
+        for i in 0..0xFFFF {
+            let byte_val = value[i as usize];
+            if byte_val != 0 {
+                println!("{:08x?}: {:02x?} ", (key + i), byte_val);
+            }
+        }
+
+        println!("");
+    }
+    println!("+++++++++++++++++++++++++++++++++++");
+*/
+
+    //
+    // Select the CPU
+    //
+
+    // let simulate_cpu: bool = false;
+    let simulate_cpu: bool = true;
+    if simulate_cpu {
+
+        let mut _start_segment: u32 = cpu::stm8::stm8::START_ADDRESS;
+
+        let mut memory_block_map = BTreeMap::new();
+        
+        let s19_data_file:String = String::from("C:/aaa_se/Project_THZ/stvd/Debug/THZ100_crc.s19");
+        load_motorola_srec_s19(&mut memory_block_map, s19_data_file.as_str());
+
+        //
+        // Initialize _reset_handler_address and _main_stack_pointer_value so they match the CPU and code source
+        //
+
+        let mut _main_stack_pointer_value: u32 = 0;
+        let mut _reset_handler_address: u32 = 0;
+
+        // for hex files compiled using a STM32 linker script
+        // stack_pointer value is stored at 0x08000000
+        // reset handler address is stored at 0x08000004
+        // The STM32 core will read four bytes, place them into the stack pointer (this is not implemented as ASM code but it is hardwired into the CPU)
+        // then it will execute the next four byte as a jump to the reset handler
+        //
+        //let load_real_hex_application: bool = true;
+
+        // for small assembler scripts without real STM32 cpu
+        // there is just code located at 0x08000000
+        // The simulated CPU should just execute the instructions located at 0x08000000 and not execute and hardwired CPU logic for the first bytes!
+        let load_real_cortexm4_hex_application: bool = false;
+        if load_real_cortexm4_hex_application {
+
+            //
+            // for small assembler scripts without real STM32 cpu, use this code
+            //
+
+            // The Cortex CPU starts operating from 0x08000000
+            // This address contains the interrupt vector table
+            // The first double word (4 byte) contain the value that needs to go into the main stack pointer
+            // The next double word (4 byte) contain the address of the reset handler
+            // The Cortex CPU jumps to the reset handler and executes it after power up / cold reset and after a hot reset
+
+            //
+            // read the address of the main stack pointer from 0x08000000
+            //
+
+            //let memory_block = memory_block_map.get(&0x08000000).unwrap();
+
+            // DEBUG
+            //
+            // let data_byte_0 = memory_block[0];
+            // let data_byte_1 = memory_block[1];
+            // let data_byte_2 = memory_block[2];
+            // let data_byte_3 = memory_block[3];
+            // println!("data_byte_0 {:02x?}", data_byte_0);
+            // println!("data_byte_1 {:02x?}", data_byte_1);
+            // println!("data_byte_2 {:02x?}", data_byte_2);
+            // println!("data_byte_3 {:02x?}", data_byte_3);
+
+            _main_stack_pointer_value = read_word_le(&memory_block_map, _start_segment);
+            println!("main_stack_pointer_value: {:02x?}", _main_stack_pointer_value);
+
+            _reset_handler_address = read_word_le(&memory_block_map, _start_segment + 4);
+            println!("reset_handler_address: {:02x?}", _reset_handler_address);
+
+            // detect THUMB
+            if _reset_handler_address % 2 == 1 {
+                println!("Thumb Detected!");
+                // remove the THUMB bit
+                _reset_handler_address = _reset_handler_address - 1;
+            } else {
+                todo!()
+            }
+
+        } else {
+
+            //
+            // for a real hex file for a real STM32 cpu, use this code
+            //
+
+            if debug {
+
+                println!("HEX File results: +++++++++++++++++");
+                for (key, value) in &memory_block_map {
+
+                    println!("0x{:02x?}", key);
+
+                    for i in 0..0xFFFF {
+                        let byte_val = value[i as usize];
+                        if byte_val != 0 {
+                            println!("{:02x?}: {:02x?} ", (key + i), byte_val);
+                        }
+                    }
+
+                    println!("");
+                }
+                println!("+++++++++++++++++++++++++++++++++++");
+
+            }
+
+            if debug {
+                println!("_start_segment: 0x{:02x?}", _start_segment);
+            }
+            let high_part: u32 = _start_segment & 0xFFFF0000;
+            let _low_part: u32 = _start_segment & 0x0000FFFF;
+
+            let _memory_block = memory_block_map.get(&high_part).unwrap();
+            _reset_handler_address = _start_segment;
+
+            if debug {
+                println!("reset_handler_address: {:02x?}", _reset_handler_address);
+            }
+
+        }
+
+        //
+        // CPU loop
+        //
+
+        //let mut cpu: CortexM4 = CortexM4::new();
+        let mut cpu: STM8 = STM8::new();
+        cpu.memory_block_map = memory_block_map;
+        cpu.set_pc(_reset_handler_address);
+
+        cpu.main_function_address = load_symbol_from_map_file("f_main", cosmic_map_file.as_str());
+
+        while !cpu.halt() {
+            cpu.step();
+        }
+    }
+
+    println!("Done");
+}

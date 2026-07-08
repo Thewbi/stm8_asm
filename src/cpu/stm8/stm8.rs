@@ -1,13 +1,15 @@
 use crate::cpu::stm8::decoder::Decoder;
 use crate::cpu::stm8::instruction::Instruction;
 use crate::cpu::stm8::register::Register;
-use std::collections::HashMap;
+//use std::collections::HashMap;
+use std::collections::BTreeMap;
 use crate::cpu::stm8::asm_line::ASMLine;
 use crate::cpu::mem_access::read_byte;
 use crate::cpu::mem_access::write_byte;
 use crate::cpu::mem_access::write_halfword;
 use crate::cpu::mem_access::read_word_be;
 use crate::cpu::mem_access::read_halfword_be;
+use crate::cpu::mem_access::print_memory;
 
 pub const START_ADDRESS: u32 = 0x00008000;
 
@@ -23,7 +25,7 @@ pub struct STM8 {
     pub stack_pointer: u16,
     pub program_counter: u32,
 
-    pub memory_block_map: HashMap<u32, Vec<u8>>,
+    pub memory_block_map: BTreeMap<u32, Vec<u8>>,
 
     // flags (page 15, 16)
     pub overflow_bit: bool, // V
@@ -40,6 +42,7 @@ pub struct STM8 {
     // DEBUG
     pub instruction_counter: i32,
     pub print_mem: bool,
+    pub main_function_address: u32,
 
 }
 
@@ -76,7 +79,7 @@ impl STM8 {
 
             program_counter: 0,
 
-            memory_block_map: HashMap::new(),
+            memory_block_map: BTreeMap::new(),
 
             overflow_bit: false, // V
             zero_bit: false, // Z
@@ -92,7 +95,8 @@ impl STM8 {
             // DEBUG
 
             instruction_counter: -1,
-            print_mem: false
+            print_mem: false,
+            main_function_address: 0
         }
     }
 
@@ -143,21 +147,21 @@ impl STM8 {
         let temp_pc_hi:u8 = ((temp_pc >> 8) & 0xFF) as u8;
         let temp_pc_e:u8 = ((temp_pc >> 16) & 0xFF) as u8;
 
-        //if self.debug {
+        if self.debug {
             println!("Pushing to stack. Stack-Pointer: {:08x} Value: 0x{:02x}", self.stack_pointer, temp_pc_lo);
-        //}
+        }
         write_byte(&mut self.memory_block_map, self.stack_pointer as u32, temp_pc_lo);
         self.stack_pointer = self.stack_pointer - 1;
 
-        //if self.debug {
+        if self.debug {
             println!("Pushing to stack. Stack-Pointer: {:08x} Value: 0x{:02x}", self.stack_pointer, temp_pc_hi);
-        //}
+        }
         write_byte(&mut self.memory_block_map, self.stack_pointer as u32, temp_pc_hi);
         self.stack_pointer = self.stack_pointer - 1;
 
-        //if self.debug {
+        if self.debug {
             println!("Pushing to stack. Stack-Pointer: {:08x} Value: 0x{:02x}", self.stack_pointer, temp_pc_e);
-        //}
+        }
         write_byte(&mut self.memory_block_map, self.stack_pointer as u32, temp_pc_e);
         self.stack_pointer = self.stack_pointer - 1;
     }
@@ -246,24 +250,11 @@ impl STM8 {
         }
     }
 
+    /*
     pub fn print_memory(&mut self, start_address:u32, end_address:u32) {
         println!("MEMORY [0x{:04x}, 0x{:04x}]: ++++++++++++++++++++++++++++++++", start_address, end_address);
 
-        /*
-        for (key, value) in &self.memory_block_map {
-
-            println!("Block: 0x{:08x}", key);
-
-            for i in 0..0xFFFF {
-                let byte_val = value[i as usize];
-                if byte_val != 0xFF {
-                    println!("{:08x?}: {:02x?} ", (key + i), byte_val);
-                }
-            }
-
-            println!("");
-        }
-        */
+        
 
         let start_address: u32 = start_address;
         let end_address: u32 = end_address;
@@ -285,6 +276,7 @@ impl STM8 {
         println!("");
         println!("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
     }
+    */
 
     pub fn step(&mut self) {
 
@@ -331,11 +323,11 @@ impl STM8 {
             return;
         }
 
-        //self.print_memory(0x0000, 0x05B0);
+        //print_memory(0x0000, 0x05B0);
 
         if self.print_mem {
-            self.print_memory(0x0000, 0x0200); // BSS (Variables)
-            self.print_memory(0x0FC0, 0x1030); // Stack
+            print_memory(&self.memory_block_map, 0x0000, 0x0200); // BSS (Variables)
+            print_memory(&self.memory_block_map, 0x0FC0, 0x1030); // Stack
         }
 
         println!("");
@@ -450,6 +442,9 @@ impl STM8 {
             // 0x51
             Instruction::EXGW => { _pc_increment = 1 }
 
+            // 0x55, page 119
+            Instruction::MOV_LONGMEM_LONGMEM => { _pc_increment = 5 }
+
             Instruction::ADDW_SP_IMM => { _pc_increment = 2 }
 
             Instruction::LDW_X_SP_OFFSET => { _pc_increment = 2 }
@@ -457,6 +452,9 @@ impl STM8 {
 
             // 0xF1
             Instruction::CP_A_X_MEMORY => { _pc_increment = 1 }
+
+            // 0x72 0x5F, MS, LS
+            Instruction::CLR_LONGMEM => { _pc_increment = 4 }
 
             // 0x72
             Instruction::ADDW_Y_IMM => { _pc_increment = 4 }
@@ -482,6 +480,11 @@ impl STM8 {
 
             // 0xAE, page 117
             Instruction::LDW_AE => { _pc_increment = 3 }
+
+            // 0xBC, page 116
+            Instruction::LDF_A_EXTMEM => { _pc_increment = 4 }
+            // 0x92 0xBC, page 116
+            Instruction::LDF_A_LONGPTR_E => { _pc_increment = 4 }
 
             // 0xCC, undocumented!!!!!
             Instruction::CALL_CC => { _pc_increment = 3 }
@@ -535,6 +538,9 @@ impl STM8 {
             Instruction::LDW_Y_SP_OFFSET => { _pc_increment = 2 }
             Instruction::LDW_OFFSET_SP_Y => { _pc_increment = 2 }
 
+            // 0x92 0xAF
+            Instruction::LDF_A_X_OFFSET => { _pc_increment = 4 }
+
             // 0x98
             Instruction::RCF => { _pc_increment = 1 }
 
@@ -582,8 +588,14 @@ impl STM8 {
             // 0xE1
             Instruction::CP_A_OFFSET_X => { _pc_increment = 2 }
 
+            // 0xE4, page 79
+            Instruction::AND_A_X_OFFSET => { _pc_increment = 2 }
+
             // 0xE6
             Instruction::LD_A_OFFSET_X => { _pc_increment = 2 }
+
+            // 0xE7
+            Instruction::LD_X_OFFSET_A => { _pc_increment = 2 }
 
             // 0xEE
             Instruction::LDW_X_IMM_X => { _pc_increment = 2 }
@@ -595,37 +607,48 @@ impl STM8 {
 
         }
 
-        if self.program_counter == 0xbed3 {
-            //self.print_memory(0x0000, 0x05B0);
+        // hear, the simulator breaks at main. label loaded from the mapping file
+        if self.program_counter == self.main_function_address {
             println!("test");
         }
-        if self.program_counter == 0xbee3 {
-            //self.print_memory(0x0000, 0x05B0);
+
+        if self.program_counter == 0xdbad {
+            println!("test");
+        }
+        if self.program_counter == 0xbe3b {
+            println!("test");
+        }
+        if self.program_counter == 0xbe47 {
+            //print_memory(0x0000, 0x05B0);
             println!("test");
         }
         if self.program_counter == 0x15b40 {
 
-            self.print_memory(0x0000, 0x0200); // BSS (Variables)
-            self.print_memory(0x0FC0, 0x1030); // Stack
+            print_memory(&self.memory_block_map, 0x0000, 0x0200); // BSS (Variables)
+            print_memory(&self.memory_block_map, 0x0FC0, 0x1030); // Stack
 
-            self.print_mem = true;
+            // self.print_mem = true;
 
             println!("test");
         }
-        if self.program_counter == 0x15b33 {
+        if self.program_counter == 0x15aeb {
+            // self.print_mem = true;
             println!("test");
         }
-        if self.program_counter == 0x15b43 {
+        if self.program_counter == 0x15abb {
             println!("test");
         }
-        if self.program_counter == 0x15b5a {
+        if self.program_counter == 0x15b1b {
+            println!("test");
+        }
+        if self.program_counter == 0x015b1b { // probleme
             println!("test");
         }
         if self.program_counter == 0x15b6a {
-            self.print_memory(0x0000, 0x0200); // BSS (Variables)
-            self.print_memory(0x0FC0, 0x1030); // Stack
+            print_memory(&self.memory_block_map, 0x0000, 0x0200); // BSS (Variables)
+            print_memory(&self.memory_block_map, 0x0FC0, 0x1030); // Stack
 
-            self.print_mem = true;
+            // self.print_mem = true;
 
             println!("test");
         }
@@ -643,15 +666,13 @@ impl STM8 {
         }
         if self.program_counter == 0x15b40 {
 
-            self.print_memory(0x0000, 0x0200); // BSS (Variables)
-            self.print_memory(0x0FC0, 0x1030); // Stack
+            print_memory(&self.memory_block_map, 0x0000, 0x0200); // BSS (Variables)
+            print_memory(&self.memory_block_map, 0x0FC0, 0x1030); // Stack
 
-            self.print_mem = true;
+            // self.print_mem = true;
 
             println!("test");
         }
-
-        
 
         // increment PC
         let pc:u32 = self.get_value_register(Register::ProgramCounter) as u32;
@@ -1013,6 +1034,13 @@ impl STM8 {
                 }
 
                 write_halfword(&mut self.memory_block_map, address as u32, self.x_index as u16);
+
+                // flags
+                self.negative_bit = (self.x_index as i8) < 0;
+                self.zero_bit = self.x_index == 0;
+
+                // DEBUG
+                print_memory(&self.memory_block_map, (address as i32) -32, (address as i32)+32);
             }
 
             // JRxx Conditional Jump Relative Instruction
@@ -1094,7 +1122,7 @@ impl STM8 {
                         println!("old_pc: {}", old_pc);
                     }
 
-                    let jo = ((asm_line.jump_offset as i8) as i32);
+                    let jo = (asm_line.jump_offset as i8) as i32;
                     if self.debug {
                         println!("jo: {}", jo);
                     }
@@ -1325,13 +1353,15 @@ impl STM8 {
                     println!("MOV, MOV");
                 }
 
-                let address:u16 = asm_line.jump_offset as u16;
+                let address:u32 = asm_line.jump_offset as u32;
 
                 if self.debug {
                     println!("address: {:08x?}", address);
                 }
 
-                write_halfword(&mut self.memory_block_map, address as u32, asm_line.immediate as u16);
+                write_byte(&mut self.memory_block_map, address as u32, asm_line.immediate as u8);
+
+                print_memory(&self.memory_block_map, (address as i32) -32, (address as i32)+32);
             }
 
             // 0x36, page 137
@@ -1362,6 +1392,10 @@ impl STM8 {
                 // flags
                 self.negative_bit = (value as i8) < 0;
                 self.zero_bit = value == 0;
+
+                // DEBUG
+                let address = asm_line.immediate;
+                print_memory(&self.memory_block_map, (address as i32) -32, (address as i32)+32);
             }
 
             // 0x39
@@ -1489,7 +1523,11 @@ impl STM8 {
 
                 self.overflow_bit = self.accumulator == -127;
 
-                self.accumulator = self.accumulator - 1;
+                if self.accumulator == -128 {
+                    println!("test");
+                }
+
+                self.accumulator = self.accumulator.wrapping_sub(1);
 
                 // flags
                 self.negative_bit = self.accumulator < 0;
@@ -1546,6 +1584,13 @@ impl STM8 {
                 self.y_index = temp;
             }
 
+            // 0x55, page 119
+            Instruction::MOV_LONGMEM_LONGMEM => { 
+            
+                let value: u8 = read_byte(&self.memory_block_map, asm_line.immediate as u32);
+                write_byte(&mut self.memory_block_map, asm_line.immediate_2 as u32, value);
+            }
+
             // 0x58
             // (0x58), page 146
             Instruction::SLLW_X => {
@@ -1579,7 +1624,7 @@ impl STM8 {
                 // carry bit is determined before shift
                 self.carry_bit = ((self.x_index >> 15) & 1) == 1;
 
-                self.x_index = (self.x_index << 1);
+                self.x_index = self.x_index << 1;
                 if self.carry_bit {
                     self.x_index = self.x_index | 1;
                 }
@@ -1884,6 +1929,7 @@ impl STM8 {
                 self.carry_bit = bit_test;
             }
 
+            // 0x71 0x5F MS LS
             // page 92
             Instruction::CLR_LONGMEM => {
 
@@ -2035,6 +2081,28 @@ impl STM8 {
                 // no flags are updated
             }
 
+            // 0x85, page 127
+            Instruction::POPW => {
+
+                self.stack_pointer = self.stack_pointer + 1;
+                if self.debug {
+                    println!("self.stack_pointer: {:08x?}", self.stack_pointer);
+                }
+                let data_high = read_byte(&mut self.memory_block_map, self.stack_pointer as u32);
+
+                self.stack_pointer = self.stack_pointer + 1;
+                if self.debug {
+                    println!("self.stack_pointer: {:08x?}", self.stack_pointer);
+                }
+                let data_low = read_byte(&mut self.memory_block_map, self.stack_pointer as u32);
+                
+                // if self.debug {
+                //     println!("data: {:08x?}", data);
+                // }
+
+                self.x_index = (((data_high as u16) << 8) as u16) | (((data_low as u16) << 0) as u16);
+            }
+
             // 0x87, page 132
             Instruction::RETF => {
                 if self.debug {
@@ -2077,7 +2145,7 @@ impl STM8 {
                 }
 
                 // structure of program counter see page 13 (PCE, PCH, PCL)
-                let temp_pc:u32 = ( ((temp_pc_e as u32) << 16) | ((temp_pc_hi as u32) << 8) | ((temp_pc_lo as u32) << 0) );
+                let temp_pc:u32 = ((temp_pc_e as u32) << 16) | ((temp_pc_hi as u32) << 8) | ((temp_pc_lo as u32) << 0);
 
                 if self.debug {
                     println!("RETF, jumping back to address: {:08x?}", temp_pc);
@@ -2130,8 +2198,8 @@ impl STM8 {
                 }
                 self.halt = true;
 
-                self.print_memory(0x0000, 0x0200); // BSS (Variables)
-                self.print_memory(0x0FC0, 0x1030); // Stack
+                print_memory(&self.memory_block_map, 0x0000, 0x0200); // BSS (Variables)
+                print_memory(&self.memory_block_map, 0x0FC0, 0x1030); // Stack
 
                 println!("HALTED");
             }
@@ -2501,6 +2569,40 @@ impl STM8 {
                 self.zero_bit = self.accumulator == 0;
             }
 
+            // 0x92 0xAF MS LS
+            // LDF A, ($555555, X)
+            //
+            // Addressing is explained on page 53
+            // LDF A, (table, X)
+            // EA= (PC):(PC+1):(PC+2)+X
+            //
+            // Load the destination byte with the source byte. The dst and src can be a
+            // memory location or accumulator register.
+            //
+            // LDF dst, src
+            // dst <= src
+            Instruction::LDF_A_X_OFFSET => {
+                if self.debug {
+                    println!("LDF_A_X_OFFSET");
+                }
+
+                print_memory(&self.memory_block_map, 0x0000, 0x0200);
+
+                let mut ptr_base: u32 = read_word_be(&self.memory_block_map, asm_line.immediate as u32);
+                ptr_base = ptr_base >> 8; // only load 24 bit
+                ptr_base = ptr_base + self.x_index as u32;
+
+                println!("ptr: 0x{:08x}", ptr_base);
+
+                let res: u8 = read_byte(&self.memory_block_map, ptr_base as u32);
+
+                self.accumulator = res as i8;
+
+                // flags
+                self.negative_bit = self.accumulator < 0;
+                self.zero_bit = self.accumulator == 0;
+            }
+
             // 0x93, page 118
             //
             // LDW dst,src
@@ -2678,8 +2780,8 @@ impl STM8 {
                     println!("NOP");
                 }
 
-                self.print_memory(0x0000, 0x0200); // BSS (Variables)
-                self.print_memory(0x0FC0, 0x1030); // Stack
+                print_memory(&self.memory_block_map, 0x0000, 0x0200); // BSS (Variables)
+                print_memory(&self.memory_block_map, 0x0FC0, 0x1030); // Stack
 
                 println!("PC: 0x{:08x} - NOP", self.program_counter);
             }
@@ -2807,9 +2909,9 @@ impl STM8 {
                 }
 
                 let result: u8 = self.accumulator as u8 & asm_line.immediate as u8;
-                //if self.debug {
+                if self.debug {
                     println!("result: 0x{:02x?}, {}dec", result, result as i8);
-                //}
+                }
 
                 // flags
                 self.negative_bit = (result as i8) < 0;
@@ -2854,7 +2956,6 @@ impl STM8 {
                 // flags
                 self.negative_bit = self.accumulator < 0;
                 self.zero_bit = self.accumulator == 0;
-
             }
 
             // 0xAB, page 77
@@ -2951,6 +3052,43 @@ impl STM8 {
                 let address = asm_line.immediate as u32;
 
                 write_byte(&mut self.memory_block_map, address, self.accumulator as u8);
+
+                // flags
+                self.negative_bit = (self.accumulator as i16) < 0;
+                self.zero_bit = self.accumulator == 0;
+
+                // DEBUG
+                print_memory(&self.memory_block_map, address as i32 - 32, address as i32 + 32);
+            }
+
+            // 0xBC, page 116
+            Instruction::LDF_A_EXTMEM => { 
+                if self.debug {
+                    println!("LDF_A_EXTMEM");
+                }
+
+                let data = read_byte(&self.memory_block_map, asm_line.immediate as u32);
+                self.accumulator = data as i8;
+
+                // flags
+                self.negative_bit = (self.accumulator as i16) < 0;
+                self.zero_bit = self.accumulator == 0; 
+            }
+
+            // 0x92 0xBC, page 116
+            // LDF A,[$5000.e]
+            Instruction::LDF_A_LONGPTR_E => { 
+                if self.debug {
+                    println!("LDF_A_LONGPTR_E");
+                }
+
+                TODO????
+                let data = read_byte(&self.memory_block_map, asm_line.immediate as u32);
+                self.accumulator = data as i8;
+
+                // flags
+                self.negative_bit = (self.accumulator as i16) < 0;
+                self.zero_bit = self.accumulator == 0; 
             }
 
             // 0xBE, page 117
@@ -2976,17 +3114,18 @@ impl STM8 {
 
                 let address = asm_line.immediate as u32;
 
-                //write_byte(&mut self.memory_block_map, address, self.accumulator as u8);
-                //let value: u8 = read_byte(&mut self.memory_block_map, address as u32);
-                //self.y_index = value as u16;
-
-                println!("LDW_IMM_SHORTMEM_X storing value: {:08x?} ({:?})", self.x_index, self.x_index as i32);
+                if self.debug {
+                    println!("LDW_IMM_SHORTMEM_X storing value: {:08x?} ({:?})", self.x_index, self.x_index as i32);
+                }
 
                 write_halfword(&mut self.memory_block_map, address as u32, self.x_index as u16);
 
                 // flags
                 self.negative_bit = (self.x_index as i16) < 0;
                 self.zero_bit = self.x_index == 0;
+
+                // DEBUG
+                print_memory(&self.memory_block_map, address as i32 - 32, address as i32 + 32);
             }
 
             // 0xC6, page 114
@@ -3014,6 +3153,11 @@ impl STM8 {
                 // flags
                 self.negative_bit = self.accumulator < 0;
                 self.zero_bit = self.accumulator == 0;
+
+                // DEBUG
+                let address = asm_line.immediate;
+                print_memory(&self.memory_block_map, (address as i32) -32, (address as i32)+32);
+
             }
 
             // 0xC7
@@ -3038,6 +3182,10 @@ impl STM8 {
                 // flags
                 self.negative_bit = asm_line.immediate < 0;
                 self.zero_bit = asm_line.immediate == 0;
+
+                // DEBUG
+                let address = dst;
+                print_memory(&self.memory_block_map, (address as i32) -32, (address as i32)+32);
             }
 
             // 0xC8, page 160
@@ -3050,6 +3198,10 @@ impl STM8 {
                 // flags
                 self.negative_bit = self.accumulator < 0;
                 self.zero_bit = self.accumulator == 0;
+
+                // DEBUG
+                let address = asm_line.immediate;
+                print_memory(&self.memory_block_map, (address as i32) -32, (address as i32)+32);
             }
 
             // CALL (0xCD), PM
@@ -3109,6 +3261,12 @@ impl STM8 {
                 // flags
                 self.negative_bit = asm_line.immediate < 0;
                 self.zero_bit = asm_line.immediate == 0;
+
+                // DEBUG
+                let address: u32 = asm_line.immediate as u32;
+                //print_memory((((address-32)/16)*16) as u32, (((address+32)/16)*16) as u32);
+
+                print_memory(&self.memory_block_map, (address-32) as i32, (address+32) as i32);
             }
 
             // 0xE1, page 94
@@ -3122,12 +3280,12 @@ impl STM8 {
                 let data = read_byte(&self.memory_block_map, address as u32);
 
                 // dest - src
-                //let result: i32 = self.accumulator as i32 - data as i32;
-                let result: u8 = self.accumulator as u8 - data as u8;
-                //if self.debug {
-                    println!("result: 0x{:02x} = 0x{:02x} - 0x{:02x}", result as u8, self.accumulator as u8, data as u8);
-                   // println!("result: {:?} = {:?} - {:?}", result, self.accumulator as i32, data);
-                //}
+                //let result: u8 = self.accumulator as u8 - data as u8;
+                let result: i8 = self.accumulator.wrapping_sub(data as i8);
+
+                if self.debug {
+                    println!("result: 0x{:02x} = 0x{:02x} - 0x{:02x}", result as i8, self.accumulator as i8, data as i8);
+                }
 
                 // TODO
                 // V-flag
@@ -3141,8 +3299,23 @@ impl STM8 {
                 // Set if the unsigned value of the contents of source (src) is larger than the
                 // unsigned value of the destination (dst), cleared otherwise.
                 self.carry_bit = data as u8 > self.accumulator as u8;
+            }
 
-             }
+            // 0xE4, page 79
+            //
+            // AND A, src
+            // A <= A AND src
+            Instruction::AND_A_X_OFFSET => {
+                
+                let address:u16 = self.x_index as u16 + asm_line.immediate as u16;
+                let data:u8 = read_byte(&mut self.memory_block_map, address as u32);
+
+                self.accumulator = ( self.accumulator as u8 & data ) as i8;
+
+                // flags
+                self.negative_bit = self.accumulator < 0;
+                self.zero_bit = self.accumulator == 0;
+            }
 
             // 0xE6, page 114, LD A,($50,X)
             Instruction::LD_A_OFFSET_X => { 
@@ -3160,11 +3333,30 @@ impl STM8 {
                 self.zero_bit = self.accumulator == 0;
             }
 
+            // 0xE7, page 115
+            Instruction::LD_X_OFFSET_A => {
+
+                if self.debug {
+                    println!("LD_X_OFFSET_A");
+                }
+
+                let address:u16 = self.x_index as u16 + asm_line.immediate as u16;
+                let data:u8 = self.accumulator as u8;
+
+                write_byte(&mut self.memory_block_map, address as u32, data);
+
+                // flags
+                self.negative_bit = self.accumulator < 0;
+                self.zero_bit = self.accumulator == 0;
+
+                print_memory(&self.memory_block_map, (address-32) as i32, (address+32) as i32);
+            }
+
             // 0xF1
             // CP Compare, page 94
             Instruction::CP_A_X_MEMORY => {
 
-                //self.print_memory(0xBDF0, 0xBE00);
+                //print_memory(0xBDF0, 0xBE00);
 
                 let data = read_byte(&self.memory_block_map, self.x_index as u32);
 

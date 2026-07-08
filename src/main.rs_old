@@ -1,0 +1,79 @@
+/*****************************************************************
+ * 
+ * This main file parses a .asm source code file just like an
+ * assembler would. 
+ * 
+ * If you want to process a .hex file, use the main.rs_hex file.
+ * 
+******************************************************************/
+
+use std::fs;
+
+use faster_pest::*;
+
+//mod ast;
+//use crate::{ast::visitor::Visitor};
+
+//mod encoder;
+
+//mod cpu;
+//use crate::{cpu::cortex_m4::CortexM4};
+
+#[derive(Parser)]
+//#[grammar = "asm.pest"]
+//#[grammar = "c.pest"]
+#[grammar = "grammar.pest"]
+//#[grammar = "comments.pest"]
+struct CSVParser {
+
+}
+
+/*
+fn recurse_pairs(pairs: &mut Pairs<'_, Rule>, indent: usize) {
+
+    // because ident_list is silent, the iterator will contain idents
+    for mut pair in pairs {
+        recurse_pair(&mut pair, indent);
+    }
+}
+*/
+
+fn main() {
+
+    //let read_asm_file:bool = false;
+    //let read_asm_file:bool = true;
+    //if read_asm_file {
+
+        let filename = "res/C/snippets/main.c";
+
+        let src = fs::read_to_string(&filename).expect("Failed to read file");
+        let parse_result = CSVParser::parse(Rule::translation_unit, &src);
+        //let parse_result = CSVParser::parse(Rule::comments, &src);
+
+        //println!("{:?}", parse_result);
+
+        // there should be a single root node in the parsed tree
+        //let res: Result<Pairs<'_, Rule>, pest::error::Error<Rule>> = parse_result;
+
+        // retrieve pairs
+        //let mut pairs = res.expect("Parsing failed");
+
+        //let mut visitor: Visitor = Visitor::new();
+
+        //recurse_pairs(/*&mut visitor,*/ &mut pairs, 0);
+
+        //let mut cortex_m4_cpu: CortexM4 = CortexM4::new();
+
+        //for asm_line in vtor.asm_lines {
+
+           //println!("asm_line: '{}'", asm_line);
+
+            //cortex_m4_cpu.execute(&asm_line);
+
+            //if cortex_m4_cpu.halt() {
+            //    break;
+            //}
+        //}
+   // }
+
+}

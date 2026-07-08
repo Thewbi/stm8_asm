@@ -1,0 +1,34 @@
+// https://dreampuf.github.io/GraphvizOnline
+
+digraph {
+	start_pointer [label= "", shape=none,height=.0,width=.0]
+	start_pointer -> 68;
+	68 -> 70[label="Symbol(y)"];
+	68 -> 70[label="Symbol(t)"];
+	68 -> 70[label="Symbol(b)"];
+	68 -> 70[label="Symbol(f)"];
+	68 -> 70[label="Symbol(g)"];
+	68 -> 70[label="Symbol(h)"];
+	68 -> 70[label="Symbol(j)"];
+	68 -> 70[label="Symbol(c)"];
+	68 -> 70[label="Symbol(a)"];
+	68 -> 70[label="Symbol(d)"];
+	68 -> 70[label="Symbol(k)"];
+	68 -> 70[label="Symbol(l)"];
+	68 -> 70[label="Symbol(i)"];
+	68 -> 70[label="Symbol(m)"];
+	68 -> 70[label="Symbol(p)"];
+	68 -> 70[label="Symbol(n)"];
+	68 -> 70[label="Symbol(u)"];
+	68 -> 70[label="Symbol(q)"];
+	68 -> 70[label="Symbol(_)"];
+	68 -> 70[label="Symbol(o)"];
+	68 -> 70[label="Symbol(x)"];
+	68 -> 70[label="Symbol(z)"];
+	70 -> 68[label="Epsilon"];
+	68 -> 70[label="Symbol(r)"];
+	68 -> 70[label="Symbol(s)"];
+	68 -> 70[label="Symbol(v)"];
+	68 -> 70[label="Symbol(w)"];
+	68 -> 70[label="Symbol(e)"];
+}

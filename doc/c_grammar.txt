@@ -1,0 +1,841 @@
+# The Lexer Hack
+
+C is notoriously difficult to parse because it is context-dependent.
+The dependency to the context is caused by the typedef statement which allows
+to define types.
+
+For example, the statement 
+
+```
+A * B; 
+```
+
+could mean "multiply variable A by variable B", or it could mean "declare pointer B of type A". 
+
+To resolve this ambiguity, C parsers require a technique known as "The Lexer Hack", 
+where the parser feeds type definitions (typedef) back into the lexical analyzer to distinguish 
+between variables and custom types.
+
+
+
+## LL
+
+## LL*
+
+## LL(1)
+
+## LR(0)
+
+LR(0) ist eine weit verbreitete Bottom-up-Parsing-Methode im Compilerbau. 
+
+Der Name steht für:
+
+L: Lesen der Eingabe von links nach rechts.
+R: Konstruktion einer Rechtsableitung in umgekehrter Reihenfolge.
+0: Es werden keine Vorausschau-Zeichen (Lookahead) verwendet. 
+
+Entscheidungen basieren strikt auf dem aktuellen Parser-Zustand.
+
+Ja, LR(0) ist strikt weniger mächtig als LALR(1). 
+Während LALR(1)-Parser sogenannte Lookahead-Symbole verwenden, um Konflikte aufzulösen, kommen LR(0)-Parser völlig ohne Vorausschau aus.
+Hier ist die genaue Abstufung der Mächtigkeit von links (schwach) nach rechts (stark):
+
+```
+LR(0) ⊂ SLR(1) ⊂ LALR(1) ⊂ LR(1)
+```
+
+Beispiel A:
+
+```
+if (predicate_1)
+    if (predicate_2)
+        printf("if_predicate_2\n");
+    else
+        printf("else\n");
+```
+
+In languages like C, C++, and Java, the compiler resolves the ambiguity using a standard rule: An else is always associated with the closest preceding unmatched if.
+
+Grammar:
+
+S -> iS | iSeS | others 
+
+(i = if, e = else)
+
+Wenn der Parser das zweite if sieht, kann er
+1. Shift: S -> iSeS ausführen
+2. Reduce: S -> iS ausführen.
+
+Das else gehört zum zweiten if und nicht zum ersten if, da es zum closest predcing gehört.
+
+Für das innere if muss die Regel S -> iSeS (Shift) angewendet werden.
+Wenn der Compiler S -> iS anwendet, dann lässt er ein dangling-else zurück, welches dann fälschlicherweiße dem äußeren if zugeordnet wird!
+
+Für das erste, äußere if muss der Parser die Regel S -> iS (Reduce) anwenden.
+
+Ein LR(0) Parser kann die Entscheidung nicht treffen!
+Ein LR(1) Parser sieht das lookahead token e und wird dann die Regel S -> iSeS (Shift) wählen und kein dangling else produzieren.
+
+https://www.youtube.com/watch?v=sh_X56otRdU
+
+One approach is to build LR(1) states and then combine some of those states into the final LALR(1) states.
+The downside is that there are very many LR(1) states that which will later be combined.
+
+Another approach is to build the LR(0) states first, then build them up towards LALR(1) which save computing resources.
+This is the approach that GNU Bison uses.
+Step 1: Build the set of LR(0) item sets.
+Step 2: Trace transitions and compute the CLOSURE() and GOTO() functions based purely on LR(0) item "cores".
+Step 3: Use lookahead propagation algorithms (like "lane tracing" or follow-sets) to inject lookahead tokens into the items without expanding the state count.
+
+What you describe is not quite the traditional approach. You don't make LR(1) and shrink it; that's impractical on the machines of the 1970s. 
+You make LR(0) and then disambiguate inadequate states by working out follower-sets corresponding to each possible reduction. 
+There are several ways to structure the solution, and many people get it wrong. (See here.)
+
+
+## LALR(1)
+
+LALR(1) (Look-Ahead, Left-to-Right, Rightmost derivation with 1 token lookahead)
+
+Bottom-up Parsing: 
+It starts with the raw tokens of your code and tries to group them together to match the start symbol.
+
+How it WorksBottom-up Parsing: 
+It starts with the raw tokens of your code and tries to group them together to match the start symbol (usually a root-level concept like Program).
+
+Shift-Reduce Operations:
+The parser alternates between shifting tokens onto an internal stack and reducing a group of tokens on the stack into a higher-level grammatical rule.The "(1)" 
+
+Lookahead: 
+To figure out if it should shift or reduce, it looks at the very next token in your code stream. This one token of lookahead resolves ambiguities.
+
+The Secret: 
+State MergingThe true magic of LALR(1) lies in its creation of the parsing table.
+A fully featured parser (called CLR(1)) can build a highly precise state machine, but its size explodes exponentially.
+A simpler parser (LR(0)) is small, but fails to handle many common programming syntaxes.
+LALR(1) takes the CLR(1) states and groups together any states that have the exact same core grammatical rules but only differ in their lookahead tokens.
+
+The Trade-off:
+By merging these states, the parsing table shrinks drastically. 
+However, because you are combining lookahead rules, it is possible to create shift-reduce or reduce-reduce conflicts 
+(where the parser cannot decide which grammatical rule to apply). 
+If no conflicts arise, the parser successfully compiles your grammar.
+For a video breakdown of how LALR(1) tables are generated from larger LR(1) states:
+
+
+
+
+
+
+# Buzz-words
+
+Book:
+Parsing Techniques: A Practical Guide (Monographs in Computer Science), by Dick Grune (Author), Ceriel J.H. Jacobs (Author)
+
+Article:
+https://jasone.github.io/2007/01/11/parser-generation-algorithms/
+
+Reddit-Thread:
+https://www.reddit.com/r/ProgrammingLanguages/comments/15cxb1a/advice_on_building_an_lalrk_parser_generator/
+Bermudez & Logothetis SLR-style
+DeRemer & Pennello relations-based algorithm. https://dl.acm.org/doi/pdf/10.1145/69622.357187
+Philippe Charles PhD thesis about constructing LALR(k) parsers.
+Wagner & Graham's algorithm for efficient and flexible incremental parsing.
+
+https://web.stanford.edu/class/archive/cs/cs143/cs143.1128/lectures/06/Slides06.pdf
+
+The “Lazy Merging” Technique
+Idea: Merge together LR(1) states as they're generated.
+● Maintain a worklist of states to process; begin with the initial LR(1) state.
+● When adding a new state, if it has the same core as an old state, update the old
+state and put it back in the worklist 
+
+The “Lazy Merging” Technique however, could be very slow in practice.
+● We might still have to generate all the LR(1) states, even if they immediately get merged.
+● This can be very slow.
+
+
+
+
+LALR(1)-by-SLR(1)
+● Fast and simple construction of LALR(1)
+lookaheads:
+● Construct the LR(0) automaton for the
+grammar.
+● Construct the augmented grammar by replacing
+nonterminals with new nonterminals based on
+the LR(0) transitions.
+● Compute the FOLLOW sets for these
+nonterminals.
+● Propagate changes through the LR(0) automaton.
+● Theorem (Bermudez and Logothetis): This
+correctly computes LALR(1) lookaheads
+
+
+
+The Bermudez-Logothetis Algorithm: Published in Information Processing Letters (1989), their paper "Simple Computation of LALR(1) Lookahead Sets" 
+outlines a highly efficient method for constructing LALR(1) lookahead sets. 
+
+Auxiliary "State Transition" Grammar: By modeling LR(0) automaton transitions as symbols in a secondary grammar, 
+they simplified complex parsing tasks (like computing propagated lookahead sets) into standard, reachable graph problems.
+
+Parallel Parsing: They expanded this work to parallel processing, co-authoring "Parallel construction of SLR (1) and LALR (1) parsers" (1990), 
+to further optimize compiler construction times.
+
+
+
+
+
+
+https://jikes.sourceforge.net/documents/thesis.pdf
+
+
+
+
+
+
+
+
+
+# Design
+
+Building an LALR(1) parser involves 
+- generating an LR(1) state machine, 
+- merging states with identical cores, 
+- and building a parse table. 
+
+Because of the mathematical complexity, most developers use a parser generator (like GNU Bison or ANTLR) rather than building one from scratch.
+
+
+
+
+Source: https://www.youtube.com/watch?v=d-8KAKXQ-Jw&list=PLxP0p--aBHmJKqrSFBatFypgviqGRxMKO&index=27
+Source: https://www.youtube.com/watch?v=YjEck_rmrQs&list=PLxP0p--aBHmJKqrSFBatFypgviqGRxMKO&index=23
+Source: https://serokell.io/blog/how-to-implement-lr1-parser
+Source: AI
+
+In general there are descent and ascent methods. 
+The descent (top-down) methods use a lot of time and have no conflict resolution.
+The ascent (bottom-up) methods are fast, accept left and right recursion, do not backtrack, find conflicts, work in linear time.
+
+LR(0), LR(1), LALR(1) are ascent methods.
+
+SLR stands for Simple LR: A basic, bottom-up parser that uses LR(0) items and FOLLOW sets to make parsing decisions. 
+It is the simplest to implement but cannot handle more complex, ambiguous grammars.
+An LR(0) parser is not the same as a SLR parser but they are both created from the same LR(0) DFA.
+An SLR parser has better conflict resolution and thus accepts a larger set of languages than a LR(0) parser.
+
+CLR stands for Canonical LR: A highly powerful, bottom-up parser that uses LR(1) items and look-ahead symbols to resolve conflicts. 
+It handles a much wider range of grammars but requires significantly more memory. The CLR parsing table is created
+from the LR(1) DFA. The CLR parsing table is exactly used as the SLR parsing table: watch: https://www.youtube.com/watch?v=zIQgky-hXJ4&list=PLxP0p--aBHmJKqrSFBatFypgviqGRxMKO&index=24
+
+LALR stands for Look-Ahead, Left-to-Right, Rightmost derivation. 
+LALR(1) automaton, for "Look Ahead LR[(0)]"
+In computer science, it refers to a highly efficient, 
+bottom-up parsing algorithm used in compilers to analyze the syntax of programming languages and ensure the code follows specific grammar rules.
+
+For context free grammars (which are used by real programming languages) CLR and LALR are used (instead of SLR and LR(0)).
+
+Building a parser is a two stage process. First a DFA is created (LR(0) or LR(1) DFA), then from that DFA, a parsing table is
+created by using some algorithm. This parsing table is then used by a driver application to drive the parser against input.
+To learn how the parsing table is used to process input, watch https://www.youtube.com/watch?v=zIQgky-hXJ4&list=PLxP0p--aBHmJKqrSFBatFypgviqGRxMKO&index=24
+
+The benefit of LALR(1) is it's table size (thus RAM usage) and performance.
+A LR(1) table that has the size O(n^2) given the symbol count n which is exponential and thus unfeasable. (long compile times)
+LALR(1)'s table size is the same size as SLR tables.
+LALR(1) accepts less languages than CLR. CLR is more powerfull than LALR(1). 
+For a language, when converting LR(1) to LALR(1) shift reduce conflicts might occure in the LALR(1) table, whereas the LR(1) table
+will accept the language without shift reduce conflicts.
+
+
+
+
+The brute force approach (https://suif.stanford.edu/dragonbook/lecture-notes/Stanford-CS143/11-LALR-Parsing.pdf) first builds
+the complete set or LR(1) states then reduces the set by combing states that share the same core.
+
+Mentioned in https://suif.stanford.edu/dragonbook/lecture-notes/Stanford-CS143/11-LALR-Parsing.pdf a LALR(1) parser 
+can be built by computing all LR(1) states and combining them into the LALR(1)
+states directly while processing. As soon as a new state is created, the algorithm immediate trys to merge it.
+This at least uses less memory but still exponential time.
+
+As described by Parsing Techniques - A practical guide (Dick Grune, Ceriel J.H. Jacobs) 
+the dragon book (alho, sethi) describes the LALR(1) construction algorithm also used in YACC.
+This algorithm has no name and is therefore named the "Channel Algorithm".
+
+"We shall treat here only one algorithm, one that is both intuitively relatively clear
+and reasonably efficient. It was (probably) first described in rather vague terms by
+Anderson, Eve and Horning [LR 1973], it is used in the well-known parser generator
+yacc (Johnson [LR 1978]) and is described in more detail by Aho, Sethi and Ullman
+[Books 1986]. The algorithm does not seem to have a name; we shall call it the channel algorithm here."
+
+A third more modern approach is introduce by DeRemer and Pennello. It uses the LR(0) DFA (instead of computing LR(1)).
+It computes FIRST and FOLLOW sets and builds up the LR(0) DFA to a LALR(1) DFA.
+
+Another algorithm is published by Bermudez and Logothetis.
+
+
+
+
+
+
+https://groups.google.com/g/comp.compilers/c/j9IGjdC9QNw
+This discussion is the reason for the book "Theory Practice Compiler Writing by Tremblay Jean-paul"
+
+
+
+
+https://stackoverflow.com/questions/61640542/why-is-my-parser-generating-reporting-that-this-lalr1-grammar-is-not-lalr1
+start -> a a
+a -> "A" a
+a -> "B"
+
+
+
+https://robots.hlt.inesc-id.pt/w/pt/index.php/Bottom-Up_Parsing/LALR(1)_Example_1
+A → C x A | ε
+B → x C y | x C
+C → x B x | z
+
+
+
+
+# Lemon
+https://www.hwaci.com/sw/lemon/
+
+
+
+
+
+
+
+
+# LR(0) construction algorithm
+
+1. Augment Grammar:
+For the start symbol S, add one new rule S' -> S
+
+Example:
+A -> B A B | B
+B -> 1 C C
+C -> 0 | ϵ
+
+Augmented:
+A' -> A
+A -> B A B | B
+B -> 1 C C
+C -> 0 | ϵ
+
+For easier handling, unroll rules that have OR on the right side, so that each rule has no OR on the right side.
+
+Unrolled:
+A' -> A
+A -> B A B
+A -> B
+B -> 1 C C
+C -> 0
+C -> ϵ
+
+
+Definition: 
+    - D set (Set of rule to process)
+    - E set (Set of states to process)
+
+1. Create Start-State of Parser DFA
+
+Create a new state and make it the current state
+
+The new start rule after augmentation is A' -> A
+    - perform Dot-Addition: A' -> . A
+    - add the new rule into the current state as Master-Rule (rule at index 0 in the array of rules)
+
+NOW PERFORM THE FUNCTION CALLED: unfold_state();
+    - add the new rule into the D set
+
+(1): For all rules in the D set, 
+    - remove one rule from the D set
+    - if the dot is after the end of the rule (before no symbol at all)
+        - do nothing
+    - if the dot is in front of a terminal
+        - do nothing
+    - if the dot is in front of a non-terminal
+        - retrieve the rules that have the non-terminal as left-side from the current rule's right sides, 
+        - perform Dot-Addition for the non-terminal rules from the right side
+        - add the new rules into the current state
+        - add the new rules into the D set.
+    - go back to (1)
+
+Eventually D will be empty.
+At this point, the start state is created (the state is unfolded) and the function unfold_state() terminates.
+    - Insert the start state into the E-Set (Set of states to process)
+
+Example Start-State:
+
+(
+    A' -> .A
+    A -> .BAB
+    A -> .B
+    B -> .1CC
+)
+
+2. Build GOTO-rules (DFA-Transitions) for the current state.
+
+(2): For all states in the E-Set
+    - remove one state from the E-Set
+
+    Now iterate through all rules contained in that state.
+        Looking at one specific rule R
+        If the rule R, on the right side, has a dot, 
+            - build a new rule from R by moving the dot one location to the right.
+            - Now check if this rule is already part of the DFA as the master/identifying rule of any of the states!
+                - If the rule is part of the DFA already as a master rule, do not create a new node!!!!
+                - then insert a transition labeled with the Non-Terminal or Terminal after the dot to a new state or
+                - the state that already exists in the DFA.
+            - If the rule is not part of the DFA already,
+                - Insert this rule into the new state as Master/identifying-Rule (rule at index 0 in the array of rules).
+                - Now call the function unfold_state() on the new state that completely processes/unfolds the rules for the new state. 
+                - Put that new state into the E-Set.
+        go back to (2)
+
+Eventually, the E-set will be empty.
+    - All nodes have been created.
+
+3. Add a accepting state.
+    - Find the node that contains the augmentation start rule.
+        - create a new accepting state.
+        - add a transition between the augmented start rule state and the accepting state which 
+          is labeled with the symbol $
+
+
+
+
+
+
+
+
+
+
+
+
+# Testing
+
+Simple Example:
+S -> A
+A -> a A
+
+Video: https://www.youtube.com/watch?v=BxMFn7aelBk
+A -> B A B | B
+B -> 1 C C
+C -> 0 | ϵ
+
+Video: https://www.youtube.com/watch?v=n-RoeLeCddU
+S -> A A
+A -> a A
+A -> b
+
+https://cyberzhg.github.io/toolbox/lr0
+
+E -> E + T | T
+T -> T * F | F
+F -> ( E ) | id
+
+S -> S S + | S S * | a
+
+S -> 0 S 1 | 0 1
+
+S -> + S S | * S S | a
+
+S -> S ( S ) S | ϵ
+
+S -> S + S | S S | ( S ) | S * | a
+
+S -> ( L ) | a L -> L , S | S
+
+S -> a S b S | b S a S | ϵ
+
+bexpr -> bexpr or bterm | bterm
+bterm -> bterm and bfactor | bfactor
+bfactor -> not bfactor | ( bexpr ) | true | false
+
+
+
+
+
+
+# Channel Algorithm
+
+https://stackoverflow.com/questions/74373576/how-to-understand-example-4-64-of-the-syntax-analysis-chapter-in-dragon-book
+
+
+Grammar (4.49): See Dragon Book 2nd Ed. page 255, Example 4.48. Figure 4.39
+https://cyberzhg.github.io/toolbox/lr0
+S' -> S
+S -> L = R | R
+L -> * R | id
+R -> L
+
+Exploded:
+S' -> S
+S -> L = R 
+S -> R
+L -> * R 
+L -> id
+R -> L
+
+[FIXED] BUG IN MY CODE: STATE ( R -> L . ) is not created! See Dragon Book 2nd Ed. page 255, Example 4.48. Figure 4.39
+It is important to realize that the DFA identifies existing states in the graph by looking at not only individual 
+productions but by looking at sets of productions! Specifically a state is identified by the set of all of it's
+identification rules! If a start states transitions over only a sub set of identification rules, then a new state
+for that specific subset has to be created instead of identifying an existing state that may contain the subset as
+part of a larger set of identification rules! Identification rules have to match down to the last rule or the
+states are different!
+
+When the bug is fixed, return to page 271, Example 4.61. "4.7.5 Efficient Construction of LALR Parsing Tables"
+
+
+
+
+
+
+
+
+# 4.7.5 Efficient Construction of LALR Parsing Tables, Dragon Book, 2nd Edition, page 271
+
+To create an LALR(1) parser generator yourself, follow these five core phases:
+
+1. Build the LR(0) Automaton 
+    First, convert your grammar into an augmented grammar and compute the LR(0) CLOSURE and GOTO functions to build the LR(0) states. 
+    These states will become the "cores" of your parser. 
+    CLOSURE: Given a set of items, if a non-terminal is after a dot (e.g., A → α ⋅ B β), add all productions for B with a dot at the beginning to the set.
+    GOTO: Determine which items a state transitions to when a specific grammar symbol (terminal or non-terminal) is consumed.
+    
+2. Compute the FIRST and FOLLOW Sets
+    You need the lookaheads for your grammar.
+    Compute FIRST(α) for all strings in your grammar.
+    Compute FOLLOW(A) for all non-terminals.
+    These sets dictate which tokens can validly appear immediately after a non-terminal in a sentential form.
+    
+3. Generate LR(1) Items and Merge States (LALR Trick) 
+    While you can build the full canonical LR(1) states and merge them (the brute-force method), 
+    a direct approach calculates lookaheads by propagation and spontaneous generation:
+        - Calculate the LR(0) states.
+        - Augment each LR(0) item in these states with its lookahead symbols.
+        - Propagate the lookaheads through the states using lookahead propagation rules until no more symbols are added.
+            DragonBook, 2nd Edition, page 270: "We can construct the LALR(l)-item kernels from the LR(O)-item kernels
+                by a process of propagation and spontaneous generation of lookaheads,
+                that we shall describe shortly."
+            - Spontaneous Generation: A lookahead symbol is generated inherently from a specific reduction rule.
+            - Propagation: Lookahead symbols inherited from a parent/predecessor state are "pushed" down the parse 
+              tree without alteration.
+        - States that have identical core productions (ignoring the lookaheads) are merged into a single state, 
+          and their lookahead sets are combined via union.
+        
+4. Build the Parsing Table 
+    Construct the two-dimensional LALR(1) parse table using the merged states:
+    Action Table: Defines the shifts, reduces, and accepts for terminals. 
+        If a state has A → α ⋅ a β and \(GOTO(state, a) = state_k\), add Shift state_k on the terminal a. 
+        If a state contains A → α ⋅, add Reduce A -> \alpha for all tokens in FOLLOW(A).
+    Goto Table: Defines state transitions for non-terminals.
+    
+5. Implement the Driver Loop
+    The final step is the parsing engine itself. 
+    The driver loop takes a stream of tokens and uses a stack to process them against your generated LALR(1) parsing table. 
+    It looks up the current state (on top of the stack) and the current input token to execute a shift, reduce, accept, or error.
+    To visually understand the mechanics of merging LR(1) states to create an LALR(1) table.
+
+
+
+1. By Kernels, the dragon book refers to the set of rules that are called identifying rules in my implementation.
+
+2. Learn about the implementation of FIRST(), FOLLOW(), GOTO() and CLOSURE() so the lookaheads can be computed.
+
+The CLOSURE() algorithm is listed on page 261
+
+I have a hunch that CLOSURE is an extended version of the function grammar_state.unfold_grammar_state()
+
+```
+SetOfItems CLOSURE(I) {               (on page 261)
+
+    repeat {
+
+        for ( each item [A -> α·Bβ, a] in I )
+            for ( each production B -> γ in G' )
+                for ( each terminal b in FIRST(βa) )
+                    add [B -> .γ, b] to set I;
+
+    } until no more items are added to I;
+    
+    return I;
+}
+```
+
+Closure:
+    for each rule in I, when dot points to nonterminal B
+
+The definition of FIRST is given on page 220 "4.4.2 FIRST and FOLLOW"
+
+Define FIRST(α) [..] to be the set of terminals that begin strings derived from α.
+e.g. A -> c γ then FIRST(A) = { c }
+
+The definition of FOLLOW is given on page 220 "4.4.2 FIRST and FOLLOW"
+
+Define FOLLOW(A), for nonterminal A, to be the set of terminals a that can
+appear immediately to the right of A in some sentential form; that is, the set
+of terminals a such that there exists a derivation of the form S ->* αAaβ, for
+some α and β, as in Fig. 4.15.
+
+3. As an excercise, perform Example 4.64 on page 273 and make sure the algorithm correctly computes the closure:
+
+Q: What is the # symbol
+A: DragonBook, 2nd Ed, page 272 Let # be a symbol not in the grammar at hand.
+
+
+https://cyberzhg.github.io/toolbox/lr0
+https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html
+https://jsmachines.sourceforge.net/machines/lalr1.html
+Grammar:
+Exploded:
+S' -> S
+S -> L = R 
+S -> R
+L -> * R 
+L -> id
+R -> L
+
+
+CLOSURE( {[S' -> ·S, #]} )
+
+the correct result is
+
+S' -> ·S, #
+S -> ·L = R, #
+S -> ·R, #
+L -> .* R, #/=
+L -> ·id, #/=
+R -> ·L, #
+
+This excercise is also discussed here: https://stackoverflow.com/questions/74373576/how-to-understand-example-4-64-of-the-syntax-analysis-chapter-in-dragon-book
+
+
+
+
+
+
+https://staff.polito.it/silvano.rivoira/LingTrad/ParsingTechniques/ParsingTechniques.pdf
+
+"
+We shall treat here only one algorithm, one that is both intuitively relatively clear
+and reasonably efficient. It was (probably) first described in rather vague terms by
+Anderson, Eve and Horning [LR 1973], it is used in the well-known parser generator
+yacc (Johnson [LR 1978]) and is described in more detail by Aho, Sethi and Ullman
+[Books 1986]. The algorithm does not seem to have a name; we shall call it the channel algorithm here.
+"
+
+A set of symbols used for look-ahead is added to each row.
+
+To determine the elements of this look-ahead set, 
+
+
+
+Compilers Principles Techniques and Tools (2nd Edition) .pdf - page 266
+
+
+Page 263
+Example 4.54 : Consider the following augmented grammar. (4.55)
+S' -> S
+S -> C C
+C -> c C | d
+
+S' -> S
+S -> C C
+C -> c C 
+C -> d
+
+
+
+
+
+
+https://softwareengineering.stackexchange.com/questions/177872/how-lookaheads-are-propagated-in-channel-method-of-building-lalr-parser
+Fig9_34.pdf in doc folder
+
+https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html
+https://jsmachines.sourceforge.net/machines/lalr1.html
+Grammar
+S -> E
+E -> E - T
+E -> T
+T -> ( E )
+T -> n
+
+
+
+
+
+https://cyberzhg.github.io/toolbox/lr0
+https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html
+https://jsmachines.sourceforge.net/machines/lalr1.html
+S -> A A
+A -> a A
+A -> b
+
+
+https://stackoverflow.com/questions/77577494/is-this-grammar-lalr1
+S -> a S b
+S -> c
+
+
+
+
+https://gist.github.com/lin/dc83bb38eb458ded3ff01aec4a327d54
+
+
+
+
+
+
+
+
+# How does the Channel Algorithm of the Dragon Book really work?
+
+The explanation in the Dragon Book is written in typical theoretical computer science style.
+Definitions are given in rather mathematical notation and the pseudo code does not really tell
+the whole story.
+
+The basic idea of the Channel Algorithm is to build a LALR(1) DFA automaton from an LR(0) automaton.
+The alternative, which is infeasable due to the high amount of nodes produced, is to first generate
+the LR(1) automaton and then to merge states until the LALR(1) DFA is created!
+
+This means the first step is to build source code which creates the LR(0) DFA from the productions
+of the grammar. First augment the grammar (Add a S'- > S rule), then build the LR(0) automaton.
+There are a lot of good videos on youtube on how to build a LR(0) automaton. The idea is that
+the dot marker in each rule when pointing to a non-terminal tells you which rule to use to 
+create the kernel of a new DFA state and to iteratively create new states from all rules in all
+DFA states until there is no more grow to be had in the DFA at which point the entire LR(0)
+DFA is available. One large gotcha is that the transition between two DFA state is made up of
+not only a single production but a set of productions! It is the set of productions that then
+forms the kernel of the new DFA state. The kernel of a state is the set of productions that
+cause the creation of that DFA state. All other rules in a DFA state are developed from the
+rules in the kernel.
+
+Once the LR(0) DFA is available, then the next step will compute the initial lookahead symbols 
+and channels for each rule in each state. This is an iterative process that starts by building 
+the closure from the kernels of each individual node. 
+
+The closure will add the initial sets of lookaheads into each rule and also for each rule establish
+a edge/channel which points from a rule A to another rule B whereas B has been created because of the
+existence of rule A. Per definition, the start state will get the end-symbol as lookahead inserted!
+The start node is not created because another node has a transition to it's kernel but because you
+have manually created the start state from the start rule of the grammar.
+
+These channels existing within states but they also connect rules in different
+states to each other. This happens if a rule in an existing state is the reason for creating a new state!
+
+Once the closure has created initial lookaheads and channels, the system will loop and push lookahead symbols
+along the edges (channels) between the rules until the spread of lookahead symbols has come to a halt.
+
+This network of channels created by the closure operations are enought to push lookahead symbols
+along the channels until the change comes to a halt, which is when the LALR(1) automaton is ready.
+
+# Building the Closure
+
+Pick the start state and make it the current state.
+
+For the current state start with the rules in the state's kernel.
+
+A state is a set of rules out of which one or more rules form the so called kernel.
+The set of rules that form a state's kernel are the rules over which that state in the DFA is transitioned
+to given a terminal (Shift) or a nonterminal.
+
+The kernel of the start state is the start production of the grammar.
+
+Next step is to compute the closure for the rules in the kernel.
+
+To build the closure, for a rule, determine the lookahead for that rule.
+For this, you need the FIRST() set for each NonTerminal which can be precomputed
+given the grammar rules.
+
+To compute the lookaheads: the general notation used for a rule is:
+
+```
+A -> alpha . B beta, a
+```
+
+What in the world does this mean?
+
+First, you are look it a rule where the dot-marker just points to the non-terminal B.
+After B, follows a string of elements (nonterminal or terminal) beta.
+a is the set of lookaheads that have been computed for this rule up to this point.
+a may be extended as the algorithm goes.
+
+Example: 
+S -> . L = R     ,#
+
+Comparing the example production to the standard form, we see: 
+A is S
+alpha is the empty string
+The dot points to L whereas L is B.
+beta is "= R"
+
+The string beta may be empty: 
+
+Example:
+S' -> . S        ,#
+
+Comparing the example production to the standard form, we see: 
+A is S'
+alpha is the empty string
+The dot points to S whereas S is B.
+beta the empty string because it does not exist.
+
+Back to the example this time with an existing lookahead #
+
+S -> . L = R      ,#
+
+When this rule is detected, the lookhead for this rule needs to be computed:
+The lookahead symbols are computed by using First(beta+#)
+
+What does this mean?
+
+First() is the first operation. It will return a set of terminals.
+It will return all terminals that it can find in the concatenation of beta and the existing lookahead of #
+
+We know that beta can be the empty string so First() might just return the lookahead symbols.
+If beta is not the empty string, beta can either be a terminal itself in which case Frist will return that terminal.
+In the most complicated case B can be the Lefthand side (LHS) of a set of rules. 
+Lets say beta is the nonterminal B.
+
+In this case First(B) will look at all productions that have B on the LHS and return all the terminals that
+these rules can produce. Luckily First(B) is called the first set of a production and this first-set can 
+be precomputed based on the grammar at hand befor starting LALR(1) construction.
+
+You need to implement the functionality that implements First().
+Once you have an implementation for first, 
+    1. compute the lookahead symbols for the rule
+    2. determine all the follow up rules create from the current rule (dot points to nonterminal which is used as LHS of rules)
+    3. Add the rules to the state (outside of the kernel)
+    4. Add the lookaheads from step 1 into these newly added rules. In this step a rule might be added to the same
+    state by two or more different productions. In this case, all lookaheads symbols are merged into the rule and 
+    the set of initial lookahead symbols might grow!
+
+You need to maintain the channels. If a rule A generates a rule B, then connect A to B over a channel so you know
+where new lookaheads need to be pushed later.
+
+If the closure for all states of the LR(0) DFA states have been built, then the next step is to start the iteration.
+
+# The iteration
+
+The purpose of the iteration is to push lookaheads from rules down the channels.
+When a lookahead symbol is pushed from rule A to rule B over a channel that connects them, then
+rule B will just merge the lookahead inot the set of lookaheads it already has.
+If any set has changed, the iteration continues.
+If at one point none of the sets has seen any change, the iteration comes to a halt and the LALR(1) automaton
+is constructed.
+
+Mind you, if a new lookahead goes into a rule, it willt trickle through channels that exist purely within
+the state but also throught channels that connect different states.
+
+# Creating the parser table
+
+The LALR(1) automaton is a tool to retrieve the final parse table which is then used by a driver to
+run the parser.
+
+Therefore the parse table needs to be constructed from the DFA.

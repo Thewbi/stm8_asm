@@ -1,0 +1,406 @@
+use std::fs::File;
+use std::io::{BufWriter, Write};
+use std::{
+    collections::{
+        BTreeMap as Map,
+        BTreeSet as Set,
+    },
+    iter,
+    fmt::Debug,
+};
+use ::segment_map::{
+    Segment,
+    SegmentMap,
+    segment_map,
+};
+use finite_automata::{
+    StateIndex,
+    TransitionIndex,
+    Subsume,
+    Enfa,
+    Nfa,
+    Dfa,
+    StatesContains,
+    StatesIndex,
+    StatesSlice,
+    states_contains_from,
+    states_contains_closure_from,
+};
+
+use assert_eq::AssertEq;
+
+static a: i32 = 97;
+static b: i32 = 98;
+static c: i32 = 99;
+static d: i32 = 100;
+static e: i32 = 101;
+static f: i32 = 102;
+static g: i32 = 103;
+static h: i32 = 104;
+static i: i32 = 105;
+static j: i32 = 106;
+static k: i32 = 107;
+static l: i32 = 108;
+static m: i32 = 109;
+static n: i32 = 110;
+static o: i32 = 111;
+static p: i32 = 112;
+static q: i32 = 113;
+static r: i32 = 114;
+static s: i32 = 115;
+static t: i32 = 116;
+static u: i32 = 117;
+static v: i32 = 118;
+static w: i32 = 119;
+static x: i32 = 120;
+static y: i32 = 121;
+static z: i32 = 122;
+
+static A: i32 = 65;
+static B: i32 = 2;
+static C: i32 = 4;
+static D: i32 = 6;
+
+macro_rules! map {
+    ($($x:expr => $y:expr),*) => {{
+        #[allow(unused_mut)]
+        let mut temp_map = std::collections::BTreeMap::new();
+        $(temp_map.insert($x, $y);)*
+        temp_map
+    }}
+}
+
+macro_rules! set {
+    ($($x:expr),*) => {{
+        #[allow(unused_mut)]
+        let mut temp_set = std::collections::BTreeSet::new();
+        $(temp_set.insert($x);)*
+        temp_set
+    }}
+}
+
+pub fn enfa_to_dot_directed_graph(enfa: &Enfa<i32, i32>, filename: &str) {
+
+    // 1. Create or overwrite the file
+    let file = File::create(filename).expect("Create file failed!");
+    
+    // 2. Wrap the file in a BufWriter
+    let mut writer = BufWriter::new(file);
+
+    // digraph = directed graph
+    write!(writer, "{}", "digraph {\n");
+
+    // start pointer
+    write!(writer, "\tstart_pointer [label= \"\", shape=none,height=.0,width=.0]\n");
+
+    let initial_state_index_as_string = format!("{:?}", enfa.initial_index());
+    write!(writer, "\tstart_pointer -> {};\n", &initial_state_index_as_string[20..initial_state_index_as_string.len()-2]);
+
+    for final_state_index in enfa.final_indices() {
+
+        let final_state_index_as_string = format!("{:?}", final_state_index);
+        write!(writer, "\t{}[shape=doublecircle];\n", &final_state_index_as_string[20..final_state_index_as_string.len()-2]);
+    }
+
+    // iterate over indices
+    for state_index in enfa.state_indices() {
+
+        // get the state at the state index
+        //let state = enfa.states_index(state_index);
+        //println!("{:?}", state);
+
+        // // get all transitions of state
+        // for transition_index in enfa.transition_indices_from(state_index) {
+        //     println!("{:?}", transition_index);
+        // }
+
+        for transition in enfa.transitions_slice(enfa.transition_indices_from(state_index)) {
+
+            //println!("{:?} -> [{:?}] -> {:?}", state_index, transition, transition);
+            //println!("{:?}", transition);
+
+            let start_state_index = transition.0;
+            let transition_val = transition.1.lower();
+            let end_state_index = transition.2;
+
+            let empty_transition = (transition.1.lower() == transition.1.upper()) && *transition.1.lower() == 0;
+
+            //println!("{:?} -> {:?}", start_state_index, end_state_index);
+            //println!("{} -> {}", start_state_index as i32, end_state_index as i32);
+            //println!("{} -> {}", start_state_index.inner, end_state_index.inner);
+
+            //writeln!(writer, start_state_index
+
+            let start_index_as_string = format!("{:?}", start_state_index);
+            let end_index_as_string = format!("{:?}", end_state_index);
+            //println!("{:?}", &start_index_as_string[20..start_index_as_string.len()-2]);
+            //println!("{:?}", &end_index_as_string[20..end_index_as_string.len()-2]);
+            write!(writer, "\t{}", &start_index_as_string[20..start_index_as_string.len()-2]);
+            write!(writer, " -> ");
+            write!(writer, "{}", &end_index_as_string[20..end_index_as_string.len()-2]);
+            if !empty_transition {
+                write!(writer, "[label=\"{:?}\"]", *transition_val as u8 as char);
+            }
+            write!(writer, ";");
+            write!(writer, "\n");
+        }
+    }
+
+    write!(writer, "{}", "}");
+
+    // 4. Explicitly flush the remaining data to disk
+    writer.flush().expect("flush failed!");
+}
+
+pub fn dfa_to_dot_directed_graph(dfa: &Dfa<Set<i32>, i32>, filename: &str) {
+
+    // 1. Create or overwrite the file
+    let file = File::create(filename).expect("Create file failed!");
+    
+    // 2. Wrap the file in a BufWriter
+    let mut writer = BufWriter::new(file);
+
+    // digraph = directed graph
+    write!(writer, "{}", "digraph {\n");
+
+    // start pointer
+    write!(writer, "\tstart_pointer [label= \"\", shape=none,height=.0,width=.0]\n");
+
+    let initial_state_index_as_string = format!("{:?}", dfa.initial_index());
+    write!(writer, "\tstart_pointer -> {};\n", &initial_state_index_as_string[20..initial_state_index_as_string.len()-2]);
+
+    for final_state_index in dfa.final_indices() {
+
+        let final_state_index_as_string = format!("{:?}", final_state_index);
+        write!(writer, "\t{}[shape=doublecircle];\n", &final_state_index_as_string[20..final_state_index_as_string.len()-2]);
+    }
+
+    // iterate over indices
+    for state_index in dfa.state_indices() {
+
+        for transition in dfa.transitions_slice(dfa.transition_indices_from(state_index)) {
+
+            let start_state_index = transition.0;
+            let transition_val = transition.1.lower();
+            let end_state_index = transition.2;
+
+            let empty_transition = (transition.1.lower() == transition.1.upper()) && *transition.1.lower() == 0;
+
+            let start_index_as_string = format!("{:?}", start_state_index);
+            let end_index_as_string = format!("{:?}", end_state_index);
+            //println!("{:?}", &start_index_as_string[20..start_index_as_string.len()-2]);
+            //println!("{:?}", &end_index_as_string[20..end_index_as_string.len()-2]);
+            write!(writer, "\t{}", &start_index_as_string[20..start_index_as_string.len()-2]);
+            write!(writer, " -> ");
+            write!(writer, "{}", &end_index_as_string[20..end_index_as_string.len()-2]);
+            if !empty_transition {
+                write!(writer, "[label=\"{:?}\"]", *transition_val as u8 as char);
+            }
+            write!(writer, ";");
+            write!(writer, "\n");
+        }
+    }
+
+    write!(writer, "{}", "}");
+
+    // 4. Explicitly flush the remaining data to disk
+    writer.flush().expect("flush failed!");
+}
+
+// https://graphs.grevian.org/example
+// https://dreampuf.github.io/GraphvizOnline
+// https://www.geeksforgeeks.org/theory-of-computation/conversion-from-nfa-to-dfa/
+// https://www.geeksforgeeks.org/theory-of-computation/minimization-of-dfa/
+pub fn main() {
+
+/*
+    let mut enfa = Enfa::<i32, i32>::new(0);
+
+    // transition from s0 to s1 with empty label (epsilon-transition)
+    let s0 = enfa.initial_index();
+    let s1 = enfa.states_insert(1);
+    let s2 = enfa.states_insert(2);
+
+    enfa.transitions_insert((s0, Segment::empty(), s1));
+    //enfa.transitions_insert((s0, Segment::singleton(0), s1));
+
+    enfa.transitions_insert((s0, Segment::singleton(a), s1));
+    enfa.transitions_insert((s0, Segment::singleton(A), s1));
+    //enfa.transitions_insert((s0, Segment::closed_open(B, C), s1));
+    enfa.set_final(s1);
+
+    enfa_to_dot_directed_graph(&enfa);
+*/
+
+/*
+    // eNFA for (a|b)*ab
+    // https://www.geeksforgeeks.org/theory-of-computation/conversion-from-nfa-to-dfa/
+    let mut enfa = Enfa::<i32, i32>::new(0);
+    let q0 = enfa.initial_index();
+    let q1 = enfa.states_insert(1);
+    let q2 = enfa.states_insert(2);
+    enfa.set_final(q2);
+    enfa.transitions_insert((q0, Segment::singleton(a), q0));
+    enfa.transitions_insert((q0, Segment::singleton(b), q0));
+    enfa.transitions_insert((q0, Segment::singleton(a), q1));
+    enfa.transitions_insert((q1, Segment::singleton(b), q2));
+
+    enfa_to_dot_directed_graph(&enfa, "enfa_automaton.dot");
+    let dfa_from_nfa = Dfa::from(&enfa);
+    dfa_to_dot_directed_graph(&dfa_from_nfa, "dfa_automaton.dot");
+*/
+/*
+    // eNFA for (1|0)*10
+    let mut enfa = Enfa::<i32, i32>::new(0);
+    let q0 = enfa.initial_index();
+    let q1 = enfa.states_insert(1);
+    let q2 = enfa.states_insert(2);
+    enfa.set_final(q2);
+
+    enfa.transitions_insert((q0, Segment::singleton(0), q0));
+    enfa.transitions_insert((q0, Segment::singleton(1), q0));
+
+    enfa.transitions_insert((q0, Segment::singleton(1), q1));
+
+    enfa.transitions_insert((q1, Segment::singleton(0), q2));
+
+    enfa_to_dot_directed_graph(&enfa, "enfa_automaton.dot");
+    let dfa_from_nfa = Dfa::from(&enfa);
+    dfa_to_dot_directed_graph(&dfa_from_nfa, "dfa_automaton.dot");
+*/
+
+/*
+    let mut dfa = Dfa::<Set<i32>, i32>::new(set!(0));
+    let q0 = dfa.initial_index();
+    dfa.set_final(q0);
+
+    let q1 = dfa.states_insert(set!(1));
+
+    dfa.transitions_insert((q0, Segment::singleton(0), q0));
+    dfa.transitions_insert((q0, Segment::singleton(1), q1));
+
+    dfa.transitions_insert((q1, Segment::singleton(0), q0));
+    dfa.transitions_insert((q1, Segment::singleton(1), q1));
+
+    dfa_to_dot_directed_graph(&dfa, "dfa_automaton.dot");
+*/
+
+/*
+    // https://www.uobabylon.edu.iq/eprints/publication_12_3181_344.pdf
+    // NFA N for (a|b)*abb
+
+    //
+    // This is an example where the NFA is not converted into a minimal DFA
+    // but into a DFA for which a smaller DFA exists that accepts the same
+    // words. A minimized DFA is: 
+    // (0,b) -> 0
+    // (0,a) -> 1
+    // (1,a) -> 1
+    // (1,b) -> 2
+    // (2,a) -> 1
+    // (2,b) -> 3
+    // (3,a) -> 1
+    // (3,b) -> 3
+    // It has only 4 state instead of the generated 5!
+    //
+
+    let mut enfa = Enfa::<i32, i32>::new(0);
+    let q0 = enfa.initial_index();
+    let q1 = enfa.states_insert(1);
+    let q2 = enfa.states_insert(2);
+    let q3 = enfa.states_insert(3);
+    let q4 = enfa.states_insert(4);
+    let q5 = enfa.states_insert(5);
+    let q6 = enfa.states_insert(6);
+    let q7 = enfa.states_insert(7);
+    let q8 = enfa.states_insert(8);
+    let q9 = enfa.states_insert(9);
+    let q10 = enfa.states_insert(10);
+    enfa.set_final(q10);
+
+    enfa.transitions_insert((q0, Segment::empty(), q1));
+    enfa.transitions_insert((q0, Segment::empty(), q7));
+
+    enfa.transitions_insert((q1, Segment::empty(), q2));
+    enfa.transitions_insert((q1, Segment::empty(), q4));
+
+    enfa.transitions_insert((q2, Segment::singleton(a), q3));
+
+    enfa.transitions_insert((q3, Segment::empty(), q6));
+
+    enfa.transitions_insert((q4, Segment::singleton(b), q5));
+
+    enfa.transitions_insert((q5, Segment::empty(), q6));
+
+    enfa.transitions_insert((q6, Segment::empty(), q7));
+    enfa.transitions_insert((q6, Segment::empty(), q1));
+
+    enfa.transitions_insert((q7, Segment::singleton(a), q8));
+
+    enfa.transitions_insert((q8, Segment::singleton(b), q9));
+
+    enfa.transitions_insert((q9, Segment::singleton(b), q10));
+
+    enfa_to_dot_directed_graph(&enfa, "enfa_automaton.dot");
+    let dfa_from_nfa = Dfa::from(&enfa);
+    dfa_to_dot_directed_graph(&dfa_from_nfa, "dfa_automaton.dot");
+*/
+
+    let mut enfa = Enfa::<i32, i32>::new(0);
+    let q0 = enfa.initial_index();
+
+    // hello
+    let q1 = enfa.states_insert(1);
+    let q2 = enfa.states_insert(2);
+    let q3 = enfa.states_insert(3);
+    let q4 = enfa.states_insert(4);
+    let q5 = enfa.states_insert(5);
+    let q6 = enfa.states_insert(6);
+    enfa.set_final(q6);
+
+    // world
+    let q7 = enfa.states_insert(7);
+    let q8 = enfa.states_insert(8);
+    let q9 = enfa.states_insert(9);
+    let q10 = enfa.states_insert(10);
+    let q11 = enfa.states_insert(11);
+    let q12 = enfa.states_insert(12);
+    enfa.set_final(q12);
+
+    // hello
+    enfa.transitions_insert((q0, Segment::empty(), q1));
+    enfa.transitions_insert((q1, Segment::singleton(h), q2));
+    enfa.transitions_insert((q2, Segment::singleton(e), q3));
+    enfa.transitions_insert((q3, Segment::singleton(l), q4));
+    enfa.transitions_insert((q4, Segment::singleton(l), q5));
+    enfa.transitions_insert((q5, Segment::singleton(o), q6));
+
+    // world
+    enfa.transitions_insert((q0, Segment::empty(), q7));
+    enfa.transitions_insert((q7, Segment::singleton(w), q8));
+    enfa.transitions_insert((q8, Segment::singleton(o), q9));
+    enfa.transitions_insert((q9, Segment::singleton(r), q10));
+    enfa.transitions_insert((q10, Segment::singleton(l), q11));
+    enfa.transitions_insert((q11, Segment::singleton(d), q12));
+
+    enfa_to_dot_directed_graph(&enfa, "enfa_automaton.dot");
+    let dfa_from_nfa = Dfa::from(&enfa);
+    dfa_to_dot_directed_graph(&dfa_from_nfa, "dfa_automaton.dot");
+}
+
+// #[test]
+//     fn test_epsilon() {
+//         let expected = Expected::<_, i32> {
+//             initial: 0,
+//             transitions: set![
+//                 (0, Segment::empty(), 1)
+//             ],
+//             finals: set![1]
+//         };
+//         let mut actual = Enfa::new(0);
+//         let s0 = actual.initial_index();
+//         let s1 = actual.states_insert(1);
+//         actual.transitions_insert((s0, Segment::empty(), s1));
+//         actual.set_final(s1);
+//         assert_eq(expected, actual);
+//     }

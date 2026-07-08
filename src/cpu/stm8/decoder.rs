@@ -268,7 +268,7 @@ impl Decoder {
                 self.byte_count = self.byte_count + 2;
             }
 
-            // mov data
+            // mov data, page 119
             0x35 => {
                 //println!("MOV");
                 asm_line.byte_count = self.byte_count;
@@ -366,6 +366,22 @@ impl Decoder {
                 asm_line.instruction = Instruction::SUB_SP;
                 asm_line.immediate = ((encoded_instruction >> 16) & 0xFF) as i32;
                 self.byte_count = self.byte_count + 2;
+            }
+
+            // MOV longmem, longmem
+            // 0x55, page 119
+            0x55 => {
+                //println!("MOV longmem, longmem");
+                asm_line.byte_count = self.byte_count;
+                asm_line.instruction = Instruction::MOV_LONGMEM_LONGMEM;
+                
+                asm_line.immediate = ((encoded_instruction >> 8) & 0xFFFF) as i32;
+
+                asm_line.immediate_2 = ((encoded_instruction >> 0) & 0xFF) as i32;
+                asm_line.immediate_2 = asm_line.immediate_2 << 8;
+                asm_line.immediate_2 = asm_line.immediate_2 | ((next_encoded_instruction >> 24) & 0xFF) as i32;
+
+                self.byte_count = self.byte_count + 5;
             }
 
             // page 146
@@ -596,6 +612,14 @@ impl Decoder {
                 self.byte_count = self.byte_count + 1;
             }
 
+            // 0x85, page 127
+            0x85 => {
+                //println!("POP A");
+                asm_line.byte_count = self.byte_count;
+                asm_line.instruction = Instruction::POPW;
+                self.byte_count = self.byte_count + 1;
+            }
+
             // 0x87, page 132, Far Return from subroutine
             0x87 => {
                 asm_line.byte_count = self.byte_count;
@@ -784,6 +808,39 @@ impl Decoder {
                     }
 
                     _ => todo!()
+                }
+            }
+
+            0x92 => {
+
+                let second_byte: u8 = (encoded_instruction >> 16) as u8;
+
+                //println!("second_byte: 0x{:02x?}", second_byte);
+
+                match second_byte {
+
+                    // page 116
+                    // LDF A,([$5000.e],X)
+                    0xAF => {
+                        asm_line.byte_count = self.byte_count;
+                        asm_line.instruction = Instruction::LDF_A_X_OFFSET;
+                        asm_line.immediate = ((encoded_instruction >> 0) & 0xFFFF) as i32;
+                        self.byte_count = self.byte_count + 4;
+                    }
+
+                    // page 116
+                    // LDF A,[$5000.e]
+                    0xBC => {
+                        asm_line.byte_count = self.byte_count;
+                        asm_line.instruction = Instruction::LDF_A_LONGPTR_E;
+                        asm_line.immediate = ((encoded_instruction >> 0) & 0xFFFF) as i32;
+                        self.byte_count = self.byte_count + 4;
+                    }
+
+                    _ => { 
+                        panic!("Not implemented yet! {:08x}, {:08x}", encoded_instruction, next_encoded_instruction);
+                    }
+
                 }
             }
 
@@ -978,6 +1035,16 @@ impl Decoder {
                 self.byte_count = self.byte_count + 2;
             }
 
+            // page 116
+            // LDF A, $500000
+            0xBC => {
+                asm_line.byte_count = self.byte_count;
+                asm_line.instruction = Instruction::LDF_A_EXTMEM;
+                asm_line.immediate = ((encoded_instruction >> 0) & 0xFFFFFF) as i32;
+                asm_line.byte_count = 4;
+                self.byte_count = self.byte_count + 4;
+            }
+
             0xBE => {
                 //println!("LDW_X_IMM_SHORTMEM");
                 asm_line.byte_count = self.byte_count;
@@ -1066,9 +1133,23 @@ impl Decoder {
                 self.byte_count = self.byte_count + 2;
             }
 
+            // 0xE4, AND A,($10,X)
+            0xE4 => {
+                asm_line.instruction = Instruction::AND_A_X_OFFSET;
+                asm_line.immediate = ((encoded_instruction >> 16) & 0x000000FF) as i32;
+                self.byte_count = self.byte_count + 2;
+            }
+
             // 0xE6, page 114, LD A,($50,X)
             0xE6 => {
                 asm_line.instruction = Instruction::LD_A_OFFSET_X;
+                asm_line.immediate = ((encoded_instruction >> 16) & 0x000000FF) as i32;
+                self.byte_count = self.byte_count + 2;
+            }
+
+            // 0xE7, page 115, LD ($50,X),A
+            0xE7 => {
+                asm_line.instruction = Instruction::LD_X_OFFSET_A;
                 asm_line.immediate = ((encoded_instruction >> 16) & 0x000000FF) as i32;
                 self.byte_count = self.byte_count + 2;
             }

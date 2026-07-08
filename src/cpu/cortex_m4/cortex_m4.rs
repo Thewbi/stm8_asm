@@ -1,6 +1,7 @@
 use crate::ast::{self, instruction::Instruction};
 use crate::ast::register::Register;
-use std::collections::HashMap;
+//use std::collections::HashMap;
+use std::collections::BTreeMap;
 use crate::ast::asm_line::ASMLine;
 use crate::encoder::thumb::thumb_decoder::ThumbDecoder;
 use crate::cpu::mem_access::read_byte;
@@ -12,7 +13,7 @@ pub const START_ADDRESS: u32 = 0x00800000;
 pub struct CortexM4 {
     pub halt: bool,
     pub reg_file: [i32; 16],
-    pub memory_blocks: HashMap<u32, Vec<u8>>,
+    pub memory_blocks: BTreeMap<u32, Vec<u8>>,
     pub zero_bit: bool,
     pub negative_bit: bool
 }
@@ -23,7 +24,7 @@ impl CortexM4 {
         CortexM4 {
             halt: false,
             reg_file: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            memory_blocks: HashMap::new(),
+            memory_blocks: BTreeMap::new(),
             zero_bit: false,
             negative_bit: false
         }

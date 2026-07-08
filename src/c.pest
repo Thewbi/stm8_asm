@@ -1,3 +1,5 @@
+// https://www.lysator.liu.se/c/ANSI-C-grammar-y.html
+
 //
 // TOKEN
 //
@@ -322,8 +324,7 @@ multiplicative_expression = {
     cast_expression ~ ASTERISK ~ multiplicative_expression
     | cast_expression ~ "/" ~ multiplicative_expression
     | cast_expression ~ "%" ~ multiplicative_expression
-    | 
-    cast_expression
+    | cast_expression
 }
 
 //additive_expression
@@ -837,7 +838,6 @@ jump_statement = {
     | 
     RETURN ~ SEMICOLON
 }
-
 
 //external_declaration
 //	: function_definition

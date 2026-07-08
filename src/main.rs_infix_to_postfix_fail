@@ -1,0 +1,803 @@
+#[derive(Debug, Clone, Eq, PartialEq, Copy)]
+enum RegexBuildingBlock {
+
+    CharacterLiteral(char),
+
+    Concatenation,
+
+    CharacterClass(char, char),
+
+    Repeat(u8, u8),
+
+    Or,
+
+    OpeningBraces,
+    CloseingBraces,
+
+}
+
+fn postfix_to_infix(regex_infix: &str, regex_postfix: &mut Vec<RegexBuildingBlock>) {
+
+    let mut stack: Vec<RegexBuildingBlock> = vec![];
+
+    let mut character_class_mode: bool = false; // for [a-z]
+    let mut repeat_mode: bool = false; // for {2}, {3,4}
+
+    let mut character_start_option: Option<char> = None;
+    let mut character_end_option: Option<char> = None;
+
+    let mut concat: bool = false;
+    let mut last_push_was_character_literal = false;
+
+    let mut removed_empty_brackets: bool = false;
+
+    let mut chars = regex_infix.chars().fuse();
+    while let Some(c) = chars.next() {
+
+        println!("{}", c);
+        println!("Stack:   {:?}", stack);
+        println!("Postfix: {:?}", regex_postfix);
+
+        match c {
+
+            '*' => {
+                if regex_postfix.len() > 0 && !last_push_was_character_literal { concat = true; }
+                while let Some(block) = stack.pop() {
+                    regex_postfix.push(block);
+                }
+
+                // remove concatenations
+                loop {
+                    match regex_postfix.last().unwrap() {
+                        RegexBuildingBlock::Concatenation => {
+                            regex_postfix.pop();
+                            concat = true;
+                        }
+                        _ => { break; }
+                    }
+                }
+
+                regex_postfix.push(RegexBuildingBlock::Repeat(0, std::u8::MAX));
+                if concat {
+                    regex_postfix.push(RegexBuildingBlock::Concatenation);
+                    concat = false;
+                }
+            }
+
+            '+' => {
+
+                if stack.len() == 0 {
+
+                    if removed_empty_brackets {
+                        regex_postfix.push(RegexBuildingBlock::Repeat(1, std::u8::MAX));
+                        removed_empty_brackets = false;
+                    } else {
+                    
+                        // remove a single concatenation
+                        loop {
+                            match regex_postfix.last().unwrap() {
+                                RegexBuildingBlock::Concatenation => {
+                                    regex_postfix.pop();
+                                    concat = true;
+                                    break;
+                                }
+                                _ => { break; }
+                            }
+                        }
+
+                        regex_postfix.push(RegexBuildingBlock::Repeat(1, std::u8::MAX));
+
+                        if concat {
+                            regex_postfix.push(RegexBuildingBlock::Concatenation);
+                            concat = false;
+                        }
+                    }
+                } else {
+                    // remove a single concatenation
+                    loop {
+                        match regex_postfix.last().unwrap() {
+                            RegexBuildingBlock::Concatenation => {
+                                regex_postfix.pop();
+                                concat = true;
+                                break;
+                            }
+                            _ => { break; }
+                        }
+                    }
+
+                    regex_postfix.push(RegexBuildingBlock::Repeat(1, std::u8::MAX));
+
+                    if concat {
+                        regex_postfix.push(RegexBuildingBlock::Concatenation);
+                        concat = false;
+                    }
+                }
+
+            }
+
+            '?' => { 
+                while let Some(block) = stack.pop() {
+                    regex_postfix.push(block);
+                }
+
+                // remove concatenations
+                loop {
+                    match regex_postfix.last().unwrap() {
+                        RegexBuildingBlock::Concatenation => {
+                            regex_postfix.pop();
+                            concat = true;
+                        }
+                        _ => { break; }
+                    }
+                }
+                
+                regex_postfix.push(RegexBuildingBlock::Repeat(0, 1));
+                if concat {
+                    regex_postfix.push(RegexBuildingBlock::Concatenation);
+                    concat = false;
+                }
+            }
+
+            '(' => {
+                if stack.len() == 0 {
+                    stack.push(RegexBuildingBlock::OpeningBraces);
+                } else {
+
+                    // move to reverter as long as lower or equal precedence!
+                    let mut reverter: Vec<RegexBuildingBlock> = vec![];
+                    while let Some(block) = stack.pop() {
+                        match block {
+                            RegexBuildingBlock::OpeningBraces => {
+                                stack.push(RegexBuildingBlock::OpeningBraces);
+                                break;
+                            }
+                            RegexBuildingBlock::Or => {
+                                stack.push(RegexBuildingBlock::Or);
+                                break;
+                            }
+                            _ => {
+                                reverter.push(block);
+                            }
+                        }
+                    }
+                    println!("{:?}", reverter);
+                    while let Some(block) = reverter.pop() {
+                        match block {
+                            RegexBuildingBlock::OpeningBraces => {
+                                
+                            }
+                            _ => {
+                                regex_postfix.push(block);
+                            }
+                        }
+                    }
+                    println!("{:?}", regex_postfix);
+                    stack.push(RegexBuildingBlock::OpeningBraces);
+                }
+            }
+            ')' => {
+
+                //concat = regex_postfix.len() > 0;
+
+                let mut reverter: Vec<RegexBuildingBlock> = vec![];
+                while let Some(block) = stack.pop() {
+                    match block {
+                        RegexBuildingBlock::OpeningBraces => {
+                            removed_empty_brackets = true;
+                            break;
+                        }
+                        _ => {
+                            reverter.push(block);
+                        }
+                    }
+                }
+
+                while let Some(block) = reverter.pop() {
+                    match block {
+                        _ => {
+                            //regex_postfix.push(block);
+                            stack.push(block);
+                        }
+                    }
+                }
+
+                if concat {
+                    //regex_postfix.push(RegexBuildingBlock::Concatenation);
+                    stack.push(RegexBuildingBlock::Concatenation);
+                    concat = false;
+                }
+            }
+            '{' => { 
+                if character_class_mode || repeat_mode {
+                    panic!("Illegal Syntax! Nested brackets!");
+                }
+                repeat_mode = true;
+
+                // move from stack to postfix
+                while let Some(block) = stack.pop() {
+                    regex_postfix.push(block);
+                }
+            }
+            '}' => { 
+                if !repeat_mode {
+                    panic!("Illegal Syntax! '}}' used without opening brackets!");
+                }
+                repeat_mode = false;
+                if character_end_option == None {
+                    if regex_postfix.len() > 0 { concat = true; }
+
+                    // remove concatenations
+                    loop {
+                        match regex_postfix.last().unwrap() {
+                            RegexBuildingBlock::Concatenation => {
+                                regex_postfix.pop();
+                                concat = true;
+                            }
+                            _ => { break; }
+                        }
+                    }
+
+                    regex_postfix.push(RegexBuildingBlock::Repeat(
+                        (character_start_option.unwrap() as u8 - 0x30) as u8, 
+                        (character_start_option.unwrap() as u8 - 0x30) as u8
+                    ));
+                    if concat {
+                        regex_postfix.push(RegexBuildingBlock::Concatenation);
+                        concat = false;
+                    }
+                    character_start_option = None;
+                } else {
+                    if regex_postfix.len() > 0 { concat = true; }
+
+                    // remove concatenations
+                    loop {
+                        match regex_postfix.last().unwrap() {
+                            RegexBuildingBlock::Concatenation => {
+                                regex_postfix.pop();
+                                concat = true;
+                            }
+                            _ => { break; }
+                        }
+                    }
+
+                    regex_postfix.push(RegexBuildingBlock::Repeat(
+                        (character_start_option.unwrap() as u8 - 0x30) as u8, 
+                        (character_end_option.unwrap() as u8 - 0x30) as u8
+                    ));
+                    if concat {
+                        regex_postfix.push(RegexBuildingBlock::Concatenation);
+                        concat = false;
+                    }
+                    character_start_option = None;
+                    character_end_option = None;
+                }
+            }
+
+            '[' => { 
+                if character_class_mode || repeat_mode {
+                    panic!("Illegal Syntax! Nested brackets!");
+                }
+                character_class_mode = true;
+
+                // move from stack to postfix
+                if regex_postfix.len() > 0 { concat = true; }
+                while let Some(block) = stack.pop() {
+                    regex_postfix.push(block);
+                    if concat {
+                        regex_postfix.push(RegexBuildingBlock::Concatenation);
+                        concat = false;
+                    }
+                }
+             }
+            ']' => { 
+                if !character_class_mode {
+                    panic!("Illegal Syntax! ']' used without opening brackets!");
+                }
+
+                if stack.len() > 0 {
+                    stack.push(RegexBuildingBlock::CharacterClass(character_start_option.unwrap(), character_end_option.unwrap()));
+                } else {
+                    if regex_postfix.len() > 0 { concat = true; }
+                    regex_postfix.push(RegexBuildingBlock::CharacterClass(character_start_option.unwrap(), character_end_option.unwrap()));
+                    if concat {
+                        regex_postfix.push(RegexBuildingBlock::Concatenation);
+                        concat = false;
+                    }
+                }
+
+                character_start_option = None;
+                character_end_option = None;
+
+                character_class_mode = false;
+            }
+            '-' => { 
+                if !character_class_mode {
+                    panic!("Illegal Syntax! Range operator '-' used outside brackets!");
+                }
+            }
+
+            '|' => {
+
+                loop {
+                    if stack.len() == 0 {
+                        break;
+                    }
+                    match stack.last().unwrap() {
+                        RegexBuildingBlock::Concatenation => { let x = stack.pop().unwrap(); regex_postfix.push(x); }
+                        RegexBuildingBlock::CharacterLiteral(_) => { let x = stack.pop().unwrap(); regex_postfix.push(x); }
+                        RegexBuildingBlock::Or => { let x = stack.pop().unwrap(); regex_postfix.push(x); }
+                        _ => {break;}
+                    }
+                }
+
+                stack.push(RegexBuildingBlock::Or);
+            }
+
+            '!' => { panic!(); }
+
+            // # not allowed in regex format
+            '#' => { panic!(); }
+
+            _ => {
+                last_push_was_character_literal = false;
+                // if in bracket_mode build up the character class operator with start and end node
+                if character_class_mode { // e.g. [a-z]
+                    if !c.is_alphanumeric() {
+                        panic!("Range border in repeat operator is not a numeric character!");
+                    }
+                    if character_start_option.is_none() {
+                        character_start_option = Some(c);
+                    } else {
+                        character_end_option = Some(c);
+                    }
+                } else if repeat_mode { // e.g {3}, {2,4}
+                    if !c.is_numeric() && c != ',' {
+                        panic!("Range border in repeat operator is not a numeric character!");
+                    }
+                    if character_start_option.is_none() {
+                        character_start_option = Some(c);
+                        character_end_option = Some(c);
+                    } else {
+                        character_end_option = Some(c);
+                    }
+                } else {
+                    if stack.len() > 0 {
+                        match stack.last().unwrap() {
+                            RegexBuildingBlock::CharacterLiteral(_) => { concat = true}
+                            _ => {}
+                        }
+                        stack.push(RegexBuildingBlock::CharacterLiteral(c));
+                        if concat {
+                            stack.push(RegexBuildingBlock::Concatenation);
+                            concat = false;
+                        }
+                        last_push_was_character_literal = true;
+                    } else {
+                        if regex_postfix.len() > 0 { concat = true; }
+                        regex_postfix.push(RegexBuildingBlock::CharacterLiteral(c));
+                        if concat {
+                            regex_postfix.push(RegexBuildingBlock::Concatenation);
+                            concat = false;
+                        }
+                        last_push_was_character_literal = true;
+                    }
+                }
+            }
+        }
+    }
+
+    //
+    // end of input (EOI) detected
+    //
+
+    println!("End of Input (EOI) detected");
+    println!("Stack:   {:?}", stack);
+    println!("Postfix: {:?}", regex_postfix);
+
+    let mut removed_empty_brackets: bool = false;
+    while stack.len() > 0 {
+        match stack.last().unwrap() {
+            RegexBuildingBlock::CloseingBraces => {
+                stack.pop();
+                removed_empty_brackets = true;
+            }
+            RegexBuildingBlock::OpeningBraces => {
+                stack.pop();
+                break;
+            }
+            _ => { break; }
+        }
+    }
+
+    if stack.len() > 0 {
+
+        let mut reverter: Vec<RegexBuildingBlock> = vec![];
+
+        // move from stack to postfix
+        if regex_postfix.len() > 0 { concat = true; }
+        while let Some(block) = stack.pop() {
+
+            match block {
+
+                // the or operator erases # because of the testcase a|b
+                RegexBuildingBlock::Or => {
+
+                    while let Some(block) = reverter.pop() {
+                        regex_postfix.push(block);
+                    }
+
+                    regex_postfix.push(block);
+                }
+
+                _ => { reverter.push(block); }
+            }
+        }
+
+        while let Some(block) = reverter.pop() {
+            regex_postfix.push(block);
+            if concat {
+                regex_postfix.push(RegexBuildingBlock::Concatenation);
+                concat = false;
+            }
+        }
+
+    }
+
+    println!("Postfix: {:?}", regex_postfix);
+}
+
+fn main() {
+
+    // valid
+    //let regex_infix: &str = "abcde";              // 1
+    //let regex_infix: &str = "a+";                 // 2
+    //let regex_infix: &str = "a*";                 // 3
+    //let regex_infix: &str = "[a-z]";              // 4
+    //let regex_infix: &str = "a{3}";               // 5
+    //let regex_infix: &str = "a{3,4}";             // 6
+    //let regex_infix: &str = "[a-z][0-9]";         // 7
+    //let regex_infix: &str = "[a-z]+[0-9]+";       // 8
+    //let regex_infix: &str = "[a-z][0-9]{2,3}";    // 9
+    //let regex_infix: &str = "a|b";                // 10
+    //let regex_infix: &str = "a|b|c";              // 11
+    //let regex_infix: &str = "ab|cd";              // 12
+    //let regex_infix: &str = "ab+";                // 13
+    //let regex_infix: &str = "b[a-c]bble";         // 14
+    //let regex_infix: &str = "[a-z][0-9]{2,3}+";   // 15
+    //let regex_infix: &str = "[a-z]+[0-9]";        // 16
+    //let regex_infix: &str = "a?";                 // 17
+    //let regex_infix: &str = "abc?";               // 18
+    //let regex_infix: &str = "d+c*";               // 19
+    //let regex_infix: &str = "(a)";                // 20
+    //let regex_infix: &str = "(a)(b)";             // 21
+    //let regex_infix: &str = "x|ab";               // 22
+    let regex_infix: &str = "x|(a)(b)";             // 23
+    //let regex_infix: &str = "(a(b))";             // 24
+    //let regex_infix: &str = "(a(b))+";            // 25
+    //let regex_infix: &str = "(a)+";               // 26
+    //let regex_infix: &str = "(ab)+";              // 27
+    //let regex_infix: &str = "(ab(cd)+ef)";        // 28
+    //let regex_infix: &str = "(ab(cd)+ef)+";       // 29
+    //let regex_infix: &str = "(ab)|(cd)";          // 30
+    //let regex_infix: &str = "(ab)+|(cd)";         // 31
+    //let regex_infix: &str = "(ab)|(cd)+";         // 32
+    //let regex_infix: &str = "(ab)+|(cd)+";        // 33
+    //let regex_infix: &str = "(ab)+|(c?d)+";       // 34
+    //let regex_infix: &str = "a(b)";               // 35
+    //let regex_infix: &str = "(d+c*)";             // 36
+    //let regex_infix: &str = "c(d+c*)";            // 37
+    //let regex_infix: &str = "c(d+c*)bc";          // 38
+
+    // invalid
+    //let regex_infix: &str = "[a,z]";
+    // [a,]
+    // [a,}
+    // a{}
+    // {2,,6}
+    // {2,4,6}
+
+    println!("Input: {}", regex_infix);
+    
+    let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+
+    postfix_to_infix(regex_infix, &mut regex_postfix);
+
+    println!("Postfix: {:?}", regex_postfix);
+}
+
+#[cfg(test)]
+mod tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[test]
+    fn regex_1_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("abcde", &mut regex_postfix);
+
+        assert_eq!(9, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('a'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::CharacterLiteral('b'));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[3], RegexBuildingBlock::CharacterLiteral('c'));
+        assert_eq!(regex_postfix[4], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[5], RegexBuildingBlock::CharacterLiteral('d'));
+        assert_eq!(regex_postfix[6], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[7], RegexBuildingBlock::CharacterLiteral('e'));
+        assert_eq!(regex_postfix[8], RegexBuildingBlock::Concatenation);
+    }
+
+    #[test]
+    fn regex_2_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("a+", &mut regex_postfix);
+
+        assert_eq!(2, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('a'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::Repeat(1, std::u8::MAX));
+    }
+
+    #[test]
+    fn regex_3_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("a*", &mut regex_postfix);
+
+        assert_eq!(2, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('a'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::Repeat(0, std::u8::MAX));
+    }
+
+    #[test]
+    fn regex_4_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("[a-z]", &mut regex_postfix);
+
+        assert_eq!(1, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterClass('a', 'z'));
+    }
+
+    #[test]
+    fn regex_5_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("a{3}", &mut regex_postfix);
+
+        assert_eq!(3, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('a'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::Repeat(3, 3));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::Concatenation);
+    }
+
+    #[test]
+    fn regex_6_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("a{3,4}", &mut regex_postfix);
+
+        assert_eq!(3, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('a'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::Repeat(3, 4));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::Concatenation);
+    }
+
+    #[test]
+    fn regex_7_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("[a-z][0-9]", &mut regex_postfix);
+
+        assert_eq!(3, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterClass('a', 'z'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::CharacterClass('0', '9'));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::Concatenation);
+    }
+
+
+    #[test]
+    fn regex_8_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("[a-z]+[0-9]+", &mut regex_postfix);
+
+        assert_eq!(5, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterClass('a', 'z'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::Repeat(1, 255));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::CharacterClass('0', '9'));
+        assert_eq!(regex_postfix[3], RegexBuildingBlock::Repeat(1, 255));
+        assert_eq!(regex_postfix[4], RegexBuildingBlock::Concatenation);
+    }
+
+    #[test]
+    fn regex_9_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("[a-z][0-9]{2,3}", &mut regex_postfix);
+
+        assert_eq!(4, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterClass('a', 'z'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::CharacterClass('0', '9'));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::Repeat(2, 3));
+        assert_eq!(regex_postfix[3], RegexBuildingBlock::Concatenation);
+    }
+
+    #[test]
+    fn regex_10_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("a|b", &mut regex_postfix);
+
+        assert_eq!(3, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('a'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::CharacterLiteral('b'));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::Or);
+    }
+
+    #[test]
+    fn regex_11_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("a|b|c", &mut regex_postfix);
+
+        assert_eq!(5, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('a'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::CharacterLiteral('b'));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::Or);
+        assert_eq!(regex_postfix[3], RegexBuildingBlock::CharacterLiteral('c'));
+        assert_eq!(regex_postfix[4], RegexBuildingBlock::Or);
+    }
+
+    #[test]
+    fn regex_12_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("ab|cd", &mut regex_postfix);
+
+        assert_eq!(7, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('a'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::CharacterLiteral('b'));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[3], RegexBuildingBlock::CharacterLiteral('c'));
+        assert_eq!(regex_postfix[4], RegexBuildingBlock::CharacterLiteral('d'));
+        assert_eq!(regex_postfix[5], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[6], RegexBuildingBlock::Or);
+    }
+
+    #[test]
+    fn regex_13_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("ab+", &mut regex_postfix);
+
+        assert_eq!(4, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('a'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::CharacterLiteral('b'));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::Repeat(1, 255));
+        assert_eq!(regex_postfix[3], RegexBuildingBlock::Concatenation);
+    }
+
+    #[test]
+    fn regex_14_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("b[a-c]bble", &mut regex_postfix);
+
+        assert_eq!(11, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('b'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::CharacterClass('a', 'c'));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[3], RegexBuildingBlock::CharacterLiteral('b'));
+        assert_eq!(regex_postfix[4], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[5], RegexBuildingBlock::CharacterLiteral('b'));
+        assert_eq!(regex_postfix[6], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[7], RegexBuildingBlock::CharacterLiteral('l'));
+        assert_eq!(regex_postfix[8], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[9], RegexBuildingBlock::CharacterLiteral('e'));
+        assert_eq!(regex_postfix[10], RegexBuildingBlock::Concatenation);
+    }
+    
+    #[test]
+    fn regex_15_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("[a-z][0-9]{2,3}+", &mut regex_postfix);
+
+        assert_eq!(5, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterClass('a', 'z'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::CharacterClass('0', '9'));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::Repeat(2, 3));
+        assert_eq!(regex_postfix[3], RegexBuildingBlock::Repeat(1, std::u8::MAX));
+        assert_eq!(regex_postfix[4], RegexBuildingBlock::Concatenation);
+    }
+
+    #[test]
+    fn regex_16_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("[a-z]+[0-9]", &mut regex_postfix);
+
+        assert_eq!(4, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterClass('a', 'z'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::Repeat(1, std::u8::MAX));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::CharacterClass('0', '9'));
+        assert_eq!(regex_postfix[3], RegexBuildingBlock::Concatenation);
+    }
+
+    #[test]
+    fn regex_17_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("a?", &mut regex_postfix);
+
+        assert_eq!(2, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('a'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::Repeat(0, 1));
+    }
+
+    #[test]
+    fn regex_18_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("abc?", &mut regex_postfix);
+
+        assert_eq!(6, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('a'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::CharacterLiteral('b'));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[3], RegexBuildingBlock::CharacterLiteral('c'));
+        assert_eq!(regex_postfix[4], RegexBuildingBlock::Repeat(0, 1));
+        assert_eq!(regex_postfix[5], RegexBuildingBlock::Concatenation);
+    }
+
+    #[test]
+    fn regex_19_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("d+c*", &mut regex_postfix);
+
+        assert_eq!(5, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('d'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::Repeat(1, std::u8::MAX));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::CharacterLiteral('c'));
+        assert_eq!(regex_postfix[3], RegexBuildingBlock::Repeat(0, std::u8::MAX));
+        assert_eq!(regex_postfix[4], RegexBuildingBlock::Concatenation);
+    }
+
+    #[test]
+    fn regex_20_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("(a)", &mut regex_postfix);
+
+        assert_eq!(1, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('a'));
+    }
+
+    #[test]
+    fn regex_21_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("(a)(b)", &mut regex_postfix);
+
+        assert_eq!(3, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('a'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::CharacterLiteral('b'));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::Concatenation);
+    }
+
+    #[test]
+    fn regex_22_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("x|(a)(b)", &mut regex_postfix);
+
+        assert_eq!(6, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('x'));
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::CharacterLiteral('a'));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::CharacterLiteral('b'));
+        assert_eq!(regex_postfix[3], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[4], RegexBuildingBlock::Or);
+    }
+
+    #[test]
+    fn regex_99_test() {
+        let mut regex_postfix: Vec<RegexBuildingBlock> = vec![];
+        postfix_to_infix("(ab(cd)+ef)+", &mut regex_postfix);
+
+        assert_eq!(13, regex_postfix.len());
+        assert_eq!(regex_postfix[0], RegexBuildingBlock::CharacterLiteral('a')); 
+        assert_eq!(regex_postfix[1], RegexBuildingBlock::CharacterLiteral('b'));
+        assert_eq!(regex_postfix[2], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[3], RegexBuildingBlock::CharacterLiteral('c'));
+        assert_eq!(regex_postfix[4], RegexBuildingBlock::CharacterLiteral('d')); 
+        assert_eq!(regex_postfix[5], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[6], RegexBuildingBlock::Repeat(1, 255));
+        assert_eq!(regex_postfix[7], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[8], RegexBuildingBlock::CharacterLiteral('e'));
+        assert_eq!(regex_postfix[9], RegexBuildingBlock::CharacterLiteral('f'));
+        assert_eq!(regex_postfix[10], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[11], RegexBuildingBlock::Concatenation);
+        assert_eq!(regex_postfix[12], RegexBuildingBlock::Repeat(1, 255));
+    }
+}
