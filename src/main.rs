@@ -18,306 +18,37 @@ use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Display;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum RuleElement<T> {
-    NonTerminal(T),
-    Terminal(T),
-    Epsilon,
-    Dot,
-    Unknown,
-    AcceptingStateTransition,
-    Closure,
-    Unused
-}
+mod regex;
+use crate::regex::infix_postfix_converter::InfixPostfixConverter;
+use crate::regex::regex_building_block::RegexBuildingBlock;
+use crate::regex::arena::Arena;
+use crate::regex::arena::NodeId;
+use crate::regex::arena::Node;
 
-impl<T: Ord> Ord for RuleElement<T> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        
-        match &self {
-            RuleElement::<T>::NonTerminal(lhs_val) => {
-                match &other {
-                    RuleElement::<T>::NonTerminal(rhs_val) => {
-                        lhs_val.cmp(rhs_val)
-                    }
-                    _ => {
-                        panic!("test");
-                    }
-                }
-            }
-            _ => {
-                panic!("test");
-            }
-        }
-    }
-}
+use crate::regex::enfa::Input;
+use crate::regex::enfa::Fragment;
+use crate::regex::enfa::FragmentStack;
+use crate::regex::enfa::recurse_postfix_build_fragment_stack;
+use crate::regex::enfa::enfa_copy;
+use crate::regex::enfa::enfa_to_dfa;
+use crate::regex::enfa::transition_dfa;
+use crate::regex::enfa::enfa_to_dot_directed_graph;
+use crate::regex::enfa::add_character_literal;
 
-impl<T: PartialOrd> PartialOrd for RuleElement<T> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        panic!("test");
-    }
-}
+mod parser;
+use crate::parser::parser::ParseTableCell;
+use crate::parser::parser::Rule;
+use crate::parser::parser::RuleElement;
+use crate::parser::parser::Transition;
+use crate::parser::parser::Parser;
+use crate::parser::first::compute_first_original;
 
-impl<T: Display> fmt::Debug for RuleElement<T> {
-
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-
-        // LHS
-        match &self {
-            RuleElement::NonTerminal(str_val) => {
-                write!(f, "{}", str_val).expect("Write failed!");
-            }
-            RuleElement::Terminal(str_val) => {
-                write!(f, "{}", str_val).expect("Write failed!");
-            }
-            RuleElement::Epsilon => {
-                write!(f, "ϵ").expect("Write failed!");
-            }
-            RuleElement::Dot => {
-                write!(f, ".").expect("Write failed!");
-            }
-            RuleElement::AcceptingStateTransition => {
-                write!(f, "$").expect("Write failed!");
-            }
-            RuleElement::Closure => {
-                write!(f, "#").expect("Write failed!");
-            }
-            RuleElement::Unknown => {
-                write!(f, "UNKNOWN").expect("Write failed!");
-            }
-            RuleElement::Unused => {
-                // nop, do not display unused
-            }
-        }
-
-        Ok(())
-    }
-}
-
-#[derive(Clone, Eq, Hash)]
-pub struct Rule<T> {
-    id: usize,
-    dot_idx: usize,
-    lhs: RuleElement<T>,
-    rhs: Vec::<RuleElement<T>>,
-    lookahead: Vec::<RuleElement<T>>,
-    channels: Vec::<usize>,
-}
-
-impl<T: Debug> Rule<T> {
-    pub fn new(id: usize) -> Self {
-        Rule {
-            id: id,
-            dot_idx: 0,
-            lhs: RuleElement::<T>::Unknown,
-            rhs: Vec::<RuleElement<T>>::new(),
-            lookahead: Vec::<RuleElement<T>>::new(),
-            channels: Vec::<usize>::new(),
-        }
-    }
-}
-
-impl<T: std::cmp::PartialEq> PartialEq<Rule<T>> for Rule<T> {
-
-    // Rule equality is defined over 
-    // - LHS 
-    // - RHS, same amount, same order of elements
-    // - dot marker, located at same index
-    //
-    // Not defined over id!
-    fn eq(&self, other: &Rule<T>) -> bool {
-        // https://stackoverflow.com/questions/29504514/whats-the-best-way-to-compare-2-vectors-or-strings-element-by-element
-
-        // first zip to compare element by element, the result is the amount of matching elements
-        let matching = self.rhs.iter().zip(&other.rhs).filter(|&(a, b)| a == b).count();
-
-        // if lhs matches and all elements in rhs match and the dot idx is at the same spot, the rules are equal
-        self.lhs == other.lhs && matching == self.rhs.len() && self.dot_idx == other.dot_idx
-    }
-}
-
-impl<T: Display> fmt::Debug for Rule<T> {
-
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-
-        // LHS
-        write!(f, "{:?}", &self.lhs).expect("Write failed!");
-
-        write!(f, " -> ").expect("Write failed!");
-
-        let mut index: usize = 0;
-        for symbol in &self.rhs {
-
-            if index == self.dot_idx {
-                write!(f, ".");
-            }
-
-            match &symbol {
-                RuleElement::NonTerminal(str_val) => {
-                    if index > 0 {
-                        write!(f, " ");
-                    }
-                    write!(f, "{}", str_val).expect("Write failed!");
-                    index = index + 1;
-                }
-                RuleElement::Terminal(str_val) => {
-                    if index > 0 {
-                        write!(f, " ");
-                    }
-                    write!(f, "{}", str_val).expect("Write failed!");
-                    index = index + 1;
-                }
-                RuleElement::Epsilon => {
-                    if index > 0 {
-                        write!(f, " ");
-                    }
-                    write!(f, "ϵ").expect("Write failed!");
-                    index = index + 1;
-                }
-                RuleElement::Dot => {
-                    if index > 0 {
-                        write!(f, " ");
-                    }
-                    write!(f, ".").expect("Write failed!");
-                    index = index + 1;
-                }
-                RuleElement::AcceptingStateTransition => {
-                    if index > 0 {
-                        write!(f, " ");
-                    }
-                    write!(f, "$").expect("Write failed!");
-                    index = index + 1;
-                }
-                RuleElement::Closure => {
-                    if index > 0 {
-                        write!(f, " ");
-                    }
-                    write!(f, "#").expect("Write failed!");
-                    index = index + 1;
-                }
-                RuleElement::Unknown => {
-                    if index > 0 {
-                        write!(f, " ");
-                    }
-                    write!(f, "UNKNOWN").expect("Write failed!");
-                    index = index + 1;
-                }
-                RuleElement::Unused => {
-                    // nop, do not display unused
-                }
-            }
-        }
-
-        if index == self.dot_idx {
-            write!(f, ".");
-        }
-
-        // lookahead
-        write!(f, "     ");
-        for symbol in &self.lookahead {
-            write!(f, " / {:?}", &symbol).expect("Write failed!");
-        }
-
-        // channels
-        if self.channels.len() > 0 {
-            write!(f, "    channels: {:?}", &self.channels).expect("Write failed!");
-        }
-
-        Ok(())
-    }
-}
-
-impl<T: Display> fmt::Display for Rule<T> {
-
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-
-        // LHS
-        write!(f, "{:?}", &self.lhs).expect("Write failed!");
-
-        write!(f, " -> ").expect("Write failed!");
-
-        let mut index: usize = 0;
-        for symbol in &self.rhs {
-
-            if index == self.dot_idx {
-                write!(f, ".");
-            }
-
-            match &symbol {
-                RuleElement::NonTerminal(str_val) => {
-                    if index > 0 {
-                        write!(f, " ");
-                    }
-                    write!(f, "{}", str_val).expect("Write failed!");
-                    index = index + 1;
-                }
-                RuleElement::Terminal(str_val) => {
-                    if index > 0 {
-                        write!(f, " ");
-                    }
-                    write!(f, "{}", str_val).expect("Write failed!");
-                    index = index + 1;
-                }
-                RuleElement::Epsilon => {
-                    if index > 0 {
-                        write!(f, " ");
-                    }
-                    write!(f, "ϵ").expect("Write failed!");
-                    index = index + 1;
-                }
-                RuleElement::Dot => {
-                    if index > 0 {
-                        write!(f, " ");
-                    }
-                    write!(f, ".").expect("Write failed!");
-                    index = index + 1;
-                }
-                RuleElement::AcceptingStateTransition => {
-                    if index > 0 {
-                        write!(f, " ");
-                    }
-                    write!(f, "$").expect("Write failed!");
-                    index = index + 1;
-                }
-                RuleElement::Closure => {
-                    if index > 0 {
-                        write!(f, " ");
-                    }
-                    write!(f, "#").expect("Write failed!");
-                    index = index + 1;
-                }
-                RuleElement::Unknown => {
-                    if index > 0 {
-                        write!(f, " ");
-                    }
-                    write!(f, "UNKNOWN").expect("Write failed!");
-                    index = index + 1;
-                }
-                RuleElement::Unused => {
-                    // nop, do not display unused
-                }
-            }
-        }
-
-        if index == self.dot_idx {
-            write!(f, ".");
-        }
-
-        // lookahead
-        write!(f, "     ");
-        for symbol in &self.lookahead {
-            write!(f, " / {:?}", &symbol).expect("Write failed!");
-        }
-
-        // channels
-        if self.channels.len() > 0 {
-            write!(f, "    channels: {:?}", &self.channels).expect("Write failed!");
-        }
-
-        Ok(())
-    }
-}
-
-pub struct Transition<T>(usize, RuleElement<T>);
+mod examplegrammars;
+use crate::examplegrammars::c_full::produce_grammar_c_full;
+use crate::examplegrammars::left_recursive::produce_grammar_left_recursive;
+use crate::examplegrammars::grammar_1::produce_grammar_1;
+use crate::examplegrammars::grammar_2::produce_grammar_2;
+use crate::examplegrammars::grammar_3::produce_grammar_3;
 
 #[derive(Clone)]
 pub struct GrammarState<T: Debug> {
@@ -346,11 +77,16 @@ impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> GrammarState<T> {
     // located in the state for which this function is called.
     // 
     // All these rules are inserted into the rules-set of the grammar state.
+    //
+    // The states are created prior to calling this function. The states are created in the
+    // same large loop that also calls this function
     pub fn unfold_grammar_state(&mut self, grammar_rules: &Vec::<Rule<T>>,
         first: &BTreeMap<RuleElement::<T>, Vec::<RuleElement::<T>>>,
         nullable: &BTreeMap::<RuleElement::<T>, bool>,
         rule_channel_map: &mut HashMap::<usize, Vec::<Transition<T>>>,
     ) {
+
+        let debug: bool = true;
 
         let apply_lookahead = true;
 
@@ -364,6 +100,14 @@ impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> GrammarState<T> {
         //     }
         // }
 
+        // DEBUG
+        if debug {
+            if self.id == 9 {
+                println!("{:?}", self);
+                println!("test");
+            }
+        }
+
         // scratchpad of rules to process
         let mut d_set = Vec::<Rule<T>>::new();
         d_set.append(&mut self.identification_rules.clone());
@@ -375,7 +119,9 @@ impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> GrammarState<T> {
             let mut current_rule: Rule<T> = d_set.pop().expect("Need at least one rule!");
 
             // DEBUG
-            println!("current_rule: {}", current_rule);
+            if debug {
+                println!("[unfold_grammar_state] State-ID: {}, current_rule: {}", self.id, current_rule);
+            }
 
             // ignore consumed rules
             if current_rule.dot_idx >= current_rule.rhs.len() {
@@ -404,14 +150,18 @@ impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> GrammarState<T> {
 
             let mut current_lookahead = Vec::<RuleElement<T>>::new();
 
-            // // DEBUG
-            // println!("Determining lookahead for Rule: {}. Rule has lookahead: {:?}", current_rule, current_rule.lookahead);
+            // DEBUG
+            if debug {
+                println!("[unfold_grammar_state] Determining lookahead for Rule: {}. Rule has lookahead: {:?}", current_rule, current_rule.lookahead);
+            }
 
             // find beta, if there is no beta, lookahead is the rule's own lookahead
             if current_rule.dot_idx + 1 >= current_rule.rhs.len() {
 
-                // // empty beta
-                // println!("empty beta");
+                // empty beta
+                if debug {
+                    println!("[unfold_grammar_state] empty beta {:?}", current_rule.lookahead);
+                }
 
                 current_lookahead.append(&mut current_rule.lookahead);
 
@@ -422,7 +172,8 @@ impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> GrammarState<T> {
                 // // DEBUG
                 // println!("found beta");
 
-                println!("Current Rule: {:?}", current_rule);
+                // // DEBUG
+                // println!("[unfold_grammar_state] Current Rule: {:?}", current_rule);
 
                 // BUG: beta is more than the first non terminal !!!!!!!!
 
@@ -452,10 +203,13 @@ impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> GrammarState<T> {
                             let first_values_opt = first.get(&current_rule.rhs[beta_idx]);
                             match first_values_opt {
                                 Some(first_values) => {
+                                    if debug {
+                                        println!("[unfold_grammar_state] first_values >> {:?}", first_values.clone());
+                                    }
                                     current_lookahead.append(&mut first_values.clone());
                                 }
                                 None => {
-                                    panic!("Compiler has no FIRST() information for NonTerminal: {:?}! Aborting!", current_rule.rhs[beta_idx]);
+                                    panic!("[unfold_grammar_state] Compiler has no FIRST() information for NonTerminal: {:?}! Aborting!", current_rule.rhs[beta_idx]);
                                 }
                             }
 
@@ -471,6 +225,9 @@ impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> GrammarState<T> {
 
                         RuleElement::Terminal(terminal) => {
                             current_lookahead.push(current_rule.rhs[beta_idx].clone());
+
+                            // experiment: if there is a terminal in beta, abort further lookahead search
+                            break;
                         }
 
                         _ => { 
@@ -480,17 +237,22 @@ impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> GrammarState<T> {
                 }
             }
 
-            // // DEBUG
-            // println!("current lookahead: {:?}", current_lookahead);
+            // DEBUG
+            if debug {
+                println!("[unfold_grammar_state] current lookahead: {:?}", current_lookahead);
+            }
 
-            // over all rules that unfold from the rule (Closure)
+            // over all rules that unfold from the rule via REDUCE operations
             match &current_rule.rhs[current_rule.dot_idx] {
 
                 // if the dot is points to a non-terminal, extend the rule set
                 RuleElement::NonTerminal(non_terminal) => {
 
-                    // // DEBUG
-                    // println!("Will extend closure due to Rule: {} and NonTerminal {} with lookaheads {:?}", current_rule, non_terminal, current_lookahead);
+                    // DEBUG
+                    if debug {
+                        println!("[unfold_grammar_state] Will extend closure due to Rule: {} and NonTerminal '{}' with lookaheads '{:?}'", current_rule, non_terminal, current_lookahead);
+                        println!("");
+                    }
 
                     // DEBUG
                     // println!("non_terminal {}", non_terminal);
@@ -501,8 +263,10 @@ impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> GrammarState<T> {
                         // if this rule starts with the same nonterminal
                         if grammar_rules[i].lhs == RuleElement::<T>::NonTerminal(non_terminal.clone()) {
 
-                            // // DEBUG
-                            // println!("Inserting into closure Rule: [{}] {} using lookaheads: {:?} because of source-rule-id: {}", grammar_rules[i].id, grammar_rules[i], current_lookahead, &current_rule.id);
+                            // DEBUG
+                            if debug {
+                                println!("[unfold_grammar_state] Inserting into closure Rule: [{}] {} using lookaheads: {:?} because of source-rule-id: {}", grammar_rules[i].id, grammar_rules[i], current_lookahead, &current_rule.id);
+                            }
 
                             let mut contained_already = false;
                             for j in 0..self.rules.len() {
@@ -515,7 +279,9 @@ impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> GrammarState<T> {
                                         if !self.rules[j].lookahead.contains(&la) {
 
                                             // DEBUG
-                                            println!("Inserting {:?} into rule {:?}", &la, &self.rules[j]);
+                                            if debug {
+                                                println!("[unfold_grammar_state] Inserting {:?} into rule {:?}", &la, &self.rules[j]);
+                                            }
 
                                             //
                                             // Insert into rule_channel_map
@@ -527,9 +293,12 @@ impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> GrammarState<T> {
                                             // retrieve the vector of first symbols for the nonterminal and extend it
                                             let channel_ends = &mut rule_channel_map.get_mut(&current_rule.id).unwrap();
 
-                                            // TODO (usize, RuleElement)
-                                            // channel_ends.push(self.rules[j].id);
-                                            //channel_ends.push(Transition(self.rules[j].id, RuleElement::NonTerminal(String::from("a"))));
+                                            // DEBUG
+                                            if debug {
+                                                println!("{:?}, {:?}", self.rules[j].id, RuleElement::<T>::NonTerminal(non_terminal.clone()));
+                                                println!("");
+                                            }
+
                                             channel_ends.push(Transition(self.rules[j].id, RuleElement::<T>::NonTerminal(non_terminal.clone())));
 
                                             //
@@ -570,7 +339,11 @@ impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> GrammarState<T> {
                             rule.id = RULE_COUNTER.fetch_add(1, Ordering::SeqCst);
 
                             // DEBUG
-                            println!("Inserting into closure Rule: [{}] {} using lookaheads: {:?} because of source-rule-id: {}", rule.id, rule, current_lookahead, &current_rule.id);
+                            if debug {
+                                // println!("");
+                                println!("[unfold_grammar_state] Inserting into closure Rule: [{}] {} using lookaheads: {:?} because of source-rule-id: {}", rule.id, rule, current_lookahead, &current_rule.id);
+                                println!("[unfold_grammar_state] Source rule: {:?}", current_rule);
+                            }
 
                             //
                             // Insert into rule_channel_map
@@ -582,8 +355,6 @@ impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> GrammarState<T> {
                             // retrieve the vector of first symbols for the nonterminal and extend it
                             let channel_ends = &mut rule_channel_map.get_mut(&current_rule.id).unwrap();
 
-                            // TODO (usize, RuleElement)
-                            //channel_ends.push(rule.id);
                             channel_ends.push(Transition(rule.id, RuleElement::<T>::NonTerminal(non_terminal.clone())));
 
                             //
@@ -601,6 +372,30 @@ impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> GrammarState<T> {
                     // nop
                 }
             }
+
+            // // over all rules that unfold from the rules via SHIFT operations of terminals and nonterminals
+            // match &current_rule.rhs[current_rule.dot_idx] {
+
+            //     // if the dot is points to a non-terminal, extend the rule set
+            //     RuleElement::NonTerminal(non_terminal) => {
+            //         // DEBUG
+            //         if debug {
+            //             println!("[unfold_grammar_state] SHIFT Will extend closure due to Rule: {} and NonTerminal '{}' with lookaheads '{:?}'", current_rule, non_terminal, current_lookahead);
+            //             println!("");
+            //         }
+            //     }
+
+            //     RuleElement::NonTerminal(terminal) => {
+            //         // DEBUG
+            //         if debug {
+            //             println!("[unfold_grammar_state] SHIFT Will extend closure due to Rule: {} and Terminal '{}' with lookaheads '{:?}'", current_rule, terminal, current_lookahead);
+            //             println!("");
+            //         }
+            //     }
+
+            //     _ => todo!()
+
+            // }
 
             done = d_set.is_empty();
         }
@@ -708,17 +503,16 @@ fn create_rule(grammar_rules: &mut Vec::<Rule<String>>, rule_as_string: String, 
                                 rule.rhs.push(RuleElement::NonTerminal(part_string));
                             }
                         }
-
                     }
                 }
             }
         }
     }
 
-    // DEBUG
-    rule.dot_idx = std::usize::MAX;
-    println!("{:?}", rule);
-    rule.dot_idx = 0;
+    // // DEBUG
+    // rule.dot_idx = std::usize::MAX;
+    // println!("a{:?}", rule);
+    // rule.dot_idx = 0;
 
     grammar_rules.push(rule);
 }
@@ -727,820 +521,7 @@ fn create_rule(grammar_rules: &mut Vec::<Rule<String>>, rule_as_string: String, 
 static RULE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static STATE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum ParseTableCell<T> {
-
-    // ACTION-Part
-    Shift(T),
-    Reduce(T),
-    Accept,
-
-    // GOTO-Part
-    Goto(T),
-}
-
-#[derive(Clone, Debug)]
-pub enum ParseStackElement<T: std::fmt::Display> {
-    RuleElement(RuleElement<T>),
-    StateId(usize),
-}
-
-pub struct Parser<T> {
-    // pub current_state_id: usize,
-    pub parse_table: HashMap::<usize, HashMap::<RuleElement<T>, ParseTableCell<usize>>>,
-    // pub stack: Vec::<RuleElement<T>>,
-    // pub state_stack: Vec::<usize>,
-    pub stack: Vec::<ParseStackElement<String>>,
-}
-
-//impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> Parser<String> {
-impl Parser<String> {
-
-    pub fn new(parse_table_param: HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>) -> Self {
-
-        let mut p = Parser {
-            // parse_table: HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>::new(),
-            parse_table: parse_table_param,
-            //stack: Vec::<RuleElement<String>>::new(),
-            //state_stack: Vec::<usize>::new(),
-            stack: Vec::<ParseStackElement<String>>::new(),
-        };
-
-        let pse = ParseStackElement::<String>::StateId(0);
-        // pse.state_id = 0;
-        p.stack.push(pse);
-
-        p
-    }
-
-    //pub fn consume(&mut self, input: RuleElement<String>, grammar_rules: &Vec::<Rule<String>>) -> bool {
-    // let mut grammar_state_hashmap = BTreeMap::new();
-    pub fn consume(&mut self, input: RuleElement<String>, grammar_state_hashmap: &BTreeMap<usize, GrammarState<String>>) -> bool {
-
-        println!("stack {:?}", self.stack);
-
-        let parse_stack_element = self.stack.pop().unwrap();
-        self.stack.push(parse_stack_element.clone());
-
-        match &parse_stack_element {
-
-            ParseStackElement::RuleElement(rule_element) => {
-                println!("RuleElement {:?}", rule_element);
-
-                let stack_len = self.stack.len();
-                println!("stack_len {:?}", stack_len);
-
-                let stack_content = &self.stack[stack_len - 2];
-
-                match &stack_content {
-
-                    ParseStackElement::StateId(current_state_id) => {
-                        println!("StateId: {}", current_state_id);
-
-                        let parse_table_row = self.parse_table.get(&current_state_id).unwrap();
-
-                        // DEBUG
-                        // let contains_key: bool = parse_table_row.contains_key(&rule_element);
-                        // println!("State: {}, parse_table_row: {:?}, input: {:?}, contains_key: {:?}", current_state_id, parse_table_row, input, contains_key);
-
-                        let idk = parse_table_row.get(&rule_element).unwrap();
-                        match idk {
-
-                            ParseTableCell::Goto(next_state_id) => {
-                                println!("GOTO: {:?}", *next_state_id);
-                                let pse = ParseStackElement::<String>::StateId(*next_state_id);
-                                self.stack.push(pse);
-                            }
-
-                            _ => {
-                                panic!("test");
-                            }
-                        }
-                    }
-
-                    ParseStackElement::RuleElement(rule_element) => {
-                        panic!("RuleElement");
-                    }
-                }
-
-                false
-            }
-
-            ParseStackElement::StateId(current_state_id) => {
-                println!("StateId: {}", current_state_id);
-
-                let parse_table_row = self.parse_table.get(&current_state_id).unwrap();
-
-                // DEBUG
-                let contains_key: bool = parse_table_row.contains_key(&input);
-                println!("State: {}, parse_table_row: {:?}, input: {:?}, contains_key: {:?}", current_state_id, parse_table_row, input, contains_key);
-
-                // // DEBUG 
-                // println!("*******************************************");
-                // for (key, value) in parse_table_row.into_iter() {
-                //     println!("{:?} / {:?}", key, value);
-                //     println!("{:?}", *key == input);
-                // }
-                // println!("*******************************************");
-
-                // decide between ACTION (shift / reduce) and GOTO
-                // if the parser row has no cell for the input, execute GOTO using the stack 
-                if !parse_table_row.contains_key(&input) {
-
-                    let t = self.stack.pop().unwrap();
-                    self.stack.push(t.clone());
-
-                    //println!("Test: {:?}", t);
-
-                    match &t {
-
-                        ParseStackElement::StateId(current_state_id) => {
-                            panic!("test");
-                        }
-
-                        ParseStackElement::RuleElement(rule_element) => {
-                            println!("RuleElement");
-
-                            let idk = parse_table_row.get(&rule_element).unwrap();
-
-                            match idk {
-
-                                ParseTableCell::Goto(state_id) => {
-                                    println!("GOTO: {:?}", *state_id);
-                                    let pse = ParseStackElement::<String>::StateId(*state_id);
-                                    self.stack.push(pse);
-
-                                    false
-                                }
-
-                                ParseTableCell::Shift(state_id) => {
-                                    println!("SHIFT: {:?}", *state_id);
-                                    let pse = ParseStackElement::<String>::StateId(*state_id);
-                                    self.stack.push(pse);
-
-                                    false
-                                }
-
-                                _ => {
-                                    panic!("test {:?}", idk);
-                                }
-                            }
-
-                            
-
-                        }
-                    }
-
-                } else {
-
-                    
-                    let parser_step = parse_table_row.get(&input).expect("Parse Table is broken!");
-                    match parser_step {
-
-                        ParseTableCell::Shift(next_state_id) => {
-                            println!("shift {}", next_state_id);
-                            self.stack.push(ParseStackElement::<String>::RuleElement(input));
-                            self.stack.push(ParseStackElement::<String>::StateId(*next_state_id));
-
-                            true
-                        }
-
-                        ParseTableCell::Reduce(rule_id) => {
-                            println!("reduce: {}", rule_id);
-
-                            let state = grammar_state_hashmap.get(&current_state_id).unwrap();
-
-                            println!("reduce: {:?}, rule_id: {:?}", state, rule_id);
-
-                            // TODO: only using rules (and not identification_rules) right now
-                            //let rule = state.unwrap().rules.into_iter().filter(|r| r.id == *rule_id).collect::<Vec<_>>().first();
-
-                            let mut found_rule = Rule::<String>::new(0);
-
-                            let mut found = false;
-                            for i in 0..state.identification_rules.len() {
-                                if state.identification_rules[i].id == *rule_id {
-                                    println!("rule: {:?}", state.identification_rules[i]);
-
-                                    found_rule = state.identification_rules[i].clone();
-
-                                    found = true;
-                                }
-                            }
-
-                            if !found {
-                                for i in 0..state.rules.len() {
-                                    if state.rules[i].id == *rule_id {
-                                        println!("rule: {:?}", state.rules[i]);
-
-                                        found_rule = state.rules[i].clone();
-
-                                        found = true;
-                                    }
-                                }
-                            }
-
-                            if !found {
-                                panic!("Rule not found!");
-                            } else {
-                                println!("rule: {:?}", found_rule);
-
-                                for rhs in found_rule.rhs {
-                                    self.stack.pop();
-                                    self.stack.pop();
-                                }
-
-                                self.stack.push(ParseStackElement::<String>::RuleElement(found_rule.lhs));
-                            }
-
-                            false
-                        }
-
-                        ParseTableCell::Accept => {
-                            println!("ACCEPT !!!!");
-
-                            true
-                        }
-
-                        _ => {
-                            panic!("NIY!");
-                        }
-
-                    }
-                }
-            }
-        }
-
-/*
-        
-             */
-    }
-}
-
-fn main() {
-
-    println!("start");
-
-    println!("");
-    println!("All Rules:");
-
-    let mut grammar_rules = Vec::<Rule<String>>::new();
-
-    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-/*
-    // https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html
-    // https://jsmachines.sourceforge.net/machines/lalr1.html
-
-    // DragonBook 2nd Edition, page 255, Example 4.48. Figure 4.39
-    // Reproduced on page 271
-    // https://cyberzhg.github.io/toolbox/lr0
-
-    // S' -> S
-    // S -> L = R | R
-    // L -> *R | id
-    // R -> L
-
-    // S' -> S
-    // S -> L = R
-    // S -> R
-    // L -> * R 
-    // L -> id
-    // R -> L
-
-    // VALID-INPUT
-    // * id = id
-
-    // has to be the start symbol of the non-augmented (= original) grammar!
-    let start_symbol = RuleElement::NonTerminal(String::from("S"));
-
-    let treat_nonterminal_lowercase = false;
-    create_rule(&mut grammar_rules, String::from("S' -> S"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("S -> L = R"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("S -> R"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("L -> * R"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("L -> id"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("R -> L"), treat_nonterminal_lowercase);
-
-    // the first rule per definition has the closure symbol as a spontaneous symbol
-    let mut rule_1 = grammar_rules.first().unwrap().clone();
-    rule_1.lookahead.push(RuleElement::Closure);
-*/
-
-
-
-
-
-
-/*
-    // https://softwareengineering.stackexchange.com/questions/177872/how-lookaheads-are-propagated-in-channel-method-of-building-lalr-parser
-
-    // S -> E
-    // E -> E - T
-    // E -> T
-    // T -> ( E )
-    // T -> n
-
-    // S' -> S
-    // S -> E
-    // E -> E - T
-    // E -> T
-    // T -> ( E )
-    // T -> n
-
-    // VALID-INPUT
-    // n - ( n )
-
-    // This must be the start symbol of the original grammar
-    let start_symbol = RuleElement::NonTerminal(String::from("S"));
-
-    let treat_nonterminal_lowercase = false;
-    create_rule(&mut grammar_rules, String::from("S' -> S"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("S -> E"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("E -> E - T"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("E -> T"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("T -> n"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("T -> ( E )"), treat_nonterminal_lowercase);
-
-    // the first rule per definition has the closure symbol as a spontaneous symbol
-    let mut rule_1 = grammar_rules.first().unwrap().clone();
-    rule_1.lookahead.push(RuleElement::Closure);
-*/
-
-
-
-
-
-
-/*
-    // S' -> S
-    // S -> A A
-    // A -> a A
-    // A -> b
-
-    // Valid input: a b a b
-
-    // this must be the start symbol of the original grammar
-    let start_symbol = RuleElement::NonTerminal(String::from("S"));
-
-    let treat_nonterminal_lowercase = false;
-    create_rule(&mut grammar_rules, String::from("S' -> S"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("S -> A A"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("A -> a A"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("A -> b"), treat_nonterminal_lowercase);
-
-    // the first rule per definition has the closure symbol as a spontaneous symbol
-    let mut rule_1 = grammar_rules.first().unwrap().clone();
-    rule_1.lookahead.push(RuleElement::Closure);
-
-    // let terminal_a = RuleElement::<String>::Terminal(String::from("a"));
-    // let terminal_b = RuleElement::<String>::Terminal(String::from("b"));
-
-    // let mut first_A = Vec::<RuleElement::<String>>::new();
-    // first_A.push(terminal_a);
-    // first_A.push(terminal_b);
-
-    // let non_terminal_A = RuleElement::<String>::NonTerminal(String::from("A"));
-
-    // let mut first = BTreeMap::new();
-    // first.insert(non_terminal_A.clone(), first_A);
-*/
-
-
-
-
-
-/*
-    // https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html#eyJncmFtbWFyIjoiUyAtPiBhIEEgY1xuUyAtPiBhIEIgZFxuUyAtPiBCIGNcbkEgLT4gelxuQiAtPiB6IiwiaW5wdXQiOiIifQ==
-
-    // S' -> S
-    // S -> a A c
-    // S -> a B d
-    // S -> B c
-    // A -> z
-    // B -> z
-
-    // VALID-INPUT
-    // a z d #
-
-    // this must be the start symbol of the original grammar
-    let start_symbol = RuleElement::NonTerminal(String::from("S"));
-
-    let treat_nonterminal_lowercase = false;
-    create_rule(&mut grammar_rules, String::from("S' -> S"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("S -> a A c"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("S -> a B d"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("S -> B c"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("A -> z"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("B -> z"), treat_nonterminal_lowercase);
-
-    // the first rule per definition has the closure symbol as a spontaneous symbol
-    let mut rule_1 = grammar_rules.first().unwrap().clone();
-    rule_1.lookahead.push(RuleElement::Closure);
-*/
-    
-
-
-    
-
-/*
-    //
-    // This is an example grammar for a grammar that needs lookahead propagation iteration!
-    //
-    // https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html (do not add augmented start rule)
-    // https://jsmachines.sourceforge.net/machines/lalr1.html (add augmented start rule)
-    //
- 
-    // https://stackoverflow.com/questions/77577494/is-this-grammar-lalr1
-
-    // VALID-INPUT: a c b #
-
-    // this must be the start symbol of the original grammar
-    let start_symbol = RuleElement::NonTerminal(String::from("S"));
-
-    let treat_nonterminal_lowercase = false;
-    create_rule(&mut grammar_rules, String::from("S' -> S"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("S -> a S b"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("S -> c"), treat_nonterminal_lowercase);
-
-    // the first rule per definition has the closure symbol as a spontaneous symbol
-    let mut rule_1 = grammar_rules.first().unwrap().clone();
-    rule_1.lookahead.push(RuleElement::Closure);
-*/
-
-
-
-
-
-/*
-    // https://stackoverflow.com/questions/77577494/is-this-grammar-lalr1
-    // https://en.wikipedia.org/wiki/Dangling_else
-
-    // https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html
-    // https://jsmachines.sourceforge.net/machines/lalr1.html
-
-    // statement' -> statement
-    // statement -> open_statement
-    // statement -> closed_statement
-    // open_statement -> IF ( expression ) statement
-    // open_statement -> IF ( expression ) closed_statement ELSE open_statement
-    // closed_statement -> non_if_statement
-    // closed_statement -> IF ( expression ) closed_statement ELSE closed_statement
-    // non_if_statement -> TEST_STMT
-
-    // Valid Test input:
-    // TEST_STMT
-    // IF ( EXPRESSION ) TEST_STMT
-    // IF ( EXPRESSION ) TEST_STMT ELSE TEST_STMT
-    // IF ( EXPRESSION ) IF ( EXPRESSION ) TEST_STMT ELSE TEST_STMT
-    // IF ( EXPRESSION ) TEST_STMT ELSE IF ( EXPRESSION ) TEST_STMT
-    // IF ( EXPRESSION ) TEST_STMT ELSE IF ( EXPRESSION ) TEST_STMT ELSE TEST_STMT
-
-    // Invalid Input:
-    // IF ( EXPRESSION ) TEST_STMT TEST_STMT
-
-    // this must be the start symbol of the original grammar
-    let start_symbol = RuleElement::NonTerminal(String::from("statement"));
-
-    let treat_nonterminal_lowercase = true;
-    create_rule(&mut grammar_rules, String::from("statement' -> statement"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("statement -> open_statement"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("statement -> closed_statement"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("open_statement -> IF ( EXPRESSION ) statement"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("open_statement -> IF ( EXPRESSION ) closed_statement ELSE open_statement"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("closed_statement -> non_if_statement"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("closed_statement -> IF ( EXPRESSION ) closed_statement ELSE closed_statement"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("non_if_statement -> TEST_STMT"), treat_nonterminal_lowercase);
-
-    // the first rule per definition has the closure symbol as a spontaneous symbol
-    let mut rule_1 = grammar_rules.first().unwrap().clone();
-    rule_1.lookahead.push(RuleElement::Closure);
-
-    // let terminal_a = RuleElement::<String>::Terminal(String::from("a"));
-    // let terminal_b = RuleElement::<String>::Terminal(String::from("b"));
-
-    // let mut first_A = Vec::<RuleElement::<String>>::new();
-    // first_A.push(terminal_a);
-    // first_A.push(terminal_b);
-
-    // let non_terminal_A = RuleElement::<String>::NonTerminal(String::from("A"));
-
-    //let first = BTreeMap::new();
-    // first.insert(non_terminal_A.clone(), first_A);
-*/
-
-
-
-
-/*
-    // https://en.wikipedia.org/wiki/Dangling_else
-
-    // https://cyberzhg.github.io/toolbox/lr0
-    // https://jsmachines.sourceforge.net/machines/lalr1.html
-
-    // statement' -> statement
-    // statement -> selection-statement
-    // statement -> TEST_STMT
-    // selection-statement -> IF ( EXPRESSION ) statement
-    // selection-statement -> IF ( EXPRESSION ) statement ELSE statement
-*/
-
-
-
-
-
-/*
-    // https://www.geeksforgeeks.org/compiler-design/first-set-in-syntax-analysis/
-
-    // Production Rules of Grammar
-    // S -> ACB | Cbb | Ba
-    // A -> da | BC
-    // B -> g | ε
-    // C -> h | ε
-
-    // FIRST sets
-    // FIRST(S) = FIRST(ACB) U FIRST(Cbb) U FIRST(Ba) = { d, g, h, b, a,  ε}
-    // FIRST(A) = { d } U FIRST(BC) = { d, g, h,  ε }
-    // FIRST(B) = { g ,  ε }
-    // FIRST(C) = { h ,  ε }
-
-    // https://cyberzhg.github.io/toolbox/lr0
-    // https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html (Do not add a rule S' -> S into the webapp)
-    // https://jsmachines.sourceforge.net/machines/lalr1.html (add a rule S' -> S into the webapp)
-
-    // VALID-INPUT:
-    // d a h g #
-
-    // this has to be the start symbol of the original unaugmented grammar
-    let start_symbol = RuleElement::NonTerminal(String::from("S"));
-
-    let treat_nonterminal_lowercase: bool = false;
-
-    // add augmentation start rule
-    create_rule(&mut grammar_rules, String::from("S' -> S"), treat_nonterminal_lowercase);
-
-    // S -> ACB | Cbb | Ba
-    create_rule(&mut grammar_rules, String::from("S -> A C B"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("S -> C b b"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("S -> B a"), treat_nonterminal_lowercase);
-
-    // A -> da | BC
-    create_rule(&mut grammar_rules, String::from("A -> d a"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("A -> B C"), treat_nonterminal_lowercase);
-
-    // B -> g | ε
-    create_rule(&mut grammar_rules, String::from("B -> g"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("B -> $$_EPSILON_$$"), treat_nonterminal_lowercase);
-
-    // C -> h | ε
-    create_rule(&mut grammar_rules, String::from("C -> h"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("C -> $$_EPSILON_$$"), treat_nonterminal_lowercase);
-
-    let mut rule_1 = grammar_rules.first().unwrap().clone();
-    rule_1.lookahead.push(RuleElement::Closure);
-*/
-
-
-
-    
-/**/
-    // https://cyberzhg.github.io/toolbox/lr0
-    // https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html (Do not add augmented start rule!)
-    // https://jsmachines.sourceforge.net/machines/lalr1.html (Add augmented start rule!)
-
-    // https://www.lysator.liu.se/c/ANSI-C-grammar-y.html
-
-    // VALID INPUT:
-    
-    // void main () {}
-    // VOID IDENTIFIER OPENING_BRACES CLOSING_BRACES OPENING_CURLY_BRACES CLOSING_CURLY_BRACES
-
-    // void main ( EXPRESSION_STOP SEMICOLON )
-    // VOID IDENTIFIER OPENING_BRACES CLOSING_BRACES OPENING_CURLY_BRACES EXPRESSION_STOP SEMICOLON CLOSING_CURLY_BRACES
-
-    // this has to be the start symbol of the original unaugmented grammar
-    let start_symbol = RuleElement::NonTerminal(String::from("translation_unit"));
-
-    let treat_nonterminal_lowercase: bool = true;
-
-    // add augmentation start rule
-    create_rule(&mut grammar_rules, String::from("translation_unit' -> translation_unit"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("translation_unit -> function_definition"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("function_definition -> declaration_specifiers declarator compound_statement"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("declaration_specifiers -> type_specifier declaration_specifiers"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("declaration_specifiers -> type_specifier"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("declaration_specifiers -> type_qualifier declaration_specifiers"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("declaration_specifiers -> type_qualifier"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("type_specifier -> VOID"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("type_specifier -> INT"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("type_qualifier -> CONST"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("type_qualifier -> VOLATILE"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("declarator -> direct_declarator"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("direct_declarator -> IDENTIFIER direct_declarator"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("direct_declarator -> IDENTIFIER"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("direct_declarator -> OPENING_BRACES declarator CLOSING_BRACES"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("direct_declarator -> OPENING_BRACES CLOSING_BRACES"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("compound_statement -> OPENING_CURLY_BRACES declaration_or_statement_list CLOSING_CURLY_BRACES"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("compound_statement -> OPENING_CURLY_BRACES CLOSING_CURLY_BRACES"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("declaration_or_statement_list -> declaration declaration_or_statement_list"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("declaration_or_statement_list -> declaration"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("declaration_or_statement_list -> statement declaration_or_statement_list"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("declaration_or_statement_list -> statement"), treat_nonterminal_lowercase);
-
-    // DEBUG
-    create_rule(&mut grammar_rules, String::from("declaration -> DECLARATION_STOP"), treat_nonterminal_lowercase);
-    // create_rule(&mut grammar_rules, String::from("statement -> STATEMENT_STOP"), treat_nonterminal_lowercase);
-/*
-    create_rule(&mut grammar_rules, String::from("declaration -> declaration_specifiers init_declarator_list SEMICOLON"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("declaration -> declaration_specifiers SEMICOLON"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("init_declarator_list -> init_declarator COMMA init_declarator_list"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("init_declarator_list -> init_declarator"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("init_declarator -> declarator EQUALS_SIGN initializer"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("init_declarator -> declarator"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("initializer -> assignment_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("initializer -> OPENING_CURLY_BRACES initializer_list CLOSING_CURLY_BRACES"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("initializer -> OPENING_CURLY_BRACES initializer_list COMMA CLOSING_CURLY_BRACES"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("initializer_list -> initializer"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("initializer_list -> initializer COMMA initializer_list"), treat_nonterminal_lowercase);
-*/
-    create_rule(&mut grammar_rules, String::from("statement -> expression_statement"), treat_nonterminal_lowercase);
-    // DEBUG
-    //create_rule(&mut grammar_rules, String::from("statement -> STOP_1"), treat_nonterminal_lowercase);
-    
-    create_rule(&mut grammar_rules, String::from("expression_statement -> expression SEMICOLON"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("expression_statement -> SEMICOLON"), treat_nonterminal_lowercase);
-
-    // ORIG 
-    create_rule(&mut grammar_rules, String::from("expression -> assignment_expression"), treat_nonterminal_lowercase);
-    // DEBUG
-    //create_rule(&mut grammar_rules, String::from("expression -> EXPRESSION_STOP"), treat_nonterminal_lowercase);
-
-    // ORIG - this rule causes deep-dive with loop
-    create_rule(&mut grammar_rules, String::from("assignment_expression -> unary_expression assignment_operator assignment_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("assignment_expression -> conditional_expression"), treat_nonterminal_lowercase);
-    // 
-    //DEBUG  
-    //
-    //create_rule(&mut grammar_rules, String::from("assignment_expression -> ASSIGN_STOP"), treat_nonterminal_lowercase);
-/**/
-    create_rule(&mut grammar_rules, String::from("unary_expression -> postfix_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("unary_expression -> INC_OP unary_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("unary_expression -> DEC_OP unary_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("unary_expression -> unary_operator cast_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("unary_expression -> SIZEOF unary_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("unary_expression -> SIZEOF OPENING_BRACES type_name CLOSING_BRACES"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("unary_operator -> AMPERSAND"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("unary_operator -> ASTERISK"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("unary_operator -> PLUS"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("unary_operator -> MINUS"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("unary_operator -> TILDE"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("unary_operator -> EXCLAMATION_MARK"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("type_name -> specifier_qualifier_list"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("specifier_qualifier_list -> type_specifier"), treat_nonterminal_lowercase);
-    // ORIG
-    create_rule(&mut grammar_rules, String::from("cast_expression -> OPENING_BRACES type_name CLOSING_BRACES cast_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("cast_expression -> unary_expression"), treat_nonterminal_lowercase);
-    // // DEBUG
-    // create_rule(&mut grammar_rules, String::from("cast_expression -> CAST_STOP"), treat_nonterminal_lowercase);
-
-    // DEBUG
-    //create_rule(&mut grammar_rules, String::from("postfix_expression -> END_POSTFIX"), treat_nonterminal_lowercase);
-/**/
-    create_rule(&mut grammar_rules, String::from("postfix_expression -> primary_expression postfix_expression_list"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("postfix_expression -> primary_expression"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("postfix_expression_list -> INC_OP postfix_expression_list"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("postfix_expression_list -> INC_OP"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("primary_expression -> IDENTIFIER"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("primary_expression -> HEX_NUMERIC"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("primary_expression -> NUMERIC"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("assignment_operator -> EQUALS_SIGN"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("assignment_operator -> MUL_ASSIGN"), treat_nonterminal_lowercase);
-
-    // -----------------------------------------------------------
-
-    create_rule(&mut grammar_rules, String::from("conditional_expression -> logical_or_expression QUESTION_MARK expression COLON conditional_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("conditional_expression -> logical_or_expression"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("logical_or_expression -> logical_and_expression OR_OP logical_or_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("logical_or_expression -> logical_and_expression"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("logical_and_expression -> inclusive_or_expression AND_OP logical_and_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("logical_and_expression -> inclusive_or_expression"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("inclusive_or_expression -> exclusive_or_expression BIN_OR_OP inclusive_or_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("inclusive_or_expression -> exclusive_or_expression"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("exclusive_or_expression -> and_expression CIRCUMFLEX exclusive_or_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("exclusive_or_expression -> and_expression"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("and_expression -> equality_expression AMPERSAND and_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("and_expression -> equality_expression"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("equality_expression -> relational_expression EQ_OP equality_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("equality_expression -> relational_expression NE_OP equality_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("equality_expression -> relational_expression"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("relational_expression -> shift_expression LT relational_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("relational_expression -> shift_expression GT relational_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("relational_expression -> shift_expression LTE relational_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("relational_expression -> shift_expression GTE relational_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("relational_expression -> shift_expression"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("shift_expression -> additive_expression LEFT_OP shift_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("shift_expression -> additive_expression RIGHT_OP shift_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("shift_expression -> additive_expression"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("additive_expression -> multiplicative_expression PLUS additive_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("additive_expression -> multiplicative_expression MINUS additive_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("additive_expression -> multiplicative_expression"), treat_nonterminal_lowercase);
-
-    create_rule(&mut grammar_rules, String::from("multiplicative_expression -> cast_expression ASTERISK multiplicative_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("multiplicative_expression -> cast_expression SLASH multiplicative_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("multiplicative_expression -> cast_expression PERCENT multiplicative_expression"), treat_nonterminal_lowercase);
-    create_rule(&mut grammar_rules, String::from("multiplicative_expression -> cast_expression"), treat_nonterminal_lowercase);
-/**/
-
-    let mut rule_1 = grammar_rules.first().unwrap().clone();
-    rule_1.lookahead.push(RuleElement::Closure);
-
-
-
-
-
-
-
-
-
-    //
-    // Validating the Grammar
-    //
-
-    println!("");
-    println!("Validating grammar start ...");
-
-    // collect all non-terminals into a set
-    // iterate over the set
-    // check for each non-terminal if it appears on the left side of at least one production rule
-    // if a non-terminal is found that does not satisfy this test, the grammar is invalid! Abort!
-
-    //let mut nonterminal_set: HashSet<&Rule<String>> = HashSet::new();
-    let mut rhs_nonterminal_set: HashSet::<RuleElement<String>> = HashSet::new();
-    let mut lhs_nonterminal_set: HashSet::<RuleElement<String>> = HashSet::new();
-
-    for rule in grammar_rules.iter() {
-
-        //println!("{:?}", rule);
-
-        lhs_nonterminal_set.insert(rule.lhs.clone());
-
-        for rule_element in rule.rhs.iter() {
-
-            match &rule_element {
-                RuleElement::NonTerminal(nt) => {
-                    rhs_nonterminal_set.insert(rule_element.clone());
-                }
-                _ => {
-
-                }
-            }
-        }
-    }
-
-    for rule_element in rhs_nonterminal_set.iter() {
-        if !lhs_nonterminal_set.contains(&rule_element) {
-            panic!("[Invalid Grammar] The NonTerminal '{:?}' does not appear on the LeftHandSide of any production rule in the grammar although it is used as a RightHandSide element in at least one production rule! The grammar is incomplete! The non-terminal '{:?}' cannot be reduced! Please fix the grammar before proceeding!", &rule_element, &rule_element);
-        }
-    }
-
-    println!("Validating grammar end.");
-
-
-
-    //
-    // Nullable
-    //
+pub fn compute_nullable_sets(grammar_rules: &mut Vec::<Rule<String>>, nullable: &mut BTreeMap::<RuleElement::<String>, bool>) {
 
     println!("");
     println!("Nullable start ...");
@@ -1550,7 +531,7 @@ fn main() {
     // In Context-Free Grammars (CFG), a nonterminal that can derive the empty string \(\epsilon \) 
     // is called nullable. You can find all nullable nonterminals by using a simple iterative marking 
     // algorithm (similar to the standard method taught in computer science).
-    let mut nullable = BTreeMap::<RuleElement::<String>, bool>::new();
+    // let mut nullable = BTreeMap::<RuleElement::<String>, bool>::new();
 
     let mut change_detected = true;
     while change_detected {
@@ -1649,6 +630,155 @@ fn main() {
     println!("*******************************************");
 
     // println!("Test");
+}
+
+pub fn validate_grammar(grammar_rules: &mut Vec::<Rule<String>>) {
+
+    println!("");
+    println!("Validating grammar start ...");
+
+    // collect all non-terminals into a set
+    // iterate over the set
+    // check for each non-terminal if it appears on the left side of at least one production rule
+    // if a non-terminal is found that does not satisfy this test, the grammar is invalid! Abort!
+
+    //let mut nonterminal_set: HashSet<&Rule<String>> = HashSet::new();
+    let mut rhs_nonterminal_set: HashSet::<RuleElement<String>> = HashSet::new();
+    let mut lhs_nonterminal_set: HashSet::<RuleElement<String>> = HashSet::new();
+
+    for rule in grammar_rules.iter() {
+
+        //println!("{:?}", rule);
+
+        lhs_nonterminal_set.insert(rule.lhs.clone());
+
+        for rule_element in rule.rhs.iter() {
+
+            match &rule_element {
+                RuleElement::NonTerminal(nt) => {
+                    rhs_nonterminal_set.insert(rule_element.clone());
+                }
+                _ => {
+
+                }
+            }
+        }
+    }
+
+    for rule_element in rhs_nonterminal_set.iter() {
+        if !lhs_nonterminal_set.contains(&rule_element) {
+            panic!("[Invalid Grammar] The NonTerminal '{:?}' does not appear on the LeftHandSide of any production rule in the grammar although it is used as a RightHandSide element in at least one production rule! The grammar is incomplete! The non-terminal '{:?}' cannot be reduced! Please fix the grammar before proceeding!", &rule_element, &rule_element);
+        }
+    }
+
+    println!("Validating grammar end.");
+}
+
+fn main() {
+
+    println!("start");
+
+    let mut grammar_rules = Vec::<Rule<String>>::new();
+
+    //
+    // Select one of the grammars
+    //
+    
+    let g_result = produce_grammar_c_full(&mut grammar_rules);
+    // let g_result = produce_grammar_left_recursive(&mut grammar_rules);
+    // let g_result = produce_grammar_1(&mut grammar_rules); // has epsilon rules (wont work)
+    // let g_result = produce_grammar_2(&mut grammar_rules);
+    // let g_result = produce_grammar_3(&mut grammar_rules); // shows # is not propagated
+
+    let rule_1 = g_result.0;
+    // let mut start_symbol = g_result.1;
+    let augmented_start_symbol = g_result.1;
+
+
+
+    //
+    // Validating the Grammar
+    //
+
+    validate_grammar(&mut grammar_rules);
+
+
+
+    //
+    // Print all rules (in the order in which they use each other)
+    //
+
+    println!("");
+    println!("https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html  (Do not add augmented start rule)");
+    println!("https://jsmachines.sourceforge.net/machines/lalr1.html               (add augmented start rule)");
+    println!("");
+    println!("All Rules:");
+
+    let mut unlocked_rules_lhs = Vec::new();
+    unlocked_rules_lhs.push(rule_1.lhs.clone());
+
+    let mut temp_rules = grammar_rules.clone();
+
+    let mut printed_rules = Vec::<Rule<String>>::new();
+
+    // DEBUG
+    let mut all_rules_printed: bool = false;
+
+    while !all_rules_printed {
+
+        for i in 0..temp_rules.len() {
+
+            if unlocked_rules_lhs.contains(&temp_rules.get(i).unwrap().lhs) {
+
+                let mut temp_rule = temp_rules.get(i).unwrap().clone();
+
+                temp_rule.dot_idx = std::usize::MAX;
+                println!("{:?}", temp_rule);
+                temp_rule.dot_idx = 0;
+
+                for rhs in temp_rule.rhs.iter() {
+                    match &rhs {
+                        RuleElement::NonTerminal(nt) => {
+                            unlocked_rules_lhs.push(rhs.clone());
+                        }
+                        _ => {
+
+                        }
+                    }
+                }
+
+                printed_rules.push(temp_rule);
+            }
+        }
+
+        let removed_rules = temp_rules.extract_if(.., |r| printed_rules.contains(r)).collect::<Vec<_>>();
+
+        // println!(">> temp_rules >> {:?}", temp_rules);
+
+        all_rules_printed = temp_rules.len() == 0;
+
+        if temp_rules.len() > 0 && removed_rules.len() == 0 {
+            // println!("Unused rules detected!");
+            // println!("{:?}", temp_rules);
+
+            all_rules_printed = true;
+        }
+    }
+
+    if temp_rules.len() > 0 {
+        println!("Unused rules detected!");
+        println!("{:?}", temp_rules);
+    }
+
+
+
+
+    //
+    // Nullable
+    //
+
+    let mut nullable = BTreeMap::<RuleElement::<String>, bool>::new();
+    compute_nullable_sets(&mut grammar_rules, &mut nullable);
 
 
 
@@ -1657,160 +787,18 @@ fn main() {
     // First Set
     //
 
-    // How to compute the first map:
-    //
-    // Rule 1: For a Terminal symbol a: The set FIRST(a) is simply the terminal itself: FIRST(a) = {a}
-    // Rule 2: For an Epsilon (empty string): If a production derives Epsilon (the empty string) then 
-    //         Epsilon is included in the set: FIRST(Epsilon) = { Epsilon }.
-    // Rule 3: For a Non-terminal X: The set FIRST(X) is the union of the FIRST(X) sets of the right-hand 
-    //         side of all its production rules.
-    //         E.g. S -> ACB | Cbb | Ba then FIRST(S) = FIRST(ACB) U FIRST(Cbb) U FIRST(Ba)
-    //         HINT: This rule is not relevant if the | rules have been split up into one production per rule.
-    // Rule 4: For a sequence of symbols Y_1 Y_2 Y_3...: You start by adding \(\text{FIRST}(Y_1)\). 
-    //         If Y_1 can derive Epsilon, you also add the FIRST(Y_2) (excluding (Epsilon)), 
-    //         and so on, until you reach a symbol that does not derive Epsilon.
-    //         If all symbols can derive epsilon, then add epsilon.
-
-/**/
     let mut first = BTreeMap::<RuleElement::<String>, Vec::<RuleElement::<String>>>::new();
 
-    let mut change_detected = true;
-    while change_detected {
-
-        // println!("Change detected == false");
-        change_detected = false;
-
-        for rule in grammar_rules.iter() {
-
-            println!("{:?}", rule);
-
-            for r in rule.rhs.iter() {
-
-                match &r {
-
-                    RuleElement::Terminal(t) => {
-                        //println!("Terminal in first position found: {:?}", t);
-
-                        // if rule's lhs is not part of the map yet, insert a vector
-                        if !first.contains_key(&rule.lhs) {
-                            // println!("Not contained yet!");
-
-                            let first_terminals = Vec::<RuleElement::<String>>::new();
-                            first.insert(rule.lhs.clone(), first_terminals);
-                        }
-
-                        // retrieve the vector of first symbols for the nonterminal and extend it
-                        let first_terminals = &mut first.get_mut(&rule.lhs).unwrap();
-
-                        // add the rhs[0] into the first vector
-                        if !first_terminals.contains(&r) {
-
-                            // println!("(1) Adding {:?} into First({:?})", r.clone(), &rule.lhs);
-
-                            first_terminals.push(r.clone());
-
-                            // println!("Change detected == true");
-                            change_detected = true;
-                        }
-
-                        // stop iterating over RHS once the first terminal is found since
-                        // after the first terminal, no other terminal can be in the first set!
-                        break;
-                    }
-
-                    RuleElement::NonTerminal(nt) => {
-
-                        // add first set for the non-terminal to the first set.
-                        // If the non-terminal is nullable, proceed with the next non terminal.
-
-                        // if rule's lhs is not part of the map yet, 
-                        if !first.contains_key(&r) {
-
-                            // wait for information about the NT appear due to other iterations
-                            change_detected = true;
-                            break;
-
-                        } else {
-
-                            // retrieve the vector of first symbols for the RHS nonterminal
-                            let first_terminals_rhs = first.get(&r).unwrap().clone();
-
-                            // if rule's lhs is not part of the map yet, insert a vector
-                            if !first.contains_key(&rule.lhs) {
-                                let first_terminals = Vec::<RuleElement::<String>>::new();
-                                first.insert(rule.lhs.clone(), first_terminals);
-                            }
-
-                            // retrieve the vector of first symbols for the LHS nonterminal and extend it
-                            let first_terminals_lhs = &mut first.get_mut(&rule.lhs).unwrap();
-
-                            // println!("(2) Adding {:?} into First({:?})", first_terminals.clone(), &rule.lhs);
-
-                            // add the rhs[0] into the first vector
-                            for ch in first_terminals_rhs {
-                                if !first_terminals_lhs.contains(&ch) {
-                                    first_terminals_lhs.push(ch);
-
-                                    change_detected = true;
-                                }
-                            }
-
-                            // If the non-terminal is nullable, proceed with the next symbol, 
-                            // otherwise abort if not nullable
-                            if *nullable.get(&r).unwrap() == false {
-                                break;
-                            }
-                        }
-                    }
-
-                    _ => {
-                        
-                    }
-                }
-            }
-        }
-    }
-
-    // // DEBUG output FIRST()
-    // println!("");
-    // println!("FIRST() *****************************");
-    // for (key, value) in first.clone().into_iter() {
-    //     println!("{:?} / {:?}", key, value);
-    // }
-    // println!("*******************************************");
-
-    // Production Rules of Grammar
-    // S -> ACB | Cbb | Ba
-    // A -> da | BC
-    // B -> g | ε
-    // C -> h | ε
-
-    // FIRST sets
-    // FIRST(S) = FIRST(ACB) U FIRST(Cbb) U FIRST(Ba) = { d, g, h, b, a,  ε}
-    // FIRST(A) = { d } U FIRST(BC) = { d, g, h,  ε }
-    // FIRST(B) = { g ,  ε }
-    // FIRST(C) = { h ,  ε }
-
-    // println!("Test");
-
-    // let first = BTreeMap::new();
-
-    // let terminal_a = RuleElement::<String>::Terminal(String::from("a"));
-    // let terminal_b = RuleElement::<String>::Terminal(String::from("b"));
-
-    // let mut first_A = Vec::<RuleElement::<String>>::new();
-    // first_A.push(terminal_a);
-    // first_A.push(terminal_b);
-
-    // let non_terminal_A = RuleElement::<String>::NonTerminal(String::from("A"));
-
-    // let first = BTreeMap::new();
-    // first.insert(non_terminal_A.clone(), first_A);
+    compute_first_original(&grammar_rules, &nullable, &mut first);
 
 
 
 
     // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+    //
+    // Unfold the states (CLOSURE) and build channels between the states.
+    //
 
     let mut rule_channel_map = HashMap::<usize, Vec::<Transition<String>>>::new();
 
@@ -1859,11 +847,11 @@ fn main() {
             // the rule_channel_map is extended with new entries, by this call
             grammar_state.unfold_grammar_state(&grammar_rules, &first, &nullable, &mut rule_channel_map);
 
-            // DEBUG
-            println!("\n");
-            println!("----------------------------------------");
-            println!("{:?}", grammar_state);
-            println!("========================================");
+            // // DEBUG
+            // println!("\n");
+            // println!("----------------------------------------");
+            // println!("{:?}", grammar_state);
+            // println!("========================================");
         }
 
         // clone current state
@@ -1881,23 +869,23 @@ fn main() {
             // remove rules that are completely processed (dot-marker is after last symbol)
             let consumed_rules = all_state_rules.extract_if(.., |r| r.dot_idx >= r.rhs.len()).collect::<Vec<_>>();
 
-            // check for the end state.
-            // The end state has the dot marker after the start symbol
-            if consumed_rules.len() == 1 && let Some(last_symbol) = consumed_rules[0].rhs.last() {
+            // // check for the end state.
+            // // The end state has the dot marker after the start symbol
+            // if consumed_rules.len() == 1 && let Some(last_symbol) = consumed_rules[0].rhs.last() {
 
-                if *last_symbol == start_symbol {
+            //     if *last_symbol == start_symbol {
 
-                    if found_final_state {
-                        eprintln!("DFA cannot have two end states! First final state: {}, This state: {}", final_state_id, current_grammar_state_id);
-                    }
+            //         if found_final_state {
+            //             eprintln!("DFA cannot have two end states! First final state: {}, This state: {}", final_state_id, current_grammar_state_id);
+            //         }
 
-                    found_final_state = true;
-                    final_state_id = current_grammar_state_id;
+            //         found_final_state = true;
+            //         final_state_id = current_grammar_state_id;
 
-                    // TODO output transition
-                    println!("STATE-TRANSITION-ENDSTATE: {:?} -{:?}-> {:?}", &current_grammar_state_id, RuleElement::<String>::AcceptingStateTransition, std::usize::MAX);
-                }
-            }
+            //         // // TODO output transition
+            //         // println!("[CHANNELS] STATE-TRANSITION-ENDSTATE: {:?} -{:?}-> {:?}", &current_grammar_state_id, RuleElement::<String>::AcceptingStateTransition, std::usize::MAX);
+            //     }
+            // }
 
             if all_state_rules.len() == 0 {
                 continue;
@@ -1968,9 +956,6 @@ fn main() {
             let mut state_contained_already = false;
             let mut state_id: usize = 0;
 
-            // this is an example for the global map
-            // TODO: we do not want this huge for loop over all global states! This is trash! 
-            // Needs to be constant time and not O(n)
             for (loop_state_id, loop_state) in &grammar_state_hashmap {
 
                 // a state is identified via the (all rules in) identification rules set
@@ -1987,7 +972,9 @@ fn main() {
                     for rule_copy in &mut rules_for_symbol_copy {
                         for rrule in &loop_state.identification_rules {
                             if rule_copy == rrule {
-                                println!("RULE-RULE-CHANNEL: {} -> {}", src_rule_id[iter_index], rrule.id);
+
+                                // // DEBUG
+                                // println!("[CHANNELS] RULE-RULE-CHANNEL: {} -> {}", src_rule_id[iter_index], rrule.id);
 
                                 //println!("{:?}", rules_for_symbol[iter_index]);
                                 // rules_for_symbol[iter_index].channels.push(rrule.id);
@@ -2011,11 +998,7 @@ fn main() {
                                 // retrieve the vector of first symbols for the nonterminal and extend it
                                 let channel_ends = &mut rule_channel_map.get_mut(&src_rule_id[iter_index]).unwrap();
 
-                                // TODO (usize, RuleElement)
-                                // channel_ends.push(rrule.id);
-                                //channel_ends.push(Transition(rrule.id, RuleElement::<String>::Unknown));
-                                //channel_ends.push(Transition(rrule.id, RuleElement::<String>::Terminal(String::from("IMA"))));
-                                
+                                // add the channel                                
                                 channel_ends.push(Transition(rrule.id, current_symbol.clone()));
                             }
                         }
@@ -2030,10 +1013,11 @@ fn main() {
             if state_contained_already {
 
                 if current_grammar_state_id == state_id {
-                    println!("STATE-TRANSITION-EXISTING-SELF: {:?} -{:?}-> {:?}", &current_grammar_state_id, &current_symbol, &state_id);
+                    // // DEBUG
+                    // println!("[CHANNELS] STATE-TRANSITION-EXISTING-SELF: {:?} -{:?}-> {:?}", &current_grammar_state_id, &current_symbol, &state_id);
                 } else {
-                    // TODO output transition (to already existing state)
-                    println!("STATE-TRANSITION-EXISTING: {:?} -{:?}-> {:?}", &current_grammar_state_id, &current_symbol, &state_id);
+                    // // DEBUG output transition (to already existing state)
+                    // println!("[CHANNELS] STATE-TRANSITION-EXISTING: {:?} -{:?}-> {:?}", &current_grammar_state_id, &current_symbol, &state_id);
                 }
 
             } else {
@@ -2059,8 +1043,8 @@ fn main() {
                     let rule_copy_id = rule_copy.id;
                     new_grammar_state.identification_rules.push(rule_copy);
 
-                    // println!("RULE-RULE-CHANNEL: ? -> {}", rule_copy.id);
-                    println!("RULE-RULE-CHANNEL: {} -> {}", src_rule_id[iter_index], rule_copy_id);
+                    // // DEBUG
+                    // println!("[CHANNELS] RULE-RULE-CHANNEL: {} -> {}", src_rule_id[iter_index], rule_copy_id);
 
                     if !rule_channel_map.contains_key(&src_rule_id[iter_index]) {
 
@@ -2074,8 +1058,6 @@ fn main() {
                     let channel_ends = &mut rule_channel_map.get_mut(&src_rule_id[iter_index]).unwrap();
 
                     // TODO: (target-id, RuleElement)
-                    // channel_ends.push(rule_copy_id);
-                    // channel_ends.push(Transition(rule_copy_id, RuleElement::<String>::Unknown));
                     channel_ends.push(Transition(rule_copy_id, current_symbol.clone()));
 
                     iter_index = iter_index + 1;
@@ -2083,9 +1065,10 @@ fn main() {
 
                 e_set.insert(0, new_grammar_state.id);
 
-                // TODO output transition (to new state)
-                println!("STATE-TRANSITION-NEW_STATE: {:?} -{:?}-> {:?}", &current_grammar_state_id, &current_symbol, &new_grammar_state.id);
+                // // TODO output transition (to new state)
+                // println!("[CHANNELS] STATE-TRANSITION-NEW_STATE: {:?} -{:?}-> {:?}", &current_grammar_state_id, &current_symbol, &new_grammar_state.id);
 
+                // add the new state into the map of states
                 grammar_state_hashmap.insert(new_grammar_state.id, new_grammar_state);
             }
         }
@@ -2093,32 +1076,19 @@ fn main() {
         done = e_set.is_empty();
     }
 
-
-
-/**/
     //
-    // Propagation cycles
+    // DEBUG output all channels
     //
+    // rule_channel_map: rule_id to all the rule_ids the rule points to
 
-    // propagation: it is required to keep channels that connect a start rule to an end rule!
-    // because lookahead symbols are pushed over channels between rules and not between states!
-    //
-    // DragonBook, 2nd Edition, page 273:
-    //
-    // "4. Make repeated passes over the kernel items in all sets. When we visit an
-    // item i, we look up the kernel items to which i propagates its lookaheads,
-    // using information tabulated in step (2). The current set of lookaheads
-    // for i is added to those already associated with each of the items to which
-    // i propagates its lookaheads. We continue making passes over the kernel
-    // items until no more new lookaheads are propagated."
+    println!("");
+    println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+    println!("Channels");
+    println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
 
-    // DEBUG
-    // println!("rule-channel-map: {:?}", &rule_channel_map);
+    // // provide fast access, map from rule-id to rule
+    // let id_to_rule_map = HashMap::<usize, Rule<String>>::new();
 
-    println!("Propagation cycles start ...");
-
-    // provide fast access, map from rule-id to rule
-    let id_to_rule_map = HashMap::<usize, Rule<String>>::new();
     let mut rule_id_to_state_id_map = HashMap::<usize, usize>::new();
     let mut rule_ids = Vec::<usize>::new();
 
@@ -2136,6 +1106,47 @@ fn main() {
             rule_ids.push(rule_id);
         }
     }
+    
+    for (key, value) in &rule_channel_map {
+
+        for transition in value {
+            println!("Channel: {:?}:{:?} -{:?}- {:?}:{:?}", rule_id_to_state_id_map[key], key, transition.1, rule_id_to_state_id_map[&transition.0], transition.0);
+        }
+    }
+
+    println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+
+
+
+    //
+    // Propagation cycles
+    //
+
+    // propagation: it is required to keep channels that connect a start rule to an end rule!
+    // because lookahead symbols are pushed over channels between rules and not between states!
+    //
+    // DragonBook, 2nd Edition, page 273:
+    //
+    // "4. Make repeated passes over the kernel items in all sets. When we visit an
+    // item i, we look up the kernel items to which i propagates its lookaheads,
+    // using information tabulated in step (2). The current set of lookaheads
+    // for i is added to those already associated with each of the items to which
+    // i propagates its lookaheads. We continue making passes over the kernel
+    // items until no more new lookaheads are propagated."
+
+    
+
+    println!("");
+    println!("++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+    println!("Propagation cycles start ...");
+    println!("++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+
+    
+    
+
+    
+
+    
 
     // println!("{:?}", rule_id_to_state_id_map);
 
@@ -2152,9 +1163,10 @@ fn main() {
 
         change_detected = false;
 
-        println!("Iteration: {:?}", iteration);
+        println!("[Propagation] Iteration: {:?}", iteration);
 
-        let rust_is_a_kek = grammar_state_hashmap.clone();
+        let mut dirty_state_ids = Vec::<usize>::new();
+        // println!("new");
 
         // over all rules
         for rule_id in &rule_ids {
@@ -2174,17 +1186,19 @@ fn main() {
             let dest_rule_ids = rule_channel_map.get(src_rule_id).unwrap();
 
             for dest_rule_id in dest_rule_ids {
+
                 let dest_state_id = rule_id_to_state_id_map.get(&dest_rule_id.0).unwrap();
 
-                // println!("Src-RuleId: {:?}, Src-StateId: {:?} ===> Dest-RuleId: {:?}, Dest-StateId: {:?}",
-                //     src_rule_id, src_state_id, dest_rule_id, dest_state_id);
+                // if *src_rule_id == 9 as usize {
+                //     // println!("Src-RuleId: {:?}, Src-StateId: {:?} ===> Dest-RuleId: {:?}, Dest-StateId: {:?}",
+                //     //     src_rule_id, src_state_id, dest_rule_id, dest_state_id);
+                //     println!("test");
+                // }
 
                 // push lookaheads
 
-                // retrieve src-rule from src-state
-                // let mut src_state = grammar_state_hashmap.get_mut(src_state_id).unwrap();
-                let src_state = rust_is_a_kek.get(src_state_id).unwrap();
-                // println!("{:?}", src_state);
+                // retrieve src-rule from src-state (src-state is read-only, non-mutable clone!)
+                let src_state = grammar_state_hashmap.get(src_state_id).unwrap().clone();
 
                 let mut src_rule = src_state.identification_rules.iter().filter(|r| r.id == *src_rule_id).collect::<Vec<_>>();
                 if src_rule.len() == 0 {
@@ -2204,34 +1218,80 @@ fn main() {
                 // println!("{:?}", &dest_rule.first());
 
                 for i in 0..dest_state.identification_rules.len() {
+
                     if dest_state.identification_rules[i].id == dest_rule_id.0 {
+
                         // copy lookaheads into dest rule
                         for la in &src_rule.first().unwrap().lookahead {
 
-                            // // do not forward the end symbol
-                            // if *la == RuleElement::Closure {
+                            // do not forward the end symbol within the same state, only inter states
+                            //if src_state_id == dest_state_id {
+                            //if *src_state_id == 0 as usize {
+                                // if *la == RuleElement::Closure {
+                                //     continue;
+                                // }
+                            //}
+
+                            // // do not forward in start state
+                            // if src_state_id == dest_state_id && *src_state_id == 0 as usize {
                             //     continue;
                             // }
 
+                            // if a lookahead is inserted into the identification rules where it 
+                            // has not been contained already, the state becomes dirty
                             if !dest_state.identification_rules[i].lookahead.contains(&la) {
+
+                                // insert lookahead
                                 dest_state.identification_rules[i].lookahead.push(la.clone());
+
+                                println!("{}", dest_state.identification_rules[i].id);
+
+                                // identification rules have been changed, a new lookahead was added.
+                                // The state becomes dirty and a progation inside that state and
+                                // across that state to other states needs to take place
+                                dirty_state_ids.push(*dest_state_id);
+
+                                println!("Dirty: {} {:?}", dest_state_id, la.clone());
+                                println!("");
 
                                 change_detected = true;
                             }
                         }
                     }
                 }
-                for i in 0..dest_state.rules.len() {
-                    if dest_state.rules[i].id == dest_rule_id.0 {
-                        // copy lookaheads into dest rule
-                        for la in &src_rule.first().unwrap().lookahead {
 
-                            // // do not forward the end symbol
-                            // if *la == RuleElement::Closure {
+                for i in 0..dest_state.rules.len() {
+
+                    if dest_state.rules[i].id == dest_rule_id.0 {
+
+                        // copy lookaheads into dest rule
+                        let temp_rule = src_rule.first().unwrap();
+                        println!("{}", temp_rule);
+                        for la in &temp_rule.lookahead {
+
+                            // do not forward the end symbol within the same state, only inter states
+                            //if src_state_id == dest_state_id {
+                            //if *src_state_id == 0 as usize {
+                                // if *la == RuleElement::Closure {
+                                //     continue;
+                                // }
+                            //}
+
+                            // do not forward in start state
+                            // if src_state_id == dest_state_id && *src_state_id == 0 as usize {
                             //     continue;
                             // }
 
+                            // within the same state only propagate if state currently has the dirty flag
+                            if src_state_id == dest_state_id && !dirty_state_ids.contains(dest_state_id) {
+                                // println!("no change to {}", dest_state_id);
+                                // println!("");
+                                continue;
+                            }
+                            
+                            println!("Changing {} {:?}", dest_state_id, la.clone());
                             if !dest_state.rules[i].lookahead.contains(&la) {
+
                                 dest_state.rules[i].lookahead.push(la.clone());
 
                                 change_detected = true;
@@ -2249,6 +1309,7 @@ fn main() {
 
     println!("Propagation cycles end after {} iterations.", iteration);
 
+    println!("++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
 
     
 
@@ -2260,7 +1321,9 @@ fn main() {
     println!("RESULT - RESULT - RESULT - RESULT - RESULT - RESULT - RESULT - ");
     println!("***************************************************************");
     for (key, value) in &grammar_state_hashmap {
+        println!("");
         println!("{} / {:?}", key, value);
+        println!("");
     }
     
     if !found_start_state {
@@ -2269,11 +1332,7 @@ fn main() {
         println!("Start state: {}", start_state_id);
     }
 
-    if !found_final_state {
-        panic!("DFA no final state detected!");
-    } else {
-        println!("Final state: {}", final_state_id);
-    }
+    
 
 
 
@@ -2291,7 +1350,7 @@ fn main() {
     // The parse table contains a row per state.
     // Column-wise, the parse table has two general parts which are ACTION and GOTO.
     //
-    // The ACTION part contains columns for each nonterminal and the EOI (#) symbol
+    // The ACTION part contains columns for each NonTerminal and the EOI (#) symbol
     // The cells contain either nothing or one or more of the actions { shift, reduce }
     // 
     // A shift-action also contains the id of the next state to transition to after executing the action.
@@ -2305,9 +1364,10 @@ fn main() {
     // If a cell in the ACTIONS part contains more than one reduce for non-terminals, then this is a reduce reduce conflict.
     // Any conflict means that the grammar needs to be reworked or that some priority tricks need to be applied.
     //
-    // The GOTO section contains columns for nonterminals. The cells contain the state ids to transtition to when the 
-    // Nonterminal is detected.
+    // The GOTO section contains columns for NonTerminals. 
+    // The cells contain the state ids to transtition to when the NonTerminal is detected.
 
+    // SideNote:
     // When code generation is used, large nested switches can be generated to implement the table.
     // When the parse table is generated at runtime, each row will become a map from.
 
@@ -2342,28 +1402,24 @@ fn main() {
 
         // DEBUG
         println!("");
-        println!("Visiting State: {}", current_state_id);
+        println!("Visiting State-ID: {}", current_state_id);
+
+        if current_state_id == 9 {
+            println!("test");
+        }
 
         visited_list.push(current_state_id);
 
         let state = rust_is_a_kek.get(&current_state_id).unwrap();
         // println!("{:?}", state);
 
-
-
-
-
+        //
         // convert DFA state into parser table row
+        //
         
         let mut parse_table_row = HashMap::<RuleElement<String>, ParseTableCell<usize>>::new();
-        // parse_table_row.insert(RuleElement::NonTerminal(String::from("a")), ParseTableCell::<usize>::Shift(2));
-        // parse_table_row.insert(RuleElement::NonTerminal(String::from("z")), ParseTableCell::<usize>::Shift(4));
-        // parse_table_row.insert(RuleElement::Terminal(String::from("S")), ParseTableCell::<usize>::Goto(1));
-        // parse_table_row.insert(RuleElement::Terminal(String::from("B")), ParseTableCell::<usize>::Goto(3));
-        // parse_table.insert(current_state_id, parse_table_row);
 
-
-
+        // over the identification rules of the state
         for i in 0..state.identification_rules.len() {
 
             let current_rule = &state.identification_rules[i];
@@ -2389,13 +1445,20 @@ fn main() {
             // Also leaf-nodes contain rules that are used for reduce only and point to no other states.
             if target_rule_ids_option.is_none() {
 
-                let last_symbol = &current_rule.rhs[current_rule.rhs.len() - 1];
-                if *last_symbol == start_symbol {
-                    println!("    ACCEPT");
-                    //parse_table_row.insert(current_rule.lookahead[0].clone(), ParseTableCell::<usize>::Accept);
-                    //parse_table_row.insert(RuleElement::Terminal(String::from("#")), ParseTableCell::<usize>::Accept);
+                // let last_symbol = &current_rule.rhs[current_rule.rhs.len() - 1];
+                // if *last_symbol == start_symbol {
+                //     println!("    ACCEPT 1");
+                //     parse_table_row.insert(RuleElement::Closure, ParseTableCell::<usize>::Accept);
+                // }
+                
+                if current_rule.lhs == augmented_start_symbol {
+                    println!("    ACCEPT 1");
                     parse_table_row.insert(RuleElement::Closure, ParseTableCell::<usize>::Accept);
-                } else {
+
+                    found_final_state = true;
+                    final_state_id = current_state_id;
+                }
+                else {
                     println!("    REDUCE: {:?}", rule_id);
 
                     for lookahead_index in 0..current_rule.lookahead.len() {
@@ -2419,11 +1482,12 @@ fn main() {
 
                 if current_rule.dot_idx >= current_rule.rhs.len() {
 
-                    panic!("    leaf");
+                    // panic!("    leaf node");
                     
                 } else {
 
-                    println!("    inner");
+                    // println!("    inner node");
+
                     match &target_rule_id.1 {
                         RuleElement::NonTerminal(_) => {
                             println!("    GOTO: {:?} -{:?}-> {:?}", state.id, &target_rule_id.1, target_state_id);
@@ -2444,11 +1508,11 @@ fn main() {
 
                 // check if state is already visited or already on the process list
                 if visited_list.contains(target_state_id) {
-                    println!("continue");
+                    // println!("continue");
                     continue;
                 }
                 if process_list.contains(target_state_id) {
-                    println!("continue");
+                    // println!("continue");
                     continue;
                 }
 
@@ -2457,6 +1521,7 @@ fn main() {
             }
         }
 
+        // over the normal rules of the state
         for i in 0..state.rules.len() {
 
             let current_rule = &state.rules[i];
@@ -2476,12 +1541,19 @@ fn main() {
 
                 let last_symbol = &current_rule.rhs[current_rule.rhs.len() - 1];
 
-                if *last_symbol == start_symbol {
-                    println!("    ACCEPT");
-                    //parse_table_row.insert(current_rule.lookahead[0].clone(), ParseTableCell::<usize>::Accept);
-                    // parse_table_row.insert(RuleElement::Terminal(String::from("#")), ParseTableCell::<usize>::Accept);
+                // if *last_symbol == start_symbol {
+                //     println!("    ACCEPT 2");
+                //     parse_table_row.insert(RuleElement::Closure, ParseTableCell::<usize>::Accept);
+                // } 
+                
+                if current_rule.lhs == augmented_start_symbol {
+                    println!("    ACCEPT 2");
                     parse_table_row.insert(RuleElement::Closure, ParseTableCell::<usize>::Accept);
-                } else {
+
+                    found_final_state = true;
+                    final_state_id = current_state_id;
+                }
+                else {
                     println!("    REDUCE: {:?}", rule_id);
                     for lookahead_index in 0..current_rule.lookahead.len() {
                         parse_table_row.insert(current_rule.lookahead[lookahead_index].clone(), ParseTableCell::<usize>::Reduce(rule_id));
@@ -2504,11 +1576,11 @@ fn main() {
 
                 if current_rule.dot_idx >= current_rule.rhs.len() {
 
-                    panic!("    leaf");
+                    // panic!("    leaf");
                     
                 } else {
 
-                    println!("    inner");
+                    // println!("    inner");
                     match &target_rule_id.1 {
 
                         RuleElement::NonTerminal(_) => {
@@ -2541,11 +1613,11 @@ fn main() {
 
                 // check if state is already visited or already on the process list
                 if visited_list.contains(target_state_id) {
-                    println!("continue");
+                    // println!("continue");
                     continue;
                 }
                 if process_list.contains(target_state_id) {
-                    println!("continue");
+                    // println!("continue");
                     continue;
                 }
 
@@ -2557,7 +1629,32 @@ fn main() {
         parse_table.insert(current_state_id, parse_table_row);
     }
 
-    println!("ParseTable: {:?}", parse_table);
+
+
+
+    if !found_final_state {
+        panic!("DFA no final state detected!");
+    } else {
+        println!("Final state: {}", final_state_id);
+    }
+
+
+
+
+
+    //
+    // DEBUG: PRINT PARSE TABLE
+    //
+
+    println!("");
+    println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+    // println!("ParseTable: {:?}", parse_table);
+    println!("ParseTable");
+    println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+    for i in 0..parse_table.len() {
+        println!("{}) {:?}", i, parse_table[&i]);
+    }
+    println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
 
 
@@ -2629,9 +1726,6 @@ fn main() {
     // let parse_table_row = parse_table.get(&0);
     // let parser_step = parse_table_row.expect("Parse Table is broken!").get(&RuleElement::Terminal(String::from("S"))).unwrap();
 
-
-
-
     //
     // Driving the parser against input
     //
@@ -2641,9 +1735,7 @@ fn main() {
     println!("Driving the parser against input                               ");
     println!("***************************************************************");
 
-
-
-    // https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html (Do not add a rule S' -> S into the webapp)
+    // https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html (do not add a rule S' -> S into the webapp)
     // https://jsmachines.sourceforge.net/machines/lalr1.html (Add augmented start rule)
 
     // How to drive the parser:
@@ -2670,68 +1762,549 @@ fn main() {
 
 /*
     // void main() {}
-    // VOID IDENTIFIER OPENING_BRACES CLOSING_BRACES OPENING_CURLY_BRACES CLOSING_CURLY_BRACES
+    // VOID IDENTIFIER OPENING_BRACKET CLOSING_BRACKET OPENING_CURLY_BRACKET CLOSING_CURLY_BRACKET
     provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("VOID")));
     provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("IDENTIFIER")));
-    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_BRACES")));
-    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_BRACES")));
-    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_CURLY_BRACES")));
-    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_CURLY_BRACES")));
+    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_BRACKET")));
+    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_BRACKET")));
+    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_CURLY_BRACKET")));
+    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_CURLY_BRACKET")));
     provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Closure);
 */
 
     // // void main() { EXPRESSION_STOP; }
-    // // VOID IDENTIFIER OPENING_BRACES CLOSING_BRACES OPENING_CURLY_BRACES EXPRESSION_STOP SEMICOLON CLOSING_CURLY_BRACES
+    // // VOID IDENTIFIER OPENING_BRACKET CLOSING_BRACKET OPENING_CURLY_BRACKET EXPRESSION_STOP SEMICOLON CLOSING_CURLY_BRACKET
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("VOID")));
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("IDENTIFIER")));
-    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_BRACES")));
-    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_BRACES")));
-    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_CURLY_BRACES")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_BRACKET")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_BRACKET")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_CURLY_BRACKET")));
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("EXPRESSION_STOP")));
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("SEMICOLON")));
-    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_CURLY_BRACES")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_CURLY_BRACKET")));
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Closure);
 
     // void main() { EXPRESSION_STOP; }
-    // VOID IDENTIFIER OPENING_BRACES CLOSING_BRACES OPENING_CURLY_BRACES EXPRESSION_STOP SEMICOLON CLOSING_CURLY_BRACES
+    // VOID IDENTIFIER OPENING_BRACKET CLOSING_BRACKET OPENING_CURLY_BRACKET EXPRESSION_STOP SEMICOLON CLOSING_CURLY_BRACKET
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("VOID")));
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("IDENTIFIER")));
-    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_BRACES")));
-    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_BRACES")));
-    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_CURLY_BRACES")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_BRACKET")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_BRACKET")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_CURLY_BRACKET")));
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CAST_STOP")));
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("SEMICOLON")));
-    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_CURLY_BRACES")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_CURLY_BRACKET")));
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Closure);
 
     // void main() { SIZEOF ( VOID ); }
-    // VOID IDENTIFIER OPENING_BRACES CLOSING_BRACES OPENING_CURLY_BRACES SIZEOF OPENING_BRACES VOID CLOSING_BRACES SEMICOLON CLOSING_CURLY_BRACES
+    // VOID IDENTIFIER OPENING_BRACKET CLOSING_BRACKET OPENING_CURLY_BRACKET SIZEOF OPENING_BRACKET VOID CLOSING_BRACKET SEMICOLON CLOSING_CURLY_BRACKET
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("VOID")));
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("IDENTIFIER")));
-    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_BRACES")));
-    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_BRACES")));
-    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_CURLY_BRACES")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_BRACKET")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_BRACKET")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_CURLY_BRACKET")));
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("SIZEOF")));
-    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_BRACES")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_BRACKET")));
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("VOID")));
-    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_BRACES")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_BRACKET")));
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("SEMICOLON")));
-    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_CURLY_BRACES")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_CURLY_BRACKET")));
     // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Closure);
 
-    // void main() { IDENTIFIER = IDENTIFIER; }
-    // VOID IDENTIFIER OPENING_BRACES CLOSING_BRACES OPENING_CURLY_BRACES IDENTIFIER EQUALS_SIGN IDENTIFIER SEMICOLON CLOSING_CURLY_BRACES
-    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("VOID")));
-    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("IDENTIFIER")));
-    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_BRACES")));
-    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_BRACES")));
-    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_CURLY_BRACES")));
-    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("IDENTIFIER")));
-    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("EQUALS_SIGN")));
-    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("IDENTIFIER")));
-    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("SEMICOLON")));
-    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_CURLY_BRACES")));
+    // // void main() { IDENTIFIER = IDENTIFIER; }
+    // // VOID IDENTIFIER OPENING_BRACKET CLOSING_BRACKET OPENING_CURLY_BRACKET IDENTIFIER EQUALS_SIGN IDENTIFIER SEMICOLON CLOSING_CURLY_BRACKET
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("VOID")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("IDENTIFIER")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_BRACKET")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_BRACKET")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_CURLY_BRACKET")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("IDENTIFIER")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("EQUALS_SIGN")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("IDENTIFIER")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("SEMICOLON")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_CURLY_BRACKET")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Closure);
+
+    //
+    // Phase 0 - 
+    //
+
+    //
+    // Pre-Build alphabet
+    //
+
+    // complete alphabet has to be known in advance
+    let mut alphabet = HashSet::<RegexBuildingBlock>::new();
+
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('a'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('b'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('c'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('d'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('e'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('f'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('g'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('h'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('i'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('j'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('k'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('l'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('m'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('n'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('o'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('p'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('q'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('r'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('s'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('t'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('u'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('v'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('w'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('x'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('y'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('z'));
+
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('0'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('1'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('2'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('3'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('4'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('5'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('6'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('7'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('8'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('9'));
+
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral(' '));
+
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('_'));
+
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('<'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('>'));
+    
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('{'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('}'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('('));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral(')'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('['));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral(']'));
+
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral(';'));
+
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('+'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('-'));
+
+    // alphabet.insert(RegexBuildingBlock::CharacterLiteral('\n'));
+
+    //
+    // Phase 1 - build all regexes
+    //
+
+    //
+    // identifier
+
+    // provide a regex in infix notation and let the converter produce a postfix notation
+    // The result is stored within the state of the converter instance, this is why the converter can be reset
+    let mut converter = InfixPostfixConverter::new();
+    //converter.infix_to_postfix("(_|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z)(_|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z)+");
+    converter.infix_to_postfix("(_|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z)|(_|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z)(_|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z|0|1|2|3|4|5|6|7|8|9)+");
+    
+    // next, from the regex-items in the postfix notation, construct a eNFA
+    // This function will go through the infix character by character and extend a eNFA as it goes.
+    // Once done, the eNFA will accept all input described by the regex infix notation
+    let mut fragment_stack_identifier = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_identifier, &mut alphabet);
+
+    // reset the converter
+    converter.reset();
+
+    // the top fragment on the fragment stack contains the root of the eNFA
+    let mut fragment_identifier = fragment_stack_identifier.stack.pop().unwrap();
+
+    // assign a token id to eNFA so it will assign that token id to all token it accepts
+    fragment_identifier.enfa.states.get_mut(&fragment_identifier.end_id).unwrap().token_id = 500;
+    fragment_identifier.enfa.states.get_mut(&fragment_identifier.end_id).unwrap().token_name = String::from("IDENTIFIER");
+
+    // DEBUG dump the graph to .dot format for viewing using https://dreampuf.github.io/GraphvizOnline
+    //enfa_to_dot_directed_graph(&mut fragment_identifier.enfa, "fragment_identifier_automaton.dot");
+
+    //
+    // numeric (token-id: 600)
+    converter.infix_to_postfix("(0|1|2|3|4|5|6|7|8|9)+");
+    let mut fragment_stack_numeric = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_numeric, &mut alphabet);
+    converter.reset();
+    let mut fragment_numeric = fragment_stack_numeric.stack.pop().unwrap();
+    fragment_numeric.enfa.states.get_mut(&fragment_numeric.end_id).unwrap().token_id = 600;
+    fragment_numeric.enfa.states.get_mut(&fragment_numeric.end_id).unwrap().token_name = String::from("NUMERIC");
+
+    // auto        break       case        char 
+    // const       continue    default     do 
+    // double      else        enum        extern 
+    // float       for         goto        if 
+    // int         long        register    return 
+    // short       signed      sizeof      static 
+    // struct      switch      typedef     union 
+    // unsigned    void        volatile    while
+
+    //
+    // RETURN (token-id: 100)
+    converter.infix_to_postfix("return");
+    let mut fragment_stack_return = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_return, &mut alphabet);
+    converter.reset();
+    let mut fragment_return = fragment_stack_return.stack.pop().unwrap();
+    fragment_return.enfa.states.get_mut(&fragment_return.end_id).unwrap().token_id = 100;
+    fragment_return.enfa.states.get_mut(&fragment_return.end_id).unwrap().token_name = String::from("RETURN");
+
+    //
+    // if (token-id: 110)
+    converter.infix_to_postfix("if");
+    let mut fragment_stack_if = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_if, &mut alphabet);
+    converter.reset();
+    let mut fragment_if = fragment_stack_if.stack.pop().unwrap();
+    fragment_if.enfa.states.get_mut(&fragment_if.end_id).unwrap().token_id = 110;
+    fragment_if.enfa.states.get_mut(&fragment_if.end_id).unwrap().token_name = String::from("IF");
+
+    //
+    // VOID (token-id: 200)
+    converter.infix_to_postfix("void");
+    let mut fragment_stack_void = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_void, &mut alphabet);
+    converter.reset();
+    let mut fragment_void = fragment_stack_void.stack.pop().unwrap();
+    fragment_void.enfa.states.get_mut(&fragment_void.end_id).unwrap().token_id = 200;
+    fragment_void.enfa.states.get_mut(&fragment_void.end_id).unwrap().token_name = String::from("VOID");
+
+    //
+    // INT (token-id: 210)
+    converter.infix_to_postfix("int");
+    let mut fragment_stack_int = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_int, &mut alphabet);
+    converter.reset();
+    let mut fragment_int = fragment_stack_int.stack.pop().unwrap();
+    fragment_int.enfa.states.get_mut(&fragment_int.end_id).unwrap().token_id = 210;
+    fragment_int.enfa.states.get_mut(&fragment_int.end_id).unwrap().token_name = String::from("INT");
+
+    //
+    // Whitespace
+    // ' ' (toke-id: 15)
+    let mut fragment_stack_whitespace = FragmentStack::new();
+    add_character_literal(&mut fragment_stack_whitespace, RegexBuildingBlock::CharacterLiteral(' '), &mut alphabet);
+    // the top fragment on the fragment stack contains the root of the eNFA
+    let mut fragment_whitespace = fragment_stack_whitespace.stack.pop().unwrap();
+    fragment_whitespace.enfa.states.get_mut(&fragment_whitespace.end_id).unwrap().token_id = 15;
+    fragment_whitespace.enfa.states.get_mut(&fragment_whitespace.end_id).unwrap().token_name = String::from("WHITESPACE");
+
+    //
+    // OPENING_BRACKET (token-id: 20)
+    converter.infix_to_postfix("\\(");
+    let mut fragment_stack_opening_bracket = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_opening_bracket, &mut alphabet);
+    converter.reset();
+    let mut fragment_opening_bracket = fragment_stack_opening_bracket.stack.pop().unwrap();
+    fragment_opening_bracket.enfa.states.get_mut(&fragment_opening_bracket.end_id).unwrap().token_id = 20;
+    fragment_opening_bracket.enfa.states.get_mut(&fragment_opening_bracket.end_id).unwrap().token_name = String::from("OPENING_BRACKET");
+
+    //
+    // CLOSING_BRACKET (token-id: 25)
+    converter.infix_to_postfix("\\)");
+    let mut fragment_stack_closing_bracket = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_closing_bracket, &mut alphabet);
+    converter.reset();
+    let mut fragment_closing_bracket = fragment_stack_closing_bracket.stack.pop().unwrap();
+    fragment_closing_bracket.enfa.states.get_mut(&fragment_closing_bracket.end_id).unwrap().token_id = 25;
+    fragment_closing_bracket.enfa.states.get_mut(&fragment_closing_bracket.end_id).unwrap().token_name = String::from("CLOSING_BRACKET");
+
+    //
+    // OPENING_SQUIGGLY_BRACKET (token-id: 30)
+    converter.infix_to_postfix("\\{");
+    let mut fragment_stack_opening_squiggly_bracket = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_opening_squiggly_bracket, &mut alphabet);
+    converter.reset();
+    let mut fragment_opening_squiggly_bracket = fragment_stack_opening_squiggly_bracket.stack.pop().unwrap();
+    fragment_opening_squiggly_bracket.enfa.states.get_mut(&fragment_opening_squiggly_bracket.end_id).unwrap().token_id = 30;
+    fragment_opening_squiggly_bracket.enfa.states.get_mut(&fragment_opening_squiggly_bracket.end_id).unwrap().token_name = String::from("OPENING_SQUIGGLY_BRACKET");
+
+    //
+    // CLOSING_SQUIGGLY_BRACKET (token-id: 35)
+    converter.infix_to_postfix("\\}");
+    let mut fragment_stack_closing_squiggly_bracket = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_closing_squiggly_bracket, &mut alphabet);
+    converter.reset();
+    let mut fragment_closing_squiggly_bracket = fragment_stack_closing_squiggly_bracket.stack.pop().unwrap();
+    fragment_closing_squiggly_bracket.enfa.states.get_mut(&fragment_closing_squiggly_bracket.end_id).unwrap().token_id = 35;
+    fragment_closing_squiggly_bracket.enfa.states.get_mut(&fragment_closing_squiggly_bracket.end_id).unwrap().token_name = String::from("CLOSING_SQUIGGLY_BRACKET");
+
+    //
+    // OPENING_ANGULAR_BRACKET (token-id: 40)
+    converter.infix_to_postfix("\\[");
+    let mut fragment_stack_opening_angular_bracket = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_opening_angular_bracket, &mut alphabet);
+    converter.reset();
+    let mut fragment_opening_angular_bracket = fragment_stack_opening_angular_bracket.stack.pop().unwrap();
+    fragment_opening_angular_bracket.enfa.states.get_mut(&fragment_opening_angular_bracket.end_id).unwrap().token_id = 40;
+    fragment_opening_angular_bracket.enfa.states.get_mut(&fragment_opening_angular_bracket.end_id).unwrap().token_name = String::from("OPENING_ANGULAR_BRACKET");
+
+    //
+    // CLOSING_ANGULAR_BRACKET (token-id: 45)
+    converter.infix_to_postfix("\\]");
+    let mut fragment_stack_closing_angular_bracket = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_closing_angular_bracket, &mut alphabet);
+    converter.reset();
+    let mut fragment_closing_angular_bracket = fragment_stack_closing_angular_bracket.stack.pop().unwrap();
+    fragment_closing_angular_bracket.enfa.states.get_mut(&fragment_closing_angular_bracket.end_id).unwrap().token_id = 45;
+    fragment_closing_angular_bracket.enfa.states.get_mut(&fragment_closing_angular_bracket.end_id).unwrap().token_name = String::from("CLOSING_ANGULAR_BRACKET");
+
+    //
+    // Semicolon (token-id: 50)
+    converter.infix_to_postfix(";");
+    let mut fragment_stack_semicolon = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_semicolon, &mut alphabet);
+    converter.reset();
+    let mut fragment_semicolon = fragment_stack_semicolon.stack.pop().unwrap();
+    fragment_semicolon.enfa.states.get_mut(&fragment_semicolon.end_id).unwrap().token_id = 50;
+    fragment_semicolon.enfa.states.get_mut(&fragment_semicolon.end_id).unwrap().token_name = String::from("SEMICOLON");
+
+    //
+    // LessThan LT (token-id: 55)
+    converter.infix_to_postfix("<");
+    let mut fragment_stack_less_than = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_less_than, &mut alphabet);
+    converter.reset();
+    let mut fragment_less_than = fragment_stack_less_than.stack.pop().unwrap();
+    fragment_less_than.enfa.states.get_mut(&fragment_less_than.end_id).unwrap().token_id = 55;
+    fragment_less_than.enfa.states.get_mut(&fragment_less_than.end_id).unwrap().token_name = String::from("LT");
+
+    //
+    // GreaterThan GT (token-id: 60)
+    converter.infix_to_postfix(">");
+    let mut fragment_stack_greater_than = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_greater_than, &mut alphabet);
+    converter.reset();
+    let mut fragment_greater_than = fragment_stack_greater_than.stack.pop().unwrap();
+    fragment_greater_than.enfa.states.get_mut(&fragment_greater_than.end_id).unwrap().token_id = 60;
+    fragment_greater_than.enfa.states.get_mut(&fragment_greater_than.end_id).unwrap().token_name = String::from("GT");
+
+    //
+    // PLUS (token-id: 65)
+    converter.infix_to_postfix("\\+");
+    let mut fragment_stack_plus = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_plus, &mut alphabet);
+    converter.reset();
+    let mut fragment_plus = fragment_stack_plus.stack.pop().unwrap();
+    fragment_plus.enfa.states.get_mut(&fragment_plus.end_id).unwrap().token_id = 65;
+    fragment_plus.enfa.states.get_mut(&fragment_plus.end_id).unwrap().token_name = String::from("PLUS");
+
+    //
+    // MINUS (token-id: 66)
+    converter.infix_to_postfix("\\-");
+    let mut fragment_stack_minus = FragmentStack::new();
+    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_minus, &mut alphabet);
+    converter.reset();
+    let mut fragment_minus = fragment_stack_minus.stack.pop().unwrap();
+    fragment_minus.enfa.states.get_mut(&fragment_minus.end_id).unwrap().token_id = 66;
+    fragment_minus.enfa.states.get_mut(&fragment_minus.end_id).unwrap().token_name = String::from("MINUS");
+
+
+    // // DEBUG
+    // enfa_to_dot_directed_graph(&mut fragment_fragment_whitespace.enfa, "fragment_hitespace_automaton.dot");
+
+    //
+    // Phase 2 - Combine all eNFA into a large eNFA
+    //
+
+    let mut combined_fragment = Fragment::new(RegexBuildingBlock::Or);
+
+    // // copy first keyword over (hello)
+    // let (start_id_1, end_id_1) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_1.enfa, fragment_1.end_id);
+    // // copy second keyword over (world)
+    // let (start_id_2, end_id_2) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_2.enfa, fragment_2.end_id);
+    // // copy third keyword over (int)
+    // let (start_id_3, end_id_3) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_3.enfa, fragment_3.end_id);
+    // // copy fourth keyword over (interop)
+    // let (start_id_4, end_id_4) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_4.enfa, fragment_4.end_id);
+    // // // copy 5th keyword over (ab)
+    // // let (start_id_5, end_id_5) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_5.enfa, fragment_5.end_id);
+    // // copy 6th keyword over (identifier)
+    // let (start_id_6, end_id_6) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_6.enfa, fragment_6.end_id);
+    // let (start_id_7, end_id_7) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_7.enfa, fragment_7.end_id);
+
+    let (start_id_identifier, end_id_identifier)                                = enfa_copy(&mut combined_fragment.enfa, &mut fragment_identifier.enfa, fragment_identifier.end_id);
+    let (start_id_numeric, end_id_numeric)                                      = enfa_copy(&mut combined_fragment.enfa, &mut fragment_numeric.enfa, fragment_numeric.end_id);
+    let (start_id_return, end_id_return)                                        = enfa_copy(&mut combined_fragment.enfa, &mut fragment_return.enfa, fragment_return.end_id);
+    let (start_id_if, end_id_if)                                                = enfa_copy(&mut combined_fragment.enfa, &mut fragment_if.enfa, fragment_if.end_id);
+    let (start_id_void, end_id_void)                                            = enfa_copy(&mut combined_fragment.enfa, &mut fragment_void.enfa, fragment_void.end_id);
+    let (start_id_int, end_id_int)                                              = enfa_copy(&mut combined_fragment.enfa, &mut fragment_int.enfa, fragment_int.end_id);
+    let (start_id_whitespace, end_id_whitespace)                                = enfa_copy(&mut combined_fragment.enfa, &mut fragment_whitespace.enfa, fragment_whitespace.end_id);
+    let (start_id_opening_bracket, end_id_opening_bracket)                      = enfa_copy(&mut combined_fragment.enfa, &mut fragment_opening_bracket.enfa, fragment_opening_bracket.end_id);
+    let (start_id_closing_bracket, end_id_closing_bracket)                      = enfa_copy(&mut combined_fragment.enfa, &mut fragment_closing_bracket.enfa, fragment_closing_bracket.end_id);
+    let (start_id_opening_squiggly_bracket, end_id_opening_squiggly_bracket)    = enfa_copy(&mut combined_fragment.enfa, &mut fragment_opening_squiggly_bracket.enfa, fragment_opening_squiggly_bracket.end_id);
+    let (start_id_closing_squiggly_bracket, end_id_closing_squiggly_bracket)    = enfa_copy(&mut combined_fragment.enfa, &mut fragment_closing_squiggly_bracket.enfa, fragment_closing_squiggly_bracket.end_id);
+    let (start_id_opening_angular_bracket, end_id_opening_angular_bracket)      = enfa_copy(&mut combined_fragment.enfa, &mut fragment_opening_angular_bracket.enfa, fragment_opening_angular_bracket.end_id);
+    let (start_id_closing_angular_bracket, end_id_closing_angular_bracket)      = enfa_copy(&mut combined_fragment.enfa, &mut fragment_closing_angular_bracket.enfa, fragment_closing_angular_bracket.end_id);
+    let (start_id_semicolon, end_id_semicolon)                                  = enfa_copy(&mut combined_fragment.enfa, &mut fragment_semicolon.enfa, fragment_semicolon.end_id);
+    let (start_id_greater_than, end_id_greater_than)                            = enfa_copy(&mut combined_fragment.enfa, &mut fragment_greater_than.enfa, fragment_greater_than.end_id);
+    let (start_id_less_than, end_id_less_than)                                  = enfa_copy(&mut combined_fragment.enfa, &mut fragment_less_than.enfa, fragment_less_than.end_id);
+    let (start_id_plus, end_id_plus)                                            = enfa_copy(&mut combined_fragment.enfa, &mut fragment_plus.enfa, fragment_plus.end_id);
+    let (start_id_minus, end_id_minus)                                          = enfa_copy(&mut combined_fragment.enfa, &mut fragment_minus.enfa, fragment_minus.end_id);
+
+    // add epsilon transitions to all the individual keyword eNFAs
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_identifier);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_numeric);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_whitespace);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_return);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_if);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_void);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_int);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_opening_bracket);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_closing_bracket);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_opening_squiggly_bracket);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_closing_squiggly_bracket);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_opening_angular_bracket);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_closing_angular_bracket);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_semicolon);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_less_than);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_greater_than);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_plus);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_minus);
+
+    // combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_2);
+    // combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_3);
+    // combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_4);
+    // // combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_5);
+    // combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_6);
+    // combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_7);
+
+    // DEBUG - print to dot file format for debugging with https://dreampuf.github.io/GraphvizOnline
+    //enfa_to_dot_directed_graph(&mut combined_fragment.enfa, "enfa_automaton.dot");
+
+    //
+    // Phase 3 - Convert eNFA to DFA
+    //
+
+    let mut dfa = enfa_to_dfa(&mut combined_fragment.enfa, &mut alphabet);
+
+    // DEBUG - print to dot file format for debugging with https://dreampuf.github.io/GraphvizOnline
+    //enfa_to_dot_directed_graph(&mut dfa, "dfa_automaton.dot");
+
+    //
+    // Phase 4 - lex some input
+    //
+
+    let mut current_state_id = dfa.start_state_id;
+    let mut last_state_id = dfa.start_state_id;
+
+    // https://github.com/nlsandler/writing-a-c-compiler-tests/blob/main/tests/chapter_1/valid/return_0.c
+    //let str = "void main() { return 100; }";
+    //let str = "int main() { return 2; }";
+    
+    // INT IDENTIFIER OPENING_BRACKET CLOSING_BRACKET OPENING_SQUIGGLY_BRACKET IF OPENING_BRACKET NUMERIC LT NUMERIC CLOSING_BRACKET OPENING_SQUIGGLY_BRACKET RETURN NUMERIC SEMICOLON CLOSING_SQUIGGLY_BRACKET RETURN NUMERIC SEMICOLON CLOSING_SQUIGGLY_BRACKET
+    //let str = "int main() { if (1 < 2) { return 2; } return 0; }";
+
+    // INT IDENTIFIER OPENING_BRACKET CLOSING_BRACKET OPENING_SQUIGGLY_BRACKET IF OPENING_BRACKET NUMERIC LT NUMERIC CLOSING_BRACKET OPENING_SQUIGGLY_BRACKET RETURN NUMERIC PLUS NUMERIC SEMICOLON CLOSING_SQUIGGLY_BRACKET RETURN NUMERIC SEMICOLON CLOSING_SQUIGGLY_BRACKET
+    // let str = "int main() { if (1 < 2) { return 2 + 2; } return 0; }";
+
+    // NUMERIC PLUS NUMERIC
+    //let str = "2 + 2";
+
+    // NUMERIC PLUS NUMERIC SEMICOLON
+    //let str = "2 + 2;";
+
+    // IF OPENING_BRACKET NUMERIC LT NUMERIC CLOSING_BRACKET RETURN NUMERIC SEMICOLON
+    // let str = "if (1 < 2) return 2;";
+
+    // IF OPENING_BRACKET NUMERIC LT NUMERIC CLOSING_BRACKET RETURN NUMERIC PLUS NUMERIC SEMICOLON
+    // let str = "if (1 < 2) return 2 + 2;";
+
+    // IF OPENING_BRACKET NUMERIC LT NUMERIC CLOSING_BRACKET OPENING_SQUIGGLY_BRACKET RETURN NUMERIC PLUS NUMERIC SEMICOLON CLOSING_SQUIGGLY_BRACKET
+    // let str = "if (1 < 2) { }";
+
+    // IF OPENING_BRACKET NUMERIC LT NUMERIC CLOSING_BRACKET OPENING_SQUIGGLY_BRACKET RETURN SEMICOLON CLOSING_SQUIGGLY_BRACKET
+    // let str = "if (1 < 2) { return; }";
+
+    // let str = "if (1 < 2) { return 0; }";
+
+    // let str = "if (1 < 2) { return 2 + 2; }";
+
+    // VOID VOID VOID VOID VOID
+    //let str = "void void void void void";
+
+    println!("Input: {}", str);
+    
+    let lexer_debug: bool = false;
+
+    let mut token_string_buffer = String::from("");
+    for character in str.chars() {
+
+        let mut char_consumed = false;
+        while !char_consumed {
+
+            last_state_id = current_state_id;
+
+            // println!("Input: {}", character);
+            //token_string_buffer.push(character);
+
+            // try to transition
+            current_state_id = transition_dfa(&mut dfa, current_state_id, &RegexBuildingBlock::CharacterLiteral(character));
+
+            if dfa.is_end_state(current_state_id) {
+
+                // println!("STATE '{}' END STATE!", current_state_id);
+                // println!("ACCEPTING '{}'! END STATE! Token-Id: {}", token_string_buffer, dfa.states[&current_state_id].token_id);
+
+                token_string_buffer.push(character);
+
+                char_consumed = true;
+
+            } else if dfa.is_trap_state(current_state_id) {
+
+                // reset the dfa to the start state and try to accept the symbol again
+                char_consumed = false;
+                current_state_id = dfa.start_state_id;
+
+                if lexer_debug {
+                    println!("[LEXER] Emitting '{}', Token-Id: {}, Token-Name: {}", token_string_buffer, dfa.states[&last_state_id].token_id, dfa.states[&last_state_id].token_name);
+                    println!("");
+                }
+
+                // 15 is the token-id of whitespace, ignore whitespace!
+                if dfa.states[&last_state_id].token_id != 15 {
+                    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(dfa.states[&last_state_id].token_name.clone()));
+                }
+
+                token_string_buffer.clear();
+
+            } else {
+                // println!("STATE '{}' NOT END STATE!", current_state_id);
+
+                token_string_buffer.push(character);
+
+                char_consumed = true;
+            }
+        }
+    }
+
+    if lexer_debug {
+        println!("[LEXER] Emitting '{}'. Token-Id: {}, Token-Name: {}", token_string_buffer, dfa.states[&current_state_id].token_id, dfa.states[&current_state_id].token_name);
+        println!("");
+    }
+    
+    provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(dfa.states[&current_state_id].token_name.clone()));
     provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Closure);
+
+    // // void main() { RETURN 0; }
+    // // VOID IDENTIFIER OPENING_BRACKET CLOSING_BRACKET OPENING_CURLY_BRACKET RETURN NUMERIC SEMICOLON CLOSING_CURLY_BRACKET
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("VOID")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("IDENTIFIER")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_BRACKET")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_BRACKET")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("OPENING_CURLY_BRACKET")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("RETURN")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("NUMERIC")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("SEMICOLON")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(String::from("CLOSING_CURLY_BRACKET")));
+    // provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Closure);
 /*
     let mut consumed = false;
 
@@ -2895,7 +2468,7 @@ fn provide_input(parser: &mut Parser<String>, grammar_state_hashmap: &BTreeMap<u
     let mut consumed = false;
     while !consumed {
         println!("");
-        println!("Step {}", *step);
+        println!("[provide_input] Step {}", *step);
         consumed = parser.consume(rule_element.clone(), &grammar_state_hashmap);
         *step = *step + 1;
     }

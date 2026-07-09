@@ -44,6 +44,8 @@ pub fn recurse_postfix(arena: &Arena<RegexBuildingBlock>, parent_node_id: &NodeI
                 '-' => { string_buffer.push_str("\\-"); }
                 '*' => { string_buffer.push_str("\\*"); }
                 '^' => { string_buffer.push_str("\\^"); }
+                '(' => { string_buffer.push_str("\\("); }
+                ')' => { string_buffer.push_str("\\)"); }
                 _ => { string_buffer.push_str(format!("{:?}", parent_node.data).as_str()); }
             }
         }
@@ -483,6 +485,12 @@ impl InfixPostfixConverter {
                     '*' => { self.process_literal_character('*'); }
                     '^' => { self.process_literal_character('^'); }
                     //'s' => { self.process_literal_character(r"\s"); }
+                    '(' => { self.process_literal_character('('); }
+                    ')' => { self.process_literal_character(')'); }
+                    '{' => { self.process_literal_character('{'); }
+                    '}' => { self.process_literal_character('}'); }
+                    '[' => { self.process_literal_character('['); }
+                    ']' => { self.process_literal_character(']'); }
                     _ => { panic!("test"); }
                 }
 
@@ -1321,19 +1329,7 @@ impl InfixPostfixConverter {
                 }
 
                 _ => {
-
-                    // if self.escaped_sequence {
-                    //     match c {
-                    //         'n' => { self.process_literal_character('\n'); }
-                    //         'r' => { self.process_literal_character('\r'); }
-                    //         't' => { self.process_literal_character('\t'); }
-                    //         '|' => { self.process_literal_character('|'); }
-                    //         //'s' => { self.process_literal_character(r"\s"); }
-                    //         _ => { panic!("test"); }
-                    //     }
-                    // } else {
-                        self.process_literal_character(c);
-                    // }
+                    self.process_literal_character(c);
                 }
             }
         }
