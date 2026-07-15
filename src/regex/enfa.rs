@@ -79,6 +79,7 @@ impl StateTrait for State {
 pub enum Input<T> {
     Symbol(T),
     Epsilon,
+    // AllOther,
 }
 
 // Transition table type: (CurrentState, Input) -> Set of NextStates
@@ -183,14 +184,16 @@ pub fn enfa_to_dot_directed_graph(enfa: &mut EpsilonNfa<State, RegexBuildingBloc
             write!(writer, "\t{}[shape=doublecircle];\n", state_id);
         }
 
-        // if this state is an accepting state for a tooken, mark it in the dot file
+        // if this state is an accepting state for a token, mark it in the dot file
         if state.token_id != 0 {
             write!(writer, "\t{}[label=\"{}, Token: {}\"];\n", state_id, state_id, state.token_id);
         }
     }
 
     // iterate over transitions
-    // ((S, Input<T>), HashSet<S>) 
+    // ((S, Input<T>), HashSet<S>)
+    //
+    // a transition says: from start_state_id with symbol 'input_symbol', transition to all states in end_state_id_set
     for ((start_state_id, input_symbol), end_state_id_set) in enfa.transitions.iter_mut() {
 
         for end_state_id in end_state_id_set.iter() {
@@ -198,7 +201,14 @@ pub fn enfa_to_dot_directed_graph(enfa: &mut EpsilonNfa<State, RegexBuildingBloc
             write!(writer, "\t{}", start_state_id);
             write!(writer, " -> ");
             write!(writer, "{}", end_state_id);
-            write!(writer, "[label=\"{:?}\"]", input_symbol);
+
+            if *input_symbol == Input::Symbol(RegexBuildingBlock::CharacterLiteral('"')) {
+                write!(writer, "[label=\"Symbol(quotes)\"]");
+            } else {
+                write!(writer, "[label=\"{:?}\"]", input_symbol);
+            }
+            // write!(writer, "[label=\"{:?}\"]", input_symbol);
+
             write!(writer, ";");
             write!(writer, "\n");
         }
@@ -213,7 +223,7 @@ pub fn enfa_to_dot_directed_graph(enfa: &mut EpsilonNfa<State, RegexBuildingBloc
 #[derive(Clone)]
 pub struct Fragment {
     pub enfa: EpsilonNfa::<State, RegexBuildingBlock>,
-    symbol: RegexBuildingBlock,
+    pub symbol: RegexBuildingBlock,
     pub start_id: usize,
     pub end_id: usize,
 }
@@ -279,27 +289,14 @@ pub fn recurse_postfix_build_fragment_stack(arena: &Arena<RegexBuildingBlock>,
         }
     }
 
-    // // DEBUG
-    // println!("{:?}", parent_node.data);
+    // DEBUG
+    // println!("'{:?}'", parent_node.data);
 
     match parent_node.data {
 
         // unescaped for processing, the special characters have to be escaped again for output
         RegexBuildingBlock::CharacterLiteral(c) => {
-
-            // match c {
-            //     '|' => { panic!("test"); }
-            //     '+' => { panic!("test"); }
-            //     '-' => { panic!("test"); }
-            //     '*' => { panic!("test"); }
-            //     '^' => { panic!("test"); }
-            //     _ => { 
-            //         add_character_literal(fragment_stack, RegexBuildingBlock::CharacterLiteral(c), alphabet);
-            //     }
-            // }
-
             add_character_literal(fragment_stack, RegexBuildingBlock::CharacterLiteral(c), alphabet);
-
         }
 
         RegexBuildingBlock::Concatenation => {
@@ -310,6 +307,10 @@ pub fn recurse_postfix_build_fragment_stack(arena: &Arena<RegexBuildingBlock>,
             add_or(fragment_stack);
         }
 
+        RegexBuildingBlock::Repeat(0, _) => {
+            add_repeat_zero_or_more(fragment_stack);
+        }
+
         RegexBuildingBlock::Repeat(1, _) => {
             add_repeat_one_or_more(fragment_stack);
         }
@@ -318,8 +319,13 @@ pub fn recurse_postfix_build_fragment_stack(arena: &Arena<RegexBuildingBlock>,
             // nop
         }
 
+        RegexBuildingBlock::Not => {
+            //add_not_extended_interpretation(fragment_stack, alphabet);
+            add_not_single_character_interpretation(fragment_stack, alphabet);
+        }
+
         _ => {
-            panic!("test {:?}", parent_node.data);
+            panic!("[recurse_postfix_build_fragment_stack] Unexpected Data: {:?}", parent_node.data);
         }
     }
 }
@@ -330,16 +336,26 @@ pub fn add_character_literal(fragment_stack: &mut FragmentStack, regex_building_
 
     if fragment_stack.is_empty() {
 
+        // fragment stack is empty
+
         let mut fragment = Fragment::new(regex_building_block);
     
+        // create a new state and insert it into the new fragment's automaton so that this 
+        // automaton can accept the character literal directly
         let mut another_state = State::new(STATE_COUNTER.fetch_add(1, Ordering::SeqCst));
         another_state.start_state = false;
         another_state.end_state = false;
+
+        // add state into automaton
         let another_state_id = fragment.enfa.add_state(another_state);
 
+        // build a transition between the automaton's start state and the newly created state for the character literal
         fragment.enfa.add_transition(fragment.enfa.start_state_id, Input::Symbol(regex_building_block), another_state_id);
+
+        // the end state of the fragment is the newly created state
         fragment.end_id = another_state_id;
     
+        // insert the first fragment into the stack. It now has a single transition for the character literal
         fragment_stack.stack.push(fragment);
 
     } else {
@@ -435,10 +451,10 @@ fn add_concatenation(fragment_stack: &mut FragmentStack) {
         let mut bottom_fragment = fragment_stack.stack.pop().unwrap();
 
         // DEBUG
-        enfa_to_dot_directed_graph(&mut top_fragment.enfa, "top_automaton.dot");
+        // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "top_automaton.dot");
 
         // DEBUG
-        enfa_to_dot_directed_graph(&mut bottom_fragment.enfa, "bottom_automaton.dot");
+        // enfa_to_dot_directed_graph(&mut bottom_fragment.enfa, "bottom_automaton.dot");
         
         let top_end_id = top_fragment.end_id;
 
@@ -667,20 +683,108 @@ fn add_repeat_one_or_more(fragment_stack: &mut FragmentStack) {
 }
 
 // ^ Not / Inversion
-fn add_not(fragment_stack: &mut FragmentStack, alphabet: &HashSet<RegexBuildingBlock>) {
+// 
+// Second interpretation. This second interpretation, if applied to a single character literal will accept
+// all character literals in the alphabet except the negated literal.
+// For example ^a means under this interpretation: b, c, d, e, f ... (anything but not a).
+//
+// NB: the automaton will in fact consume the negated literal and then transition to the end state!
+// This means the following state machine will not ever see the negated symbol. The automaton will remain 
+// in the current state and consume token until it sees the negated symbol, then transition to the end state
+// while consuming the negated symbol!
+fn add_not_single_character_interpretation(fragment_stack: &mut FragmentStack, alphabet: &HashSet<RegexBuildingBlock>) {
 
-    // pop both top elements from the fragment stack because a new state is added and the end_id value has to be changed
+    // pop top element from the fragment stack
     let mut top_fragment = fragment_stack.stack.pop().unwrap();
+
+    // DEBUG
+    enfa_to_dot_directed_graph(&mut top_fragment.enfa, "top_fragment.dot");
+    
+    if top_fragment.enfa.transitions.len() == 0 {
+
+        // remove character literal from top of the stack. Already done
+
+        // build the NOT automaton
+
+        // add new end state
+        // extend the automaton by a new end state
+        let mut new_end_state = State::new(STATE_COUNTER.fetch_add(1, Ordering::SeqCst));
+        new_end_state.start_state = false;
+        new_end_state.end_state = false;
+        let new_end_state_id = top_fragment.enfa.add_state(new_end_state);
+
+        // add transition between start and end
+        top_fragment.enfa.add_transition(top_fragment.start_id, Input::Symbol(top_fragment.symbol), new_end_state_id);
+
+        // add loop transition
+        //top_fragment.enfa.add_transition(top_fragment.start_id, Input::AllOther, top_fragment.start_id);
+
+        // add loop transition
+        for symb in alphabet {
+            if *symb == top_fragment.symbol {
+                continue;
+            }
+            top_fragment.enfa.add_transition(top_fragment.start_id, Input::Symbol(*symb), top_fragment.start_id);
+        }
+
+        top_fragment.end_id = new_end_state_id;
+
+        // push fragment back
+        fragment_stack.stack.push(top_fragment.clone());
+        
+    } else if top_fragment.enfa.transitions.len() == 1 {
+
+        // // Check for this structure: --> () -symbol-> () -->
+        // top_fragment.enfa.add_transition(top_fragment.start_id, Input::AllOther, top_fragment.start_id);
+
+        // add loop transition
+        for symb in alphabet {
+            if *symb == top_fragment.symbol {
+                continue;
+            }
+            top_fragment.enfa.add_transition(top_fragment.start_id, Input::Symbol(*symb), top_fragment.start_id);
+        }
+
+        // push fragment back
+        fragment_stack.stack.push(top_fragment.clone());
+    }
+    // // check if the current fragment consists of a atomic or a complex automaton
+    // if top_fragment.start_id == top_fragment.end_id {
+    //     top_fragment.enfa.add_transition(top_fragment.start_id, Input::Epsilon, top_fragment.end_id);
+    // } 
+    else {
+        panic!("Not implemented for complex automata!");
+    }
+
+    // DEBUG
+    enfa_to_dot_directed_graph(&mut top_fragment.enfa, "top_fragment.dot");
+}
+
+// ^ Not / Inversion
+//
+// This interpretation allows larger strings. Larger strings maybe be valid if they do exactly match the negated symbol.
+// For example: ^a means under this interpretation: epsilon, aa, aaa, aaaa, .... (anything that is not 'a')
+//
+// A second interpretation is possible. The second interpretation, if applied to a single character literal will accept
+// all character literals in the alphabet except the negated literal.
+// For example ^a means under this interpretation: b, c, d, e, f ... (anything but not a)
+fn add_not_extended_interpretation(fragment_stack: &mut FragmentStack, alphabet: &HashSet<RegexBuildingBlock>) {
+
+    // pop top element from the fragment stack
+    let mut top_fragment = fragment_stack.stack.pop().unwrap();
+
+    // DEBUG
+    enfa_to_dot_directed_graph(&mut top_fragment.enfa, "top_fragment.dot");
 
     // check if the current fragment consists of a atomic or a complex automaton
     if top_fragment.start_id == top_fragment.end_id {
 
-        // panic!("not implemented yet!");
-
-        // end state id
+        // create new end state id
         let mut end_state = State::new(STATE_COUNTER.fetch_add(1, Ordering::SeqCst));
         end_state.start_state = false;
         end_state.end_state = false;
+
+        // add new state to the automaton
         let end_state_id = top_fragment.enfa.add_state(end_state);
 
         // extend the automaton by a transition to the new end state
@@ -688,8 +792,12 @@ fn add_not(fragment_stack: &mut FragmentStack, alphabet: &HashSet<RegexBuildingB
 
         top_fragment.end_id = end_state_id;
 
-        // // DEBUG
-        // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "enfa_automaton.dot");
+        // DEBUG
+        enfa_to_dot_directed_graph(&mut top_fragment.enfa, "not_enfa_automaton.dot");
+
+        //
+        // convert eNFA to DFA
+        //
 
         // first, make last state an accepting state, otherwise the eNFA to DFA conversion will produce incorrect results
         top_fragment.enfa.states.get_mut(&top_fragment.end_id).unwrap().end_state = true;
@@ -697,8 +805,8 @@ fn add_not(fragment_stack: &mut FragmentStack, alphabet: &HashSet<RegexBuildingB
         // convert from eNFA to DFA
         let mut dfa = enfa_to_dfa(&mut top_fragment.enfa, alphabet);
 
-        // // DEBUG -- DFA from initial eNFA
-        // enfa_to_dot_directed_graph(&mut dfa, "dfa_automaton.dot");
+        // DEBUG -- DFA from initial eNFA
+        enfa_to_dot_directed_graph(&mut dfa, "dfa_automaton.dot");
 
         // invert end states
         for (_state_id, state) in dfa.states.iter_mut() {
@@ -733,8 +841,8 @@ fn add_not(fragment_stack: &mut FragmentStack, alphabet: &HashSet<RegexBuildingB
             dfa.add_transition(state_id, Input::Epsilon, new_end_state_id);
         }
 
-        // // DEBUG - DFA with additional final state
-        // enfa_to_dot_directed_graph(&mut dfa, "dfa_automaton.dot");
+        // DEBUG - DFA with additional final state
+        enfa_to_dot_directed_graph(&mut dfa, "inverted_dfa_automaton.dot");
 
         top_fragment.start_id = dfa.start_state_id;
         top_fragment.end_id = new_end_state_id;
@@ -940,6 +1048,7 @@ pub fn enfa_copy(dest: &mut EpsilonNfa::<State, RegexBuildingBlock>, src: &mut E
             // write dest id into src state's copy_id so it will not be copied again
             src.states.get_mut(start_state_id).unwrap().copy_id = another_state_id;
 
+            // retrieve the start state of the transition from the src graph
             let src_state = src.states.get_mut(start_state_id).unwrap();
 
             // copy token_id, token_name over
@@ -947,7 +1056,8 @@ pub fn enfa_copy(dest: &mut EpsilonNfa::<State, RegexBuildingBlock>, src: &mut E
             dest_state.token_id = src_state.token_id;
             dest_state.token_name = src_state.token_name.clone();
 
-            // if the start state of the transition is the end state of the src enfa, remember the id of the corresponding copied node for later use
+            // if the start state of the transition is the end state of the src enfa, 
+            // remember the id of the corresponding copied node for later use
             if *start_state_id == end_id {
 
                 // // DEBUG
@@ -972,6 +1082,7 @@ pub fn enfa_copy(dest: &mut EpsilonNfa::<State, RegexBuildingBlock>, src: &mut E
         // copy all transitions emanating from the state
         for end_state_id in end_state_id_set.iter() {
 
+            // find the id of the end state in the dest graph by looking at the id stored in copy id in the state in the src graph
             let mut copy_state_id = src.states[end_state_id].copy_id;
 
             // // DEBUG
@@ -1008,10 +1119,12 @@ pub fn enfa_copy(dest: &mut EpsilonNfa::<State, RegexBuildingBlock>, src: &mut E
                 // println!("B End State Id {} -> {}", end_state_id, copy_state_id);
             }
 
-            if another_state_id == copy_state_id {
-                panic!("loop!");
-            }
+            // // a transition forms a loop! Why should this be an issue?
+            // if another_state_id == copy_state_id {
+            //     panic!("loop!");
+            // }
             
+            // add a transition between the start and the end end node in the dest graph
             dest.add_transition(another_state_id, *input_symbol, copy_state_id);
         }
     }
@@ -1104,8 +1217,6 @@ pub fn enfa_to_dfa(enfa: &mut EpsilonNfa::<State, RegexBuildingBlock>, alphabet:
                         
                         // insert all end states into the newly created powerstate
                         next_power_state.extend(end_state_id_set.clone());
-
-                        
                     }
                 }                  
             }
@@ -1203,10 +1314,12 @@ pub fn enfa_to_dfa(enfa: &mut EpsilonNfa::<State, RegexBuildingBlock>, alphabet:
     dfa
 }
 
+// try to transition the large lexer DFA to produce a token for the input
 pub fn transition_dfa(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>, start_id: usize, input: &RegexBuildingBlock) -> usize {
+    
     let target_state_ids = dfa.transitions.entry((start_id, Input::Symbol(*input)));
     let val = target_state_ids.or_default();
-
+    
     // println!("{:?}", val);
 
     val.clone().into_iter().next().unwrap()

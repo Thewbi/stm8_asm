@@ -100,7 +100,7 @@ pub fn compute_first_original(grammar_rules: &Vec::<Rule<String>>, nullable: &BT
                                 }
                             }
 
-                            // If the non-terminal is nullable, proceed with the next symbol, 
+                            // if the non-terminal is nullable, proceed with the next symbol, 
                             // otherwise abort if not nullable
                             if *nullable.get(&r).unwrap() == false {
                                 break;

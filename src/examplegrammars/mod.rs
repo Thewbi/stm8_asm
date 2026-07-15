@@ -1,5 +1,11 @@
 pub mod c_full;
+pub mod c_full_if_else;
+pub mod c_full_if_else_2;
+pub mod c_full_if_else_3;
 pub mod left_recursive;
 pub mod grammar_1;
 pub mod grammar_2;
 pub mod grammar_3;
+pub mod grammar_4;
+pub mod grammar_5;
+pub mod grammar_6;

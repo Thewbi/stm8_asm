@@ -164,7 +164,6 @@ pub fn new_concat_root(arena: &mut Arena<RegexBuildingBlock>, node_id: &NodeId, 
 
     // push the node into the arena
     arena.nodes.push(Node {
-        // parent: None,
         left: None,
         right: None,
         data: RegexBuildingBlock::Concatenation,
@@ -175,7 +174,6 @@ pub fn new_concat_root(arena: &mut Arena<RegexBuildingBlock>, node_id: &NodeId, 
 
     // push the node into the arena
     arena.nodes.push(Node {
-        // parent: None,
         left: None,
         right: None,
         data: regex_building_block,
@@ -432,7 +430,15 @@ impl InfixPostfixConverter {
 
     pub fn infix_to_postfix(&mut self, regex_infix: &str) -> String {
 
+        // println!("{:?}", regex_infix);
+
         let mut chars = regex_infix.chars().fuse();
+        
+        // let mut copy = chars.clone();
+        // while let Some(c) = copy.next() {
+        //     println!("{:?}", c);
+        // }
+
         while let Some(c) = chars.next() {
 
             //
@@ -472,7 +478,9 @@ impl InfixPostfixConverter {
             }
 */
 
+            // process escaped character sequence
             if self.escaped_sequence {
+
                 self.escaped_sequence = false;
 
                 match c {
@@ -491,7 +499,9 @@ impl InfixPostfixConverter {
                     '}' => { self.process_literal_character('}'); }
                     '[' => { self.process_literal_character('['); }
                     ']' => { self.process_literal_character(']'); }
-                    _ => { panic!("test"); }
+                    '!' => { self.process_literal_character('!'); }
+                    '?' => { self.process_literal_character('?'); }
+                    _ => { panic!("[infix_to_postfix] unhandled character sequence: {}", c); }
                 }
 
                 continue;
@@ -521,7 +531,7 @@ impl InfixPostfixConverter {
                             let root_value = self.arena.get_payload(&node_id);
                             match root_value {
 
-                                RegexBuildingBlock::CharacterClass(_, _) | RegexBuildingBlock::Concatenation => {
+                                RegexBuildingBlock::CharacterLiteral(_) | RegexBuildingBlock::CharacterClass(_, _) | RegexBuildingBlock::Concatenation => {
 
                                     // applied at root
                                     if node_id.index == self.root_node_id.index {
@@ -530,7 +540,7 @@ impl InfixPostfixConverter {
 
                                         self.root_stack[self.root_index].index = res.0;
 
-                                        // not becomes the new root
+                                        // not becomes the new root temporarily so that new symbols are inserted into it instead of at the root
                                         self.root_index = self.root_index + 1;
                                         self.root_stack[self.root_index].index = res.1;
 
@@ -549,7 +559,7 @@ impl InfixPostfixConverter {
                                     }
                                 }
 
-                                _ => { panic!("test: {} meets {:?}", c, root_value); }
+                                _ => { panic!("test: {} meets {:?}. Only allowed: character_class and concatenation and CharacterLiteral", c, root_value); }
 
                             }
 
@@ -1362,7 +1372,8 @@ impl InfixPostfixConverter {
 
         let mut string_buffer = String::from("");
 
-        self.root_node_id = self.root_stack[self.root_index].clone();
+        //self.root_node_id = self.root_stack[self.root_index].clone();
+        self.root_node_id = self.root_stack[0].clone();
 
         recurse_postfix(&self.arena, &self.root_node_id, &mut string_buffer);
         // println!("");

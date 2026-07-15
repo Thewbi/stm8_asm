@@ -2,5 +2,6 @@
 
 digraph {
 	start_pointer [label= "", shape=none,height=.0,width=.0]
-	start_pointer -> 0;
+	start_pointer -> 3;
+	3 -> 4[label="Symbol(quotes)"];
 }

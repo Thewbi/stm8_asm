@@ -836,11 +836,11 @@ fn main_accept_comment() {
     add_character_literal(&mut fragment_stack, RegexBuildingBlock::CharacterLiteral('/'), &mut alphabet);
     add_concatenation(&mut fragment_stack);
 
+    why does this work!
     // ^a (not an a, but empty string or any other string possible using the alphabet!)
     //add_character_literal(&mut fragment_stack, RegexBuildingBlock::CharacterLiteral('a'), &mut alphabet);
     add_character_literal(&mut fragment_stack, RegexBuildingBlock::CharacterLiteral('\n'), &mut alphabet);
     add_not(&mut fragment_stack, &mut alphabet);
-
     add_concatenation(&mut fragment_stack);
 
     // a

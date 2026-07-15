@@ -2,32 +2,6 @@
 
 digraph {
 	start_pointer [label= "", shape=none,height=.0,width=.0]
-	start_pointer -> 28;
-	28 -> 30[label="Symbol(u)"];
-	28 -> 30[label="Symbol(c)"];
-	28 -> 30[label="Symbol(v)"];
-	28 -> 30[label="Symbol(p)"];
-	28 -> 30[label="Symbol(o)"];
-	28 -> 30[label="Symbol(e)"];
-	28 -> 30[label="Symbol(s)"];
-	28 -> 30[label="Symbol(b)"];
-	28 -> 30[label="Symbol(m)"];
-	28 -> 30[label="Symbol(a)"];
-	28 -> 30[label="Symbol(i)"];
-	28 -> 30[label="Symbol(n)"];
-	28 -> 30[label="Symbol(h)"];
-	28 -> 30[label="Symbol(r)"];
-	28 -> 30[label="Symbol(x)"];
-	28 -> 30[label="Symbol(l)"];
-	28 -> 30[label="Symbol(d)"];
-	28 -> 30[label="Symbol(q)"];
-	28 -> 30[label="Symbol(k)"];
-	28 -> 30[label="Symbol(w)"];
-	28 -> 30[label="Symbol(y)"];
-	28 -> 30[label="Symbol(t)"];
-	28 -> 30[label="Symbol(_)"];
-	28 -> 30[label="Symbol(z)"];
-	28 -> 30[label="Symbol(g)"];
-	28 -> 30[label="Symbol(f)"];
-	28 -> 30[label="Symbol(j)"];
+	start_pointer -> 1;
+	1 -> 2[label="Symbol(quotes)"];
 }

@@ -99,15 +99,15 @@ pub fn produce_grammar_c_full(grammar_rules: &mut Vec::<Rule<String>>) -> (Rule<
     create_rule(grammar_rules, String::from("init_declarator_list -> init_declarator COMMA init_declarator_list"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("init_declarator_list -> init_declarator"), treat_nonterminal_lowercase);
 
-    create_rule(grammar_rules, String::from("init_declarator -> declarator EQUALS_SIGN initializer"), treat_nonterminal_lowercase);
+    // create_rule(grammar_rules, String::from("init_declarator -> declarator EQUALS_SIGN initializer"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("init_declarator -> declarator"), treat_nonterminal_lowercase);
 
-    create_rule(grammar_rules, String::from("initializer -> assignment_expression"), treat_nonterminal_lowercase);
-    create_rule(grammar_rules, String::from("initializer -> OPENING_CURLY_BRACKET initializer_list CLOSING_CURLY_BRACKET"), treat_nonterminal_lowercase);
-    create_rule(grammar_rules, String::from("initializer -> OPENING_CURLY_BRACKET initializer_list COMMA CLOSING_CURLY_BRACKET"), treat_nonterminal_lowercase);
+    // create_rule(grammar_rules, String::from("initializer -> assignment_expression"), treat_nonterminal_lowercase);
+    // create_rule(grammar_rules, String::from("initializer -> OPENING_CURLY_BRACKET initializer_list CLOSING_CURLY_BRACKET"), treat_nonterminal_lowercase);
+    // create_rule(grammar_rules, String::from("initializer -> OPENING_CURLY_BRACKET initializer_list COMMA CLOSING_CURLY_BRACKET"), treat_nonterminal_lowercase);
 
-    create_rule(grammar_rules, String::from("initializer_list -> initializer"), treat_nonterminal_lowercase);
-    create_rule(grammar_rules, String::from("initializer_list -> initializer COMMA initializer_list"), treat_nonterminal_lowercase);
+    // create_rule(grammar_rules, String::from("initializer_list -> initializer"), treat_nonterminal_lowercase);
+    // create_rule(grammar_rules, String::from("initializer_list -> initializer COMMA initializer_list"), treat_nonterminal_lowercase);
 // 
 
 //     // statement
@@ -152,7 +152,7 @@ pub fn produce_grammar_c_full(grammar_rules: &mut Vec::<Rule<String>>) -> (Rule<
 // 	// | SWITCH '(' expression ')' statement
 // 	// ;
     create_rule(grammar_rules, String::from("selection_statement -> IF OPENING_BRACKET expression CLOSING_BRACKET statement"), treat_nonterminal_lowercase);
-    create_rule(grammar_rules, String::from("selection_statement -> IF OPENING_BRACKET expression CLOSING_BRACKET statement ELSE statement"), treat_nonterminal_lowercase);
+//     create_rule(grammar_rules, String::from("selection_statement -> IF OPENING_BRACKET expression CLOSING_BRACKET statement ELSE statement"), treat_nonterminal_lowercase);
 
 //     // ORIG 
     create_rule(grammar_rules, String::from("expression -> assignment_expression"), treat_nonterminal_lowercase);
@@ -247,7 +247,7 @@ pub fn produce_grammar_c_full(grammar_rules: &mut Vec::<Rule<String>>) -> (Rule<
 
     // create_rule(grammar_rules, String::from("multiplicative_expression -> cast_expression ASTERISK multiplicative_expression"), treat_nonterminal_lowercase);
     // create_rule(grammar_rules, String::from("multiplicative_expression -> cast_expression SLASH multiplicative_expression"), treat_nonterminal_lowercase);
-    create_rule(grammar_rules, String::from("multiplicative_expression -> cast_expression PERCENT multiplicative_expression"), treat_nonterminal_lowercase);
+    // create_rule(grammar_rules, String::from("multiplicative_expression -> cast_expression PERCENT multiplicative_expression"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("multiplicative_expression -> cast_expression"), treat_nonterminal_lowercase);
 // 
 
