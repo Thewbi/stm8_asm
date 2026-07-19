@@ -299,28 +299,38 @@ pub fn recurse_postfix_build_fragment_stack(arena: &Arena<RegexBuildingBlock>,
             add_character_literal(fragment_stack, RegexBuildingBlock::CharacterLiteral(c), alphabet);
         }
 
+        // #
         RegexBuildingBlock::Concatenation => {
             add_concatenation(fragment_stack);
         }
 
+        // |
         RegexBuildingBlock::Or => {
             add_or(fragment_stack);
         }
 
-        RegexBuildingBlock::Repeat(0, _) => {
+        // ?
+        RegexBuildingBlock::Repeat(0, 1) => {
+            add_repeat_zero_or_one(fragment_stack);
+        }
+
+        // *
+        RegexBuildingBlock::Repeat(0, std::u8::MAX) => {
             add_repeat_zero_or_more(fragment_stack);
         }
 
+        // +
         RegexBuildingBlock::Repeat(1, _) => {
             add_repeat_one_or_more(fragment_stack);
         }
 
+        // )
         RegexBuildingBlock::ClosedBraces => {
             // nop
         }
 
+        // ^
         RegexBuildingBlock::Not => {
-            //add_not_extended_interpretation(fragment_stack, alphabet);
             add_not_single_character_interpretation(fragment_stack, alphabet);
         }
 
@@ -562,14 +572,16 @@ fn add_or(fragment_stack: &mut FragmentStack) {
     }
 }
 
-// * Star, Asterisk, Repeat[0, std::u8::MAX]
-fn add_repeat_zero_or_more(fragment_stack: &mut FragmentStack) {
+// ? QuestionMarc, Repeat[0, 1]
+fn add_repeat_zero_or_one(fragment_stack: &mut FragmentStack) {
 
     let mut top_fragment = fragment_stack.stack.pop().unwrap();
 
-    // // check if the top fragment contains an atomic regex_building_block (character_literal, character_class)
-    // // or if the top fragment contains a complex graph
+    // check if the top fragment contains an atomic regex_building_block (character_literal, character_class)
+    // or if the top fragment contains a complex graph
     if top_fragment.start_id == top_fragment.end_id {
+
+        // atomic graph
         
         // extend the automaton by a new end state
         let mut new_end_state = State::new(STATE_COUNTER.fetch_add(1, Ordering::SeqCst));
@@ -580,15 +592,17 @@ fn add_repeat_zero_or_more(fragment_stack: &mut FragmentStack) {
         // add epsilon transitions from the old start state to the new end state
         top_fragment.enfa.add_transition(top_fragment.start_id, Input::Epsilon, new_end_state_id);
 
-        top_fragment.enfa.add_transition(new_end_state_id, Input::Symbol(top_fragment.symbol), top_fragment.start_id);
-
+        // add epsilon transitions from the old start state to the new end state
+        top_fragment.enfa.add_transition(top_fragment.start_id, Input::Symbol(top_fragment.symbol), new_end_state_id);
 
         // modify and push copy
-        // top_fragment.start_id = new_start_state_id;
         top_fragment.end_id = new_end_state_id;
         fragment_stack.stack.push(top_fragment);
 
     } else {
+
+        // complex graph
+
         let old_start_id = top_fragment.start_id;
         let old_end_id = top_fragment.end_id;
 
@@ -600,6 +614,77 @@ fn add_repeat_zero_or_more(fragment_stack: &mut FragmentStack) {
         new_start_state.start_state = true;
         new_start_state.end_state = false;
         let new_start_state_id = top_fragment.enfa.add_state(new_start_state);
+
+        // make the new state a start state
+        top_fragment.enfa.set_start_state(new_start_state_id, true);
+
+        // add epsilon transitions from the new start state to the old start state
+        top_fragment.enfa.add_transition(new_start_state_id, Input::Epsilon, old_start_id);
+
+        // extend the automaton by a new end state
+        let mut new_end_state = State::new(STATE_COUNTER.fetch_add(1, Ordering::SeqCst));
+        new_end_state.start_state = false;
+        new_end_state.end_state = false;
+        let new_end_state_id = top_fragment.enfa.add_state(new_end_state);
+
+        // go to the new end state after one iteration
+        top_fragment.enfa.add_transition(old_end_id, Input::Epsilon, new_end_state_id);
+
+        // extend the automaton by a transition from new start state to the new end state
+        top_fragment.enfa.add_transition(top_fragment.start_id, Input::Epsilon, new_end_state_id);
+
+        // modify and push copy
+        top_fragment.start_id = new_start_state_id;
+        top_fragment.end_id = new_end_state_id;
+        fragment_stack.stack.push(top_fragment);
+
+    }
+}
+
+// * Star, Asterisk, Repeat[0, std::u8::MAX]
+fn add_repeat_zero_or_more(fragment_stack: &mut FragmentStack) {
+
+    let mut top_fragment = fragment_stack.stack.pop().unwrap();
+
+    // check if the top fragment contains an atomic regex_building_block (character_literal, character_class)
+    // or if the top fragment contains a complex graph
+    if top_fragment.start_id == top_fragment.end_id {
+
+        // atomic graph
+        
+        // extend the automaton by a new end state
+        let mut new_end_state = State::new(STATE_COUNTER.fetch_add(1, Ordering::SeqCst));
+        new_end_state.start_state = false;
+        new_end_state.end_state = false;
+        let new_end_state_id = top_fragment.enfa.add_state(new_end_state);
+
+        // add epsilon transitions from the old start state to the new end state
+        top_fragment.enfa.add_transition(top_fragment.start_id, Input::Epsilon, new_end_state_id);
+
+        // add epsilon transitions from the new end state to the old start state (reverse operation)
+        top_fragment.enfa.add_transition(new_end_state_id, Input::Symbol(top_fragment.symbol), top_fragment.start_id);
+
+        // modify and push copy
+        top_fragment.end_id = new_end_state_id;
+        fragment_stack.stack.push(top_fragment);
+
+    } else {
+
+        // complex graph
+
+        let old_start_id = top_fragment.start_id;
+        let old_end_id = top_fragment.end_id;
+
+        // make the old start state a regular state
+        top_fragment.enfa.set_start_state(top_fragment.enfa.start_state_id, false);
+
+        // extend the automaton by a new start state
+        let mut new_start_state = State::new(STATE_COUNTER.fetch_add(1, Ordering::SeqCst));
+        new_start_state.start_state = true;
+        new_start_state.end_state = false;
+        let new_start_state_id = top_fragment.enfa.add_state(new_start_state);
+
+        // make the new state a start state
         top_fragment.enfa.set_start_state(new_start_state_id, true);
 
         // add epsilon transitions from the new start state to the old start state
@@ -615,7 +700,7 @@ fn add_repeat_zero_or_more(fragment_stack: &mut FragmentStack) {
         new_end_state.end_state = false;
         let new_end_state_id = top_fragment.enfa.add_state(new_end_state);
 
-        // extend the automaton by a transition to the new end state
+        // extend the automaton by a transition from new start state to the new end state
         top_fragment.enfa.add_transition(top_fragment.start_id, Input::Epsilon, new_end_state_id);
 
         // modify and push copy

@@ -761,15 +761,18 @@ A -> alpha . B beta, a
 
 What in the world does this mean?
 
-First, you are look it a rule where the dot-marker just points to the non-terminal B.
-After B, follows a string of elements (nonterminal or terminal) beta.
-a is the set of lookaheads that have been computed for this rule up to this point.
-a may be extended as the algorithm goes.
+First, you are looking at a rule where the dot-marker points to the non-terminal B.
+After B, follows a string of elements (nonterminal or terminal) which is called beta.
+After the comma follows a set of lookaheads (here: just a one symbol a) that have been 
+computed for this rule up to this point. The lookahead set may be extended as the algorithm goes.
 
-Example: 
-S -> . L = R     ,#
+Example:
 
-Comparing the example production to the standard form, we see: 
+```
+S -> . L = R, #
+```
+
+Comparing the example production to the standard form, we get: 
 A is S
 alpha is the empty string
 The dot points to L whereas L is B.
@@ -778,9 +781,9 @@ beta is "= R"
 The string beta may be empty: 
 
 Example:
-S' -> . S        ,#
+S' -> . S, #
 
-Comparing the example production to the standard form, we see: 
+Comparing the example production to the standard form, we get: 
 A is S'
 alpha is the empty string
 The dot points to S whereas S is B.
@@ -788,7 +791,7 @@ beta the empty string because it does not exist.
 
 Back to the example this time with an existing lookahead #
 
-S -> . L = R      ,#
+S -> . L = R, #
 
 When this rule is detected, the lookhead for this rule needs to be computed:
 The lookahead symbols are computed by using First(beta+#)

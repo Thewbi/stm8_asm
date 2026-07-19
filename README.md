@@ -1,3 +1,347 @@
+# Disclaimer
+
+I am not an expert compiler designer! Read with caution!
+Also excuse the horrible drawings! I am not a graphics designer by any means! I just do not know how to generate nice digital images. Having analog drawings is better than nothing.
+
+Other than that. I hope you like this document. Thanks for reading. Enjoy.
+
+If you do not know about automata, please first consult the internet or the analog computer science literature. There is plenty of information out there. Automata are the formal theoretic basis of lexing and parsing. Same goes for context free grammars. 
+
+And the LALR(1) parser used in this document is generally outdate (but works for the grammar used). Maybe you want to look into other types of parsers.
+
+# The Lexer
+
+**Motivation:** As the parser works with production rules, it needs to be provided with terminals (aka. token) which the production rules are made up of. The lexer will split the input character stream into these terminals.
+
+Take for example the input
+
+```
+int main(int x, int y) { return x + y; }
+```
+
+This yields the following parse tree (not AST but parse tree). 
+
+![Parse Tree](res/images/parse_tree.jpg "Parse Tree")
+
+The terminals are marked by circles around them and they are the leaves of the parse tree. If you print the leaf-nodes from left to right, you get the original input back!
+
+This lexer is implemented based on regular expressions. The token or terminals are described by individual regular expressions. The first step is to convert all the regular expressions for all token into individual non-deterministic finite automata. This is accomplished by converting the regular expression from infix to postfix notation. To perform this conversion, the regular expression in infix notation is scanned character by character and each character is inserted into a binary tree. Once the entire regular expression is contained in the tree, the tree is traversed and characteres are output in postfix order (output a parent node after both of it's children). 
+
+Having the regular expression a in postfix notation allows it to be fed into the algorithm described by Russ Cox (https://swtch.com/%7Ersc/regexp/regexp1.html). 
+
+The algorithm on the highest level uses fragments. A fragment is an object that can be placed on a stack, the fragment stack. The algorithm will place fragments on the fragment stack and merge fragment on the frament stack based on the operators it encounters in the regular expression as it scans the regular expression.
+
+Here is a graphical depiction of all the operations that the implementation of the algorithm will perform:
+
+![eNFA_Construction](res/images/eNFA_Construction.jpg "eNFA Construction")
+
+In the drawing fragments are depcited using rectangles. For the # operation, which is the concatenation operation, you can see that the fragment stack starts out with two fragments on it (two rectangles stacked on top of each other). After the contatenation operation is applied, the stack only contains a single fragment which was created by popping the two fragments, processing them and pushing the result onto the stack.
+
+Other than being objects which are pushed to a stack, fragments also serve a second purpose. They point to the start and end state of nondeterministic automata. When an operation is applied to a fragment, the fragment's automata will also change according to the operation. The image also shows, which changes are performed on the automata. When two fragments are merged into a new fragment, their automata are also merged to form a new automaton. After the entire process is done, the outcome is a non-deterministic automaton that accepts the regular expression.
+
+Now that we can apply the algorithm to each individual regex, the next step is to build a new non-deterministic automaton that combines all the regexes. This means a lexer is a behemoth of many, many individual automata! The combination is performed using epsilon-transitions from the new start state to all start states of the individual regex automata.
+
+Here is an image of what the intermediate result at this stage might look like!
+
+![eNFA combined](res/images/combined_eNFA.png "eNFA combined")
+
+You can see the start state labeled "0". From there the first transition is always the epsilon transition. Then you can make out indiviual automata. For example the automata for the "break" keyword is visible right in the center.
+
+Once the large automata is available, it is converted from a non-deterministic into a determinsitic automaton. There is an algorithm in the literature that performs this conversion. Deterministic automata are used in applications since the simulation of a non-deterministic automaton is not feasable in the year 2026 for the scale the C-grammar requires. Sadly I cannot display a picture of the resulting deterministic automaton (not even a subset of it) since graphviz explodes before it renders all states and transitions.
+
+At this point, the implementation can provide a DFA which stops in states that pertain to the token type that it has lexed!
+The next state is building a parser.
+
+# The Parser
+
+**Motivation:** I need a component that consumes the source code, allows for reactions to detected language constructs such as if, function declarations, structs, ... and also the component needs to be able to detect syntax errors as precise as possible.
+
+**Warning:** If you want to hand-craft a parser, skip this section. This section is about generating a parser from a grammar using an algorithm! This section explains how the parser is generated using the algorithm from the dragon book! If you think this is not what you want, skip this section! The reason for the dragon book LALR(1) parser is that I got burned in the past pretty hard by investing days into a grammar just to eventually realize that I am not smart enough to come up with a working grammar for C! That is why I assume that I am not smart enough to create a hand-written compiler for the language which is even harder than formulating a grammar! If you want to hand-write a parser, be warned. My advice is it to find a way to perform rapid prototyping so failure is not too expensive! You will probably not get it right the first time around.
+
+Here is what AI has to say about the Dragon Book's LALR(1) algorithm:
+
+```
+The LALR(1) parsing theory from the Dragon Book (Aho, Sethi, Ullman, and Lam) is theoretically sound but practically outdated for most modern language development.
+
+Why it's outdated in practice
+
+* Shift to Recursive Descent: Most modern production compilers (e.g., Clang, Rustc, Go) abandon LALR(1) generators in favor of hand-written recursive descent parsers. Hand-written parsers allow for better error recovery, context-sensitive parsing hacks (essential for C++), and tighter integration with Abstract Syntax Tree (AST) construction.
+
+* The LALR(1) Bias: The Dragon Book championed LALR(1) because, historically, full LR(1) required exponential memory. Today, computers have plenty of memory, and modern tools (such as Bison) use optimizations like IELR(1) to generate smaller tables without sacrificing parsing power.
+
+* Ambiguity and Conflicts: As syntax grows complex, LALR(1) often struggles with reduce-reduce conflicts. Modern developers frequently prefer generalized parsing strategies like GLR or Earley to handle ambiguous grammars, or use Pratt parsing for mathematical expressions.
+
+* Alternatives: Modern texts like Engineering a Compiler (by Cooper and Torczon) or Modern Compiler Implementation (by Appel) are often recommended over the Dragon Book because they better emphasize modern software architecture, static single assignment (SSA), and runtime systems.
+```
+
+The dragon book (Compilers: Principles, Techniques, and Tools, by Alfred Aho (Author), Jeffrey Ullman (Author), Ravi Sethi (Author), Monica Lam (Author)) contains an algorithm which constructs a LALR(1) parser.
+
+What is LALR(1)? A grammar can be part of different classes of grammars in theoretical computer science. LALR(1) is one of them. It means Look-Ahead of 1 symbol, Left-to-right, Rightmost derivation. There is no precise definition which grammar is LALR(1) that can be applied to the grammar itself to know before building a LALR(1) parser! Instead, a LR(1) parser can be constructed (Using a well known algorithm). If that does not work, then the grammar is not LALR(1). 
+
+SideNote: As LR(1) parsers get absolutely huge, the task of determining LALR(1) is more of a theoretical excercise. We will not care at this point. We make the assumption that the grammar https://www.lysator.liu.se/c/ANSI-C-grammar-y.html is in fact LALR(1). That also leads to the assumption that the parser will parse the input using a single (1) element of lookahead to decide which rules to choose over other rules!
+
+There are two ways to build a LALR(1) parser: 
+1. build a LR(0) graph first, then from the LR(0) graph build a LR(1) graph and then merge states that are equivalent which eventually produces the LALR(1) parser.
+1. build a LR(0) graph and immediately build the LALR(1) parser using a more complicated algorithm from the LR(0) graph.
+
+Why build LALR(1) in the first place using the hard to understand channel algorithm from the dragon book and not build a easy LR(1) parser and merge states afterwards to arrive at a small LALR(1) parser? The answer is that LR(1) parsers, although easily constructed, contain an astronomical amount of states for the C-grammar used (https://www.lysator.liu.se/c/ANSI-C-grammar-y.html). Constructing a LR(1) parser is simply not feasable. Unless you want to wait for minutes at a time whenever you want to compile the application! This means to get to the stage of merging equivalent states, it takes minutes at a time! We are not going to implement that!
+
+So, we assume the grammar is LALR(1) and the parser will be constructed from the LR(0) graph directly using the channel algorithm. Now the channel algorithm from the dragon book needs to be understood which is hard (at least for me it was)!
+
+The overview that comes next is a blend of the dragon book and an answer that the AI has produced. It is actually the instruction I followd:
+
+```
+# 4.7.5 Efficient Construction of LALR Parsing Tables, Dragon Book, 2nd Edition, page 271
+
+To create an LALR(1) parser generator yourself, follow these five core phases:
+
+1. Build the LR(0) Automaton 
+    First, convert your grammar into an augmented grammar and compute the LR(0) CLOSURE and GOTO functions to build the LR(0) states. 
+    These states will become the "cores" of your parser. 
+    CLOSURE: Given a set of items, if a non-terminal is after a dot (e.g., A → α ⋅ B β), add all productions for B with a dot at the beginning to the set.
+    GOTO: Determine which items a state transitions to when a specific grammar symbol (terminal or non-terminal) is consumed.
+    
+2. Compute the FIRST and FOLLOW Sets
+    You need the lookaheads for your grammar.
+    Compute FIRST(α) for all strings in your grammar.
+    Compute FOLLOW(A) for all non-terminals.
+    These sets dictate which tokens can validly appear immediately after a non-terminal in a sentential form.
+    
+3. Generate LR(1) Items and Merge States (LALR Trick) 
+    While you can build the full canonical LR(1) states and merge them (the brute-force method), 
+    a direct approach calculates lookaheads by propagation and spontaneous generation:
+        - Calculate the LR(0) states.
+        - Augment each LR(0) item in these states with its lookahead symbols.
+        - Propagate the lookaheads through the states using lookahead propagation rules until no more symbols are added.
+            DragonBook, 2nd Edition, page 270: "We can construct the LALR(l)-item kernels from the LR(O)-item kernels
+                by a process of propagation and spontaneous generation of lookaheads,
+                that we shall describe shortly."
+            - Spontaneous Generation: A lookahead symbol is generated inherently from a specific reduction rule.
+            - Propagation: Lookahead symbols inherited from a parent/predecessor state are "pushed" down the parse 
+              tree without alteration.
+        - States that have identical core productions (ignoring the lookaheads) are merged into a single state, 
+          and their lookahead sets are combined via union.
+        
+4. Build the Parsing Table 
+    Construct the two-dimensional LALR(1) parse table using the merged states:
+    Action Table: Defines the shifts, reduces, and accepts for terminals. 
+        If a state has A → α ⋅ a β and \(GOTO(state, a) = state_k\), add Shift state_k on the terminal a. 
+        If a state contains A → α ⋅, add Reduce A -> \alpha for all tokens in FOLLOW(A).
+    Goto Table: Defines state transitions for non-terminals.
+    
+5. Implement the Driver Loop
+    The final step is the parsing engine itself. 
+    The driver loop takes a stream of tokens and uses a stack to process them against your generated LALR(1) parsing table. 
+    It looks up the current state (on top of the stack) and the current input token to execute a shift, reduce, accept, or error.
+    To visually understand the mechanics of merging LR(1) states to create an LALR(1) table.
+```
+
+You need to implement LR(0) graph generation: Learn this skill from here: https://www.youtube.com/watch?v=BxMFn7aelBk and use this online-tool https://cyberzhg.github.io/toolbox/lr0 to compare your solution to theirs.
+
+You need to learn how to construct the first-set. See the file src\parser\first.rs and also use the online-tool https://jsmachines.sourceforge.net/machines/lalr1.html which shows the first sets. Compare your solution to theirs.
+
+You need to construct the information weather a rule can lead to the empty symbol. See the function called compute_nullable_sets().
+
+You should validate the grammar before hand: check that each non-terminal used on the right-hand side of a production appears at least once as a left-hand-side symbol!
+
+You need to augment the grammar start rule.
+
+## General Workings of the Channel Algorithm
+
+The channel algorithm works like this: For each rule, it builds a node in the graph! It starts out with the start production of the grammar. A node in the graph consists of identification rules which form the kernel of that node. The kernel contains all rules that where used to create that state before the closure was applied. Rules created by the closure operation will not be part of the kernel but just added into the state into the rules vector.
+
+When a new rule is added by the closure operation, lookahead symbols are also determined for the new rule. The lookaheads for the new rule are derived from the old rule. The first thing to understand is that an old rule creates a new rule based on the current position of the dot marker with in the old rule. If the dot marker marks (sits in front of or points to) a non-terminal, then a new rule is inserted which has that exact non-terminal as LHS (left-hand side). The dot marker in the new rule will be placed onto the first RHS (right-hand side) element. The lookaheads inserted into the new rule are the lookaheads of beta (will be explained shortly in the section about the closure operation "Building the Closure") or, if beta is empty, the lookaheads of the old rule are transferred over to the new rule. If two or more rules lead to the same new rule, then all lookaheads combine! This means the lookaheads are just added together for each time, the new rule is inserted by the closure operation.
+
+First it will build the closure of a state. Once the kernel and the closure rules are available. It will build transitions to new states. The states are created on the fly. One very important thing is to only transition to a state given a symbol, if the source state for that symbol activates ALL the rules in the kernel of the next state! (If no state for such a kernel exists yet, add a new node to the graph!). The ALL rules part is very, very important! A transition only happens if ALL rules that form the kernel of the next state are activated by the symbol at the same time! This means a transition consisist of a set of rules not just on a single rule! And all rules in the kernel need to be satisified to transition to a target state. If no such state exists, create a new one!
+
+The closure operation is what inserts the lookahead symbols into the rules initially! It uses First and Nullable information for that! (I have never used a Follow-Set! I do not know what that is!) The closure operation in this implementation is called pub fn unfold_grammar_state().
+
+During all the graph construction, somehow maintain information, which rule has a channel to which rule. Rules form channels, if a destination rule was created based on a source rule. Then there is a channel between the source rule and the target rule in that direction.
+
+Once the graph of nodes is constructed and the transitions between nodes are available, the last step is to push lookahead symbols through the channels until no state has seen any change any more. This means this is an iterative process which repeats until no more lookaheads are pushed because all states have received all data they need.
+
+**There is also one very important thing to get right here!** A symbol is **only pushed over a channel between to different states *if ALL ALL ALL* destination, kernel rules have empty-beta at the same time!** If one or more rules in the kernel are not empty-beta, **then no lookahead is pushed** between the two states! 
+
+Empty beta means that the dot-marker in the rule points to a nonterminal followed by nothing! The following part is called beta. If there is no beta, then we say empty-beta! lookaheads inter-state are only pushed into rules that are empty-beta and **ALL ALL ALL** rules in the kernel need to be empty-beta at the same time! I cannot repeat this enough. **This is the secret sauce of the algorithm!** It is not mentioned in the dragon book (at least I missed it) and there is not a single youtube video on the internet that contains this bit of information! I took me days to figure this out! I hope you will not fail as hard as I did!
+
+# Building the Closure
+
+Pick the start state and make it the current state.
+
+For the current state, start with the rules in the state's kernel.
+
+A state is a set of rules out of which one or more rules form the so called kernel.
+The set of rules that form a state's kernel are the rules over which that state in the DFA is transitioned
+to given a terminal (Shift) or a nonterminal.
+
+The kernel of the start state is the start production of the grammar.
+
+Next step is to compute the closure for the rules in the kernel.
+
+To build the closure, for a rule, determine the lookahead for that rule.
+For this, you need the FIRST() set for each NonTerminal which can be precomputed
+given the grammar rules.
+
+To compute the lookaheads: the general notation used for a rule is:
+
+```
+A -> alpha . B beta, a
+```
+
+What in the world does this mean?
+
+First, you are looking at a rule where the dot-marker points to the non-terminal B.
+After B, follows a string of elements (nonterminal or terminal) which is called beta.
+After the comma follows a set of lookaheads (here: just a one symbol a) that have been 
+computed for this rule up to this point. The lookahead set may be extended as the algorithm goes.
+
+Concrete Example:
+
+```
+S -> . L = R, #
+```
+
+Comparing the example production to the standard form, we get: 
+* A is S
+* alpha is the empty string
+* The dot marker points to L whereas L is B in the general notation.
+* beta is "= R"
+
+The string beta may be empty: 
+
+Concrete Example for empty-beta:
+
+```
+S' -> . S, #
+```
+
+Comparing the example production to the standard form, we get: 
+* A is S'
+* alpha is the empty string
+* The dot points to S whereas S is B in the general notation.
+* beta the empty string because it does not exist.
+
+Remember, in the case of empty-beta, the lookaheads used during closure are the lookaheads of the start rule!
+
+Back to the example but this time with an existing lookahead #
+
+```
+S -> . L = R, #
+```
+
+When this rule is detected, the lookhead for this rule needs to be computed:
+The lookahead symbols are computed by using First(beta+lookahead) because beta is not empty!
+First(beta+lookahead) becomes First(beta+#), because lookahead is # in this case.
+
+What does this mean?
+
+First() is the first operation. It will return a set of terminals.
+It will return all terminals that it can find in the concatenation of beta and the existing lookahead of #.
+
+We know that beta can be the empty string so First() might just return the lookahead symbols.
+If beta is not the empty string, beta can either be a terminal itself in which case First() will return that terminal.
+In the most complicated case B can be the Lefthand side (LHS) of a set of rules. 
+Lets say beta is the nonterminal B.
+
+In this case First(B) will look at all productions that have B on the LHS and return all the terminals that
+these rules can produce. Luckily First(B) is called the first set of a production and this first-set can 
+be precomputed based on the grammar at hand befor starting LALR(1) construction.
+
+You need to implement the functionality that implements First().
+Once you have an implementation for first, 
+1. compute the lookahead symbols for the rule
+1. determine all the follow up rules create from the current rule (dot points to nonterminal which is used as LHS of rules)
+1. Add the rules to the state (outside of the kernel)
+1. Add the lookaheads from step 1 into these newly added rules. In this step a rule might be added to the same state by two or more different productions. In this case, all lookaheads symbols are merged into the rule and the set of initial lookahead symbols might grow!
+
+## Channels
+
+You need to maintain the channels. If a rule A generates a rule B, then connect A to B over a channel so you know
+where new lookaheads need to be pushed later.
+
+If the closure for all states of the LR(0) DFA states have been built, then the next step is to start the iteration.
+
+## Propagation
+
+The purpose of the Propagation is to iteratively push lookaheads from rules down the channels.
+When a lookahead symbol is pushed from rule A to rule B over a channel that connects them, then
+rule B will just merge the lookahead inot the set of lookaheads it already has.
+If any set has changed, the iteration continues.
+If at one point none of the sets has seen any change, the iteration comes to a halt and the LALR(1) automaton
+is constructed.
+
+Mind you, if a new lookahead goes into a rule, it will not only trickle through channels that exist purely within
+the state but also through channels that connect different states (inter-state). **But for inter-state channel 
+propagation, there is the important constraint that a symbol is only propagated over a channel if ALL destination
+rules in the destination kernel are empty-beta at the same time! I cannot stress this enough: Only propagate
+inter-channel lookaheads if ALL target kernel rules are ALL empty-beta at at the same time! If one or more of
+them are not empty beta, then no propagation takes place at all!**
+
+# Creating the parser table
+
+The only reason why the LALR(1) Channel Algorithm performs LR(0) graph construction, closure, channel management
+and lookahead propagation is that from the final information, a parse table can be determined! The parse table
+is the result of the algorithm and the parse table is what is really needed! The LALR(1) graph including all
+state, lookaheads and channels can go into the trash after the parse table is available! In theory, the 
+LALR(1) Channel Algorithm is a parser generator and it only needs to run, when no parse table is available yet
+and when the original grammar has changed and the parse table needs to be reconstructed!
+
+A word about performance: This implementation is slow when it comes to constructing the Lexer and Parser. It is
+definitely recommended to persist the large Lexer DFA and the ParseTable instead of recomputing it every time you start
+the application. Once constructed, the Lexer and Parser have no performance issues for small samples. They have
+not been tested on large source bases yet.
+
+The LALR(1) automaton is a tool to retrieve the final parse table which is then used by a driver to
+run the parser.
+
+Therefore the parse table needs to be constructed from the DFA. There is a set of rules to compute the parse table
+from the LALR(1) graph. 
+
+Both online tools:
+
+* https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html
+* https://jsmachines.sourceforge.net/machines/lalr1.html
+
+display the parse table. Use them to compare your parse table to them!
+
+# Difference between Parse Tree and AST
+
+The LALR(1) parser will follow all production rules in the grammar meticulously because it was constructed from the grammar. When writing down the graph of all production rules that have been reduced and connecting them together in the order in which they have been reduced, you will get the parse tree. Remeber the first sketch drawing in the Lexer section? This sketch shows the parse tree including all production rules use to accept the short C-application.
+
+For further processing, the compiler can get away with a more compact tree. This more compact tree is called abstract syntax tree or AST! Some of the production rules used in a grammar contain cases that allow the grammar to string from one rule to the next, skipping a rule if it does not add real information but is only strung together to arrive at a LALR(1) grammar that is somewhat unambiguous and can be parsed correctly.
+
+As an example, take a look at these rules:
+
+```
+conditional_expression -> logical_or_expression QUESTION_MARK expression COLON conditional_expression
+conditional_expression -> logical_or_expression
+
+logical_or_expression -> logical_and_expression OR_OP logical_or_expression
+logical_or_expression -> logical_and_expression
+
+logical_and_expression -> inclusive_or_expression AND_OP logical_and_expression
+logical_and_expression -> inclusive_or_expression
+
+inclusive_or_expression -> exclusive_or_expression OR inclusive_or_expression
+inclusive_or_expression -> exclusive_or_expression
+```
+
+You can see that especially for expressions, a rule either contains an operator and it's two operands (the upper rule) or it just strings along the parser to the next rule in line (the lower rule). The parse tree will contain all the productions even if they do not contain any information.
+
+The AST tree does not suffer from this problem. It only contains pure information without bloat.
+
+The parse tree is what the parser gives us for free as it follows the parse table content.
+
+The AST is something that we need to build ourselves!
+
+# Building the AST from the Parse Tree
+
+
+
+ 
+
+
+
 # Proxy
 
 Edit .cargo/config.toml to activate or deactivate the proxy.

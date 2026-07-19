@@ -2,45 +2,11 @@
 
 digraph {
 	start_pointer [label= "", shape=none,height=.0,width=.0]
-	start_pointer -> 5;
-	14[shape=doublecircle];
-	19[shape=doublecircle];
-	28[shape=doublecircle];
-	34[shape=doublecircle];
-	44[shape=doublecircle];
-	44[label="44, Token: 610"];
-	5 -> 1[label="Epsilon"];
-	18 -> 19[label="Symbol(e)"];
-	18 -> 19[label="Symbol(E)"];
-	43 -> 42[label="Epsilon"];
-	1 -> 2[label="Symbol(0)"];
-	33 -> 34[label="Symbol(2)"];
-	6 -> 8[label="Symbol(.)"];
-	42 -> 43[label="Symbol(F)"];
-	26 -> 28[label="Epsilon"];
-	19 -> 25[label="Epsilon"];
-	13 -> 14[label="Symbol(2)"];
-	13 -> 14[label="Symbol(1)"];
-	8 -> 13[label="Epsilon"];
-	28 -> 33[label="Epsilon"];
-	2 -> 1[label="Epsilon"];
-	26 -> 27[label="Symbol(-)"];
-	42 -> 43[label="Symbol(L)"];
-	34 -> 45[label="Epsilon"];
-	34 -> 33[label="Epsilon"];
-	42 -> 44[label="Epsilon"];
-	1 -> 2[label="Symbol(2)"];
-	26 -> 27[label="Symbol(+)"];
-	27 -> 26[label="Epsilon"];
-	1 -> 2[label="Symbol(1)"];
-	42 -> 43[label="Symbol(l)"];
-	1 -> 6[label="Epsilon"];
-	13 -> 14[label="Symbol(0)"];
-	33 -> 34[label="Symbol(0)"];
-	14 -> 18[label="Epsilon"];
-	14 -> 13[label="Epsilon"];
-	45 -> 42[label="Epsilon"];
-	33 -> 34[label="Symbol(1)"];
-	25 -> 26[label="Epsilon"];
-	42 -> 43[label="Symbol(f)"];
+	start_pointer -> 1099;
+	1108[label="1108, Token: 131"];
+	1106 -> 1108[label="Symbol(e)"];
+	1102 -> 1104[label="Symbol(i)"];
+	1099 -> 1100[label="Symbol(w)"];
+	1104 -> 1106[label="Symbol(l)"];
+	1100 -> 1102[label="Symbol(h)"];
 }

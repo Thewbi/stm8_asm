@@ -1,0 +1,123 @@
+# ASM syntax
+
+The clang and gcc compiler output AT&T syntax.
+NASM uses intel syntax but differs slightly from Microsofts MASM.
+
+For clang, the compiler options:
+
+```
+-S -mllvm --x86-asm-syntax=intel
+```
+
+change to Intel syntax. But NASM cannot even compile this Intel syntax output since
+it is output for GAS.
+
+
+## Converting AT&T to Intel syntax
+
+In AT&T, % indicates a register. NASM simply figures that out, so remove the %s. 
+AT&T has immediate values start with $, whereas NASM figures it out, so remove the $s.
+
+In AT&T, the order is instruction source, destination, whereas in NASM it is instruction destination, source, so swap them.
+
+AT&T: movl (%ecx),%eax. NASM: `mov eax, [ecx]
+
+In AT&T, () is the memory operand. In NASM, [] is the memory operand.
+
+AT&T: %segreg:disp(base,index,scale) == disp + base + index*scale, where scale defaults to 1 if absent. 
+NASM: [segreg:base+index*scale+disp]
+
+AT&T: subl -0x20(%ebx,%ecx,0x4),%eax
+
+NASM: sub eax,[ebx+ecx*4h-20h]
+
+AT&T uses suffixes on instructions to determine memory size, whereas NASM uses words before memory addresses when necessary.
+
+AT&T: 8 bits is a 'b' suffix, 16 bits is a 'w' suffix, 32 bits is a 'l' suffix, and 64 bits is a 'q' suffix. NASM: 8 bits is byte, 16 bits is word, 32 bits is dword, and 64 bits is qword.
+
+In AT&T, global labels can start with alphabetic characters or _. In NASM, global labels can start with alphanumeric characters, @, ?, and _. In AT&T, local labels start with numbers. In NASM, local labels start with ..
+
+In AT&T, directives start with .. In NASM primitive directives can be in-between [], but they don’t have to be.
+
+Instead of searching for “converting NASM to AT&T“, search for “converting Intel to AT&T”. NASM uses Intel syntax.
+
+
+
+;
+; Simple NASM syntax assembly program for x86 (32 bit).
+;
+; Use commands below to assemble, link and run ($ is the prompt):
+; $ "C:\Program Files\NASM\nasm.exe" -f elf32 helloworld.asm
+; $ "C:\Program Files\NASM\nasm.exe" -f win32 -o helloworld.obj helloworld.asm 
+;
+; Make sure the .o file is not opened in another application because windows locks files
+; $ "C:\aaa_se\MyLinker\x64\Debug\MyLinker.exe" -entry "main" -out "helloworld.exe" helloworld.obj
+;
+; $ gcc -m32 -o hello hello.o
+; $ ./hello
+; Hello, world!
+;
+; set PATH=%PATH%;C:\Users\U5353\Downloads\nasm-3.02-win64\nasm-3.02
+; nasm -f win32 -o main.obj main.asm
+; ld -mi386pe -o main.exe main.obj
+; C:\masm32\bin\link /subsystem:windows /nodefaultlib /entry:main helloworld.obj C:\masm32\lib\kernel32.lib
+;
+; https://stackoverflow.com/questions/64413414/unresolved-external-symbol-printf-in-windows-x64-assembly-programming-with-nasm
+; Install Visual Studio in some available version (Community Edition maybe)
+; Download NASM in the portable version as a zip archive from https://www.nasm.us/pub/nasm/releasebuilds/3.02/win64/
+;
+; open "x64 Native Tools Command Prompt for VS...." from the start menu
+;
+; set PATH=%PATH%;C:\Users\U5353\Downloads\nasm-3.02-win64\nasm-3.02
+; cd C:\aaa_se\asm\helloworld
+; nasm -f win64 -o main.obj main.asm
+; link main.obj /subsystem:console /out:main.exe kernel32.lib legacy_stdio_definitions.lib msvcrt.lib
+
+; extern printf
+
+; section .text
+
+; global main
+
+; main:
+;     push ebp
+;     mov ebp, esp
+
+;     push msg
+;     call printf
+;     add esp, 4
+
+;     leave
+;     ret
+
+; section .data
+;     msg     db  'Hello, world!', 13, 10, 0
+
+
+
+bits 64
+default rel          ; make [msg] default to RIP-relative, not 32-bit absolute
+
+segment .data
+   msg: db "Hello world!", 0xd, 0xa, 0    ; CR LF and terminating 0
+
+segment .text
+global main
+extern ExitProcess
+extern printf
+
+main:
+   push    rbp
+   mov     rbp, rsp        ; frame pointer
+   sub     rsp, 32         ; shadow space
+
+   lea     rcx, [msg]
+   call    printf
+
+   xor     ecx, ecx
+   call    ExitProcess    ; or better:   call exit
+                          ; to flush stdout if redirected to a file
+
+  ; leave              ; or just return from main
+  ; xor    eax,eax     ; with main's return value becoming exit status
+  ; ret

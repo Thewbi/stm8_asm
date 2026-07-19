@@ -54,7 +54,7 @@ impl<T> Arena<T> {
         self.nodes[node_id.index].data = data;
     }
 
-    pub fn get_payload(&mut self, node_id: &NodeId) -> &T {
+    pub fn get_payload(&self, node_id: &NodeId) -> &T {
         &self.nodes[node_id.index].data
     }
 
@@ -67,7 +67,7 @@ impl<T> Arena<T> {
         parent_node.left.as_ref()
     }
 
-    pub fn get_right_id(&mut self, parent_node_id: &NodeId) -> Option<&NodeId> {
+    pub fn get_right_id(&self, parent_node_id: &NodeId) -> Option<&NodeId> {
         let parent_node: &Node<T> = &self.nodes[parent_node_id.index];
         parent_node.right.as_ref()
     }

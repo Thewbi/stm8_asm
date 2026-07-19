@@ -47,7 +47,13 @@ impl<T: Display> fmt::Debug for ParseTableCell<T> {
 }
 
 #[derive(Clone, Debug)]
-pub enum ParseStackElement<T: std::fmt::Display> {
+pub struct ParseStackElement<T: std::fmt::Display> {
+    pub element_type: ParseStackElementType<T>,
+    pub data: String,
+}
+
+#[derive(Clone, Debug)]
+pub enum ParseStackElementType<T: std::fmt::Display> {
     RuleElement(RuleElement<T>),
     StateId(usize),
 }
@@ -57,24 +63,26 @@ pub struct Parser<T> {
     pub stack: Vec::<ParseStackElement<String>>,
 }
 
-
-
 impl Parser<String> {
 
     pub fn new(parse_table_param: HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>) -> Self {
 
-        let mut p = Parser {
+        let mut parser = Parser {
             parse_table: parse_table_param,
             stack: Vec::<ParseStackElement<String>>::new(),
         };
 
-        let pse = ParseStackElement::<String>::StateId(0);
-        p.stack.push(pse);
+        let t1 = ParseStackElementType::<String>::StateId(0);
+        let e1 = ParseStackElement { element_type: t1, data: String::from("") };
+        parser.stack.push(e1);
 
-        p
+        parser
     }
 
-    pub fn consume(&mut self, input: RuleElement<String>, grammar_state_hashmap: &BTreeMap<usize, GrammarState<String>>) -> bool {
+    pub fn consume(&mut self, 
+        input: RuleElement<String>,
+        terminal_value: &String,
+        grammar_state_hashmap: &BTreeMap<usize, GrammarState<String>>) -> bool {
 
         let debug = false;
 
@@ -82,12 +90,14 @@ impl Parser<String> {
             println!("[Parser::consume] stack {:?}", self.stack);
         }
 
+        // peek at the topmost element
         let parse_stack_element = self.stack.pop().unwrap();
         self.stack.push(parse_stack_element.clone());
 
-        match &parse_stack_element {
+        // match between RuleElement or StateId
+        match &parse_stack_element.element_type {
 
-            ParseStackElement::RuleElement(rule_element) => {
+            ParseStackElementType::RuleElement(rule_element) => {
                 if debug {
                     println!("[Parser::consume] RuleElement {:?}", rule_element);
                 }
@@ -100,9 +110,9 @@ impl Parser<String> {
 
                 let stack_content = &self.stack[stack_len - 2];
 
-                match &stack_content {
+                match &stack_content.element_type {
 
-                    ParseStackElement::StateId(current_state_id) => {
+                    ParseStackElementType::StateId(current_state_id) => {
 
                         if debug {
                             println!("[Parser::consume] StateId: {}", current_state_id);
@@ -121,8 +131,13 @@ impl Parser<String> {
                                 if debug {
                                     println!("[Parser::consume] GOTO: {:?}", *next_state_id);
                                 }
-                                let pse = ParseStackElement::<String>::StateId(*next_state_id);
-                                self.stack.push(pse);
+
+                                // PUSH new state id
+                                // let pse = ParseStackElement::<String>::StateId(*next_state_id);
+
+                                let t3 = ParseStackElementType::<String>::StateId(*next_state_id);
+                                let e3 = ParseStackElement { element_type: t3, data: String::from("") };
+                                self.stack.push(e3);
                             }
 
                             _ => {
@@ -131,7 +146,7 @@ impl Parser<String> {
                         }
                     }
 
-                    ParseStackElement::RuleElement(rule_element) => {
+                    ParseStackElementType::RuleElement(rule_element) => {
                         panic!("[Parser::consume] RuleElement");
                     }
                 }
@@ -139,13 +154,15 @@ impl Parser<String> {
                 false
             }
 
-            ParseStackElement::StateId(current_state_id) => {
+            ParseStackElementType::StateId(current_state_id) => {
                 // println!("[Parser::consume] StateId: {}", current_state_id);
 
                 let parse_table_row = self.parse_table.get(&current_state_id).unwrap();
-
-                // DEBUG
                 let state = grammar_state_hashmap.get(&current_state_id).unwrap();
+
+                if debug {
+                    println!("{:?}", parse_table_row);
+                }
 
                 let contains_key: bool = parse_table_row.contains_key(&input);
 
@@ -169,33 +186,40 @@ impl Parser<String> {
                 // if the parser row has no cell for the input, execute GOTO using the stack 
                 if !parse_table_row.contains_key(&input) {
 
+                    // peek top element
                     let stack_top_element = self.stack.pop().unwrap();
-                        self.stack.push(stack_top_element.clone());
+                    self.stack.push(stack_top_element.clone());
 
                     if debug {
                         println!("stack_top_element: {:?}", stack_top_element);
                     }
 
-                    match &stack_top_element {
+                    match &stack_top_element.element_type {
 
-                        ParseStackElement::StateId(current_state_id) => {
+                        ParseStackElementType::StateId(current_state_id) => {
                             panic!("[Parser::consume] StateId: {}", current_state_id);
                         }
 
-                        ParseStackElement::RuleElement(rule_element) => {
+                        ParseStackElementType::RuleElement(rule_element) => {
                             if debug {
                                 println!("[Parser::consume] RuleElement");
                             }
 
-                            let idk = parse_table_row.get(&rule_element).unwrap();
-                            match idk {
+                            let command = parse_table_row.get(&rule_element).unwrap();
+                            match command {
 
                                 ParseTableCell::Goto(state_id) => {
                                     if debug {
                                         println!("[Parser::consume] GOTO: {:?}", *state_id);
                                     }
-                                    let pse = ParseStackElement::<String>::StateId(*state_id);
-                                    self.stack.push(pse);
+
+                                    // PUSH new state id
+                                    // let pse = ParseStackElement::<String>::StateId(*state_id);
+
+                                    let t4 = ParseStackElementType::<String>::StateId(*state_id);
+                                    let e4 = ParseStackElement { element_type: t4, data: String::from("") };
+
+                                    self.stack.push(e4);
 
                                     false
                                 }
@@ -204,14 +228,19 @@ impl Parser<String> {
                                     if debug {
                                         println!("[Parser::consume] SHIFT: {:?}", *state_id);
                                     }
-                                    let pse = ParseStackElement::<String>::StateId(*state_id);
-                                    self.stack.push(pse);
+
+                                    // PUSH new state id
+                                    // let pse = ParseStackElement::<String>::StateId(*state_id);
+
+                                    let t5 = ParseStackElementType::<String>::StateId(*state_id);
+                                    let e5 = ParseStackElement { element_type: t5, data: String::from("") };
+                                    self.stack.push(e5);
 
                                     false
                                 }
 
                                 _ => {
-                                    panic!("[Parser::consume] test {:?}", idk);
+                                    panic!("[Parser::consume] test {:?}", command);
                                 }
                             }
                         }
@@ -226,8 +255,18 @@ impl Parser<String> {
                             if debug {
                                 println!("[Parser::consume] shift {}", next_state_id);
                             }
-                            self.stack.push(ParseStackElement::<String>::RuleElement(input));
-                            self.stack.push(ParseStackElement::<String>::StateId(*next_state_id));
+
+                            // // PUSH new terminal
+                            // self.stack.push(ParseStackElement::<String>::RuleElement(input));
+                            // self.stack.push(ParseStackElement::<String>::StateId(*next_state_id));
+
+                            let t1 = ParseStackElementType::<String>::RuleElement(input);
+                            let e1 = ParseStackElement { element_type: t1, data: terminal_value.clone() };
+                            self.stack.push(e1);
+
+                            let t2 = ParseStackElementType::<String>::StateId(*next_state_id);
+                            let e2 = ParseStackElement { element_type: t2, data: String::from("") };
+                            self.stack.push(e2);
 
                             true
                         }
@@ -275,15 +314,65 @@ impl Parser<String> {
                                     println!("[Parser::consume] rule: {:?}", found_rule);
                                 }
 
-                                print!("[Parser::consume()] REDUCING RULE: ");
-                                found_rule.print_rule_simple();
-
+                                // if debug {
+                                    print!("[Parser::consume()] REDUCING RULE: ");
+                                    found_rule.print_rule_simple();
+                                    println!("");
+                                // }
+                                // pop elements from the stack!
+                                // WARNING: The elements are popped in reverse!
+                                let mut rule_reverse = Vec::new();
                                 for rhs in found_rule.rhs {
-                                    self.stack.pop();
-                                    self.stack.pop();
+                                    self.stack.pop(); // state id
+                                    let temp = self.stack.pop(); // terminal / nonterminal
+                                    rule_reverse.push(temp);
+                                }
+                                if debug {
+                                    for terminal_rev in rule_reverse.iter().rev() {
+                                        print!(", TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
+                                    }
+                                    println!("");
                                 }
 
-                                self.stack.push(ParseStackElement::<String>::RuleElement(found_rule.lhs));
+                                // asdf
+                                match found_rule.id {
+
+                                    // primary_expression -> IDENTIFIER
+                                    711 => {
+                                        // TODO: put new node on the stack
+                                        for terminal_rev in rule_reverse.iter().rev() {
+                                            println!("TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
+                                        }
+                                    }
+
+                                    // primary_expression -> NUMERIC
+                                    712 => {
+                                        // TODO: put new node on the stack
+                                        for terminal_rev in rule_reverse.iter().rev() {
+                                            println!("TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
+                                        }
+                                    }
+
+                                    // additive_expression -> multiplicative_expression MINUS additive_expression
+                                    5645 => {
+                                        // TODO: put new node on the stack
+                                        for terminal_rev in rule_reverse.iter().rev() {
+                                            println!("TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
+                                        }
+                                    }
+
+                                    _ => {
+
+                                    }
+                                }
+
+                                // push the LHS that the rule has been reduced to
+                                let t6 = ParseStackElementType::<String>::RuleElement(found_rule.lhs);
+                                let e6 = ParseStackElement { element_type: t6, data: String::from("") };
+                                self.stack.push(e6);
+
+                                // push the LHS that the rule has been reduced to
+                                //self.stack.push(ParseStackElement::<String>::RuleElement(found_rule.lhs));
                             }
 
                             false
@@ -311,10 +400,10 @@ pub enum RuleElement<T> {
     Terminal(T),
     Epsilon,
     Dot,
-    Unknown,
     AcceptingStateTransition,
     Closure,
-    Unused
+    Unused,
+    Unknown
 }
 
 impl<T: Ord> Ord for RuleElement<T> {
@@ -405,6 +494,10 @@ impl<T: Debug + std::fmt::Display> Rule<T> {
 
     pub fn print_rule_simple(&self) {
 
+        // Rule ID
+
+        print!("[{:?}] ", &self.id);
+
         // LHS
         print!("{:?}", &self.lhs);
 
@@ -470,7 +563,7 @@ impl<T: Debug + std::fmt::Display> Rule<T> {
             }
         }
 
-        println!("");
+        // println!("");
     }
 }
 

@@ -33,8 +33,8 @@ pub fn compute_first_original(grammar_rules: &Vec::<Rule<String>>, nullable: &BT
 
                 match &r {
 
-                    RuleElement::Terminal(t) => {
-                        //println!("Terminal in first position found: {:?}", t);
+                    RuleElement::Terminal(str_val) => {
+                        //println!("Terminal in first position found: {:?}", str_val);
 
                         // if rule's lhs is not part of the map yet, insert a vector
                         if !first.contains_key(&rule.lhs) {

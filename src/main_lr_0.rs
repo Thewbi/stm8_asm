@@ -70,7 +70,7 @@ impl<T: Display> fmt::Debug for Rule<T> {
             RuleElement::NonTerminal(str_val) => {
                 write!(f, "{}", str_val).expect("Write failed!");
             }
-            RuleElement::Terminal(str_val) => {
+            RuleElement::Terminal(str_val, _) => {
                 write!(f, "{}", str_val).expect("Write failed!");
             }
             RuleElement::Epsilon => {
@@ -107,7 +107,7 @@ impl<T: Display> fmt::Debug for Rule<T> {
                     write!(f, "{}", str_val).expect("Write failed!");
                     index = index + 1;
                 }
-                RuleElement::Terminal(str_val) => {
+                RuleElement::Terminal(str_val, _) => {
                     if index > 0 {
                         write!(f, " ");
                     }
@@ -165,7 +165,7 @@ impl<T: Display> fmt::Display for Rule<T> {
             RuleElement::NonTerminal(str_val) => {
                 write!(f, "{}", str_val).expect("Write failed!");
             }
-            RuleElement::Terminal(str_val) => {
+            RuleElement::Terminal(str_val, _) => {
                 write!(f, "{}", str_val).expect("Write failed!");
             }
             RuleElement::Epsilon => {
@@ -202,7 +202,7 @@ impl<T: Display> fmt::Display for Rule<T> {
                     write!(f, "{}", str_val).expect("Write failed!");
                     index = index + 1;
                 }
-                RuleElement::Terminal(str_val) => {
+                RuleElement::Terminal(str_val, _) => {
                     if index > 0 {
                         write!(f, " ");
                     }
@@ -396,11 +396,11 @@ fn create_rule(grammar_rules: &mut Vec::<Rule<String>>, rule_as_string: String, 
                     if is_all_letters_lowercase {
                         rule.rhs.push(RuleElement::NonTerminal(part_string));
                     } else {
-                        rule.rhs.push(RuleElement::Terminal(part_string));
+                        rule.rhs.push(RuleElement::Terminal(part_string, _));
                     }
                 } else {
                     if is_all_letters_lowercase {
-                        rule.rhs.push(RuleElement::Terminal(part_string));
+                        rule.rhs.push(RuleElement::Terminal(part_string, _));
                     } else {
                         rule.rhs.push(RuleElement::NonTerminal(part_string));
                     }
@@ -451,8 +451,6 @@ fn main() {
     let rule_1 = grammar_rules.first().unwrap().clone();
 */
 
-
-/**/
     // DragonBook 2nd Edition, page 255, Example 4.48. Figure 4.39
     // Reproduced on page 271
 
@@ -917,7 +915,9 @@ fn main() {
                     final_state_id = current_grammar_state_id;
 
                     // TODO output transition
-                    println!("{:?} -{:?}-> {:?}", &current_grammar_state_id, "$!$!$", std::usize::MAX);
+                    if debug {
+                        println!("{:?} -{:?}-> {:?}", &current_grammar_state_id, "$!$!$", std::usize::MAX);
+                    }
                 }
             }
 
@@ -991,7 +991,9 @@ fn main() {
             if state_contained_already {
 
                 // TODO output transition (to already existing state)
-                println!("{:?} -{:?}-> {:?}", &current_grammar_state_id, &current_symbol, &state_id);
+                if debug {
+                    println!("{:?} -{:?}-> {:?}", &current_grammar_state_id, &current_symbol, &state_id);
+                }
 
             } else {
 
@@ -1007,7 +1009,9 @@ fn main() {
                 e_set.insert(0, new_grammar_state.id);
 
                 // TODO output transition (to new state)
-                println!("{:?} -{:?}-> {:?}", &current_grammar_state_id, &current_symbol, &new_grammar_state.id);
+                if debug {
+                    println!("{:?} -{:?}-> {:?}", &current_grammar_state_id, &current_symbol, &new_grammar_state.id);
+                }
 
                 grammar_state_hashmap.insert(new_grammar_state.id, new_grammar_state);
             }

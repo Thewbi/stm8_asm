@@ -287,7 +287,7 @@ pub fn produce_grammar_c_full_if_else_3(grammar_rules: &mut Vec::<Rule<String>>)
     create_rule(grammar_rules, String::from("direct_abstract_declarator -> direct_abstract_declarator OPENING_ANGULAR_BRACKET CLOSING_ANGULAR_BRACKET"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("direct_abstract_declarator -> direct_abstract_declarator OPENING_ANGULAR_BRACKET constant_expression CLOSING_ANGULAR_BRACKET"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("direct_abstract_declarator -> OPENING_BRACKET CLOSING_BRACKET"), treat_nonterminal_lowercase);
-    create_rule(grammar_rules, String::from("direct_abstract_declarator -> OPENING_BRACKET CLOSING_BRACKET"), treat_nonterminal_lowercase);
+    //create_rule(grammar_rules, String::from("direct_abstract_declarator -> OPENING_BRACKET parameter_type_list CLOSING_BRACKET"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("direct_abstract_declarator -> direct_abstract_declarator OPENING_BRACKET CLOSING_BRACKET"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("direct_abstract_declarator -> direct_abstract_declarator OPENING_BRACKET parameter_type_list CLOSING_BRACKET"), treat_nonterminal_lowercase);
 
@@ -389,14 +389,20 @@ pub fn produce_grammar_c_full_if_else_3(grammar_rules: &mut Vec::<Rule<String>>)
     create_rule(grammar_rules, String::from("selection_statement -> IF OPENING_BRACKET expression CLOSING_BRACKET statement ELSE statement"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("selection_statement -> SWITCH OPENING_BRACKET expression CLOSING_BRACKET statement"), treat_nonterminal_lowercase);
 
-// // //     // ORIG 
+    // expression
+    //     : assignment_expression
+    //     | expression ',' assignment_expression
+    //     ;
     create_rule(grammar_rules, String::from("expression -> assignment_expression"), treat_nonterminal_lowercase);
-    // create_rule(grammar_rules, String::from("expression -> expression COMMA assignment_expression"), treat_nonterminal_lowercase);
+    //create_rule(grammar_rules, String::from("expression -> expression COMMA assignment_expression"), treat_nonterminal_lowercase);
 //     // DEBUG
 //     // create_rule(grammar_rules, String::from("expression -> EXPRESSION_STOP"), treat_nonterminal_lowercase);
     // create_rule(grammar_rules, String::from("expression -> VOID"), treat_nonterminal_lowercase);
 
-// // //     // ORIG - this rule causes deep-dive with loop
+    // assignment_expression
+    //     : conditional_expression
+    //     | unary_expression assignment_operator assignment_expression
+    //     ;
     create_rule(grammar_rules, String::from("assignment_expression -> unary_expression assignment_operator assignment_expression"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("assignment_expression -> conditional_expression"), treat_nonterminal_lowercase);
 // // //     // 
@@ -451,16 +457,27 @@ pub fn produce_grammar_c_full_if_else_3(grammar_rules: &mut Vec::<Rule<String>>)
     create_rule(grammar_rules, String::from("argument_expression_list -> assignment_expression"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("argument_expression_list -> argument_expression_list COMMA assignment_expression"), treat_nonterminal_lowercase);
 
-    // create_rule(grammar_rules, String::from("postfix_expression_list -> INC_OP postfix_expression_list"), treat_nonterminal_lowercase);
-// // //     create_rule(grammar_rules, String::from("postfix_expression_list -> INC_OP"), treat_nonterminal_lowercase);
-
     create_rule(grammar_rules, String::from("primary_expression -> IDENTIFIER"), treat_nonterminal_lowercase);
-// // //     create_rule(grammar_rules, String::from("primary_expression -> HEX_NUMERIC"), treat_nonterminal_lowercase);
+    //     create_rule(grammar_rules, String::from("primary_expression -> HEX_NUMERIC"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("primary_expression -> NUMERIC"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("primary_expression -> FLOAT_NUMERIC"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("primary_expression -> STRING_LITERAL"), treat_nonterminal_lowercase);
-    create_rule(grammar_rules, String::from("primary_expression -> OPENING_BRACKET primary_expression CLOSING_BRACKET"), treat_nonterminal_lowercase);
+    create_rule(grammar_rules, String::from("primary_expression -> OPENING_BRACKET expression CLOSING_BRACKET"), treat_nonterminal_lowercase);
 
+    
+    // assignment_operator
+    //     : '='
+    //     | MUL_ASSIGN
+    //     | DIV_ASSIGN
+    //     | MOD_ASSIGN
+    //     | ADD_ASSIGN
+    //     | SUB_ASSIGN
+    //     | LEFT_ASSIGN
+    //     | RIGHT_ASSIGN
+    //     | AND_ASSIGN
+    //     | XOR_ASSIGN
+    //     | OR_ASSIGN
+    //     ;
     create_rule(grammar_rules, String::from("assignment_operator -> EQUALS_SIGN"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("assignment_operator -> MUL_ASSIGN"), treat_nonterminal_lowercase);
 

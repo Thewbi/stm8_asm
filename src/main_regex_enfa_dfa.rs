@@ -233,8 +233,8 @@ fn main_nfa_to_dfa() {
     println!("done");
 }
 
-fn main() {
 // fn combined_token_hex() {
+fn main() {
 
     //
     // Pre-Build alphabet
