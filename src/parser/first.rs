@@ -1,7 +1,7 @@
 use crate::BTreeMap;
 
-use crate::Rule;
-use crate::RuleElement;
+use crate::parser::rule::Rule;
+use crate::parser::rule::RuleElement;
 
 // How to compute the first map:
 //
@@ -118,9 +118,9 @@ pub fn compute_first_original(grammar_rules: &Vec::<Rule<String>>, nullable: &BT
 
     // DEBUG output FIRST()
     println!("");
-    println!("FIRST() *****************************");
+    println!("FIRST() *************************************************************************");
     for (key, value) in first.clone().into_iter() {
         println!("{:?} / {:?}", key, value);
     }
-    println!("*******************************************");
+    println!("*********************************************************************************");
 }

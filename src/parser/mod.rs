@@ -1,2 +1,10 @@
 pub mod parser;
 pub mod first;
+pub mod propagation;
+pub mod build_parse_table;
+pub mod perform_lalr_1;
+pub mod grammar_state;
+pub mod nullable_sets;
+pub mod validate_grammar;
+pub mod print_rules;
+pub mod rule;

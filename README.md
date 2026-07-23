@@ -5,9 +5,118 @@ Also excuse the horrible drawings! I am not a graphics designer by any means! I 
 
 Other than that. I hope you like this document. Thanks for reading. Enjoy.
 
-If you do not know about automata, please first consult the internet or the analog computer science literature. There is plenty of information out there. Automata are the formal theoretic basis of lexing and parsing. Same goes for context free grammars. 
+If you do not know about automata, please first consult the internet or the analog computer science literature. There is plenty of information out there. Automata are the formal theoretical basis of lexing and parsing. Same goes for context free grammars. 
 
-And the LALR(1) parser used in this document is generally outdate (but works for the grammar used). Maybe you want to look into other types of parsers.
+And the LALR(1) parser used in this document is generally outdated (but works for the grammar used). Maybe you want to look into other types of parsers.
+
+# The preprocessor
+
+Many tests:
+
+https://github.com/Thewbi/cpp_compiler/tree/main/src/test/resources/preprocessor
+
+Removes comments (single line // and multiline comments are removed /* */ and replaced by a single space character).
+Comments are not part of the C-grammar! This means the C-compiler cannot process comments. This is the reason why
+the preprocessor needs to remove comments!
+
+Backslash-Newline sequences are deleted, no matter where.
+
+```
+#define
+#elif
+#else
+#endif
+#error
+#if
+#ifdef
+#ifndef
+#import
+#include
+#line
+#pragma
+#undef
+#using
+```
+
+https://github.com/Thewbi/cpp_compiler/blob/main/src/main/java/preprocessor/SimpleFileStackFrame.java
+
+The input is a single compilation unit which is a .c file which draws in many .h files which in turn
+may also draw in more .h files by including them. The output is one large.c file with all the values
+from the .c and all included .h files. If two or more .h files for a loop by cyclicly including themselves,
+the loop is broken by including each .h file at most once. 
+
+.h files are identified by their absolute or relative path. Relative paths need one or more base paths 
+to be resolved into absolute paths. Based on the type of #include symbol the use of paths change.
+For chevron includes (#include <stdio.h>) the base paths are toolchain system paths and -I command line inputs. 
+For quote includes (#include "test.h") the include paths are resolved relative to the currently
+process file (.c or .h). 
+
+A SimpleFileStackFrame object stands for either the main.c or any of the included files which.
+Every included .h file is represented by it's own SimpleFileStackFrame.
+
+SimpleFileStackFrame will use a lexer only to process the file. The preprocessor knows nothing
+about the C grammar, it is a text processor.
+
+The preprocessor iterates over the token it scans from the input file of the SimpleFileStackFrame.
+There is a large if-else statement for each type of token.
+
+As the preprocessor (implemented inside SimpleFileStackFrame) scans through the input it enters
+different modes based on the items it has seen last. For example if an expression is detected,
+it will enter ParserMode.EXPRESSION. It uses a hand-crafted expression parser to build trees from expressions.
+
+Every if case in the large it-statement is created for a specific token-type. Within the branches,
+there is a second if-else statement for the different modes that the preprocessor can be in.
+
+As the preprocessor goes, it will build up different #define objects and store them into a datastructure
+for later application in normal text. There is only one #define object data store for the entire
+translation unit. This means #define object from included header files are also used when processing
+the base .c file which has performed the include and also when processing all subsequent .h files.
+
+If a token is normal text (no preprocessor token), then the normal text is compared to the #define objects
+in the database. If the normal text matches one of the #define objects, the #define object is applied.
+This means that the formal parameters need to be replaced by actual parameters, and the normal text is 
+replaced by the processed #define object and the newly replaced text is output by the preprocessor into
+the large resulting StringBuffer or text file.
+
+The functions filterByPreprocessorValues() and evaluatePreprocessorTreeNode() are used to perform these
+replacement steps.
+
+As an example, take a look at the SQUARE(x) #define object:
+
+```
+#define SQUARE(x) ((x) * (x))
+```
+
+When SQUARE is processed, it's expression x * x is parsed and inserted into the database. Whenever SQUARE
+is encountered in normal text, it's formal parameter x is replaced and the replaced expression is output.
+
+```
+int a = SQUARE(5);
+```
+
+is replaced by
+
+```
+int a  = ((5) * (5));
+```
+
+
+
+
+
+```
+/**
+ * This function contains the basic idea of the algorithm. The purpose of the
+ * algorithm is to parse expressions without a parser, using a lexer and token
+ * only.
+ * The expression is represented using a binary tree.
+ * To build the tree, all token types are identified and if the token is a C/C++
+ * operator, the precedence of that operator is used as a weight. The heavier
+ * the node (higher precedence) the deeper the token will sink into the tree.
+ * Literals have the highest weight and will sink down and act as the leafs of
+ * the tree (Leaf == no children).
+ */
+```
 
 # The Lexer
 
@@ -304,7 +413,117 @@ Both online tools:
 
 display the parse table. Use them to compare your parse table to them!
 
-# Difference between Parse Tree and AST
+# Lexer/Parser - Handling the typedef Keyword
+
+The C language's typedef keyword can be used to create aliases over types which help you save typing work which increases your chances to write correct applications by excluding subtle typos.
+
+For example a struct can be typedef'ed into a new type:
+
+```
+struct point {
+    int x;
+    int y;
+};
+
+typedef struct point point_t;
+
+int main()
+{
+    struct point p1;
+    p1.x = 1;
+    p1.y = 1;
+
+    point_t p2;
+    p2.x = 2;
+    p2.x = 3;
+
+    return p1.x;
+}
+```
+
+The point p1 in the example above is defined using the default notation for structs in C. You need to repeat the keyword struct to create a struct. Point p2 uses the typedef for the point struct called *point_t*. Using this typedef it is possible to create struct variables without the need to explicitly add the struct keyword. typedef also works for arrays and other types.
+
+The grammar contains the following rule for types defined via typedefs:
+
+```
+type_specifier -> TYPE_NAME
+```
+
+The TYPE_NAME terminal is not an IDENTIFIER terminal! The TYPE_NAME terminal is used in the grammer for user-defined types!
+
+This is a especially nasty trick in the grammar! The lexer is usually responsible for creating token which then are used as terminals by the parser. To the lexer, everything that is not a keyword, a numeric, char or string literal is an IDENTIFIER token! The lexer has no idea about user-defined types!
+
+A user defined type is an occasion where an IDENTIFIER changes into a TYPE_NAME!
+
+Initially, I did the following test: I changed the rule from 
+
+```
+type_specifier -> TYPE_NAME
+```
+
+to
+
+```
+type_specifier -> IDENTIFIER
+```
+
+in the hopes that the problem of custom typedef types can be moved into a later phase, where the AST is available!
+
+The result of the test is that the grammar becomes ambiguous and that the LALR(1) parser is not able to parse the grammar any more! When injecting custom TYPE_NAME token, the grammar stays parseable even when using custom types when declaring variables!
+
+The second idea is to let the parser interact with the lexer. Whenever the parser knows that it parses a typedef, it tells the lexer to return a TYPE_NAME token instead of an IDENTIFIER token.
+
+I tried this approach and I found it does not work because the parser draws in a token from the lexer before it knows that it needs a TYPE_NAME next! This is because a lookahead is pulled in before reducing the struct_or_union_specifier rule. Only after the struct_or_union_specifier rule can the lexer be switched from IDENTIFIER to TYPE_NAME because the struct_or_union_specifier requires an IDENTIFIER first (the name of the struct to typedef over). Once the lookahead is already pulled in as an IDENTIFIER, switching the lexer around does not make any difference any more!
+
+The solution is to change the lookahead token's type in the parser itself. When the parser has reduced the struct_or_union_specifier rule it will turn the next identifier into a TYPE_NAME token. That way the correct rules are reduced and the type is finally defined. The lexer will insert the new user-defined type into the type table.
+
+From here on out, when the lexer sees and IDENTIFIER that matches a user-definde type it will turn the IDENTIFIER token into a TYPE_NAME token before passing it to the parser.
+
+Instead, the example grammar makes the lexer output this token type TYPE_NAME, if a typedef'ed type is encountered. The lexer needs to be extended to detect typedef types! When the parser has parsed a typedef rule such as
+
+```
+typedef struct point point_t;
+```
+
+the parser needs to talk to the lexer and reprogram the lexer! 
+
+The parser needs to tell the lexer that point_t is a type! From then on, whenever the lexer has detected an IDENTIFIER token, it needs to run that IDENTIFIER token through an additional filter. The filter will check if the IDENTIFIER matches a type from the lexer's type database that is filled by the parser. When the lexer has a type registered for the specific IDENTIFIER, instead of returning an IDENTIFIER token, it will return a TYPE_NAME token to satisfy the grammar!
+
+In this implementation, IDENTIFIER token are checked if they are types inside the *consume_character()* function. Before the lexer outputs a token to the parser, it first checks the token_id. If it is whitespace or newline, then the token is not forwarded to the parser at all. If it is IDENTIFIER and if the text matches one of the typedefs, then instead of a IDENFITIFER token, a TYPE_NAME token is passed to the parser. Otherwise a normal IDENTIFIER token is passed to the parser.
+
+The parser will parse a typedef in the form of a declaration_specifiers rule:
+
+```
+declaration_specifiers -> storage_class_specifier declaration_specifiers
+```
+
+This rule is displayed as the left-most subtree in the tree-graph below.
+
+```
+typedef struct point point_t; 
+
+void main () { 
+    point_t pp;
+}
+```
+
+Whenever the *declaration_specifiers* rule is reduced, the parser needs to check the subtree for a typedef!
+
+The parser does not create a full subtree with nodes and parents and children. Instead, the parser struct is extended by some properties so it can store the last typedef it has seen as a *temporary storage* if you will.
+
+TODO: update this::::
+The parser
+* Inside the handler for the rule ```type_specifier -> IDENTIFIER``` stores the last type_specifier if the type_specifier node has a single child only (Reason: looking at the parse tree, this situation describes the new typedef's name during parsing. point_t in the example above.)
+* Inside the handler for the rule ```struct_or_union_specifier -> struct_or_union IDENTIFIER``` will store the source type which is the original type from which a new type is typedef'ed.
+* Inside the handler for the rule ```storage_class_specifier -> TYPEDEF``` the property *typedef_found* is set to true.
+* Inside the handler for the rule ```declaration_specifiers -> storage_class_specifier declaration_specifiers```, if the *typedef_found* property is true, it is set to false and a new typedef is inserted into the types database using the properties *last_type_specifier* and *last_source_type*.
+
+![typedef tree](res/images/typedef_declaration_specifier_tree.svg "typedef tree")
+ 
+
+# Phase 3 - AST and Semantic Analysis
+
+## Difference between Parse Tree and AST
 
 The LALR(1) parser will follow all production rules in the grammar meticulously because it was constructed from the grammar. When writing down the graph of all production rules that have been reduced and connecting them together in the order in which they have been reduced, you will get the parse tree. Remeber the first sketch drawing in the Lexer section? This sketch shows the parse tree including all production rules use to accept the short C-application.
 
@@ -334,11 +553,11 @@ The parse tree is what the parser gives us for free as it follows the parse tabl
 
 The AST is something that we need to build ourselves!
 
-# Building the AST from the Parse Tree
+## Building the AST from the Parse Tree
+
+A more condensed tree with less filler nodes can be created by setting the parser's *collapse_nodes* property to true. Then, the parser will not ouput nodes that connect to one individual node only.
 
 
-
- 
 
 
 

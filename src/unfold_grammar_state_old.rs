@@ -409,24 +409,24 @@
     fragment_closing_bracket.enfa.states.get_mut(&fragment_closing_bracket.end_id).unwrap().token_name = String::from("CLOSING_BRACKET");
 
     //
-    // OPENING_SQUIGGLY_BRACKET (token-id: 30)
+    // OPENING_CURLY_BRACKET (token-id: 30)
     converter.infix_to_postfix("\\{");
     let mut fragment_stack_opening_squiggly_bracket = FragmentStack::new();
     recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_opening_squiggly_bracket, &mut alphabet);
     converter.reset();
     let mut fragment_opening_squiggly_bracket = fragment_stack_opening_squiggly_bracket.stack.pop().unwrap();
     fragment_opening_squiggly_bracket.enfa.states.get_mut(&fragment_opening_squiggly_bracket.end_id).unwrap().token_id = 30;
-    fragment_opening_squiggly_bracket.enfa.states.get_mut(&fragment_opening_squiggly_bracket.end_id).unwrap().token_name = String::from("OPENING_SQUIGGLY_BRACKET");
+    fragment_opening_squiggly_bracket.enfa.states.get_mut(&fragment_opening_squiggly_bracket.end_id).unwrap().token_name = String::from("OPENING_CURLY_BRACKET");
 
     //
-    // CLOSING_SQUIGGLY_BRACKET (token-id: 35)
+    // CLOSING_CURLY_BRACKET (token-id: 35)
     converter.infix_to_postfix("\\}");
     let mut fragment_stack_closing_squiggly_bracket = FragmentStack::new();
     recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_closing_squiggly_bracket, &mut alphabet);
     converter.reset();
     let mut fragment_closing_squiggly_bracket = fragment_stack_closing_squiggly_bracket.stack.pop().unwrap();
     fragment_closing_squiggly_bracket.enfa.states.get_mut(&fragment_closing_squiggly_bracket.end_id).unwrap().token_id = 35;
-    fragment_closing_squiggly_bracket.enfa.states.get_mut(&fragment_closing_squiggly_bracket.end_id).unwrap().token_name = String::from("CLOSING_SQUIGGLY_BRACKET");
+    fragment_closing_squiggly_bracket.enfa.states.get_mut(&fragment_closing_squiggly_bracket.end_id).unwrap().token_name = String::from("CLOSING_CURLY_BRACKET");
 
     //
     // OPENING_ANGULAR_BRACKET (token-id: 40)
@@ -1339,3 +1339,177 @@ impl<T: std::cmp::PartialEq> PartialEq<RuleElement<T>> for RuleElement<T> {
     }
 }
 */
+
+
+/*
+// TODO: the lookahead character is not used at all!
+// Remove it! It makes the parser loop more complicated
+fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>, 
+    mut current_state_id: usize, 
+    token_string_buffer: &mut String, 
+    current_character: char, 
+    lookahead_character: char,
+    step: &mut usize,
+    parser: &mut Parser::<String>,
+    grammar_state_hashmap: &BTreeMap<usize, GrammarState<String>>,
+    string_buffer: &mut String,
+    debug_node_stack: &mut Vec::<DebugNode>) -> usize {
+
+    let lexer_debug = false;
+
+    // // check if there is a valid transition for the next character
+    // // greedily consume it and do not directly feed a half finished token to the parser
+    // if lexer_debug {
+    //     println!("[LEXER.TRAP_STATE] Lookahead character is: '{}'", lookahead_character);
+    // }
+
+    // let mut current_state_id = dfa.start_state_id;
+    // let mut last_state_id = dfa.start_state_id;
+    let mut next_state_id = current_state_id;
+
+    let mut char_consumed = false;
+    while !char_consumed {
+
+        // last_state_id = current_state_id;
+
+        if lexer_debug {
+            println!("[LEXER] State; '{}', Input: '{}', lookahead: '{}'", current_state_id, current_character, lookahead_character);
+        }
+
+        //
+        // try to transition the large lexer DFA to produce a token for the input.
+        // If the input has no valid transition, the DFA transitions into a trap state.
+        //
+
+        next_state_id = transition_dfa(dfa, current_state_id, &RegexBuildingBlock::CharacterLiteral(current_character));
+
+        if lexer_debug {
+            println!("[LEXER] From State: '{}', To State: '{}'", current_state_id, next_state_id);
+        }
+
+        //
+        // Next, check where the DFA has transitioned to
+        //
+
+        if dfa.is_trap_state(next_state_id) {
+
+            if lexer_debug {
+                println!("[LEXER.TRAP_STATE] Emitting '{}', Token-Id: {}, Token-Name: {}", token_string_buffer, dfa.states[&current_state_id].token_id, dfa.states[&current_state_id].token_name);
+                println!("");
+            }
+
+            // create a Token / Terminal
+            let terminal = RuleElement::Terminal(dfa.states[&current_state_id].token_name.clone());
+
+            if lexer_debug {
+                println!("[LEXER.TRAP_STATE] {:?} ---> {:?}", token_string_buffer, terminal);
+            }
+
+            match dfa.states[&current_state_id].token_id {
+                
+                NEWLINE_TOKEN_ID | WHITESPACE_TOKEN_ID => {
+                    // ignore NEWLINE and WHITESPACE
+                    if lexer_debug {
+                        println!("[LEXER.TRAP_STATE] NOT Passing token to parser: {:?}, {:?}", token_string_buffer, terminal);
+                    }
+                }
+
+                IDENTIFIER_TOKEN_ID => {
+                    if lexer_debug {
+                        println!("[LEXER.TRAP_STATE] Passing token to parser: {:?}, {:?}", token_string_buffer, terminal);
+                    }
+
+                    // TODO: check some type of datastructure for token here!!!!!!!
+                    // asdfasfdsdf
+                    if token_string_buffer == "point_t" {
+
+                        // pass token to the lexer
+                        provide_input(parser, 
+                            grammar_state_hashmap, 
+                            step, 
+                            &RuleElement::Terminal(String::from("TYPE_NAME")),
+                            &token_string_buffer,
+                            string_buffer,
+                            debug_node_stack);
+
+                    } else {
+                        // pass token to the lexer
+                        provide_input(parser, 
+                            grammar_state_hashmap, 
+                            step, 
+                            &terminal,
+                            &token_string_buffer,
+                            string_buffer,
+                            debug_node_stack);
+                    }
+                }
+
+                _ => {
+                    if lexer_debug {
+                        println!("[LEXER.TRAP_STATE] Passing token to parser: {:?}, {:?}", token_string_buffer, terminal);
+                    }
+
+                    // pass token to the lexer
+                    provide_input(parser, 
+                        grammar_state_hashmap, 
+                        step, 
+                        &terminal,
+                        &token_string_buffer,
+                        string_buffer,
+                        debug_node_stack);
+                }
+            }
+
+            // reset the lexer's DFA back to the start state and 
+            // try to accept the symbol again which was read from input already
+            char_consumed = false;
+            current_state_id = dfa.start_state_id;
+            token_string_buffer.clear();
+
+        } else if dfa.is_end_state(next_state_id) { 
+            
+            //
+            // if the state is normal or an end state, just consume the character
+            //
+
+            // DEBUG
+            if lexer_debug {
+                println!("[LEXER] Emitting '{}', Token-Id: {}, Token-Name: {}", token_string_buffer, dfa.states[&next_state_id].token_id, dfa.states[&next_state_id].token_name);
+            }
+
+            token_string_buffer.push(current_character);
+
+            char_consumed = true;
+
+        } else {
+
+            //
+            // if the state is normal or an end state, just consume the character
+            //
+
+            // DEBUG
+            // println!("STATE '{}' NOT END STATE!", current_state_id);
+
+            token_string_buffer.push(current_character);
+
+            char_consumed = true;
+        }
+    }
+
+    next_state_id
+}
+*/
+
+/*
+let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
+    let temp_rule_element_2 = RuleElement::<String>::Terminal(String::from("abc"));
+
+    let mut temp_table = HashMap::<RuleElement<String>, usize>::new();
+    temp_table.insert(temp_rule_element_1, 1usize);
+
+    if temp_table.contains_key(&temp_rule_element_2) {
+        println!("Test");
+    } else {
+        println!("Test2");
+    }
+        */

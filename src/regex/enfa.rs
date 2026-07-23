@@ -782,8 +782,8 @@ fn add_not_single_character_interpretation(fragment_stack: &mut FragmentStack, a
     // pop top element from the fragment stack
     let mut top_fragment = fragment_stack.stack.pop().unwrap();
 
-    // DEBUG
-    enfa_to_dot_directed_graph(&mut top_fragment.enfa, "top_fragment.dot");
+    // // DEBUG
+    // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "top_fragment.dot");
     
     if top_fragment.enfa.transitions.len() == 0 {
 
@@ -841,8 +841,8 @@ fn add_not_single_character_interpretation(fragment_stack: &mut FragmentStack, a
         panic!("Not implemented for complex automata!");
     }
 
-    // DEBUG
-    enfa_to_dot_directed_graph(&mut top_fragment.enfa, "top_fragment.dot");
+    // // DEBUG
+    // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "top_fragment.dot");
 }
 
 // ^ Not / Inversion
@@ -858,8 +858,8 @@ fn add_not_extended_interpretation(fragment_stack: &mut FragmentStack, alphabet:
     // pop top element from the fragment stack
     let mut top_fragment = fragment_stack.stack.pop().unwrap();
 
-    // DEBUG
-    enfa_to_dot_directed_graph(&mut top_fragment.enfa, "top_fragment.dot");
+    // // DEBUG
+    // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "top_fragment.dot");
 
     // check if the current fragment consists of a atomic or a complex automaton
     if top_fragment.start_id == top_fragment.end_id {
@@ -877,8 +877,8 @@ fn add_not_extended_interpretation(fragment_stack: &mut FragmentStack, alphabet:
 
         top_fragment.end_id = end_state_id;
 
-        // DEBUG
-        enfa_to_dot_directed_graph(&mut top_fragment.enfa, "not_enfa_automaton.dot");
+        // // DEBUG
+        // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "not_enfa_automaton.dot");
 
         //
         // convert eNFA to DFA
@@ -890,8 +890,8 @@ fn add_not_extended_interpretation(fragment_stack: &mut FragmentStack, alphabet:
         // convert from eNFA to DFA
         let mut dfa = enfa_to_dfa(&mut top_fragment.enfa, alphabet);
 
-        // DEBUG -- DFA from initial eNFA
-        enfa_to_dot_directed_graph(&mut dfa, "dfa_automaton.dot");
+        // // DEBUG -- DFA from initial eNFA
+        // enfa_to_dot_directed_graph(&mut dfa, "dfa_automaton.dot");
 
         // invert end states
         for (_state_id, state) in dfa.states.iter_mut() {
@@ -926,8 +926,8 @@ fn add_not_extended_interpretation(fragment_stack: &mut FragmentStack, alphabet:
             dfa.add_transition(state_id, Input::Epsilon, new_end_state_id);
         }
 
-        // DEBUG - DFA with additional final state
-        enfa_to_dot_directed_graph(&mut dfa, "inverted_dfa_automaton.dot");
+        // // DEBUG - DFA with additional final state
+        // enfa_to_dot_directed_graph(&mut dfa, "inverted_dfa_automaton.dot");
 
         top_fragment.start_id = dfa.start_state_id;
         top_fragment.end_id = new_end_state_id;
@@ -971,7 +971,7 @@ fn add_not_extended_interpretation(fragment_stack: &mut FragmentStack, alphabet:
         top_fragment.enfa.states.get_mut(&top_fragment.end_id).unwrap().end_state = true;
 
         // DEBUG -- initial eNFA
-        //enfa_to_dot_directed_graph(&mut top_fragment.enfa, "enfa_automaton.dot");
+        // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "enfa_automaton.dot");
 
         // convert from eNFA to DFA
         let mut dfa = enfa_to_dfa(&mut top_fragment.enfa, alphabet);
@@ -1107,9 +1107,9 @@ pub fn enfa_copy(dest: &mut EpsilonNfa::<State, RegexBuildingBlock>, src: &mut E
     // // DEBUG
     // println!("enfa_copy start >>>   end_id: {}", end_id);
 
-    // DEBUG
-    enfa_to_dot_directed_graph(dest, "dest_automaton.dot");
-    enfa_to_dot_directed_graph(src, "src_automaton.dot");
+    // // DEBUG
+    // enfa_to_dot_directed_graph(dest, "dest_automaton.dot");
+    // enfa_to_dot_directed_graph(src, "src_automaton.dot");
 
     let mut copied_start_id = 0;
     let mut copied_end_id = 0;
