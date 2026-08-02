@@ -161,6 +161,57 @@ Once the large automata is available, it is converted from a non-deterministic i
 At this point, the implementation can provide a DFA which stops in states that pertain to the token type that it has lexed!
 The next state is building a parser.
 
+## Implementation and Debugging of the Lexer
+
+The lexer struct and implementation is contained in src\lexer\lexer.rs
+
+The file src\example_lexers\c_lexer.rs uses the base code to create a lexer for the programming language C.
+It defines all the keywords of the programming language and all the literals (String, hex, decimal, float, ...)
+
+In order to test, what token the lexer will create using a given test input, use the file src\main_lexeme_test.rs
+
+### Change the main.rs file so that cargo executes the test
+
+1. Rename the current main.rs file to the filename given in the very first line of the file.
+2. Rename src\main_lexeme_test.rs to src\main.rs
+3. Execute cargo clean and cargo build if the application does not compile any more (This sometimes happens. Sometimes VSCode or Rust does not detect the filename change and reuses the old compiled binaries instead of recompiling the application)
+
+### Test input
+
+1. Inside main.rs, look for the str variable which is the input to the lexer and change it to the input you want to test.
+
+### Check which token the Lexer outputs
+
+1. Inside src\lexer\lexer.rs, set ```let lexer_debug = true;```. As the lexer runs, it will now output which token it returns:
+
+```
+[LEXER.TRAP_STATE] "void" ---> VOID
+[LEXER.TRAP_STATE] " " ---> WHITESPACE
+[LEXER.TRAP_STATE] "main" ---> IDENTIFIER
+[LEXER.TRAP_STATE] "(" ---> OPENING_BRACKET
+[LEXER.TRAP_STATE] ")" ---> CLOSING_BRACKET
+[LEXER.TRAP_STATE] "\r\n" ---> NEWLINE
+[LEXER.TRAP_STATE] "{" ---> OPENING_CURLY_BRACKET
+[LEXER.TRAP_STATE] " " ---> WHITESPACE
+[LEXER.TRAP_STATE] " " ---> WHITESPACE
+[LEXER.TRAP_STATE] " " ---> WHITESPACE
+[LEXER.TRAP_STATE] " " ---> WHITESPACE
+[LEXER.TRAP_STATE] "head_p" ---> IDENTIFIE
+[LEXER.TRAP_STATE] "->" ---> PTR_OP
+[LEXER.TRAP_STATE] "data" ---> IDENTIFIER
+[LEXER.TRAP_STATE] " " ---> WHITESPACE
+[LEXER.TRAP_STATE] "=" ---> EQUALS_SIGN
+[LEXER.TRAP_STATE] " " ---> WHITESPACE
+[LEXER.TRAP_STATE] "1" ---> NUMERIC
+[LEXER.TRAP_STATE] ";" ---> SEMICOLON
+[LEXER.TRAP_STATE] "\r\n" ---> NEWLINE
+```
+
+### Revert changes
+
+1. Rename the current main.rs file to the filename given in the very first line of the file.
+2. Rename src\main_driver.rs to src\main.rs
+
 # The Parser
 
 **Motivation:** I need a component that consumes the source code, allows for reactions to detected language constructs such as if, function declarations, structs, ... and also the component needs to be able to detect syntax errors as precise as possible.
@@ -511,7 +562,7 @@ Whenever the *declaration_specifiers* rule is reduced, the parser needs to check
 
 The parser does not create a full subtree with nodes and parents and children. Instead, the parser struct is extended by some properties so it can store the last typedef it has seen as a *temporary storage* if you will.
 
-TODO: update this::::
+TODO: update this! This is outdated!
 The parser
 * Inside the handler for the rule ```type_specifier -> IDENTIFIER``` stores the last type_specifier if the type_specifier node has a single child only (Reason: looking at the parse tree, this situation describes the new typedef's name during parsing. point_t in the example above.)
 * Inside the handler for the rule ```struct_or_union_specifier -> struct_or_union IDENTIFIER``` will store the source type which is the original type from which a new type is typedef'ed.
@@ -519,7 +570,101 @@ The parser
 * Inside the handler for the rule ```declaration_specifiers -> storage_class_specifier declaration_specifiers```, if the *typedef_found* property is true, it is set to false and a new typedef is inserted into the types database using the properties *last_type_specifier* and *last_source_type*.
 
 ![typedef tree](res/images/typedef_declaration_specifier_tree.svg "typedef tree")
- 
+
+## Debugging the Parser
+
+Imagine you use code loaded from a sample file as input and you are sure that the code is valid C but the parser will not accpet the code! How do you find the issue!
+
+As a hot-fix, take a look at your sample file. If the file ends with empty lines containing whitespace characters, first remove those trailing whitespace characters so that only your source code is left! Currently the grammar is inflexible in that it will fail on trailing whitespace. If this fixes your issue, that is the simplest of all cases.
+
+Edit the file src\example_input\input.rs. As an input, provide the code that refuses to parse:
+
+```
+// VOID IDENTIFIER OPENING_BRACKET CLOSING_BRACKET OPENING_CURLY_BRACKET IDENTIFIER OPENING_ANGULAR_BRACKET NUMERIC CLOSING_ANGULAR_BRACKET EQUALS_SIGN NUMERIC SEMICOLON CLOSING_CURLY_BRACKET
+let str = "void main () { numbers[0] = 5; }";
+```
+
+The next step is to print the rules which the parser generator uses as input.
+The rules can be printed to the console in a format that is required for the next step.
+To print the rules to the console, edit src\main.rs.
+Enable LALR generation:
+
+```
+let generate_lalr_1 = true;
+// let generate_lalr_1 = false;
+if generate_lalr_1 {
+
+    ...
+```
+
+Run the application.
+
+Copy the rules from the console into the page: https://jsmachines.sourceforge.net/machines/lalr1.html
+Click the **&gt; &gt;** button so that the page will generate the LALR parser.
+Copy the input (The TOKEN Stream of the input: VOID IDENTIFIER OPENING_BRACKET CLOSING_BRACKET ...) into the input field, update the **"Maximum number of steps"** to **200** and click the **PARSE** button.
+
+If the input is valid according to the rules, then the page will output acc at the bottom right of the parser log. If there is no acc output, increase the maximum steps. If the algorithm halts within the maximum steps range but without an acc, then the input is not valid.
+
+If the online web page accepts the input but your parser implementation does not, then there is a problem in your implementation.
+
+The first thing to check is if the lexer outputs token that have an identifier that matches the parsers expected identifier. For example if the lexer returns OPENING_SQUIGGLY_BRACKET and the parser expects OPENING_CURLY_BRACKET, then the parser will not accept the lexer's token.
+
+Enable the parse log which is then printed into the console. This allows you to compare the steps that your parser takes in comparison to the steps output on the online page.
+
+Edit src\parser\parser.rs and find the consume() function. Inside the consume function, set the debug variable to true.
+
+```
+let debug = true;
+// let debug = false;
+
+if debug {
+    ...
+```
+
+You can compare every single step with the online page.
+If the steps differ but the TOKEN match, then your LALR generation algorithm is broken.
+
+If your implementation is broken, use the page:
+https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html (do not add a rule S' -> S into the webapp)
+for help.
+
+Remove all rules from your grammar to narrow down the problem to the absolute minimum set of rules that
+causes the problem as otherwise the LALR(1) graph displayed by the parsing-toys page is to large to debug quickly.
+
+Fix your algorithm until the LALR(1) graph including propagated lookahead symbols displayed by the parsing-toys page
+matches your graph perfectly! The explanation on the LALR(1) algorithm in this page will give you valuable hints on
+how to generate new nodes from old nodes and on when to propagate lookahead symbols through the channels.
+
+CleanUp after fixing the problems:
+
+Disable LALR generation:
+
+edit src\main.rs.
+Enable LALR generation:
+
+```
+// let generate_lalr_1 = true;
+let generate_lalr_1 = false;
+if generate_lalr_1 {
+
+    ...
+```
+
+Disable parser log output
+Edit src\parser\parser.rs
+
+```
+// let debug = true;
+let debug = false;
+
+if debug {
+    ...
+```
+
+
+
+
+
 
 # Phase 3 - AST and Semantic Analysis
 
@@ -527,7 +672,7 @@ The parser
 
 The LALR(1) parser will follow all production rules in the grammar meticulously because it was constructed from the grammar. When writing down the graph of all production rules that have been reduced and connecting them together in the order in which they have been reduced, you will get the parse tree. Remeber the first sketch drawing in the Lexer section? This sketch shows the parse tree including all production rules use to accept the short C-application.
 
-For further processing, the compiler can get away with a more compact tree. This more compact tree is called abstract syntax tree or AST! Some of the production rules used in a grammar contain cases that allow the grammar to string from one rule to the next, skipping a rule if it does not add real information but is only strung together to arrive at a LALR(1) grammar that is somewhat unambiguous and can be parsed correctly.
+Some of the production rules used in a grammar contain cases that allow the grammar to string from one rule to the next, skipping a rule if it does not add real information but is only strung together to arrive at a LALR(1) grammar that is somewhat unambiguous and can be parsed correctly.
 
 As an example, take a look at these rules:
 
@@ -547,18 +692,474 @@ inclusive_or_expression -> exclusive_or_expression
 
 You can see that especially for expressions, a rule either contains an operator and it's two operands (the upper rule) or it just strings along the parser to the next rule in line (the lower rule). The parse tree will contain all the productions even if they do not contain any information.
 
-The AST tree does not suffer from this problem. It only contains pure information without bloat.
-
 The parse tree is what the parser gives us for free as it follows the parse table content.
 
-The AST is something that we need to build ourselves!
+It contains every token and non-literal. It describes that a return statement must be followed by a semicolon. An abstract syntax tree is abstract and leaves out information not required for later stages. For example it does not contain information about semicolon. In that sense an AST is an abstract representation of an application whereas the parse tree is a literal or concrete representation of an application.
+
+## Building a condensed Parse Tree (This is not an AST)
+
+A more condensed parse tree with less filler nodes can be created by setting the parser's *collapse_nodes* property to true. Then, the parser will not ouput nodes that connect to one individual node only.
+
+This condensed tree is not used in the following. It was a test to see if an AST can automatically be generated. The AST that is ultimately used is hand-crafted since it contains nodes that are too complex to create by condensing the tree.
 
 ## Building the AST from the Parse Tree
 
-A more condensed tree with less filler nodes can be created by setting the parser's *collapse_nodes* property to true. Then, the parser will not ouput nodes that connect to one individual node only.
+For further processing, the compiler can get away with a more compact tree. This more compact tree is called abstract syntax tree (AST).
 
+The AST is something that we need to build ourselves manually! It will be hand-crafted as the parser reduces individual rules.
+The AST contains custom nodes that are indirectly put together as the parse tree is constructed.
 
+![AST](res/images/ast_if_elseif_else.svg "AST")
 
+The AST tree contains pure information without grammar bloat. Also the parse tree has left- or right-recursive structure. This means that a flat list is not modeled as a large set of sibling nodes but each sibling is nested into the prior sibling. In the AST this recursive structure of siblings is linearized into a set of siblings on the same tree level.
+
+## Formalizing the AST structure
+
+In Nora Sandler's book, the AST is described by a grammar which is extended as the book progresses throught the chapters and language constructs. Note: The AST grammar is not the same as TACKY! The TACKY intermediate language is another step in compilation.
+
+Each mentioning of the AST or AST grammar in the book represents a new iteration where elements may have been added or extended
+relative to the prior iterations. This section sums up all the changes.
+
+The AST grammar description syntax is:
+* The or | operator lists alternatives. 
+* The ? operation marks a part as optional.
+* The * operation marks a part as repeated zero or more times.
+
+Page 13
+
+```
+program = Program(function_definition)
+
+function_definition = Function(identifier name, statement body)
+
+statement = Return(exp)
+
+exp = Constant(int)
+```
+
+Page 14
+
+```
+statement = 
+    Return(exp)
+    | If(exp condition, statement then, statement? else)
+```
+
+Page 33
+
+```
+exp = 
+    Constant(int)
+    | Unary(unary_operator, exp)
+
+unary_operator =
+    Complement
+    | Negate
+```
+
+Page 40 - This is not for the normal AST but for the Assembly AST!
+
+Page 48 
+
+```
+exp = 
+    Constant(int)
+    | Unary(unary_operator, exp)
+    | Unary(binary_operator, exp, exp)
+
+binary_operator = Add | Subtract | Multiply | Divide | Remainder
+```
+
+Page 73
+
+```
+unary_operator =
+    Complement
+    | Negate
+    | Not
+
+binary_operator = Add | Subtract | Multiply | Divide | Remainder
+    | And | Or | Equal | NotEqual | LessThan | LessOrEqual | GreaterThan | GreaterOrEqual
+```
+
+Page 97
+
+```
+exp = 
+    Constant(int)
+    | Var(identifier)
+    | Unary(unary_operator, exp)
+    | Unary(binary_operator, exp, exp)
+    | Assignment(exp, exp)
+```
+
+Page 98
+
+```
+statement = 
+    Return(exp)
+    | Expression(exp)
+    | If(exp condition, statement then, statement? else)
+    | Null
+
+declaration = Declaration(identifier name, exp? init)
+```
+
+Page 99
+
+```
+block_item = S(statement) | D(declaration)
+
+function_definition = Function(identifier name, block_item* body)
+```
+
+Page 100 - contains the entire AST grammar so far.
+
+Page 118 
+
+```
+statement = 
+    Return(exp)
+    | Expression(exp)
+    | If(exp condition, statement then, statement? else)
+    | Null
+```
+
+Page 121
+
+```
+exp = 
+    Constant(int)
+    | Var(identifier)
+    | Unary(unary_operator, exp)
+    | Unary(binary_operator, exp, exp)
+    | Assignment(exp, exp)
+    | Conditional(exp, condition, exp, exp)
+```
+
+Page 135
+
+```
+function_definition = Function(Identifier name, Block body)
+
+block = Block(block_item*)
+
+block_item = S(statement) | D(declaration)
+
+statement =
+    Return(exp)
+    | Express(exp)
+    | If(exp condition, statement then, statement? else)
+    | Compound(block)
+    | Null
+```
+
+This page also has a complete overview of the AST grammar up to this point.
+
+Page 149 - adds AST rules for loops and loop init
+
+Page 150 - adds labels
+
+```
+for_init = InitDecl(declaration) | InitExp(exp?)
+
+statement =
+    Return(exp)
+    | Express(exp)
+    | If(exp condition, statement then, statement? else)
+    | Compound(block)
+    | Break(identifier label)
+    | Continue(identifier label)
+    | While(exp condition, statement body, identifier label)
+    | DoWhile(exp condition, statement body, identifier label)
+    | For(for_init init, exp? condition, exp? post, statement body, identifier label)
+    | Null <----- ???
+```
+
+Page 159 - Switch Statements
+
+Hint: Page 159 - Switch statements are not explicitly defined but left as an extra credit excercise for the reader.
+TODO: Switch Statements
+
+```
+statement =
+    ...
+    | Switch
+
+Switch = 
+    Case*(Constant selector, Statement body)        // Statement body can resolve to Compound which contains a block 
+    | Default(Statement body)
+```
+
+Page 171
+
+```
+exp = 
+    Constant(int)
+    | Var(identifier)
+    | Unary(unary_operator, exp)
+    | Binary(binary_operator, exp, exp)
+    | Assignment(exp, exp)
+    | Conditional(exp, condition, exp, exp)
+    | FunctionCall(identifier, exp* args)         <------------- FunctionCall not FunctionDecl
+```
+
+Change 1:
+
+```
+function_definition = Function(Identifier name, block body)
+```
+
+is changed to
+
+```
+function_declaration = Function(Identifier name, identifier* params, block? body)
+```
+
+Change 2:
+
+```
+declaration = Declaration(identifier name, exp? init)
+```
+
+is changed to
+
+```
+declaration = FunDecl(function_declaration) | VarDecl(variable_declaration)
+
+variable_declaration = (identifier name, exp? init)
+```
+
+Page 172
+This page also has a complete overview of the AST grammar up to this point.
+
+Page 224 - Chapter 10 - File Scope Variable Declarations and storage class specifiers
+Adds Storage Class
+
+Page 247, 248 - Chapter 11 - Long Integers
+New Types, adds cast
+
+```
+type = Int | Long | FunType(type* params, type ret)
+
+exp = 
+    Constant(const)
+    | Var(identifier)
+    | Cast(type target_type, exp)
+    | Unary(unary_operator, exp)
+    | Binary(binary_operator, exp, exp)
+    | Assignment(exp, exp)
+    | Conditional(exp, condition, exp, exp)
+    | FunctionCall(identifier, exp* args)
+
+const = ConstInt(int) | ConstLong(int)
+```
+
+Page 252 - (listing 11-7 and 11-9) adds type information to the AST Nodes
+
+```
+exp = 
+    Constant(const, type)
+    | Var(identifier, type)
+    | Cast(type target_type, exp, type)
+    | Unary(unary_operator, exp, type)
+    | Binary(binary_operator, exp, exp, type)
+    | Assignment(exp, exp, type)
+    | Conditional(exp, condition, exp, exp, type)
+    | FunctionCall(identifier, exp* args, type)
+```
+
+Page 276 - Chapter 12 - Unsigned integers
+
+```
+type = Int | Long | UInt | ULong | Double | FunType(type* params, type ret)
+
+const = ConstInt(int) | ConstLong(int) | ConstUInt(int) | ConstULong(int) 
+```
+
+2^31     = 2.147.483.648 =   10000000_00000000_00000000_00000000
+2^31 - 1 = 2.147.483.647 =   01111111_11111111_11111111_11111111
+
+2^32     = 4.294.967.296 = 1_00000000_00000000_00000000_00000000
+2^32 - 1 = 4.294.967.295 =   11111111_11111111_11111111_11111111
+
+2^64     = 18.446.744.073.709.551.616 = 1_00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000
+2^64 - 1 = 18.446.744.073.709.551.615 =   11111111_11111111_11111111_11111111_11111111_11111111_11111111_11111111
+
+To determine the sub-type of const (ConstInt(int) | ConstLong(int) | ConstUInt(int) | ConstULong(int)),
+the following rules are used. 
+
+- If the number has no negative sign, then the number is interpreted as unsigned
+- The compiler will fit the number into the smallest type that can safely hold the value
+
+Page 305, 306 - Chapter 13 - Floating Point Numbers
+
+```
+type = Int | Long | UInt | ULong | Double | FunType(type* params, type ret)
+
+const = ConstInt(int) | ConstLong(int) | ConstUInt(int) | ConstULong(int) | ConstDouble(double)
+```
+
+Page 354, 355 - Chapter 14 - Pointers
+
+```
+type = Int | Long | UInt | ULong | Double | FunType(type* params, type ret) | Pointer(type referenced)
+
+exp = 
+    Constant(const, type)
+    | Var(identifier, type)
+    | Cast(type target_type, exp, type)
+    | Unary(unary_operator, exp, type)
+    | Binary(binary_operator, exp, exp, type)
+    | Assignment(exp, exp, type)
+    | Conditional(exp, condition, exp, exp, type)
+    | FunctionCall(identifier, exp* args, type)
+    | Dereference(exp)
+    | AddrOf(exp)
+```
+
+Page 359
+
+??? (TACKY ???)
+```TACKY
+declarator = 
+    Ident(identifier)
+    | PointerDeclarator(declarator)
+    | FunDeclarator(param_info* params, declarator)
+
+param_info = Param(type, declarator)
+```
+
+Page 363 - Overview over the grammar. Also in some way an overview of the AST grammar.
+
+Page 393, 394 - Chapter 15 - arrays
+
+```
+variable_declaration = (identifier name, initializer? init)
+
+initializer = 
+    SingleInit(exp)
+    | CompoundInit(initializer*)
+
+type = 
+    Int 
+    | Long 
+    | UInt 
+    | ULong 
+    | Double 
+    | FunType(type* params, type ret) 
+    | Pointer(type referenced) 
+    | Array(type element, int size) // new
+
+exp = 
+    Constant(const, type)
+    | Var(identifier, type)
+    | Cast(type target_type, exp, type)
+    | Unary(unary_operator, exp, type)
+    | Binary(binary_operator, exp, exp, type)
+    | Assignment(exp, exp, type)
+    | Conditional(exp, condition, exp, exp, type)
+    | FunctionCall(identifier, exp* args, type)
+    | Dereference(exp)
+    | AddrOf(exp)
+    | Subscript(exp, exp) // new, first exp is a pointer to the array, second exp is the index to access (page 393)
+```
+
+??? (TACKY ???)
+```TACKY
+declarator = 
+    Ident(identifier)
+    | PointerDeclarator(declarator)
+    | ArrayDeclarator(declarator, int size)
+    | FunDeclarator(param_info* params, declarator)
+```
+
+Page 432 - Chapter 16 - strings
+
+Page 463/464 - Chapter 17 - Supporting Dynamic Memory Allocation
+
+Page 495/496 - Chapter 18 - Structures
+
+```
+declaration = 
+    FunDecl(function_declaration) 
+    | VarDecl(variable_declaration) 
+    | StructDecl(struct_declaration) // new
+
+struct_declaration = (identifier tag, member_declaration* members) // new
+
+member_declaration = (identifier member_name, type member_type) // new
+
+type = 
+    Char
+    | SChar
+    | UChar
+    | Int 
+    | Long 
+    | UInt 
+    | ULong 
+    | Double 
+    | Void
+    | FunType(type* params, type ret) 
+    | Pointer(type referenced) 
+    | Array(type element, int size)
+    | Structure(identifier tag) // new
+
+exp = 
+    Constant(const, type)
+    | Var(identifier, type)
+    | Cast(type target_type, exp, type)
+    | Unary(unary_operator, exp, type)
+    | Binary(binary_operator, exp, exp, type)
+    | Assignment(exp, exp, type)
+    | Conditional(exp, condition, exp, exp, type)
+    | FunctionCall(identifier, exp* args, type)
+    | Dereference(exp)
+    | AddrOf(exp)
+    | Subscript(exp, exp) 
+    | SizeOf(exp)
+    | SizeOfT(type)
+    | Dot(exp structure, identifier member) // new
+    | Arrow(exp pointer, identifier member) // new
+```
+
+------- Here the Chapter on Optimization starts -------
+------- I have not checked for AST changes beyond this point -------
+
+# Assembly AST (!= Normal AST)
+
+Page 40
+
+I assume instruction is the same as statement
+
+```
+program = 
+    | Program(function_definition)
+
+function_definition = Function(identifier name, instruction* instructions)
+
+instruction = 
+    Mov(operand src, operand dst)
+    | Unary(unary_operator, operand)
+    | AllocateStack(int)
+    | Return(exp)
+
+unary_operator =
+    Neg
+    | Not
+
+operand = Imm(int) 
+    | Reg(reg) 
+    | Pseudo(Identifier) 
+    | Stack(int)
+
+reg = AX
+    | R10
+```
+
+page 62
+
+page 85
 
 
 # Proxy

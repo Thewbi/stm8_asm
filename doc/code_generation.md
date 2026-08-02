@@ -1,4 +1,22 @@
+# Interfacing Intermadiate Language and Code Generation
 
+## Stack Frames
+
+The intermediate language step does not formulate stack frames!
+Stack frames are part of the next step (code generation).
+
+The intermediate language only contains a list of formal and actual parameters,
+so that the function call can be prepared.
+
+## Type System
+
+The type system (e.g. the content of structs) discovered during grammar parsing 
+is not explicitly output to the intermediate language! It is kept in RAM and 
+forwarded to the assembly generation step. 
+
+This means that if you want to persist the intermediate language to files and
+load them back later (in a simulator/emulaltor for example), you do not have
+the type information available easily!
 
 
 
@@ -164,55 +182,12 @@ return_op(var("tmp.1"))
 * The return statement will retrieve the temp variable id from the expression node, resolve the id to a location using the symbol table and return that location.
 * On exiting the function, a stackframe needs to be constructed for all the temporary variables used in the function block. Nested blocks are ignored ???
 
-### ParseTree
 
-```
-[Parser::consume()] REDUCING RULE: [250] type_specifier -> INT
-[Parser::consume()] REDUCING RULE: [244] declaration_specifiers -> type_specifier
-[Parser::consume()] REDUCING RULE: [366] direct_declarator -> IDENTIFIER
-TerminalValue: 'main'
-[Parser::consume()] REDUCING RULE: [1141] direct_declarator -> direct_declarator OPENING_BRACKET CLOSING_BRACKET
-[Parser::consume()] REDUCING RULE: [354] declarator -> direct_declarator
-[Parser::consume()] REDUCING RULE: [712] primary_expression -> NUMERIC
-TerminalValue: '1'
-[Parser::consume()] REDUCING RULE: [702] postfix_expression -> primary_expression
-[Parser::consume()] REDUCING RULE: [687] unary_expression -> postfix_expression
-[Parser::consume()] REDUCING RULE: [685] cast_expression -> unary_expression
-[Parser::consume()] REDUCING RULE: [742] multiplicative_expression -> cast_expression
-[Parser::consume()] REDUCING RULE: [712] primary_expression -> NUMERIC
-TerminalValue: '2'
-[Parser::consume()] REDUCING RULE: [702] postfix_expression -> primary_expression
-[Parser::consume()] REDUCING RULE: [687] unary_expression -> postfix_expression
-[Parser::consume()] REDUCING RULE: [1079] cast_expression -> unary_expression
-[Parser::consume()] REDUCING RULE: [712] primary_expression -> NUMERIC
-TerminalValue: '3'
-[Parser::consume()] REDUCING RULE: [702] postfix_expression -> primary_expression
-[Parser::consume()] REDUCING RULE: [687] unary_expression -> postfix_expression
-[Parser::consume()] REDUCING RULE: [1079] cast_expression -> unary_expression
-[Parser::consume()] REDUCING RULE: [742] multiplicative_expression -> cast_expression
-[Parser::consume()] REDUCING RULE: [5711] multiplicative_expression -> cast_expression ASTERISK multiplicative_expression
-[Parser::consume()] REDUCING RULE: [738] additive_expression -> multiplicative_expression
-[Parser::consume()] REDUCING RULE: [5576] additive_expression -> multiplicative_expression PLUS additive_expression
-[Parser::consume()] REDUCING RULE: [735] shift_expression -> additive_expression
-[Parser::consume()] REDUCING RULE: [732] relational_expression -> shift_expression
-[Parser::consume()] REDUCING RULE: [727] equality_expression -> relational_expression
-[Parser::consume()] REDUCING RULE: [724] and_expression -> equality_expression
-[Parser::consume()] REDUCING RULE: [722] exclusive_or_expression -> and_expression
-[Parser::consume()] REDUCING RULE: [720] inclusive_or_expression -> exclusive_or_expression
-[Parser::consume()] REDUCING RULE: [718] logical_and_expression -> inclusive_or_expression
-[Parser::consume()] REDUCING RULE: [710] logical_or_expression -> logical_and_expression
-[Parser::consume()] REDUCING RULE: [701] conditional_expression -> logical_or_expression
-[Parser::consume()] REDUCING RULE: [686] assignment_expression -> conditional_expression
-[Parser::consume()] REDUCING RULE: [914] expression -> assignment_expression
-[Parser::consume()] REDUCING RULE: [6834] jump_statement -> RETURN expression SEMICOLON
-[Parser::consume()] REDUCING RULE: [875] statement -> jump_statement
-[Parser::consume()] REDUCING RULE: [866] declaration_or_statement_list -> statement
-[Parser::consume()] REDUCING RULE: [2053] compound_statement -> OPENING_SQUIGGLY_BRACKET declaration_or_statement_list CLOSING_SQUIGGLY_BRACKET
-[Parser::consume()] REDUCING RULE: [478] function_definition -> declaration_specifiers declarator compound_statement
-[Parser::consume()] REDUCING RULE: [237] external_declaration -> function_definition
-[Parser::consume()] REDUCING RULE: [236] translation_unit -> external_declaration
-[Parser::consume] ACCEPT !!!!
-```
+
+
+
+
+
 
 ## Expression using variables
 
@@ -253,6 +228,9 @@ binary_op(ADD, var("tmp.4"), var("tmp.3"), var("tmp.0")) // op, dest, lhs, rhs
 return_op(var("tmp.4"))
 ```
 
+
+
+
 ## For Loop
 
 ```
@@ -266,7 +244,6 @@ int main() {
 
 }
 ```
-
 
 ```
         <instructions for init>
@@ -284,7 +261,6 @@ Label(end_label)
 Notes: 
 * continue jumps to Label(continue_label)
 * break jumps to Label(end_label)
-
 
 ```
 int main() {                                        operation: push_scope() // create a new scope
@@ -319,10 +295,6 @@ end_label:                                          operation: new_label("end_la
 
 
 
-
-
-
-
 ## While Loop
 
 ```
@@ -339,6 +311,54 @@ Notes:
 * continue jumps to Label(start_label)
 * break jumps to Label(end_label)
 
+
+
+
+
+## Do Loop
+
+```
+int count;
+
+do {
+    count = count - 1;
+} while (count <= 0);
+```
+
+```
+Label(start_label)
+
+        <instructions for body>
+
+        <instructions for condition>
+        v = <result of condition>
+
+        <instructions for body>
+
+        -- if the condition is false (zero) jump to end_label
+        JumpIfZero(v, end_label)
+        
+        -- if the condition is true (not  zero) jump back to start_label
+        Jump(start_label)
+
+Label(end_label)
+```
+
+Notes: 
+* continue jumps to Label(start_label)
+* break jumps to Label(end_label)
+
+
+
+
+
+## Function Calls
+
+The intermediate language step does not formulate stack frames!
+Stack frames are part of the next step (code generation).
+
+The intermediate language only contains a list of formal and actual parameters,
+so that the function call can be prepared.
 
 
 

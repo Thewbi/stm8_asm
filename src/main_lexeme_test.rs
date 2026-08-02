@@ -1,4 +1,4 @@
-// filename: main_lalr_1.rs
+// filename: main_lexeme_test.rs
 
 #![allow(
 dead_code,
@@ -16,12 +16,10 @@ use std::{
 use std::fs;
 use std::fs::File;
 
+use std::io::BufReader;
+use std::io::BufRead;
 use std::io::BufWriter;
 use std::io::Write;
-
-use std::fmt;
-use std::fmt::Debug;
-use std::fmt::Display;
 
 mod regex;
 use crate::regex::infix_postfix_converter::InfixPostfixConverter;
@@ -29,1375 +27,65 @@ use crate::regex::regex_building_block::RegexBuildingBlock;
 use crate::regex::arena::Arena;
 use crate::regex::arena::NodeId;
 use crate::regex::arena::Node;
-
 use crate::regex::enfa::Input;
 use crate::regex::enfa::Fragment;
+use crate::regex::enfa::EpsilonNfa;
+use crate::regex::enfa::State;
 use crate::regex::enfa::FragmentStack;
 use crate::regex::enfa::recurse_postfix_build_fragment_stack;
 use crate::regex::enfa::enfa_copy;
-use crate::regex::enfa::enfa_to_dfa;
-use crate::regex::enfa::transition_dfa;
 use crate::regex::enfa::enfa_to_dot_directed_graph;
-use crate::regex::enfa::add_character_literal;
-
-// mod regex;
-use crate::regex::enfa::EpsilonNfa;
-use crate::regex::enfa::State;
+use crate::regex::enfa::enfa_to_dfa;
 
 mod parser;
 use crate::parser::parser::ParseTableCell;
-use crate::parser::parser::Rule;
-use crate::parser::parser::RuleElement;
 use crate::parser::parser::Transition;
 use crate::parser::parser::Parser;
 use crate::parser::parser::DebugNode;
+use crate::parser::propagation::perform_propagation;
 use crate::parser::first::compute_first_original;
+use crate::parser::build_parse_table::build_parse_table;
+use crate::parser::perform_lalr_1::perform_lalr_1;
+use crate::parser::nullable_sets::compute_nullable_sets;
+use crate::parser::validate_grammar::validate_grammar;
+use crate::parser::print_rules::print_rules;
+use crate::parser::rule::Rule;
+use crate::parser::rule::RuleElement;
+use crate::parser::grammar_state::GrammarState;
 
-mod examplegrammars;
-use crate::examplegrammars::c_full::produce_grammar_c_full;
-use crate::examplegrammars::c_full_if_else::produce_grammar_c_full_if_else;
-use crate::examplegrammars::c_full_if_else_2::produce_grammar_c_full_if_else_2;
-use crate::examplegrammars::c_full_if_else_3::produce_grammar_c_full_if_else_3;
-use crate::examplegrammars::c_full_if_else_4::produce_grammar_c_full_if_else_4;
-use crate::examplegrammars::c_full_5::produce_grammar_c_full_5;
-use crate::examplegrammars::left_recursive::produce_grammar_left_recursive;
-use crate::examplegrammars::grammar_1::produce_grammar_1;
-use crate::examplegrammars::grammar_2::produce_grammar_2;
-use crate::examplegrammars::grammar_3::produce_grammar_3;
-use crate::examplegrammars::grammar_4::produce_grammar_4;
-use crate::examplegrammars::grammar_5::produce_grammar_5;
-use crate::examplegrammars::grammar_6::produce_grammar_6;
+mod lexer;
+use crate::lexer::lexer::Lexer;
+use crate::lexer::lexer::IDENTIFIER_TOKEN_ID;
+use crate::lexer::lexer::WHITESPACE_TOKEN_ID;
+use crate::lexer::lexer::NEWLINE_TOKEN_ID;
+
+mod example_lexers;
+use crate::example_lexers::c_lexer::produce_c_lexer;
+use crate::example_lexers::common::add_token_definition;
+
+mod example_grammars;
+use crate::example_grammars::c_full::produce_grammar_c_full;
+use crate::example_grammars::c_full_if_else::produce_grammar_c_full_if_else;
+use crate::example_grammars::c_full_if_else_2::produce_grammar_c_full_if_else_2;
+use crate::example_grammars::c_full_if_else_3::produce_grammar_c_full_if_else_3;
+use crate::example_grammars::c_full_if_else_4::produce_grammar_c_full_if_else_4;
+use crate::example_grammars::c_full_5::produce_grammar_c_full_5;
+use crate::example_grammars::left_recursive::produce_grammar_left_recursive;
+use crate::example_grammars::grammar_1::produce_grammar_1;
+use crate::example_grammars::grammar_2::produce_grammar_2;
+use crate::example_grammars::grammar_3::produce_grammar_3;
+use crate::example_grammars::grammar_4::produce_grammar_4;
+use crate::example_grammars::grammar_5::produce_grammar_5;
+use crate::example_grammars::grammar_6::produce_grammar_6;
 
 use crate::RuleElement::Terminal;
 
-const WHITESPACE_TOKEN_ID: usize = 46;
-const NEWLINE_TOKEN_ID: usize = 47;
-const IDENTIFIER_TOKEN_ID: usize = 500;
-
-#[derive(Clone)]
-pub struct GrammarState<T: Debug> {
-    pub id: usize,
-    pub identification_rules: Vec::<Rule<T>>,
-    pub rules: Vec::<Rule<T>>,
-}
-
-impl<T: Clone + Debug + Display + std::cmp::PartialEq + Ord> GrammarState<T> {
-
-    pub fn new(id: usize) -> Self {
-        GrammarState {
-            id: id,
-            identification_rules: Vec::<Rule<T>>::new(),
-            rules: Vec::<Rule<T>>::new(),
-        }
-    }
-
-    pub fn ignore_rule(&mut self, rule_id: usize) -> bool {
-
-        let mut current_rule = Rule::new(0);
-
-        let mut found: bool = false;
-
-        // search rule for id in ident and normal rules
-        for ident_rule in &self.identification_rules {
-            if ident_rule.id == rule_id {
-                current_rule = ident_rule.clone();
-                found = true;
-                break;
-            }
-        }
-        if !found {
-            for rule in &self.rules {
-                if rule.id == rule_id {
-                    current_rule = rule.clone();
-                    found = true;
-                    break;
-                }
-            }
-        }
-
-        // early out
-        if !found {
-            return true;
-        }
-
-        // ignore consumed rules
-        if current_rule.dot_idx >= current_rule.rhs.len() {
-            return true;
-        }
-
-        // the CLOSURE() operation will not develop rules that point to terminals since they
-        // do not actively add a rule to the CLOSURE() itself but transition to other states (shift).
-        match &current_rule.rhs[current_rule.dot_idx] {
-            RuleElement::Terminal(terminal) => {
-                return true;
-            }
-            _ => {
-                // nop
-            }
-        }
-
-        false
-    }
-
-    pub fn retrieve_lookahead(&mut self, 
-        rule_id: usize,
-        first: &BTreeMap<RuleElement::<T>, Vec::<RuleElement::<T>>>,
-        nullable: &BTreeMap::<RuleElement::<T>, bool>) -> Vec::<RuleElement<T>>
-    {
-        let debug = false;
-
-        //
-        // step 0 - turn rule id into rule object
-        //
-
-        let mut current_rule = Rule::new(0);
-
-        let mut found: bool = false;
-
-        // search rule for id in ident and normal rules
-        for ident_rule in &self.identification_rules {
-            if ident_rule.id == rule_id {
-                current_rule = ident_rule.clone();
-                found = true;
-                break;
-            }
-        }
-        if !found {
-            for rule in &self.rules {
-                if rule.id == rule_id {
-                    current_rule = rule.clone();
-                    found = true;
-                    break;
-                }
-            }
-        }
-
-        let mut current_lookahead = Vec::<RuleElement<T>>::new();
-
-        // early out
-        if !found {
-            return current_lookahead;
-        }
-
-        //
-        // STEP 1 - collect all lookaheads for the RHS nonterminal
-        //          Lookaheads are required for the parse table.
-        //          In LALR(1) lookaheads are essential parts of a rule.
-        //          The algorithm needs to build the rule plus it's lookaheads to produce valid rule items!
-        //
-
-        // DEBUG
-        if debug {
-            println!("[retrieve_lookahead] Determining lookahead for Rule: {}. Rule has lookahead: {:?}", current_rule, current_rule.lookahead);
-        }
-
-        let mut empty_beta = false;
-
-        // find beta. if the dot is already at the end of the rule, then there is an empty beta
-        // if there is empty beta, lookahead is the rule's own lookahead per definition
-        if current_rule.dot_idx + 1 >= current_rule.rhs.len() {
-
-            // empty beta
-            if debug {
-                println!("[retrieve_lookahead] empty beta {:?}", current_rule.lookahead);
-            }
-
-            current_lookahead.append(&mut current_rule.lookahead);
-
-            // empty_beta = true;
-
-        } else {
-
-            // build FIRST(beta+rule.lookahead)
-
-            // Example: S -> A C B, #
-            // The developing the rule for nonterminal A, needs to build First(beta+#)
-            // and beta in this case is CB instead of just C!
-
-
-            // loop over each part in the beta string and add lookaheads until a rule is found
-            // which is not a rule that can be empty! If an empty rule is found, stop
-            // In this implementation empty information is stored in the nullable map
-            for beta_idx in (current_rule.dot_idx + 1)..current_rule.rhs.len() {
-
-                match &current_rule.rhs[beta_idx] {
-
-                    RuleElement::NonTerminal(non_terminal) => {
-
-                        // current_lookahead.push(grammar_rules[i].rhs[grammar_rules[i].dot_idx + 1].clone());
-                        //panic!("test");
-
-                        // // DEBUG
-                        // println!("NonTerminal: {:?}, rule lookahead: {:?}", &current_rule.rhs[current_rule.dot_idx + 1], &current_rule.lookahead);
-
-                        // TODO: retrieve FIRST(of nonterminal concat rule lookahead) and insert it into  current_lookahead
-                        // TODO: what if concat rule lookahead has more than a single symbol????
-
-                        //let temp = first.get(&current_rule.rhs[current_rule.dot_idx + 1]).expect("Compiler has no FIRST() information for NonTerminal: {}", current_rule.rhs[current_rule.dot_idx + 1]);
-
-                        let temp_non_terminal = &current_rule.rhs[beta_idx];
-                        let first_values_opt = first.get(temp_non_terminal);
-
-                        // // DEBUG
-                        // println!("First-Set for non-terminal: '{:?}' is '{:?}'", temp_non_terminal, first_values_opt);
-
-                        if current_rule.dot_idx + 1 >= current_rule.rhs.len() {
-                            empty_beta = true;
-                        }
-
-                        match first_values_opt {
-                            Some(first_values) => {
-                                if debug {
-                                    println!("[retrieve_lookahead] first_values >> {:?}", first_values.clone());
-                                    println!("[retrieve_lookahead] current_lookahead.append ++ {:?}", first_values.clone());
-                                }
-                                current_lookahead.append(&mut first_values.clone());
-                            }
-                            None => {
-                                panic!("[retrieve_lookahead] Compiler has no FIRST() information for NonTerminal: {:?}! Aborting!", current_rule.rhs[beta_idx]);
-                            }
-                        }
-
-                        // if current nonterminal is nullable, proceed with the next symbol
-                        // if the nonterminal is not nullable or a terminal is found, then
-                        // the first operation returns that first character
-                        if nullable.contains_key(&temp_non_terminal) && *nullable.get(&temp_non_terminal).unwrap() == false {
-                            break;
-                        }
-                    }
-
-                    RuleElement::Terminal(terminal) => {
-
-                        if debug {
-                            println!("[retrieve_lookahead] current_lookahead.push + {:?}", current_rule.rhs[beta_idx].clone());
-                        }
-
-                        current_lookahead.push(current_rule.rhs[beta_idx].clone());
-
-                        // experiment: if there is a terminal in beta, abort further lookahead search
-                        break;
-                    }
-
-                    _ => { 
-                        panic!("test");
-                    }
-                }
-            }
-        }
-
-        // DEBUG
-        if debug {
-            println!("[unfold_grammar_state] current lookahead: {:?}", current_lookahead);
-        }
-
-        current_lookahead
-    }
-
-    pub fn unfold_grammar_state(&mut self, 
-        grammar_rules: &Vec::<Rule<T>>,
-        first: &BTreeMap<RuleElement::<T>, Vec::<RuleElement::<T>>>,
-        nullable: &BTreeMap::<RuleElement::<T>, bool>,
-        rule_channel_map: &mut HashMap::<usize, Vec::<Transition<T>>>,
-    ) {
-
-        let debug = false;
-        
-        // ids of rules to process
-        let mut d_set = Vec::<usize>::new();
-
-        // start with the identification rules. Add each one to the d_set
-        for ident_rule in &self.identification_rules {
-            d_set.push(ident_rule.id);
-        }
-
-        // while scratchpad has rules on it, loop
-        let mut done: bool = d_set.is_empty();
-        while !done {
-
-            // retrieve next id by removing the first element from the queue
-            let current_rule_id: usize = d_set[0];
-            d_set.drain(0..1);
-
-            // ignore consumed rules (dot marker after rule) or rules that not part of this state
-            if self.ignore_rule(current_rule_id) {
-                done = d_set.is_empty();
-                continue;
-            }
-
-            // if self.id == 22 && current_rule_id == 144 {
-            //     println!("test");
-            // }
-            // if self.id == 22 && current_rule_id == 163 {
-            //     println!("test");
-            // }
-
-            let mut current_rule = Rule::new(0);
-            let mut found: bool = false;
-
-            // search rule for id in identification- and normal rules
-            for ident_rule in &self.identification_rules {
-                if ident_rule.id == current_rule_id {
-                    current_rule = ident_rule.clone();
-                    found = true;
-                    break;
-                }
-            }
-            if !found {
-                for rule in &self.rules {
-                    if rule.id == current_rule_id {
-                        current_rule = rule.clone();
-                        found = true;
-                        break;
-                    }
-                }
-            }
-
-            // // DEBUG
-            // println!("Current Rule: {:?}", current_rule);
-
-            // find lookahead symbols for this rule (if beta is empty, use rule's lookahead otherwise use RHS lookhead)
-            let current_lookahead = self.retrieve_lookahead(current_rule_id, first, nullable);
-
-            // DEBUG
-            // println!("Lookahead: {:?}", current_lookahead);
-
-            // determine all rules that are produced by the current rule
-
-            // for each produced rule, search if the rule is already contained in the state
-            //      if not contained
-            //          - insert a clone into the current state
-            //          - extend cloned rule by the lookahead
-            //          - add id to d_set
-            //      if contained
-            //          - extend contained rule by the lookahead
-
-            // over all rules that unfold from the rule via REDUCE operations
-            match &current_rule.rhs[current_rule.dot_idx] {
-
-                // if the dot points to a non-terminal, extend the rule set
-                RuleElement::NonTerminal(non_terminal) => {
-
-                    let nt = RuleElement::<T>::NonTerminal(non_terminal.clone());
-
-                    // // DEBUG
-                    // if debug {
-                    //     println!("");
-                    //     println!("[unfold_grammar_state] Extending closure due to Rule: {} and NonTerminal '{}' with lookaheads '{:?}'", current_rule, non_terminal, current_lookahead);
-                    //     println!("");
-                    // }
-
-                    // DEBUG
-                    // println!("non_terminal {}", non_terminal);
-                    
-                    // find all rules that have a LHS == the non-terminal and add them into the d_set
-                    for i in 0..grammar_rules.len() {
-
-                        // if this rule starts with (has LHS equal) the expected nonterminal
-                        if grammar_rules[i].lhs == nt {
-
-                            // // DEBUG
-                            // if debug {
-                            //     println!("");
-                            //     println!("[unfold_grammar_state] Inserting into closure! Rule: [{}] {} using lookaheads: {:?} because of source-rule-id: {}", grammar_rules[i].id, grammar_rules[i], current_lookahead, &current_rule.id);
-                            //     println!("");
-                            // }
-
-                            //
-                            // try to find produced rule in current state
-                            // 
-
-                            let mut contained_already = false;
-                            let mut contained_index = 0;
-                            for j in 0..self.rules.len() {
-
-                                if self.rules[j] == grammar_rules[i] {
-
-                                    contained_already = true;
-                                    contained_index = j;
-                                    break;
-                                }
-                            }
-
-                            if contained_already {
-
-                                // DEBUG
-                                // println!("Already exists at index: {}", contained_index);
-
-                                // - extend cloned rule by the lookahead
-                                //
-                                // NB: If you do not clone here, rust will empty the collection 
-                                // due to the call to append!
-                                let temp_clone = current_lookahead.clone();
-                                for la_element in temp_clone {
-                                    if !self.rules[contained_index].lookahead.contains(&la_element) {
-                                        self.rules[contained_index].lookahead.push(la_element);
-
-                                        // this rule needs to forward it's own lookaheads again
-                                        if !d_set.contains(&self.rules[contained_index].id) {
-                                            d_set.push(self.rules[contained_index].id);
-                                        }
-                                    }
-                                }
-
-                                // - insert into rule channel map
-
-                                //
-                                // Insert into rule_channel_map
-
-                                if !rule_channel_map.contains_key(&current_rule.id) {
-                                    let channel_ends = Vec::<Transition<T>>::new();
-                                    rule_channel_map.insert(current_rule.id, channel_ends);
-                                }
-                                // retrieve the vector of first symbols for the nonterminal and extend it
-                                let channel_ends = &mut rule_channel_map.get_mut(&current_rule.id).unwrap();
-
-                                // add a transition and specify the id of the newly created rule
-                                channel_ends.push(Transition(self.rules[contained_index].id, RuleElement::<T>::NonTerminal(non_terminal.clone())));
-
-                                if debug {
-                                    println!("{:?} -{:?}-> {:?}", &current_rule.id, non_terminal.clone(), self.rules[contained_index].id);
-                                }
-
-                                //
-                                //
-
-                            } else {
-
-                                // // DEBUG
-                                // println!("Does not exist yet!");
-
-                                // - insert a clone into the current state
-                                let mut new_rule = grammar_rules[i].clone();
-                                let new_rule_id = RULE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                new_rule.id = new_rule_id;
-
-                                // - extend cloned rule by the lookahead
-                                //
-                                // NB: If you do not clone here, rust will empty the collection 
-                                // due to the call to append!
-                                //new_rule.lookahead.append(&mut current_lookahead.clone());
-                                let temp_clone = current_lookahead.clone();
-                                for la_element in temp_clone {
-                                    if !new_rule.lookahead.contains(&la_element) {
-                                        new_rule.lookahead.push(la_element);
-                                    }
-                                }
-
-                                // - add id of cloned rule to d_set
-                                d_set.push(new_rule.id);
-
-                                self.rules.push(new_rule);
-
-
-
-                                // - insert into rule channel map
-
-                                //
-                                // Insert into rule_channel_map
-
-                                if !rule_channel_map.contains_key(&current_rule.id) {
-                                    let channel_ends = Vec::<Transition<T>>::new();
-                                    rule_channel_map.insert(current_rule.id, channel_ends);
-                                }
-                                // retrieve the vector of first symbols for the nonterminal and extend it
-                                let channel_ends = &mut rule_channel_map.get_mut(&current_rule.id).unwrap();
-
-                                // // DEBUG
-                                // if debug {
-                                //     println!("{:?}, {:?}", new_rule_id, RuleElement::<T>::NonTerminal(non_terminal.clone()));
-                                //     println!("");
-                                // }
-
-                                // add a transition and specify the id of the newly created rule
-                                channel_ends.push(Transition(new_rule_id, RuleElement::<T>::NonTerminal(non_terminal.clone())));
-
-                                // DEBUG
-                                if debug {
-                                    println!("{:?} -{:?}-> {:?}", &current_rule.id, non_terminal.clone(), new_rule_id);
-                                }
-
-                                //
-                                //
-                            }
-                        }
-                    }
-                }
-
-                // if the dot points to a terminal, panic
-                RuleElement::Terminal(terminal) => {
-                    panic!("test");
-                }
-
-                _ => { 
-                    panic!("test");
-                }
-            }
-
-            // update loop end condition
-            done = d_set.is_empty();
-        }
-    }
-}
-
-impl<T: Debug + Display> fmt::Debug for GrammarState<T> {
-
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-
-        // state id
-        write!(f, "GState {} {{\n", self.id).expect("Write failed!");
-
-        // identifying rules
-        for rule in &self.identification_rules {
-            write!(f, "  [{}] {:?}\n", rule.id, rule).expect("Write failed!");
-        }
-
-        write!(f, "  ============\n").expect("Write failed!");
-
-        // rules
-        for rule in &self.rules {
-            write!(f, "  [{}] {:?}\n", rule.id, rule).expect("Write failed!");
-        }
-
-        write!(f, "}}").expect("Write failed!");
-
-        Ok(())
-    }
-}
-
-fn create_rule(grammar_rules: &mut Vec::<Rule<String>>, rule_as_string: String, treat_nonterminal_lowercase: bool) {
-
-    // split by a single whitespace!!! This is bad because the user might mess this up easily!
-    // BETTER split by arbitrary whitespace!
-    let split: Vec<_> = rule_as_string.split_whitespace().collect();
-
-    // build rule instance which is complemented by the for loop
-    let mut rule: Rule<String> = Rule::new(RULE_COUNTER.fetch_add(1, Ordering::SeqCst));
-
-    // loop over each part of the rule
-    for (idx, split_element) in split.iter().enumerate() {
-
-        // println!("{}", *split_element);
-
-        match idx {
-
-            // first part is the left-hand side of the production rule
-            0 => {
-                rule.lhs = RuleElement::NonTerminal(String::from(*split_element));
-            }
-            // ignore the rule arrow
-            1 => {
-                // ignore ->
-            }
-            // right hand side objects follow 
-            _ => {
-
-                match *split_element {
-
-                    "$$_EPSILON_$$" => {
-                        rule.rhs.push(RuleElement::Epsilon);
-                    }
-
-                    "(" => {
-                        let part_string = String::from(*split_element);
-                        rule.rhs.push(RuleElement::Terminal(part_string));
-                    }
-
-                    ")" => {
-                        let part_string = String::from(*split_element);
-                        rule.rhs.push(RuleElement::Terminal(part_string));
-                    }
-
-                    "{" => {
-                        let part_string = String::from(*split_element);
-                        rule.rhs.push(RuleElement::Terminal(part_string));
-                    }
-
-                    "}" => {
-                        let part_string = String::from(*split_element);
-                        rule.rhs.push(RuleElement::Terminal(part_string));
-                    }
-
-                    _ => {
-
-                        let is_all_letters_lowercase: bool = split_element
-                            .chars()                       // Elements: [':', ')', ' ', '?']
-                            .filter(|x| x.is_alphabetic()) // Elements: [] (no element is alphabetic, so this is an empty iterator)
-                            .all(|x| x.is_lowercase());    // true (.all() is always true for empty iterators)
-
-                        let part_string = String::from(*split_element);
-
-                        if treat_nonterminal_lowercase {
-                            if is_all_letters_lowercase {
-                                rule.rhs.push(RuleElement::NonTerminal(part_string));
-                            } else {
-                                rule.rhs.push(RuleElement::Terminal(part_string));
-                            }
-                        } else {
-                            if is_all_letters_lowercase {
-                                rule.rhs.push(RuleElement::Terminal(part_string));
-                            } else {
-                                rule.rhs.push(RuleElement::NonTerminal(part_string));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // // DEBUG
-    // rule.dot_idx = std::usize::MAX;
-    // println!("a{:?}", rule);
-    // rule.dot_idx = 0;
-
-    grammar_rules.push(rule);
-}
+mod example_input;
+use crate::example_input::input::provide_sourcode_input;
 
 // https://stackoverflow.com/questions/32935808/generate-sequential-ids-for-each-instance-of-a-struct
 static RULE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static STATE_COUNTER: AtomicUsize = AtomicUsize::new(0);
-
-pub fn compute_nullable_sets(grammar_rules: &mut Vec::<Rule<String>>, nullable: &mut BTreeMap::<RuleElement::<String>, bool>) {
-
-    println!("");
-    println!("Nullable start ...");
-
-    // nullable (can produce the empty string, EPSILON)
-    //
-    // In Context-Free Grammars (CFG), a nonterminal that can derive the empty string \(\epsilon \) 
-    // is called nullable. 
-    // 
-    // You can find all nullable nonterminals by using a simple iterative marking 
-    // algorithm (similar to the standard method taught in computer science).
-    // let mut nullable = BTreeMap::<RuleElement::<String>, bool>::new();
-
-    let mut change_detected = true;
-    while change_detected {
-
-        // // DEBUG output nullable
-        // println!("*******************************************");
-        // for (key, value) in nullable.clone().into_iter() {
-        //     println!("{:?} / {:?}", key, value);
-        // }
-        // println!("*******************************************");
-
-        change_detected = false;
-
-        // over all grammar rules globally
-        for i in 0..grammar_rules.len() {
-
-            // // declarator
-            // println!("{:?}", &grammar_rules[i]);
-
-            // if grammar_rules[i].lhs == RuleElement::NonTerminal(String::from("declarator")) {
-            //     println!("Test");
-            // }
-
-            // if a way to an epsilon is found, never change that status
-            // A nonterminal can go from non-nullable to nullable but it can never
-            // go back to non-nullable once a way to an epsilon is found
-            //
-            // check if this rule is stored in the map with a value of true
-            if nullable.contains_key(&grammar_rules[i].lhs) && *nullable.get(&grammar_rules[i].lhs).unwrap() == true {
-                continue;
-            }
-
-            // if RHS is a single Epsilon, the symbol is nullable
-            if grammar_rules[i].rhs.len() == 1 && grammar_rules[i].rhs[0] == RuleElement::Epsilon {
-                nullable.insert(grammar_rules[i].lhs.clone(), true);
-                change_detected == true;
-                continue;
-            }
-
-            if nullable.contains_key(&grammar_rules[i].lhs) {
-                continue;
-            }
-
-            let mut proceed_with_next_rule = false;
-
-            // go over each element of RHS
-            for j in 0..grammar_rules[i].rhs.len() {
-
-                // a terminal in a rule makes the rule non-nullable
-                match grammar_rules[i].rhs[j] {
-
-                    RuleElement::Terminal(_) => {
-                        nullable.insert(grammar_rules[i].lhs.clone(), false);
-                        change_detected = true;
-                        proceed_with_next_rule = true;
-                        break;
-                    }
-
-                    _ => {
-
-                        // RHS-element has no status yet, abort work on the current rule for this iteration
-                        // and wait for it to have a status in the future
-                        if !nullable.contains_key(&grammar_rules[i].rhs[j]) {
-
-                            // println!("{:?}", &grammar_rules[i].rhs[j]);
-
-                            proceed_with_next_rule = true;
-                            break;
-
-                        } else {
-
-                            if *nullable.get(&grammar_rules[i].rhs[j]).unwrap() == false {
-
-                                if !nullable.contains_key(&grammar_rules[i].lhs) {
-                                    nullable.insert(grammar_rules[i].lhs.clone(), false);
-                                    change_detected = true;
-                                    proceed_with_next_rule = true;
-                                    break;
-                                }
-                            }
-
-                        }
-                        
-                    }
-                }
-            }
-
-            if proceed_with_next_rule {
-                continue;
-            }
-
-            // when the rule arrives here, all RHS-elements are nullable, the rule is nullable
-            nullable.insert(grammar_rules[i].lhs.clone(), true);
-            change_detected == true;
-        }
-    }
-
-    println!("Nullable end.");
-
-    // DEBUG output nullable
-    println!("");
-    println!("NULLABLE ************************************************************************");
-    for (key, value) in nullable.clone().into_iter() {
-        println!("{:?} / {:?}", key, value);
-    }
-    println!("*********************************************************************************");
-
-    // println!("Test");
-}
-
-pub fn validate_grammar(grammar_rules: &mut Vec::<Rule<String>>) {
-
-    println!("");
-    println!("Validating grammar start ...");
-
-    // collect all non-terminals into a set
-    // iterate over the set
-    // check for each non-terminal if it appears on the left side of at least one production rule
-    // if a non-terminal is found that does not satisfy this test, the grammar is invalid! Abort!
-
-    let mut rhs_nonterminal_set: HashSet::<RuleElement<String>> = HashSet::new();
-    let mut lhs_nonterminal_set: HashSet::<RuleElement<String>> = HashSet::new();
-
-    for rule in grammar_rules.iter() {
-
-        lhs_nonterminal_set.insert(rule.lhs.clone());
-
-        for rule_element in rule.rhs.iter() {
-
-            match &rule_element {
-                RuleElement::NonTerminal(nt) => {
-                    rhs_nonterminal_set.insert(rule_element.clone());
-                }
-                _ => {
-
-                }
-            }
-        }
-    }
-
-    for rule_element in rhs_nonterminal_set.iter() {
-        if !lhs_nonterminal_set.contains(&rule_element) {
-            panic!("[Invalid Grammar] The NonTerminal '{:?}' does not appear on the LeftHandSide of 
-            any production rule in the grammar although it is used as a RightHandSide element in at 
-            least one production rule! The grammar is incomplete! The non-terminal '{:?}' cannot be 
-            reduced! Please fix the grammar before proceeding!", &rule_element, &rule_element);
-        }
-    }
-
-    println!("Validating grammar end.");
-}
-
-pub fn add_token_definition(converter: &mut InfixPostfixConverter, 
-    combined_fragment: &mut Fragment,
-    alphabet: &mut HashSet::<RegexBuildingBlock>,
-    regex_infix: &str, 
-    token_name: &str, 
-    token_id: usize) {
-    
-    converter.infix_to_postfix(regex_infix);
-    let mut fragment_stack_return = FragmentStack::new();
-    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_return, alphabet);
-    converter.reset();
-    let mut fragment_return = fragment_stack_return.stack.pop().unwrap();
-    fragment_return.enfa.states.get_mut(&fragment_return.end_id).unwrap().token_id = token_id;
-    fragment_return.enfa.states.get_mut(&fragment_return.end_id).unwrap().token_name = String::from(token_name);
-
-    let (start_id_return, end_id_return) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_return.enfa, fragment_return.end_id);
-
-    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_return);
-}
-
-// passes a token (parameter: terminal_token_rule_element) to the parser.
-// The parser will now perform one or more steps until it is ready for the next token.
-// it will consume the token which completes a production rule. 
-// Then it will potentially perform many reduction operations because one rule reduction
-// may lead to another and so on ...
-fn provide_input(parser: &mut Parser<String>, 
-    grammar_state_hashmap: &BTreeMap<usize, GrammarState<String>>, 
-    step: &mut usize, 
-    terminal_token_rule_element: &RuleElement<String>,
-    terminal_value: &String,
-    string_buffer: &mut String,
-    debug_node_stack: &mut Vec::<DebugNode>) -> usize {
-
-    // let debug = true;
-    let debug = false;
-
-    let mut consumed = false;
-    while !consumed {
-
-        if debug {
-            // println!("");
-            println!("[provide_input] Step: {}, TerminalValue: {}", *step, terminal_value);
-        }
-
-        consumed = parser.consume(terminal_token_rule_element.clone(), 
-            &terminal_value, 
-            &grammar_state_hashmap, 
-            string_buffer, 
-            debug_node_stack,
-            *step);
-
-        *step = *step + 1;
-    }
-
-    *step
-}
-
-// TODO: the lookahead character is not used at all!
-// Remove it! It makes the parser loop more complicated
-fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>, 
-    mut current_state_id: usize, 
-    token_string_buffer: &mut String, 
-    current_character: char, 
-    lookahead_character: char,
-    step: &mut usize,
-    parser: &mut Parser::<String>,
-    grammar_state_hashmap: &BTreeMap<usize, GrammarState<String>>,
-    string_buffer: &mut String,
-    debug_node_stack: &mut Vec::<DebugNode>) -> usize {
-
-    let lexer_debug = false;
-
-    // // check if there is a valid transition for the next character
-    // // greedily consume it and do not directly feed a half finished token to the parser
-    // if lexer_debug {
-    //     println!("[LEXER.TRAP_STATE] Lookahead character is: '{}'", lookahead_character);
-    // }
-
-    // let mut current_state_id = dfa.start_state_id;
-    // let mut last_state_id = dfa.start_state_id;
-    let mut next_state_id = current_state_id;
-
-    let mut char_consumed = false;
-    while !char_consumed {
-
-        // last_state_id = current_state_id;
-
-        if lexer_debug {
-            println!("[LEXER] State; '{}', Input: '{}', lookahead: '{}'", current_state_id, current_character, lookahead_character);
-        }
-
-        //
-        // try to transition the large lexer DFA to produce a token for the input.
-        // If the input has no valid transition, the DFA transitions into a trap state.
-        //
-
-        next_state_id = transition_dfa(dfa, current_state_id, &RegexBuildingBlock::CharacterLiteral(current_character));
-
-        if lexer_debug {
-            println!("[LEXER] From State: '{}', To State: '{}'", current_state_id, next_state_id);
-        }
-
-        //
-        // Next, check where the DFA has transitioned to
-        //
-
-        if dfa.is_trap_state(next_state_id) {
-
-            if lexer_debug {
-                println!("[LEXER.TRAP_STATE] Emitting '{}', Token-Id: {}, Token-Name: {}", token_string_buffer, dfa.states[&current_state_id].token_id, dfa.states[&current_state_id].token_name);
-                println!("");
-            }
-
-            // create a Token / Terminal
-            let terminal = RuleElement::Terminal(dfa.states[&current_state_id].token_name.clone());
-
-            if lexer_debug {
-                println!("[LEXER.TRAP_STATE] {:?} ---> {:?}", token_string_buffer, terminal);
-            }
-
-            match dfa.states[&current_state_id].token_id {
-                
-                NEWLINE_TOKEN_ID | WHITESPACE_TOKEN_ID => {
-                    // ignore NEWLINE and WHITESPACE
-                    if lexer_debug {
-                        println!("[LEXER.TRAP_STATE] NOT Passing token to parser: {:?}, {:?}", token_string_buffer, terminal);
-                    }
-                }
-
-                IDENTIFIER_TOKEN_ID => {
-                    if lexer_debug {
-                        println!("[LEXER.TRAP_STATE] Passing token to parser: {:?}, {:?}", token_string_buffer, terminal);
-                    }
-
-                    // TODO: check some type of datastructure for token here!!!!!!!
-                    asdfasfdsdf
-                    if token_string_buffer == "point_t" {
-
-                        // pass token to the lexer
-                        provide_input(parser, 
-                            grammar_state_hashmap, 
-                            step, 
-                            &RuleElement::Terminal(String::from("TYPE_NAME")),
-                            &token_string_buffer,
-                            string_buffer,
-                            debug_node_stack);
-
-                    } else {
-                        // pass token to the lexer
-                        provide_input(parser, 
-                            grammar_state_hashmap, 
-                            step, 
-                            &terminal,
-                            &token_string_buffer,
-                            string_buffer,
-                            debug_node_stack);
-                    }
-                }
-
-                _ => {
-                    if lexer_debug {
-                        println!("[LEXER.TRAP_STATE] Passing token to parser: {:?}, {:?}", token_string_buffer, terminal);
-                    }
-
-                    // println!("Terminal: {:?}", &terminal);
-
-                    // match &terminal {
-
-                    //     Terminal(data) => {
-
-                    //         asdf
-
-                    //         // match &data {
-                    //         //     IDENTIFIER => {
-                    //         //         println!("Terminal IDENTIFIER: {:?} {:?}", data, token_string_buffer);
-                    //         //     }
-
-                    //         //     _ => {
-                    //         //         println!("Terminal: {:?}", &terminal);
-                    //         //     }
-                    //         // }
-                    //     }
-
-                    //     _ => {
-                    //         println!("Terminal: {:?}", &terminal);
-                    //     }
-                    // }
-
-                    // pass token to the lexer
-                    provide_input(parser, 
-                        grammar_state_hashmap, 
-                        step, 
-                        &terminal,
-                        &token_string_buffer,
-                        string_buffer,
-                        debug_node_stack);
-                }
-            }
-
-            // reset the lexer's DFA back to the start state and 
-            // try to accept the symbol again which was read from input already
-            char_consumed = false;
-            current_state_id = dfa.start_state_id;
-            token_string_buffer.clear();
-
-        } else if dfa.is_end_state(next_state_id) { 
-            
-            //
-            // if the state is normal or an end state, just consume the character
-            //
-
-            // DEBUG
-            if lexer_debug {
-                println!("[LEXER] Emitting '{}', Token-Id: {}, Token-Name: {}", token_string_buffer, dfa.states[&next_state_id].token_id, dfa.states[&next_state_id].token_name);
-            }
-
-            token_string_buffer.push(current_character);
-
-            char_consumed = true;
-
-        } else {
-
-            //
-            // if the state is normal or an end state, just consume the character
-            //
-
-            // DEBUG
-            // println!("STATE '{}' NOT END STATE!", current_state_id);
-
-            token_string_buffer.push(current_character);
-
-            char_consumed = true;
-        }
-    }
-
-    next_state_id
-}
-
-fn build_parse_table(parse_table: &mut HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>,
-    grammar_state_hashmap: &mut BTreeMap<usize, GrammarState<String>>,
-    rule_channel_map: &HashMap::<usize, Vec::<Transition<String>>>,
-    augmented_start_symbol: &RuleElement<String>,
-    rule_id_to_state_id_map: &HashMap::<usize, usize>) {
-
-    // The parse table contains a row per state.
-    // Column-wise, the parse table has two general parts which are ACTION and GOTO.
-    //
-    // The ACTION part contains columns for each NonTerminal and the EOI (#) symbol
-    // The cells contain either nothing or one or more of the actions { shift, reduce }
-    // 
-    // A shift-action also contains the id of the next state to transition to after executing the action.
-    // A reduce-action also contains the id of the rule to reduce. The DFA remains in the same state after reduce.
-    //
-    // For leaf-states in the DFA, enter reduce-actions based on the lookaheads. (A leaf has the dot-marker after the rhs-symbols)
-    // For inner-state in the DFA, enter shift-actions to target states based on the symbol attached to the edges of the graph (transitions)
-    // 
-    // Conflicts:
-    // If a cell in the ACTIONS part contains shift and reduce at the same time, this is a shift reduce conflict.
-    // If a cell in the ACTIONS part contains more than one reduce for non-terminals, then this is a reduce reduce conflict.
-    // Any conflict means that the grammar needs to be reworked or that some priority tricks need to be applied.
-    //
-    // The GOTO section contains columns for NonTerminals. 
-    // The cells contain the state ids to transtition to when the NonTerminal is detected.
-
-    // SideNote:
-    // When code generation is used, large nested switches can be generated to implement the table.
-    // When the parse table is generated at runtime, each row will become a map from.
-
-    // https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html (do not add augmented start rule)
-    // https://jsmachines.sourceforge.net/machines/lalr1.html (add augmented start rule)
-
-    // visiting all states because each state causes one row in the parse_table
-    // put start state id into process_list
-    // visited_list is empty
-    // while process_list is not empty
-    //  - take state_id from process_list
-    //  - if state_id is in visited_list, skip it
-    //  - else, place state_id into visited_list
-    //  - put all reachable state id's into process_list
-    //  - construct a row from parse_table
-
-    let rust_is_a_kek = grammar_state_hashmap.clone();
-
-    let mut process_list = Vec::<usize>::new();
-    let mut visited_list = Vec::<usize>::new();
-
-    process_list.push(0);
-
-    let parse_table_debug = false;
-    let mut found_final_state: bool = false;
-    let mut final_state_id: usize = 0;
-
-    while process_list.len() > 0 {
-
-        let current_state_id = process_list.remove(0);
-
-        // DEBUG
-        if parse_table_debug {
-            println!("");
-            println!("Visiting State-ID: {}", current_state_id);
-        }
-
-        // if current_state_id == 9 {
-        //     println!("test");
-        // }
-
-        visited_list.push(current_state_id);
-
-        let state = rust_is_a_kek.get(&current_state_id).unwrap();
-        // println!("{:?}", state);
-
-        //
-        // convert DFA state into parse table row
-        //
-        
-        let mut parse_table_row = HashMap::<RuleElement<String>, ParseTableCell<usize>>::new();
-
-        // over the identification rules of the state
-        for i in 0..state.identification_rules.len() {
-
-            let current_rule = &state.identification_rules[i];
-
-            if parse_table_debug {
-                println!("  rule: {:?}", current_rule);
-            }
-
-            // if current_rule.dot_idx >= current_rule.rhs.len() {
-            //     println!("leaf");
-            // } else {
-            //     println!("inner");
-            //     println("GOTO: {:?} -{:?}-> {:?}", state.id, current_rule)
-            // }
-
-            // retrieve id of identification rule
-            let rule_id = current_rule.id;
-            // println!("rule-id: {}", rule_id);
-
-            // resolve target rules that the current rule points to
-            let target_rule_ids_option = rule_channel_map.get(&rule_id);
-
-            // the rule that leads to the accept state does not point to a state! 
-            // The acceptance situation is not implemented as an explicit state.
-            // Also leaf-nodes contain rules that are used for reduce only and point to no other states.
-            if target_rule_ids_option.is_none() {
-
-                // let last_symbol = &current_rule.rhs[current_rule.rhs.len() - 1];
-                // if *last_symbol == start_symbol {
-                //     println!("    ACCEPT 1");
-                //     parse_table_row.insert(RuleElement::Closure, ParseTableCell::<usize>::Accept);
-                // }
-                
-                if current_rule.lhs == *augmented_start_symbol {
-                    if parse_table_debug {
-                        println!("    ACCEPT 1");
-                    }
-                    parse_table_row.insert(RuleElement::Closure, ParseTableCell::<usize>::Accept);
-
-                    found_final_state = true;
-                    final_state_id = current_state_id;
-                }
-                else {
-                    if parse_table_debug {
-                        println!("    REDUCE: {:?}", rule_id);
-                    }
-
-                    for lookahead_index in 0..current_rule.lookahead.len() {
-                        parse_table_row.insert(current_rule.lookahead[lookahead_index].clone(), ParseTableCell::<usize>::Reduce(rule_id));
-                    }
-                }
-
-                continue;
-            }
-
-            let target_rule_ids = target_rule_ids_option.unwrap();
-            // println!("target_rule_ids: {:?}", target_rule_ids);
-
-            // for all target rules which point to connected states
-            for target_rule_id in target_rule_ids {
-
-                // resolve target rule into the target state (= state which contains the target rule)
-                let target_state_id = rule_id_to_state_id_map.get(&target_rule_id.0).unwrap();
-
-                if parse_table_debug {
-                    println!("  Target State: {} over symbol: {:?}", target_state_id, &target_rule_id.1);
-                }
-
-                if current_rule.dot_idx >= current_rule.rhs.len() {
-
-                    // panic!("    leaf node");
-                    
-                } else {
-
-                    // println!("    inner node");
-
-                    match &target_rule_id.1 {
-                        RuleElement::NonTerminal(_) => {
-                            if parse_table_debug {
-                                println!("    GOTO: {:?} -{:?}-> {:?}", state.id, &target_rule_id.1, target_state_id);
-                            }
-
-                            parse_table_row.insert(target_rule_id.1.clone(), ParseTableCell::<usize>::Goto(*target_state_id));
-                        }
-                        RuleElement::Terminal(_) => {
-                            if parse_table_debug {
-                                println!("    SHIFT: {:?} -{:?}-> {:?}", state.id, &target_rule_id.1, target_state_id);
-                            }
-
-                            parse_table_row.insert(target_rule_id.1.clone(), ParseTableCell::<usize>::Shift(*target_state_id));
-                        }
-                        _ => {
-                            panic!("    Panic: {:?}", &target_rule_id.1);
-                        }
-                    }
-                }
-
-                // check if state is already visited or already on the process list
-                if visited_list.contains(target_state_id) {
-                    // println!("continue");
-                    continue;
-                }
-                if process_list.contains(target_state_id) {
-                    // println!("continue");
-                    continue;
-                }
-
-                // add to list for further processing
-                process_list.push(*target_state_id);
-            }
-        }
-
-        // over the normal rules of the state
-        for i in 0..state.rules.len() {
-
-            let current_rule = &state.rules[i];
-
-            if parse_table_debug {
-                println!("  rule: {:?}", current_rule);
-            }
-
-            // retrieve id of rule
-            let rule_id = current_rule.id;
-
-            // resolve target rules that the current rule points to
-            let target_rule_ids_option = rule_channel_map.get(&rule_id);
-
-            // the rule that leads to the accept state does not point to a state! 
-            // The acceptance situation is not implemented as an explicit state.
-            // Also leaf-nodes contain rules that are used for reduce only and point to no other states.
-            if target_rule_ids_option.is_none() {
-
-                let last_symbol = &current_rule.rhs[current_rule.rhs.len() - 1];
-
-                // if *last_symbol == start_symbol {
-                //     println!("    ACCEPT 2");
-                //     parse_table_row.insert(RuleElement::Closure, ParseTableCell::<usize>::Accept);
-                // } 
-                
-                if current_rule.lhs == *augmented_start_symbol {
-                    if parse_table_debug {
-                        println!("    ACCEPT 2");
-                    }
-                    parse_table_row.insert(RuleElement::Closure, ParseTableCell::<usize>::Accept);
-
-                    found_final_state = true;
-                    final_state_id = current_state_id;
-                }
-                else {
-                    if parse_table_debug {
-                        println!("    REDUCE: {:?}", rule_id);
-                    }
-                    for lookahead_index in 0..current_rule.lookahead.len() {
-                        parse_table_row.insert(current_rule.lookahead[lookahead_index].clone(), ParseTableCell::<usize>::Reduce(rule_id));
-                    }
-                }
-
-                continue;
-            }
-
-            let target_rule_ids = target_rule_ids_option.unwrap();
-            // println!("target_rule_ids: {:?}", target_rule_ids);
-
-            // for all target rules which point to connected states
-            for target_rule_id in target_rule_ids {
-
-                // resolve target rule into the target state (= state which contains the target rule)
-                let target_state_id = rule_id_to_state_id_map.get(&target_rule_id.0).unwrap();
-
-                if parse_table_debug {
-                    println!("  Target State: {} over symbol: {:?}", target_state_id, &target_rule_id.1);
-                }
-
-                if current_rule.dot_idx >= current_rule.rhs.len() {
-
-                    // panic!("    leaf");
-                    
-                } else {
-
-                    // println!("    inner");
-                    match &target_rule_id.1 {
-
-                        RuleElement::NonTerminal(_) => {
-                            if parse_table_debug {
-                                println!("    GOTO: {:?} -{:?}-> {:?}", state.id, &target_rule_id.1, target_state_id);
-                            }
-
-                            parse_table_row.insert(target_rule_id.1.clone(), ParseTableCell::<usize>::Goto(*target_state_id));
-                        }
-
-                        RuleElement::Terminal(_) => {
-                            if parse_table_debug {
-                                println!("    SHIFT: {:?} -{:?}-> {:?}", state.id, &target_rule_id.1, target_state_id);
-                            }
-
-                            parse_table_row.insert(target_rule_id.1.clone(), ParseTableCell::<usize>::Shift(*target_state_id));
-                        }
-
-                        RuleElement::Epsilon => {
-                            if parse_table_debug {
-                                println!("    SHIFT: {:?} -{:?}-> {:?}", state.id, &target_rule_id.1, target_state_id);
-                            }
-
-                            parse_table_row.insert(target_rule_id.1.clone(), ParseTableCell::<usize>::Shift(*target_state_id));
-                        }
-
-                        _ => {
-                            panic!("    Panic: {:?}", &target_rule_id.1);
-                        }
-                    }
-                }
-
-                // check if state is already visited or already on the process list
-                if visited_list.contains(target_state_id) {
-                    // println!("continue");
-                    continue;
-                }
-                if process_list.contains(target_state_id) {
-                    // println!("continue");
-                    continue;
-                }
-
-                // add to list for further processing
-                process_list.push(*target_state_id);
-            }
-        }
-
-        parse_table.insert(current_state_id, parse_table_row);
-    }
-
-    //
-    // Validate
-    //
-
-    if !found_final_state {
-        panic!("DFA no final state detected!");
-    } else {
-        println!("Final state: {}", final_state_id);
-    }
-
-    //
-    // DEBUG: Print the parse table
-    //
-
-    println!("");
-    println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-    println!("ParseTable");
-    println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-    // let debug_print_parse_table = true;
-    let debug_print_parse_table = false;
-
-    if debug_print_parse_table {
-        for i in 0..parse_table.len() {
-            println!("{}) {:?}", i, parse_table[&i]);
-        }
-    }
-    println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-}
 
 fn main() {
 
@@ -1490,8 +178,8 @@ fn main() {
     // alphabet.insert(RegexBuildingBlock::CharacterLiteral(' ')); // WHITESPACE, SPACE
 
     // alphabet.insert(RegexBuildingBlock::CharacterLiteral('_'));
-    // alphabet.insert(RegexBuildingBlock::CharacterLiteral('<'));
-    // alphabet.insert(RegexBuildingBlock::CharacterLiteral('>'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('<'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('>'));
     // alphabet.insert(RegexBuildingBlock::CharacterLiteral('{'));
     // alphabet.insert(RegexBuildingBlock::CharacterLiteral('}'));
     // alphabet.insert(RegexBuildingBlock::CharacterLiteral('('));
@@ -1625,8 +313,6 @@ fn main() {
 
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, " ", "WHITESPACE", WHITESPACE_TOKEN_ID);
 
-    // asdf
-
     //
     // numeric (token-id: 600)
     converter.infix_to_postfix("(0|1|2|3|4|5|6|7|8|9)+");
@@ -1640,13 +326,18 @@ fn main() {
     let (start_id_numeric, end_id_numeric) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_numeric.enfa, fragment_numeric.end_id);
     combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_numeric);
 
-
-
     //
     // IS			(u|U|l|L)*
     // H			[a-fA-F0-9]
     // Hex Numeric - 0[xX]{H}+{IS}?
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "0(x|X)(0|1|2|3|4|5|6|7|8|9|a|A|b|B|c|C|d|D|e|E|f|F)+(u|U|l|L)?", "HEX_NUMERIC", 602);
+
+    // pointer operator ->
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\->", "PTR_OP", 15);
+
+    //
+    // combine all token into DFA
+    //
 
     enfa_to_dot_directed_graph(&mut combined_fragment.enfa, "enfa_automaton.dot");
 
@@ -1676,14 +367,19 @@ fn main() {
 
     //let str = "int int int";
 
-    let str = "0x03";
+    // let str = "0x03";
+
+    let str = "->";
 
     println!("Input: {}", str);
-    
-    let lexer_debug: bool = true;
 
     let mut current_state_id = dfa.start_state_id;
     // let mut last_state_id = dfa.start_state_id;
+    
+    let lexer_debug: bool = true;
+    let mut lexer: Lexer = Lexer::new(dfa);
+
+    let mut rule_map = BTreeMap::<usize, Rule<String>>::new();
 
     let mut current_character: char = 'x';
     let mut lookahead_character: char = 'y';
@@ -1694,10 +390,10 @@ fn main() {
     let mut parse_table = HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>::new();
     let mut parser: Parser<String> = Parser::<String>::new(parse_table);
     let mut step: usize = 1;
-    let mut grammar_state_hashmap = BTreeMap::new();
+    let mut grammar_state_hashmap = BTreeMap::<usize, GrammarState<String>>::new();
 
     // DEBUG outputting parse tree as DOT graph
-    let mut string_buffer = String::from("");
+    let mut debug_node_string_buffer = String::from("");
     let mut debug_node_stack = Vec::<DebugNode>::new();
 
     for character in str.chars() {
@@ -1710,27 +406,32 @@ fn main() {
             continue;
         }
 
-        current_state_id = consume_character(&mut dfa, 
-            current_state_id, 
-            &mut token_string_buffer, 
-            current_character, 
+        // current_state_id = consume_character(&mut dfa, 
+        //     current_state_id, 
+        //     &mut token_string_buffer, 
+        //     current_character, 
+        //     lookahead_character, 
+        //     &mut step, 
+        //     &mut parser, 
+        //     &grammar_state_hashmap, 
+        //     &mut string_buffer, 
+        //     &mut debug_node_stack);
+       current_state_id = lexer.consume_character(current_character, 
             lookahead_character, 
             &mut step, 
             &mut parser, 
-            &grammar_state_hashmap, 
-            &mut string_buffer, 
+            &rule_map,
+            &mut debug_node_string_buffer, 
             &mut debug_node_stack);
     }
 
-    current_state_id = consume_character(&mut dfa, 
-        current_state_id, 
-        &mut token_string_buffer, 
+    current_state_id = lexer.consume_character(
         lookahead_character, 
         'x', 
         &mut step, 
         &mut parser, 
-        &grammar_state_hashmap, 
-        &mut string_buffer, 
+        &rule_map, 
+        &mut debug_node_string_buffer, 
         &mut debug_node_stack);
 
     // if lexer_debug {
@@ -1738,15 +439,17 @@ fn main() {
     //     println!("");
     // }
 
-    if dfa.is_end_state(current_state_id) {
-        println!("[LEXER] Emitting '{}'. Token-Id: {}, Token-Name: {}", token_string_buffer, dfa.states[&current_state_id].token_id, dfa.states[&current_state_id].token_name);
+    if lexer.dfa.is_end_state(current_state_id) {
+        println!("[LEXER] Emitting '{}'. Token-Id: {}, Token-Name: {}", token_string_buffer, lexer.dfa.states[&current_state_id].token_id, lexer.dfa.states[&current_state_id].token_name);
         println!("ACCEPT!");
     } else {
         panic!("DECLINED!");
     }
 
+    println!("test");
+
     ///////////////////////////////////////////////////////////////////////////////////
-/**/
+/*
 
     let mut grammar_rules = Vec::<Rule<String>>::new();
 
@@ -2424,7 +1127,6 @@ fn main() {
                                 //     processed_state_ids.push(dest_state_id);
                                 // }
 
-                                // asdf
                                 // dirty_state_id_and_symbols.insert(dest_state_id)
 
                                 // TO_OTHER_STATE
@@ -3302,6 +2004,7 @@ fn main() {
 
     // 4. Explicitly flush the remaining data to disk
     writer.flush().expect("flush failed!");
+    */
     
     println!("end");
 }

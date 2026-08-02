@@ -1,0 +1,8 @@
+void main() {
+
+    {
+        y = 1;
+    }
+    
+    return;
+}

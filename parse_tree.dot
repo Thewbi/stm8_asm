@@ -1,230 +1,218 @@
-digraph {{0 [label="type_specifier"]
-1 [label="INT"]
+digraph {0 [label="0 Rule:94 type_specifier"]
+1 [label="VOID"]
   0 -> 1
-2 [label="2 declaration_specifiers"]
+2 [label="2 Rule:82 declaration_specifiers"]
  2 -> 0
-3 [label="direct_declarator"]
-4 [label="main"]
+3 [label="3 Rule:134 direct_declarator"]
+4 [label="4| main"]
   3 -> 4
 5 [label="5 direct_declarator"]
  5 -> 3
-6 [label="6 declarator"]
- 6 -> 5
-7 [label="type_specifier"]
-8 [label="INT"]
-  7 -> 8
-9 [label="9 declaration_specifiers"]
- 9 -> 7
-10 [label="direct_declarator"]
-11 [label="zahl"]
-  10 -> 11
-12 [label="12 declarator"]
- 12 -> 10
-13 [label="13 init_declarator"]
- 13 -> 12
-14 [label="14 init_declarator_list"]
- 14 -> 13
-15 [label="declaration"]
-  15 -> 14
-  15 -> 9
-16 [label=";"]
+6 [label="6 ("]
+  5 -> 6
+7 [label="7 )"]
+  5 -> 7
+8 [label="8 Rule:133 declarator"]
+ 8 -> 5
+9 [label="9 Rule:97 type_specifier"]
+10 [label="10| INT"]
+  9 -> 10
+11 [label="11 Rule:82 declaration_specifiers"]
+ 11 -> 9
+12 [label="12 Rule:134 direct_declarator"]
+13 [label="13| array_elem_count"]
+  12 -> 13
+14 [label="14 Rule:133 declarator"]
+ 14 -> 12
+15 [label="15 Rule:1 primary_expression"]
+16 [label="16 array"]
   15 -> 16
-17 [label="primary_expression"]
-18 [label="zahl"]
-  17 -> 18
-19 [label="19 postfix_expression"]
- 19 -> 17
-20 [label="20 unary_expression"]
+17 [label="17 Rule:7 postfix_expression"]
+ 17 -> 15
+18 [label="18 Rule:17 unary_expression"]
+ 18 -> 17
+19 [label="19 Rule:30 cast_expression"]
+ 19 -> 18
+20 [label="20 Rule:34 multiplicative_expression"]
  20 -> 19
-21 [label="assignment_operator"]
-22 [label="="]
-  21 -> 22
-23 [label="primary_expression"]
-24 [label="zahl"]
-  23 -> 24
-25 [label="25 postfix_expression"]
- 25 -> 23
-26 [label="26 unary_expression"]
+21 [label="21 Rule:37 additive_expression"]
+ 21 -> 20
+22 [label="22 Rule:40 shift_expression"]
+ 22 -> 21
+23 [label="23 Rule:45 relational_expression"]
+ 23 -> 22
+24 [label="24 Rule:48 equality_expression"]
+ 24 -> 23
+25 [label="25 Rule:50 and_expression"]
+ 25 -> 24
+26 [label="26 Rule:52 exclusive_or_expression"]
  26 -> 25
-27 [label="27 cast_expression"]
+27 [label="27 Rule:54 inclusive_or_expression"]
  27 -> 26
-28 [label="28 multiplicative_expression"]
+28 [label="28 Rule:56 logical_and_expression"]
  28 -> 27
-29 [label="1"]
-30 [label="30 postfix_expression"]
+29 [label="29 Rule:58 logical_or_expression"]
+ 29 -> 28
+30 [label="30 Rule:60 conditional_expression"]
  30 -> 29
-31 [label="31 unary_expression"]
+31 [label="31 Rule:62 assignment_expression"]
  31 -> 30
-32 [label="32 cast_expression"]
+32 [label="32 Rule:74 expression"]
  32 -> 31
-33 [label="33 multiplicative_expression"]
+33 [label="33 Rule:6 primary_expression"]
  33 -> 32
-34 [label="34 additive_expression"]
+34 [label="34 Rule:7 postfix_expression"]
  34 -> 33
-35 [label="additive_expression"]
-  35 -> 34
-36 [label="MINUS"]
-  35 -> 36
-  35 -> 28
-37 [label="37 shift_expression"]
- 37 -> 35
-38 [label="38 relational_expression"]
- 38 -> 37
-39 [label="39 equality_expression"]
- 39 -> 38
-40 [label="40 and_expression"]
- 40 -> 39
-41 [label="41 exclusive_or_expression"]
- 41 -> 40
-42 [label="42 inclusive_or_expression"]
- 42 -> 41
-43 [label="43 logical_and_expression"]
- 43 -> 42
-44 [label="44 logical_or_expression"]
- 44 -> 43
-45 [label="45 conditional_expression"]
+35 [label="35 Rule:17 unary_expression"]
+ 35 -> 34
+36 [label="36 Rule:21 unary_operator"]
+37 [label="SIZEOF"]
+  36 -> 37
+  36 -> 35
+38 [label="38 Rule:30 cast_expression"]
+ 38 -> 36
+39 [label="39 Rule:1 primary_expression"]
+40 [label="40 array"]
+  39 -> 40
+41 [label="41 Rule:7 postfix_expression"]
+ 41 -> 39
+42 [label="42 Rule:3 primary_expression"]
+43 [label="0"]
+  42 -> 43
+44 [label="44 Rule:7 postfix_expression"]
+ 44 -> 42
+45 [label="45 Rule:17 unary_expression"]
  45 -> 44
-46 [label="46 assignment_expression"]
+46 [label="46 Rule:30 cast_expression"]
  46 -> 45
-47 [label="assignment_expression"]
-  47 -> 46
-  47 -> 21
-  47 -> 20
-48 [label="48 expression"]
+47 [label="47 Rule:34 multiplicative_expression"]
+ 47 -> 46
+48 [label="48 Rule:37 additive_expression"]
  48 -> 47
-49 [label="expression_statement"]
-  49 -> 48
-50 [label=";"]
-  49 -> 50
-51 [label="51 statement"]
- 51 -> 49
-52 [label="52 declaration_or_statement_list"]
+49 [label="49 Rule:40 shift_expression"]
+ 49 -> 48
+50 [label="50 Rule:45 relational_expression"]
+ 50 -> 49
+51 [label="51 Rule:48 equality_expression"]
+ 51 -> 50
+52 [label="52 Rule:50 and_expression"]
  52 -> 51
-53 [label="compound_statement"]
-  53 -> 52
-54 [label="54 statement"]
+53 [label="53 Rule:52 exclusive_or_expression"]
+ 53 -> 52
+54 [label="54 Rule:54 inclusive_or_expression"]
  54 -> 53
-55 [label="primary_expression"]
-56 [label="zahl"]
-  55 -> 56
-57 [label="57 postfix_expression"]
- 57 -> 55
-58 [label="58 unary_expression"]
+55 [label="55 Rule:56 logical_and_expression"]
+ 55 -> 54
+56 [label="56 Rule:58 logical_or_expression"]
+ 56 -> 55
+57 [label="57 Rule:60 conditional_expression"]
+ 57 -> 56
+58 [label="58 Rule:62 assignment_expression"]
  58 -> 57
-59 [label="59 cast_expression"]
+59 [label="59 Rule:74 expression"]
  59 -> 58
-60 [label="60 multiplicative_expression"]
- 60 -> 59
-61 [label="61 additive_expression"]
- 61 -> 60
-62 [label="62 shift_expression"]
- 62 -> 61
-63 [label="0"]
-64 [label="64 postfix_expression"]
+60 [label="60 Rule:8 postfix_expression"]
+  60 -> 59
+61 [label="["]
+  60 -> 61
+  60 -> 41
+62 [label="]"]
+  60 -> 62
+63 [label="63 Rule:17 unary_expression"]
+ 63 -> 60
+64 [label="64 Rule:30 cast_expression"]
  64 -> 63
-65 [label="65 unary_expression"]
+65 [label="65 Rule:34 multiplicative_expression"]
  65 -> 64
-66 [label="66 cast_expression"]
+66 [label="66 Rule:37 additive_expression"]
  66 -> 65
-67 [label="67 multiplicative_expression"]
+67 [label="67 Rule:40 shift_expression"]
  67 -> 66
-68 [label="68 additive_expression"]
+68 [label="68 Rule:45 relational_expression"]
  68 -> 67
-69 [label="69 shift_expression"]
+69 [label="69 Rule:48 equality_expression"]
  69 -> 68
-70 [label="70 relational_expression"]
+70 [label="70 Rule:50 and_expression"]
  70 -> 69
-71 [label="relational_expressions"]
-  71 -> 70
-72 [label="<="]
-  71 -> 72
-  71 -> 62
-73 [label="73 equality_expression"]
- 73 -> 71
-74 [label="74 and_expression"]
+71 [label="71 Rule:52 exclusive_or_expression"]
+ 71 -> 70
+72 [label="72 Rule:54 inclusive_or_expression"]
+ 72 -> 71
+73 [label="73 Rule:56 logical_and_expression"]
+ 73 -> 72
+74 [label="74 Rule:58 logical_or_expression"]
  74 -> 73
-75 [label="75 exclusive_or_expression"]
+75 [label="75 Rule:60 conditional_expression"]
  75 -> 74
-76 [label="76 inclusive_or_expression"]
+76 [label="76 Rule:62 assignment_expression"]
  76 -> 75
-77 [label="77 logical_and_expression"]
+77 [label="77 Rule:74 expression"]
  77 -> 76
-78 [label="78 logical_or_expression"]
+78 [label="78 Rule:6 primary_expression"]
  78 -> 77
-79 [label="79 conditional_expression"]
+79 [label="79 Rule:7 postfix_expression"]
  79 -> 78
-80 [label="80 assignment_expression"]
+80 [label="80 Rule:17 unary_expression"]
  80 -> 79
-81 [label="81 expression"]
- 81 -> 80
-82 [label="selection_statement"]
-83 [label="do"]
-  82 -> 83
-  82 -> 81
-84 [label="WHILE"]
-  82 -> 84
-85 [label="("]
-  82 -> 85
-  82 -> 54
-86 [label=")"]
-  82 -> 86
-87 [label=";"]
-  82 -> 87
-88 [label="88 statement"]
- 88 -> 82
-89 [label="0"]
-90 [label="90 postfix_expression"]
+81 [label="81 Rule:21 unary_operator"]
+82 [label="SIZEOF"]
+  81 -> 82
+  81 -> 80
+83 [label="83 Rule:30 cast_expression"]
+ 83 -> 81
+84 [label="84 Rule:34 multiplicative_expression"]
+ 84 -> 83
+85 [label="85 Rule:32 multiplicative_expression"]
+  85 -> 84
+86 [label="/"]
+  85 -> 86
+  85 -> 38
+87 [label="87 Rule:37 additive_expression"]
+ 87 -> 85
+88 [label="88 Rule:40 shift_expression"]
+ 88 -> 87
+89 [label="89 Rule:45 relational_expression"]
+ 89 -> 88
+90 [label="90 Rule:48 equality_expression"]
  90 -> 89
-91 [label="91 unary_expression"]
+91 [label="91 Rule:50 and_expression"]
  91 -> 90
-92 [label="92 cast_expression"]
+92 [label="92 Rule:52 exclusive_or_expression"]
  92 -> 91
-93 [label="93 multiplicative_expression"]
+93 [label="93 Rule:54 inclusive_or_expression"]
  93 -> 92
-94 [label="94 additive_expression"]
+94 [label="94 Rule:56 logical_and_expression"]
  94 -> 93
-95 [label="95 shift_expression"]
+95 [label="95 Rule:58 logical_or_expression"]
  95 -> 94
-96 [label="96 relational_expression"]
+96 [label="96 Rule:60 conditional_expression"]
  96 -> 95
-97 [label="97 equality_expression"]
+97 [label="97 Rule:62 assignment_expression"]
  97 -> 96
-98 [label="98 and_expression"]
+98 [label="98 Rule:170 initializer"]
  98 -> 97
-99 [label="99 exclusive_or_expression"]
- 99 -> 98
-100 [label="100 inclusive_or_expression"]
- 100 -> 99
-101 [label="101 logical_and_expression"]
- 101 -> 100
-102 [label="102 logical_or_expression"]
- 102 -> 101
-103 [label="103 conditional_expression"]
- 103 -> 102
-104 [label="104 assignment_expression"]
- 104 -> 103
-105 [label="105 expression"]
- 105 -> 104
-106 [label="jump_statement RETURN"]
+99 [label="99 Rule:87 init_declarator"]
+  99 -> 98
+100 [label="="]
+  99 -> 100
+  99 -> 14
+101 [label="101 Rule:86 init_declarator_list"]
+ 101 -> 99
+102 [label="102 Rule:77 declaration"]
+  102 -> 101
+  102 -> 11
+103 [label=";"]
+  102 -> 103
+104 [label="104 Rule:187 declaration_or_statement_list"]
+ 104 -> 102
+105 [label="105 Rule:184 compound_statement"]
+  105 -> 104
+106 [label="106 Rule:208 function_definition"]
   106 -> 105
-107 [label="107 statement"]
+  106 -> 8
+  106 -> 2
+107 [label="107 Rule:206 external_declaration"]
  107 -> 106
-108 [label="108 declaration_or_statement_list"]
+108 [label="108 Rule:205 translation_unit"]
  108 -> 107
-109 [label="declaration_or_statement_list"]
-  109 -> 108
-  109 -> 88
-110 [label="declaration_or_statement_list"]
-  110 -> 109
-  110 -> 15
-111 [label="compound_statement"]
-  111 -> 110
-112 [label="function_definition"]
-  112 -> 111
-  112 -> 6
-  112 -> 2
-113 [label="113 external_declaration"]
- 113 -> 112
-114 [label="114 translation_unit"]
- 114 -> 113
-}}
+}

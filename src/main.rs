@@ -1,3 +1,5 @@
+// filename: main_driver.rs
+
 #![allow(
 dead_code,
 unused_imports,
@@ -25,10 +27,8 @@ use crate::regex::regex_building_block::RegexBuildingBlock;
 use crate::regex::arena::Arena;
 use crate::regex::arena::NodeId;
 use crate::regex::arena::Node;
-
 use crate::regex::enfa::Input;
 use crate::regex::enfa::Fragment;
-
 use crate::regex::enfa::EpsilonNfa;
 use crate::regex::enfa::State;
 
@@ -76,6 +76,10 @@ use crate::RuleElement::Terminal;
 mod example_input;
 use crate::example_input::input::provide_sourcode_input;
 
+mod c_ast;
+use crate::c_ast::ast_node::AstNode;
+use crate::c_ast::ast_node::AstNodeType;
+
 // https://stackoverflow.com/questions/32935808/generate-sequential-ids-for-each-instance-of-a-struct
 static RULE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static STATE_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -93,7 +97,10 @@ fn main() {
     // or if you have changed the grammar. Otherwise, the application will read the generated
     // parse table and rules from the files parse_table.txt and rule_table.txt
     //
+    // https://jsmachines.sourceforge.net/machines/lalr1.html
+    //
 
+    // let generate_lalr_1 = true;
     let generate_lalr_1 = false;
     if generate_lalr_1 {
 
@@ -605,7 +612,7 @@ fn main() {
     // DEBUG
     println!("");
     println!("");
-    println!("Input: {}", str);
+    println!("Input:\n{}", str);
 
     //
     // Driving the parser against input
@@ -672,7 +679,6 @@ fn main() {
             lookahead_character, 
             &mut step, 
             &mut parser, 
-            // &grammar_state_hashmap,
             &rule_map,
             &mut debug_node_string_buffer, 
             &mut debug_node_stack);
@@ -683,7 +689,6 @@ fn main() {
         'x', 
         &mut step, 
         &mut parser, 
-        // &grammar_state_hashmap,
         &mut rule_map,
         &mut debug_node_string_buffer, 
         &mut debug_node_stack);
@@ -697,7 +702,6 @@ fn main() {
     // provide the last token to the parser
     lexer.parser_provide_input(&mut parser, 
         &mut step, 
-        // &grammar_state_hashmap,
         &rule_map,
         &RuleElement::Terminal(lexer.dfa.states[&lexer.current_state_id].token_name.clone()), 
         &mut debug_node_string_buffer, 
@@ -706,7 +710,6 @@ fn main() {
     // provide EOI (End of Input) to the parser
     lexer.parser_provide_input(&mut parser, 
         &mut step, 
-        // &grammar_state_hashmap,
         &rule_map,
         &RuleElement::Closure, 
         &mut debug_node_string_buffer, 
@@ -736,12 +739,89 @@ fn main() {
         let mut writer = BufWriter::new(file);
 
         // 3. Write data
-        write!(writer, "{}", "digraph {{");
+        write!(writer, "{}", "digraph {");
         write!(writer, "{}", debug_node_string_buffer);
-        write!(writer, "{}", "}}");
+        write!(writer, "{}", "}");
 
         // 4. Explicitly flush the remaining data to disk
         writer.flush().expect("flush failed!");
+    }
+
+    //
+    // Finalize AST
+    //
+
+    if parser.construct_ast {
+
+        // build the root node which is of type program
+        let mut program_ast_node: AstNode = AstNode::new();
+        program_ast_node.node_type = AstNodeType::Program;
+
+        // insert all nodes into program node
+        let mut done = false;
+        while !done {
+
+            let body_ast_node = parser.ast_stack.pop().unwrap();
+            program_ast_node.block_items.push(Box::new(body_ast_node));
+
+            done = parser.ast_stack.len() == 0;
+        }
+
+        // place the root-program node onto the stack
+        parser.ast_stack.push(program_ast_node);
+
+        //
+        // Pretty print AST
+        //
+
+        let ast_stack_root_option = parser.ast_stack.pop();    
+        if let Some(program_ast_node) = ast_stack_root_option {
+
+            // println!("");
+            // println!("---------------------------------------------------------------------------------");
+            // println!("{{");
+            // println!("\"function_definitions\": [");
+            // program_ast_node.pretty_print_ast_json();
+            // println!("]");
+            // println!("}}");
+            // println!("---------------------------------------------------------------------------------");
+
+            println!("");
+            println!("---------------------------------------------------------------------------------");
+            
+            let mut ast_string_buffer = String::from("");
+
+            ast_string_buffer.push_str("digraph {\n");
+            program_ast_node.pretty_print_ast_dot(&mut ast_string_buffer);
+            ast_string_buffer.push_str("}");
+
+            // DEBUG - print AST dot to console
+            let output_ast_as_dot_to_console: bool = false;
+            if output_ast_as_dot_to_console {
+                println!("{}", ast_string_buffer);
+            }
+
+            let output_abstract_syntax_tree_as_dot_to_file: bool = true;
+            if output_abstract_syntax_tree_as_dot_to_file {
+
+                // 1. Create or overwrite the file
+                let file = File::create("abstract_syntax_tree.dot").expect("Create file failed!");
+                
+                // 2. Wrap the file in a BufWriter
+                let mut writer = BufWriter::new(file);
+
+                // 3. Write data
+                write!(writer, "{}", ast_string_buffer);
+
+                // 4. Explicitly flush the remaining data to disk
+                writer.flush().expect("flush failed!");
+            }
+
+            println!("---------------------------------------------------------------------------------");
+        }
+
+    } else {
+        println!("AST is empty!");
     }
     
     println!("end");

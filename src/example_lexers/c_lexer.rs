@@ -2,22 +2,13 @@ use std::collections::HashSet;
 
 use crate::regex::enfa::Fragment;
 use crate::regex::enfa::FragmentStack;
-// use crate::regex::enfa::recurse_postfix_build_fragment_stack;
 use crate::regex::enfa::enfa_copy;
 use crate::regex::enfa::enfa_to_dfa;
-// use crate::regex::enfa::transition_dfa;
-// use crate::regex::enfa::enfa_to_dot_directed_graph;
-// use crate::regex::enfa::add_character_literal;
 
 use crate::EpsilonNfa;
-// use crate::enfa_to_dfa;
-// use crate::enfa_copy;
 use crate::State;
 use crate::RegexBuildingBlock;
-// use crate::Fragment;
-// use crate::FragmentStack;
 use crate::InfixPostfixConverter;
-// use crate::recurse_postfix_build_fragment_stack;
 use crate::regex::enfa::recurse_postfix_build_fragment_stack;
 use crate::Input;
 use crate::example_lexers::common::add_token_definition;

@@ -186,16 +186,6 @@ pub fn perform_propagation(rule_ids: &Vec::<usize>,
                                     dirty_state_ids.push(dest_state_id);
                                 }
 
-                                // empty_beta = false;
-
-                                // if !processed_state_ids.contains(&dest_state_id) {
-                                //     dirty_state_ids.push(dest_state_id);
-                                //     processed_state_ids.push(dest_state_id);
-                                // }
-
-                                // asdf
-                                // dirty_state_id_and_symbols.insert(dest_state_id)
-
                                 // TO_OTHER_STATE
                                 //
                                 // add a channel from src rule inside the old state to the identification rule in the newly created state

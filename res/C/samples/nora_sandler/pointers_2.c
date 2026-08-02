@@ -1,0 +1,1 @@
+int *ptr_var = 0;

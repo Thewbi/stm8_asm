@@ -1,0 +1,12 @@
+int main() {
+
+    int data[11] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0xaa};
+
+    int i = 0;
+    int j = 0;
+    while (data[i] != 0xaa) {
+        j = j + data[i];
+    }
+
+    return 0;
+}

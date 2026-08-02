@@ -1,0 +1,2 @@
+x86-64 clang (trunk),    parameters: -S -mllvm --x86-asm-syntax=intel
+x64 msvc v19.latest

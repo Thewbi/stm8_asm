@@ -1,0 +1,1 @@
+int *ptr_var = &other_var;

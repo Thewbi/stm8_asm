@@ -42,7 +42,6 @@ impl Lexer {
         lookahead_character: char,
         step: &mut usize,
         parser: &mut Parser::<String>,
-        // grammar_state_hashmap: &BTreeMap<usize, GrammarState<String>>,
         rule_map: &BTreeMap<usize, Rule<String>>,
         debug_node_string_buffer: &mut String,
         debug_node_stack: &mut Vec::<DebugNode>) -> usize {
@@ -95,6 +94,8 @@ impl Lexer {
                 // create a Token / Terminal
                 let terminal = RuleElement::Terminal(self.dfa.states[&self.current_state_id].token_name.clone());
 
+                // DEBUG - this outputs the string and the token generated from the string
+                // This is a good starting point for debugging
                 if lexer_debug {
                     println!("[LEXER.TRAP_STATE] {:?} ---> {:?}", self.token_string_buffer, terminal);
                 }
@@ -120,7 +121,6 @@ impl Lexer {
 
                             // pass token to the lexer
                             parser.provide_input(
-                                // grammar_state_hashmap,
                                 rule_map,
                                 step, 
                                 &RuleElement::Terminal(String::from("TYPE_NAME")),
@@ -132,7 +132,6 @@ impl Lexer {
 
                             // pass token to the lexer
                             parser.provide_input(
-                                // grammar_state_hashmap,
                                 rule_map,
                                 step, 
                                 &terminal,
@@ -149,15 +148,19 @@ impl Lexer {
                             println!("[LEXER.TRAP_STATE] Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
                         }
 
-                        // pass token to the lexer
-                        parser.provide_input(
-                            // grammar_state_hashmap,
-                            rule_map,
-                            step, 
-                            &terminal,
-                            &self.token_string_buffer,
-                            debug_node_string_buffer,
-                            debug_node_stack);
+                        if rule_map.len() > 0 {
+                            // pass token to the lexer
+                            parser.provide_input(
+                                rule_map,
+                                step, 
+                                &terminal,
+                                &self.token_string_buffer,
+                                debug_node_string_buffer,
+                                debug_node_stack);
+                        } else {
+                            println!("[WARN] No rules supplied! Not calling parser!");
+                            *step = *step + 1;
+                        }
                     }
                 }
 
@@ -208,14 +211,12 @@ impl Lexer {
     pub fn parser_provide_input(&mut self,
         parser: &mut Parser::<String>,
         step: &mut usize,
-        // grammar_state_hashmap: &BTreeMap<usize, GrammarState<String>>,
         rule_map: &BTreeMap<usize, Rule<String>>,
         rule_element: &RuleElement<String>,
         debug_node_string_buffer: &mut String,
         debug_node_stack: &mut Vec::<DebugNode>) {
 
         parser.provide_input(
-            //&grammar_state_hashmap,
             &rule_map,
             step, 
             rule_element,

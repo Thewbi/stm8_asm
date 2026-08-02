@@ -15,6 +15,7 @@ pub enum RuleElement<T> {
 }
 
 impl<T: Ord> Ord for RuleElement<T> {
+
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         
         match &self {
@@ -69,7 +70,7 @@ impl<T: Display> fmt::Debug for RuleElement<T> {
                 write!(f, "UNKNOWN").expect("Write failed!");
             }
             RuleElement::Unused => {
-                // nop, do not display unused
+                // do not display unused
             }
         }
 

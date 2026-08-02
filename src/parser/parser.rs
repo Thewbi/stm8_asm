@@ -12,6 +12,10 @@ use crate::parser::parser::ParseStackElementType::StateId;
 
 use crate::parser::grammar_state::GrammarState;
 
+use crate::c_ast::ast_node::AstNode;
+use crate::c_ast::ast_node::AstNodeType;
+use crate::c_ast::ast_node::AstNodeOperatorType;
+
 use std::{
     sync::atomic::{AtomicUsize, Ordering}
 };
@@ -114,6 +118,7 @@ pub struct Parser<T> {
     pub parse_table: HashMap::<usize, HashMap::<RuleElement<T>, ParseTableCell<usize>>>,
     pub stack: Vec::<ParseStackElement<String>>,
     pub collapse_nodes: bool,
+    pub print_rule_reduction: bool,
 
     // TYPEDEF HANDLING
     pub typedef_found: bool,
@@ -124,6 +129,15 @@ pub struct Parser<T> {
 
     // Type table
     pub defined_types: Vec::<String>,
+
+    // AST
+    pub construct_ast: bool,
+    pub ast_stack: Vec::<AstNode>,
+    pub child_counter: usize,
+    pub parameter_counter: usize,
+    pub switch_case_default_counter: usize,
+    pub direct_declarator_counter: usize,
+    pub struct_field_counter: usize,
 }
 
 impl Parser<String> {
@@ -133,7 +147,8 @@ impl Parser<String> {
         let mut parser = Parser {
             parse_table: parse_table_param,
             stack: Vec::<ParseStackElement<String>>::new(),
-            collapse_nodes: false,
+            collapse_nodes: false, // if true, nodes that point to a single node only are not output to the dot graph
+            print_rule_reduction: true, // outputs all rules as they are reduced!
 
             // TYPEDEF HANDLING
             typedef_found: false,
@@ -144,6 +159,16 @@ impl Parser<String> {
 
             // Types
             defined_types: Vec::<String>::new(),
+
+            // AST
+            construct_ast: true,
+            //construct_ast: false,
+            ast_stack: Vec::<AstNode>::new(),
+            child_counter: 0,
+            parameter_counter: 0,
+            switch_case_default_counter: 0,
+            direct_declarator_counter: 0,
+            struct_field_counter: 0,
         };
 
         let t1 = ParseStackElementType::<String>::StateId(0);
@@ -156,15 +181,12 @@ impl Parser<String> {
     // removes the current node from the stack and replaces it by a new node, inserting a transition line and a line for the new node.
     pub fn node_to_node(&mut self,
         label: &str,
+        rule_id: usize,
         string_buffer: &mut String,
-        debug_node_stack: &mut Vec::<DebugNode>) {
+        debug_node_stack: &mut Vec::<DebugNode>) -> usize {
 
         // leave this function empty for a compact Tree which could be an AST.
         // Uncomment the code for a full parse tree that contains all production rules!
-
-        if label == "point_t" {
-            println!("Test");
-        }
 
         if !self.collapse_nodes {
 
@@ -172,20 +194,21 @@ impl Parser<String> {
             // create new node with node id and label
             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
             let debug_node = DebugNode::new(debug_node_id, String::from(label));
-
             // print new node into string buffer. e.g.    0 [label="test"]
-            string_buffer.push_str(format!("{:?} [label=\"{:?} {}\"]\n", debug_node_id, debug_node_id, String::from(label)).as_str());
+            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, rule_id, String::from(label)).as_str());
 
             // take old node from stack
             let old_debug_node = debug_node_stack.pop().unwrap();
-
             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
             string_buffer.push_str(format!(" {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
             // push new node to stack
             debug_node_stack.push(debug_node);
+
+            return debug_node_id;
         }
-        
+
+        0usize
     }
 
     // Given some input symbol, the current stack of parse elements looks at the topmost stack element. 
@@ -210,7 +233,6 @@ impl Parser<String> {
     pub fn consume(&mut self, 
         input: RuleElement<String>,
         terminal_value: &String,
-        // grammar_state_hashmap: &BTreeMap<usize, GrammarState<String>>,
         rule_map: &BTreeMap<usize, Rule<String>>,
         string_buffer: &mut String,
         debug_node_stack: &mut Vec::<DebugNode>,
@@ -450,48 +472,10 @@ impl Parser<String> {
                         }
 
                         ParseTableCell::Reduce(rule_id) => {
-                            // println!("[Parser::consume] reducing rule_id: {}", rule_id);
-
-                            // println!("[Parser::consume] rule_map: {:?}", rule_map);
-
-                            //let mut found_rule = Rule::<String>::new(0);
-
                             let found = rule_map.contains_key(&rule_id);
 
-                            // TODO retrieve rule by id
+                            // retrieve rule by id
                             let found_rule = rule_map.get(&rule_id).unwrap();
-
-                            /*
-                            let state = grammar_state_hashmap.get(&current_state_id).unwrap();
-
-                            // DEBUG
-                            // println!("[Parser::consume] reduce State: {:?}, rule_id: {:?}", state, rule_id);
-
-                            let mut found_rule = Rule::<String>::new(0);
-
-                            let mut found = false;
-                            for i in 0..state.identification_rules.len() {
-                                if state.identification_rules[i].id == *rule_id {
-                                    if debug {
-                                        println!("[Parser::consume] rule: {:?}", state.identification_rules[i]);
-                                    }
-                                    found_rule = state.identification_rules[i].clone();
-                                    found = true;
-                                }
-                            }
-
-                            if !found {
-                                for i in 0..state.rules.len() {
-                                    if state.rules[i].id == *rule_id {
-                                        if debug {
-                                            println!("[Parser::consume] rule: {:?}", state.rules[i]);
-                                        }
-                                        found_rule = state.rules[i].clone();
-                                        found = true;
-                                    }
-                                }
-                            }
-                            */
 
                             if !found {
                                 panic!("[Parser::consume] Rule not found!");
@@ -500,12 +484,13 @@ impl Parser<String> {
                                     println!("[Parser::consume] rule: {:?}", found_rule);
                                 }
 
-                                // if debug {
+                                //if debug {
+                                if self.print_rule_reduction {
                                     print!("[Parser::consume()] REDUCING RULE: ");
                                     found_rule.print_rule_simple();
                                     println!("");
-                                // }
-
+                                }
+                                //}
                                 
                                 //
                                 // pop elements from the stack and transfer them into another array for inspection later
@@ -543,22 +528,16 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("translation_unit"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("translation_unit")).as_str());
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("translation_unit")).as_str());
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
@@ -566,17 +545,17 @@ impl Parser<String> {
 
                                         // translation_unit -> external_declaration
                                         205 => {
-                                            self.node_to_node("translation_unit", string_buffer, debug_node_stack);
+                                            self.node_to_node("translation_unit", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // external_declaration -> function_definition
                                         206 => {
-                                            self.node_to_node("external_declaration", string_buffer, debug_node_stack);
+                                            self.node_to_node("external_declaration", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // external_declaration -> declaration
                                         207 => {
-                                            self.node_to_node("external_declaration", string_buffer, debug_node_stack);
+                                            self.node_to_node("external_declaration", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // function_definition -> declaration_specifiers declarator compound_statement
@@ -585,46 +564,109 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("function_definition"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("function_definition")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("function_definition")).as_str());
 
-
-
-
-                                            // declaration_specifiers
-                                            // take old node from stack
+                                            // take old node from stack - declaration_specifiers
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-
-                                            
-                                            
-
-                                            // declarator
-                                            // take old node from stack
+                                            // take old node from stack - declarator
                                             let declarator_node = debug_node_stack.pop().unwrap();
-                                            // if let Some(declarator_node) = debug_node_stack.pop() {
-                                                // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
-                                                string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, declarator_node.id).as_str());
-                                            // }
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, declarator_node.id).as_str());
 
-
-
-                                            // compound_statement
-                                            // take old node from stack
+                                            // take old node from stack - compound_statement
                                             let compound_statement_node = debug_node_stack.pop().unwrap();
-                                            // if let Some(compound_statement_node) = debug_node_stack.pop() {
-                                                // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
-                                                string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, compound_statement_node.id).as_str());
-                                            // }
-
-
-
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, compound_statement_node.id).as_str());
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            println!("debug_node_id: {}", debug_node_id);
+
+                                            //
+                                            // AST - function_definition -> declaration_specifiers declarator compound_statement
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut function_definition_ast_node: AstNode = AstNode::new();
+                                                function_definition_ast_node.node_type = AstNodeType::FunctionDeclaration;
+
+                                                // function body statement (= block)
+                                                let mut function_body_block_ast_node: AstNode = AstNode::new();
+                                                function_body_block_ast_node.node_type = AstNodeType::Block;
+
+                                                // function name
+                                                let mut function_name: String = String::new();
+
+                                                let mut done = false;
+                                                while !done {
+
+                                                    let mut sub_ast_node = self.ast_stack.pop().unwrap();
+                                                    match sub_ast_node.node_type {
+
+                                                        AstNodeType::Identifier => {
+                                                            function_name = sub_ast_node.string_val;
+                                                        }
+
+                                                        AstNodeType::BlockItem => {
+                                                            function_body_block_ast_node.block_items.push(Box::new(sub_ast_node));
+                                                        }
+
+                                                        AstNodeType::Declaration => {
+                                                            // nop
+                                                        }
+
+                                                        AstNodeType::DataType => {
+                                                            // Assumption: return-value data-type of function
+                                                            // return-value data-type of function
+                                                            function_definition_ast_node.rhs = Some(Box::new(sub_ast_node));
+                                                            done = true;
+                                                        }
+
+                                                        AstNodeType::Statement => {
+                                                            // wrap statement into BlockItem
+                                                            let mut block_item_ast_node: AstNode = AstNode::new();
+                                                            block_item_ast_node.node_type = AstNodeType::BlockItem;
+                                                            block_item_ast_node.lhs = Some(Box::new(sub_ast_node));
+
+                                                            function_body_block_ast_node.block_items.push(Box::new(block_item_ast_node));
+                                                        }
+
+                                                        AstNodeType::Compound => {
+                                                            // wrap statement into BlockItem
+                                                            let mut block_item_ast_node: AstNode = AstNode::new();
+                                                            block_item_ast_node.node_type = AstNodeType::BlockItem;
+                                                            block_item_ast_node.lhs = Some(Box::new(sub_ast_node));
+
+                                                            function_body_block_ast_node.block_items.push(Box::new(block_item_ast_node));
+                                                        }
+
+                                                        AstNodeType::FunctionDeclaration => {
+                                                            function_name = sub_ast_node.string_val.clone();
+                                                            function_definition_ast_node.parameters = std::mem::take(&mut sub_ast_node.parameters);
+                                                        }
+
+                                                        _ => {
+                                                            function_body_block_ast_node.block_items.push(Box::new(sub_ast_node));
+                                                            //panic!("{}", format!("Unhandled AST node_type: {:?}", sub_ast_node.node_type).as_str());
+                                                        }
+                                                    }
+                                                }
+
+                                                // LHS contains the block, the block contains all statements as block_items
+                                                function_definition_ast_node.lhs = Some(Box::new(function_body_block_ast_node));
+                                                
+                                                // function name
+                                                function_definition_ast_node.string_val = function_name;
+
+                                                self.ast_stack.push(function_definition_ast_node);
+
+                                            }
                                         }
 
                                         // declaration_specifiers -> type_specifier declaration_specifiers
@@ -633,12 +675,8 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("declaration_specifiers"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("declaration_specifiers")).as_str());
-
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("declaration_specifiers")).as_str());
 
                                             // type_specifier
                                             // take old node from stack
@@ -650,32 +688,32 @@ impl Parser<String> {
                                             let declarator_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, declarator_node.id).as_str());
 
-
-
-
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            // println!("{:?}", debug_node_id);
+
+                                            //
+                                            // AST - declaration_specifiers -> type_specifier declaration_specifiers
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node = self.ast_stack.pop().unwrap();
+
+                                                // add UInt, ULong
+                                                let temp_string = ast_node.string_val;
+                                                let mut new_type_string = String::from("U");
+                                                new_type_string.push_str(&temp_string);
+                                                ast_node.string_val = new_type_string;
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // declaration_specifiers -> type_specifier
                                         82 => {
-                                            // // create new node id
-                                            // // create new node with node id and label
-                                            // let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            // let debug_node = DebugNode::new(debug_node_id, String::from("declaration_specifiers"));
-
-                                            // // print new node into string buffer. e.g.    0 [label="test"]
-                                            // string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("declaration_specifiers")).as_str());
-
-                                            // // take old node from stack
-                                            // let old_debug_node = debug_node_stack.pop().unwrap();
-
-                                            // // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
-                                            // string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-                                            // // push new node to stack
-                                            // debug_node_stack.push(debug_node);
-                                            self.node_to_node("declaration_specifiers", string_buffer, debug_node_stack);
+                                            self.node_to_node("declaration_specifiers", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // declaration_specifiers -> storage_class_specifier declaration_specifiers
@@ -684,22 +722,16 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("declaration_specifiers"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("declaration_specifiers")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("declaration_specifiers")).as_str());
 
-
-
-                                            // take old node from stack
+                                            // take old node from stack - storage_class_specifier
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-
-                                            // take old node from stack
+                                            // take old node from stack - declaration_specifiers
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
@@ -710,7 +742,6 @@ impl Parser<String> {
 
                                             if self.typedef_found {
 
-                                                // TODO: 
                                                 // insert a new type mapping into the types table
                                                 self.defined_types.push(self.last_type_specifier.clone());
 
@@ -726,22 +757,15 @@ impl Parser<String> {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("storage_class_specifier"));
-
-                                            debug_node_stack.push(debug_node);
-
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("storage_class_specifier")).as_str());
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("storage_class_specifier")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("TYPEDEF"));
-                                            // debug_node_stack.push(debug_node);
                                             string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, String::from("TYPEDEF")).as_str());
-
-
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
 
+                                            debug_node_stack.push(debug_node);
 
                                             //
                                             // TYPEDEF HANDLING
@@ -751,38 +775,121 @@ impl Parser<String> {
                                             self.is_typedef_active = true;
                                         }
 
-                                        // type_specifier -> VOID
-                                        94 => {
-                                            // // push node onto stack
-                                            // let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            // let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier VOID"));
-
-                                            // // print node into string buffer. e.g.    0 [label="test"]
-                                            // string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("type_specifier VOID")).as_str());
-                                        
-                                            // debug_node_stack.push(debug_node);
-
+                                        // storage_class_specifier -> EXTERN
+                                        90 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("storage_class_specifier"));
+                                            // print node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("storage_class_specifier")).as_str());
+
+                                            let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let type_node = DebugNode::new(type_node_id, String::from("EXTERN"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, String::from("EXTERN")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
 
                                             debug_node_stack.push(debug_node);
 
+                                            //
+                                            // AST - storage_class_specifier -> EXTERN
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::StorageClassSpecifier;
+                                                ast_node.string_val = String::from("EXTERN");
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
+                                        // storage_class_specifier -> STATIC
+                                        91 => {
+                                            // push node onto stack
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("storage_class_specifier"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("type_specifier")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("storage_class_specifier")).as_str());
 
+                                            let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let type_node = DebugNode::new(type_node_id, String::from("STATIC"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, String::from("STATIC")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
 
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - storage_class_specifier -> STATIC
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::StorageClassSpecifier;
+                                                ast_node.string_val = String::from("STATIC");
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
+                                        // type_specifier -> VOID
+                                        94 => {
+                                            // push node onto stack
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            // print node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("VOID"));
-                                            // debug_node_stack.push(debug_node);
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", type_node_id, String::from("VOID")).as_str());
-
-
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
+
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - type_specifier -> VOID
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::DataType;
+                                                ast_node.string_val = String::from("void");
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // type_specifier -> CHAR
+                                        95 => {
+                                            // push node onto stack
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            // print node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier")).as_str());
+
+                                            let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let type_node = DebugNode::new(type_node_id, String::from("CHAR"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", type_node_id, String::from("CHAR")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
+
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - type_specifier -> CHAR
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::DataType;
+                                                ast_node.string_val = String::from("char");
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
 
                                         // type_specifier -> SHORT
 
@@ -791,22 +898,16 @@ impl Parser<String> {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
-
-                                            debug_node_stack.push(debug_node);
-
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("type_specifier")).as_str());
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("INT"));
-                                            // debug_node_stack.push(debug_node);
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", type_node_id, String::from("INT")).as_str());
-
-
+                                            string_buffer.push_str(format!("{:?} [label=\"{}| {}\"]\n", type_node_id, type_node_id, String::from("INT")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
-                                        
+
+                                            debug_node_stack.push(debug_node);
+
                                             //
                                             // TYPEDEF HANDLING
                                             //
@@ -817,29 +918,74 @@ impl Parser<String> {
                                             }
 
                                             self.last_source_type = String::from("int");
+
+                                            //
+                                            // AST - type_specifier -> INT
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::DataType;
+                                                ast_node.string_val = String::from("int");
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // type_specifier -> LONG
+                                        98 => {
+                                            // push node onto stack
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            // print node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier")).as_str());
+
+                                            let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let type_node = DebugNode::new(type_node_id, String::from("LONG"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}| {}\"]\n", type_node_id, type_node_id, String::from("LONG")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
+
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // TYPEDEF HANDLING
+                                            //
+
+                                            if self.is_typedef_active {
+                                                self.lexer_produce_type_name = true;
+                                                self.is_typedef_active = false;
+                                            }
+
+                                            self.last_source_type = String::from("long");
+
+                                            //
+                                            // AST - type_specifier -> LONG
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::DataType;
+                                                ast_node.string_val = String::from("long");
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
 
                                         // type_specifier -> FLOAT
                                         99 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
-
                                             debug_node_stack.push(debug_node);
-
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("type_specifier")).as_str());
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("FLOAT"));
                                             // debug_node_stack.push(debug_node);
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", type_node_id, String::from("FLOAT")).as_str());
-
-
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, String::from("FLOAT")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
                                         
                                             //
@@ -854,17 +1000,116 @@ impl Parser<String> {
                                             }
 
                                             self.last_source_type = String::from("float");
+
+                                            //
+                                            // AST - type_specifier -> FLOAT
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::DataType;
+                                                ast_node.string_val = String::from("float");
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // type_specifier -> DOUBLE
+                                        100 => {
+                                            // push node onto stack
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            // print node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("type_specifier")).as_str());
+
+                                            let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let type_node = DebugNode::new(type_node_id, String::from("DOUBLE"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}| {}\"]\n", type_node_id, type_node_id, String::from("DOUBLE")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
+
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // TYPEDEF HANDLING
+                                            //
+
+                                            if self.is_typedef_active {
+                                                self.lexer_produce_type_name = true;
+                                                self.is_typedef_active = false;
+                                            }
+
+                                            self.last_source_type = String::from("double");
+
+                                            //
+                                            // AST - type_specifier -> DOUBLE
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::DataType;
+                                                ast_node.string_val = String::from("double");
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
 
                                         // type_specifier -> SIGNED
+                                        101 => {
+                                            // retrieve terminal of SIGNED
+                                            let mut value = String::from("");
+                                            for terminal_rev in rule_reverse.iter().rev() {
+                                                value = terminal_rev.clone().unwrap().data;
+                                                // println!("[Parser::consume()] [108] TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
+                                            }
+
+                                            // create new node
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            // print node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("type_specifier")).as_str());
+
+                                            // signed
+                                            let identifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let identifier_node = DebugNode::new(identifier_node_id, value.clone());
+                                            // debug_node_stack.push(debug_node);
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", identifier_node_id, identifier_node_id, value.clone()).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, identifier_node.id).as_str());
+
+                                            debug_node_stack.push(debug_node);
+                                        }
 
                                         // type_specifier -> UNSIGNED
+                                        102 => {
+                                            // retrieve terminal of UNSIGNED
+                                            let mut value = String::from("");
+                                            for terminal_rev in rule_reverse.iter().rev() {
+                                                value = terminal_rev.clone().unwrap().data;
+                                                // println!("[Parser::consume()] [108] TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
+                                            }
+
+                                            // create new node
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            // print node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("type_specifier")).as_str());
+
+                                            // unsigned
+                                            let identifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let identifier_node = DebugNode::new(identifier_node_id, value.clone());
+                                            // debug_node_stack.push(debug_node);
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", identifier_node_id, identifier_node_id, value.clone()).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, identifier_node.id).as_str());
+
+                                            debug_node_stack.push(debug_node);
+
+                                            // println!("{:?}", debug_node_id);
+                                        }
 
                                         // type_specifier -> struct_or_union_specifier
                                         103 => {
-                                            self.node_to_node("type_specifier", string_buffer, debug_node_stack);
+                                            self.node_to_node("type_specifier", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // type_specifier -> enum_specifier
@@ -875,21 +1120,14 @@ impl Parser<String> {
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
                                                 value = terminal_rev.clone().unwrap().data;
-                                                println!("[Parser::consume()] [108] TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
+                                                // println!("[Parser::consume()] [108] TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
                                             }
-
-                                            // let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            // let debug_node = DebugNode::new(debug_node_id, format!("primary_expression '{}'\n", value));
-                                            // debug_node_stack.push(debug_node);
-                                            // string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, format!("primary_expression '{}'", value)).as_str());
-
 
                                             // create new node
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
                                             // print node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("type_specifier")).as_str());
-
 
                                             // IDENTIFIER
                                             let identifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -898,10 +1136,7 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", identifier_node_id, identifier_node_id, value.clone()).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, identifier_node.id).as_str());
 
-
-
                                             debug_node_stack.push(debug_node);
-
 
                                             //
                                             // TYPEDEF HANDLING
@@ -916,40 +1151,76 @@ impl Parser<String> {
 
                                         // struct_or_union_specifier -> struct_or_union IDENTIFIER OPENING_CURLY_BRACKET struct_declaration_list CLOSING_CURLY_BRACKET
                                         106 => {
+
+                                            // retrieve struct name
+                                            // the first value is a whitespace character
+                                            // the second value is the struct name
+                                            let mut value_index = 0;
+                                            let mut value = String::from("");
+                                            for terminal_rev in rule_reverse.iter().rev() {
+
+                                                value = terminal_rev.clone().unwrap().data;
+                                                println!("[Parser::consume()] [106] TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
+
+                                                // break at index 1 because after index 1 the CURLY brackets appear
+                                                if value_index == 1 {
+                                                    break;
+                                                }
+
+                                                value_index = value_index + 1;
+                                            }
+
+                                            //
+                                            // LHS
+                                            //
+
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("struct_or_union_specifier"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("struct_or_union_specifier")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("struct_or_union_specifier")).as_str());
 
+                                            //
+                                            // RHS
+                                            //
 
-                                            // struct_or_union
-                                            // take old node from stack
+                                            // take old node from stack - struct_or_union
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
+                                            // IDENTIFIER 
+                                            
+                                            // OPENING_CURLY_BRACKET
 
-
-                                            // struct_or_union
-                                            // take old node from stack
+                                            // take old node from stack - struct_declaration_list
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-
-                                            // // IDENTIFIER
-                                            // let mut value = String::from("");
-                                            // for terminal_rev in rule_reverse.iter().rev() {
-                                            //     value = terminal_rev.clone().unwrap().data;
-                                            //     println!("TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
-                                            // }
-
+                                            // CLOSING_CURLY_BRACKET
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - struct_or_union_specifier -> struct_or_union IDENTIFIER OPENING_CURLY_BRACKET struct_declaration_list CLOSING_CURLY_BRACKET
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut struct_ast_node: AstNode = AstNode::new();
+                                                struct_ast_node.string_val = value.clone();
+                                                struct_ast_node.node_type = AstNodeType::StructureDeclaration;
+                                                for i in 0..self.struct_field_counter {
+                                                    let member_declaration_ast_node = self.ast_stack.pop().unwrap();
+                                                    struct_ast_node.block_items.push(Box::new(member_declaration_ast_node))
+                                                }
+                                                self.struct_field_counter = 0;
+
+                                                self.ast_stack.push(struct_ast_node);
+                                            }
                                         }
 
                                         // struct_or_union_specifier -> struct_or_union IDENTIFIER
@@ -959,8 +1230,9 @@ impl Parser<String> {
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
                                                 value = terminal_rev.clone().unwrap().data;
+
                                                 println!("[Parser::consume()] [108] TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
-                                                println!("");
+                                                // println!("");
                                             }
 
                                             // let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -968,13 +1240,11 @@ impl Parser<String> {
                                             // debug_node_stack.push(debug_node);
                                             // string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, format!("primary_expression '{}'", value)).as_str());
 
-
                                             // create new node
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("struct_or_union_specifier"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("struct_or_union_specifier")).as_str());
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("struct_or_union_specifier")).as_str());
 
                                             // IDENTIFIER
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -983,13 +1253,11 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, value.clone()).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
 
-
                                             // struct_or_union
                                             // take old node from stack
                                             let declarator_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, declarator_node.id).as_str());
-
 
                                             debug_node_stack.push(debug_node);
 
@@ -1003,6 +1271,28 @@ impl Parser<String> {
                                             }
 
                                             self.last_source_type = value.clone();
+
+                                            //
+                                            // AST - struct_or_union_specifier -> struct_or_union IDENTIFIER
+                                            //
+
+                                            // example: struct Person p1;
+
+                                            if self.construct_ast {
+
+                                                let type_ast_node = self.ast_stack.pop().unwrap();
+                                                
+                                                let mut identifier_ast_node: AstNode = AstNode::new();
+                                                identifier_ast_node.node_type = AstNodeType::Identifier;
+                                                identifier_ast_node.string_val = value.clone();
+
+                                                let mut data_type_ast_node: AstNode = AstNode::new();
+                                                data_type_ast_node.node_type = AstNodeType::Structure;
+                                                data_type_ast_node.lhs = Some(Box::new(type_ast_node));
+                                                data_type_ast_node.rhs = Some(Box::new(identifier_ast_node));
+
+                                                self.ast_stack.push(data_type_ast_node);
+                                            }
                                         }
 
                                         // struct_or_union -> STRUCT
@@ -1010,21 +1300,29 @@ impl Parser<String> {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("struct_or_union"));
-
                                             debug_node_stack.push(debug_node);
-
                                             // print node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("struct_or_union")).as_str());
-
-
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("STRUCT"));
                                             // debug_node_stack.push(debug_node);
                                             string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, String::from("STRUCT")).as_str());
 
-
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
+
+                                            //
+                                            // AST - struct_or_union -> STRUCT
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut struct_ast_node: AstNode = AstNode::new();
+                                                struct_ast_node.string_val = String::from("STRUCT");
+                                                struct_ast_node.node_type = AstNodeType::DataType;
+
+                                                self.ast_stack.push(struct_ast_node);
+                                            }
                                         }
 
                                         // struct_declaration_list -> struct_declaration_list struct_declaration
@@ -1033,10 +1331,8 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("struct_declaration_list"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("struct_declaration_list")).as_str());
-
 
                                             // struct_declaration_list
                                             // take old node from stack
@@ -1050,57 +1346,82 @@ impl Parser<String> {
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, declarator_node.id).as_str());
 
-
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
                                         }
 
                                         // struct_declaration_list -> struct_declaration
                                         112 => {
-                                            self.node_to_node("struct_declaration_list", string_buffer, debug_node_stack);
+                                            self.node_to_node("struct_declaration_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // struct_declaration -> specifier_qualifier_list struct_declarator_list SEMICOLON
                                         113 => {
+
+                                            //
+                                            // LHS
+                                            //
+
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("struct_declaration"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("struct_declaration")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("struct_declaration")).as_str());
 
+                                            //
+                                            // RHS
+                                            //
 
-                                            // specifier_qualifier_list
-                                            // take old node from stack
-                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // take old node from stack - specifier_qualifier_list
+                                            let field_type_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, field_type_node.id).as_str());
 
-                                            // struct_declarator_list
-                                            // take old node from stack
-                                            let declarator_node = debug_node_stack.pop().unwrap();
+                                            // take old node from stack - struct_declarator_list
+                                            let field_identifier_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, declarator_node.id).as_str());
-
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, field_identifier_node.id).as_str());
+                                            
+                                            // SEMICOLON
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - struct_declaration -> specifier_qualifier_list struct_declarator_list SEMICOLON
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let type_ast_node = self.ast_stack.pop().unwrap();
+                                                let identifier_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut member_declaration_ast_node: AstNode = AstNode::new();
+                                                // member_declaration_ast_node.string_val = type_ast_node.string_val.clone();
+                                                member_declaration_ast_node.node_type = AstNodeType::MemberDeclaration;
+                                                member_declaration_ast_node.lhs = Some(Box::new(type_ast_node));
+                                                member_declaration_ast_node.rhs = Some(Box::new(identifier_ast_node));
+
+                                                self.struct_field_counter = self.struct_field_counter + 1;
+
+                                                self.ast_stack.push(member_declaration_ast_node);
+                                            }
                                         }
 
                                         // specifier_qualifier_list -> type_specifier
                                         115 => {
-                                            self.node_to_node("specifier_qualifier_list", string_buffer, debug_node_stack);
+                                            self.node_to_node("specifier_qualifier_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // struct_declarator_list -> struct_declarator
                                         118 => {
-                                            self.node_to_node("struct_declarator_list", string_buffer, debug_node_stack);
+                                            self.node_to_node("struct_declarator_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // struct_declarator -> declarator
                                         120 => {
-                                            self.node_to_node("struct_declarator", string_buffer, debug_node_stack);
+                                            self.node_to_node("struct_declarator", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // declarator -> pointer direct_declarator
@@ -1110,38 +1431,45 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("declarator"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("declarator")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("declarator")).as_str());
 
-
-
-
-
-                                            // take old node from stack
+                                            // take old node from stack - pointer
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
-                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                            
-
-
-                                            // take old node from stack
-                                            let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-
+                                            // take old node from stack - direct_declarator
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
+                                            println!("{:?}", debug_node_id);
+
+                                            //
+                                            // AST - declarator -> pointer direct_declarator
+                                            //
+
+                                            if self.construct_ast {
+
+                                                // referenced type
+                                                let referenced_type_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut pointer_ast_node: AstNode = AstNode::new();
+                                                pointer_ast_node.string_val = referenced_type_ast_node.string_val.clone();
+                                                pointer_ast_node.rhs = Some(Box::new(referenced_type_ast_node));
+                                                pointer_ast_node.node_type = AstNodeType::Pointer;
+
+                                                self.ast_stack.push(pointer_ast_node);
+                                            }
                                         }
 
                                         // declarator -> direct_declarator
                                         133 => {
-                                            self.node_to_node("declarator", string_buffer, debug_node_stack);
+                                            self.node_to_node("declarator", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // direct_declarator -> IDENTIFIER
@@ -1149,64 +1477,126 @@ impl Parser<String> {
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
                                                 value = terminal_rev.clone().unwrap().data;
-                                                println!("TerminalValue: '{}'", value);
                                             }
 
-                                            // let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            // let debug_node = DebugNode::new(debug_node_id, format!("direct_declarator '{}'\n", value));
-                                            // debug_node_stack.push(debug_node);
-                                            // string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, format!("direct_declarator '{}'", value)).as_str());
-                                        
-
-
-
-                                            // push node onto stack
+                                            // direct_declarator
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("direct_declarator"));
-
                                             debug_node_stack.push(debug_node);
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("direct_declarator")).as_str());
 
-                                            // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("direct_declarator")).as_str());
-
-
-
+                                            // IDENTIFIER
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from(value.clone()));
-                                            // debug_node_stack.push(debug_node);
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", type_node_id, String::from(value.clone())).as_str());
-
-
+                                            string_buffer.push_str(format!("{:?} [label=\"{}| {}\"]\n", type_node_id, type_node_id, String::from(value.clone())).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
 
+                                            //
+                                            // AST - direct_declarator -> IDENTIFIER
+                                            //
 
+                                            if self.construct_ast {
 
-                                            // //
-                                            // // TYPEDEF HANDLING
-                                            // //
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Identifier;
+                                                ast_node.string_val = value.clone();
 
-                                            // // Store the type_specifier so that if a typedef is detected later,
-                                            // // the parser remembers the name of the newly created type
-                                            // self.last_type_specifier = value.clone();
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
+                                        // direct_declarator -> direct_declarator OPENING_ANGULAR_BRACKET constant_expression CLOSING_ANGULAR_BRACKET
+                                        136 => {
+
+                                            // direct_declarator
+                                            //
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("direct_declarator"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("direct_declarator")).as_str());
+
+                                            // take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // [
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let comma_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let comma_node = DebugNode::new(comma_node_id, String::from("["));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("[")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
+
+                                            // take old node from stack - constant_expression
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+                                            
+                                            // ]
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let comma_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let comma_node = DebugNode::new(comma_node_id, String::from("]"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("]")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
+                                        
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            println!("debug_node_id: {:?}", debug_node_id);
+
+                                            //
+                                            // AST - direct_declarator -> direct_declarator OPENING_ANGULAR_BRACKET constant_expression CLOSING_ANGULAR_BRACKET
+                                            //
+
+                                            if self.construct_ast {
+
+                                                // array size
+                                                let size_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // array name
+                                                let identifier_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // array element data type
+                                                let array_element_data_type_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut array_datatype_ast_node: AstNode = AstNode::new();
+                                                //array_datatype_ast_node.node_type = AstNodeType::DataType;
+                                                array_datatype_ast_node.node_type = AstNodeType::Array;
+                                                // this is where the dot printer takes the data type from
+                                                array_datatype_ast_node.string_val = array_element_data_type_ast_node.string_val.clone();
+                                                array_datatype_ast_node.data_type = Some(Box::new(array_element_data_type_ast_node));
+                                                array_datatype_ast_node.lhs = Some(Box::new(size_ast_node));
+
+                                                // Format:
+                                                // 1st pop: identifier
+                                                // 2nd pop: data type of function return or variable
+                                                // 3rd pop: initializer SingleInit or CompoundInit
+
+                                                self.ast_stack.push(array_datatype_ast_node);
+                                                self.ast_stack.push(identifier_ast_node);
+                                            }
                                         }
 
                                         // direct_declarator -> direct_declarator OPENING_ANGULAR_BRACKET CLOSING_ANGULAR_BRACKET
                                         137 => {
 
+                                            // direct_declarator
+                                            //
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("direct_declarator"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("direct_declarator")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("direct_declarator")).as_str());
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
 
                                             // [
                                             // create new node id
@@ -1226,29 +1616,38 @@ impl Parser<String> {
                                         
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - direct_declarator -> direct_declarator OPENING_ANGULAR_BRACKET CLOSING_ANGULAR_BRACKET
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut direct_declarator_ast_node: AstNode = AstNode::new();
+                                                direct_declarator_ast_node.node_type = AstNodeType::VariableDeclaration;
+
+                                                self.ast_stack.push(direct_declarator_ast_node);
+
+                                                self.direct_declarator_counter = self.direct_declarator_counter + 1;
+                                            }
                                         }
 
                                         // direct_declarator -> direct_declarator OPENING_BRACKET parameter_type_list CLOSING_BRACKET
                                         138 => {
 
+                                            // direct_declarator
+                                            //
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("direct_declarator"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("direct_declarator")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("direct_declarator")).as_str());
 
-
-
-
-
-                                            // take old node from stack
+                                            // take old node from stack - direct_declarator
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
 
                                             // (
                                             // create new node id
@@ -1257,12 +1656,9 @@ impl Parser<String> {
                                             let comma_node = DebugNode::new(comma_node_id, String::from("("));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("(")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
-                                            
 
-
-                                            // take old node from stack
+                                            // take old node from stack - parameter_type_list
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
@@ -1276,16 +1672,88 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from(")")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
 
-
-
-
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - direct_declarator -> direct_declarator OPENING_BRACKET parameter_type_list CLOSING_BRACKET
+                                            //
+
+                                            // [direct_declarator] (138, this rule) is used in both full function definitions 
+                                            // and half function prototypes
+                                            //
+                                            // For function definitions as well as for function prototypes
+                                            // the [direct_declarator] contains 
+                                            // - function name and paremeter list (type + name of each param)
+                                            // - does not contain return type
+                                            // - does not contain the body
+                                            // 
+                                            // For full function definitions, the return type along with the body 
+                                            // is contained in the parent [function_definition]
+                                            //
+                                            // For prototypes, the return type is contained in the parent [declaration] (77).
+
+                                            // println!("debug_node_id: {}", debug_node_id);
+
+                                            let mut function_declaration_ast_node: AstNode = AstNode::new();
+                                            function_declaration_ast_node.node_type = AstNodeType::FunctionDeclaration;
+
+                                            while self.parameter_counter > 0 {
+                                                self.parameter_counter = self.parameter_counter - 1;
+                                                let parameter_ast_node = self.ast_stack.pop().unwrap();
+                                                //function_declaration_ast_node.block_items.push(Box::new(parameter_ast_node));
+                                                function_declaration_ast_node.parameters.push(Box::new(parameter_ast_node));
+                                            }
+
+                                            // function name
+                                            let identifier_ast_node = self.ast_stack.pop().unwrap();
+                                            // println!("{:?}", return_type_ast_node);
+                                            function_declaration_ast_node.string_val = identifier_ast_node.string_val;
+
+                                            self.ast_stack.push(function_declaration_ast_node);
                                         }
 
                                         // direct_declarator -> direct_declarator OPENING_BRACKET CLOSING_BRACKET
                                         140 => {
-                                            self.node_to_node("direct_declarator", string_buffer, debug_node_stack);
+                                            // create new node
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("direct_declarator"));
+                                            // print node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("direct_declarator")).as_str());
+
+                                            // take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!(" {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+                                            
+                                            // (
+                                            let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let type_node = DebugNode::new(type_node_id, String::from("("));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, String::from("(")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
+
+                                            // )
+                                            let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let type_node = DebugNode::new(type_node_id, String::from(")"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, String::from(")")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
+
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let identifier_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut function_definition_ast_node: AstNode = AstNode::new();
+                                                function_definition_ast_node.node_type = AstNodeType::FunctionDeclaration;
+                                                function_definition_ast_node.string_val = identifier_ast_node.string_val;
+
+                                                self.ast_stack.push(function_definition_ast_node);
+                                            }
                                         }
 
                                         // pointer -> ASTERISK
@@ -1293,31 +1761,25 @@ impl Parser<String> {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("pointer"));
-
-                                            debug_node_stack.push(debug_node);
-
                                             // print node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("pointer")).as_str());
 
-
-
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("*"));
-                                            // debug_node_stack.push(debug_node);
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", type_node_id, String::from("*")).as_str());
-
-
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, String::from("*")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
+
+                                            debug_node_stack.push(debug_node);
                                         }
 
                                         // parameter_type_list -> parameter_list
                                         147 => {
-                                            self.node_to_node("parameter_type_list", string_buffer, debug_node_stack);
+                                            self.node_to_node("parameter_type_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // parameter_list -> parameter_declaration
                                         149 => {
-                                            self.node_to_node("parameter_list", string_buffer, debug_node_stack);
+                                            self.node_to_node("parameter_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // parameter_list -> parameter_list COMMA parameter_declaration
@@ -1326,22 +1788,13 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("parameter_list"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("parameter_list")).as_str());
 
-
-
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
-
-
-
 
                                             // ,
                                             // create new node id
@@ -1351,22 +1804,10 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from(",")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
 
-
-
-                                            
-                                            
-
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
-
-                                            
-
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
@@ -1374,55 +1815,164 @@ impl Parser<String> {
 
                                         // parameter_declaration -> declaration_specifiers declarator
                                         151 => {
+                                            // parameter_declaration
+                                            //
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("parameter_declaration"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("parameter_declaration")).as_str());
 
-                                            // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("parameter_declaration")).as_str());
-
+                                            // declaration_specifiers
+                                            //
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
+                                            // declarator
+                                            //
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST
+                                            //
+
+                                            if self.construct_ast {
+
+                                                self.parameter_counter = self.parameter_counter + 1;
+                                                
+                                                // parameter name
+                                                let identifier_ast_node = self.ast_stack.pop().unwrap();
+                                                // parameter DataType
+                                                let data_type_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut parameter_declaration_ast_node: AstNode = AstNode::new();
+                                                parameter_declaration_ast_node.node_type = AstNodeType::ParameterDeclaration;
+                                                parameter_declaration_ast_node.lhs = Some(Box::new(identifier_ast_node));
+                                                parameter_declaration_ast_node.rhs = Some(Box::new(data_type_ast_node));
+
+                                                self.ast_stack.push(parameter_declaration_ast_node);
+                                            }
                                         }
 
+                                        // parameter_declaration -> declaration_specifiers
+                                        153 => {
+                                            self.node_to_node("parameter_declaration", found_rule.original_id, string_buffer, debug_node_stack);
+
+                                            //
+                                            // AST - parameter_declaration -> declaration_specifiers
+                                            //
+
+                                            if self.construct_ast {
+
+                                                self.parameter_counter = self.parameter_counter + 1;
+
+                                                let mut identifier_ast_node = AstNode::new();
+                                                identifier_ast_node.node_type = AstNodeType::Identifier;
+                                                identifier_ast_node.string_val = String::from("Unnamed!");
+
+                                                // parameter DataType
+                                                let data_type_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut parameter_declaration_ast_node: AstNode = AstNode::new();
+                                                parameter_declaration_ast_node.node_type = AstNodeType::ParameterDeclaration;
+                                                parameter_declaration_ast_node.lhs = Some(Box::new(identifier_ast_node));
+                                                parameter_declaration_ast_node.rhs = Some(Box::new(data_type_ast_node));
+
+                                                self.ast_stack.push(parameter_declaration_ast_node);
+                                            }
+                                        }
+
+                                        // type_name -> specifier_qualifier_list
+                                        156 => {
+                                            self.node_to_node("parameter_declaration", found_rule.original_id, string_buffer, debug_node_stack);
+                                        }
+
+                                        // compound_statement -> declaration_or_statement_list
                                         // compound_statement -> OPENING_CURLY_BRACKET declaration_or_statement_list CLOSING_CURLY_BRACKET
                                         184 => {
-
-                                            // TEST THIS
 
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("compound_statement"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("compound_statement")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("compound_statement")).as_str());
 
-
-
-                                            // declaration_or_statement_list
-                                            // take old node from stack
+                                            // take old node from stack - declaration_or_statement_list
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-                                            
-
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - compound_statement -> declaration_or_statement_list
+                                            // AST - compound_statement -> OPENING_CURLY_BRACKET declaration_or_statement_list CLOSING_CURLY_BRACKET
+                                            //
+
+                                            if self.construct_ast {
+
+                                                // println!("debug_node_id: {}", debug_node_id);
+
+                                                // create a block since a compound AST node needs to have a block
+                                                let mut block_ast_node: AstNode = AstNode::new();
+                                                block_ast_node.node_type = AstNodeType::Block;
+                                                
+                                                // take all Statements, Declarations or BlockItem nodes 
+                                                // and insert them into the block
+                                                while self.child_counter > 0 {
+
+                                                    self.child_counter = self.child_counter - 1;
+
+                                                    let body_ast_node = self.ast_stack.pop().unwrap();
+                                                    match body_ast_node.node_type {
+
+                                                        // AstNodeType::BlockItem => {
+                                                        //     block_ast_node.block_items.push(Box::new(body_ast_node));
+                                                        // }
+
+                                                        AstNodeType::Declaration | AstNodeType::Statement => {
+                                                            let mut block_item_ast_node: AstNode = AstNode::new();
+                                                            block_item_ast_node.node_type = AstNodeType::BlockItem;
+                                                            block_item_ast_node.lhs = Some(Box::new(body_ast_node));
+
+                                                            block_ast_node.block_items.push(Box::new(block_item_ast_node));
+                                                        }
+
+                                                        // AstNodeType::Default | AstNodeType::Case => {
+                                                        //     block_ast_node.block_items.push(Box::new(body_ast_node));
+                                                        // }
+
+                                                        // AstNodeType::EmptyStatement => {
+                                                        //     block_ast_node.block_items.push(Box::new(body_ast_node));
+                                                        // }
+
+                                                        _ => {
+                                                            // println!("{:?}", body_ast_node);
+                                                            // self.ast_stack.push(body_ast_node);
+                                                            block_ast_node.block_items.push(Box::new(body_ast_node));
+                                                        }
+                                                    }
+                                                }
+
+                                                // create compound AST node - insert block
+                                                let mut compound_ast_node: AstNode = AstNode::new();
+                                                compound_ast_node.node_type = AstNodeType::Compound;
+                                                compound_ast_node.lhs = Some(Box::new(block_ast_node));
+
+                                                // println!("{:?}", compound_ast_node);
+
+                                                self.ast_stack.push(compound_ast_node);
+                                            }
                                         }
 
                                         // compound_statement -> OPENING_CURLY_BRACKET CLOSING_CURLY_BRACKET
@@ -1433,48 +1983,100 @@ impl Parser<String> {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("NOP"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("compound_statement {{}}"));
 
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("NOP")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("compound_statement {{}}")).as_str());
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST
+                                            //
+
+                                            if self.construct_ast {
+
+                                                // create a block since a compound AST node needs to have a block
+                                                let mut block_ast_node: AstNode = AstNode::new();
+                                                block_ast_node.node_type = AstNodeType::Block;
+
+                                                // no block items
+
+                                                // create compound AST node
+                                                let mut compound_ast_node: AstNode = AstNode::new();
+                                                compound_ast_node.node_type = AstNodeType::Compound;
+                                                compound_ast_node.lhs = Some(Box::new(block_ast_node));
+
+                                                self.ast_stack.push(compound_ast_node);
+                                            }
                                         }
 
                                         // declaration_or_statement_list -> declaration declaration_or_statement_list
                                         186 => {
-
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("declaration_or_statement_list"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("declaration_or_statement_list")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("declaration_or_statement_list")).as_str());
 
-
-                                            // take old node from stack
+                                            // declaration - take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-
-
-                                            // take old node from stack
+                                            // declaration_or_statement_list - take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            println!("{:?}", debug_node_id);
+
+                                            //
+                                            // AST - declaration_or_statement_list -> declaration declaration_or_statement_list
+                                            //
+
+                                            if self.construct_ast {
+
+                                                // the child counter is used by rule 184 which will take that many
+                                                // children from the ast stack and insert them into the compound element
+                                                self.child_counter = self.child_counter + 1;
+                                                println!("child_counter: {}", self.child_counter);
+
+                                                let wrap_into_block_item = false;
+                                                if wrap_into_block_item {
+
+                                                    let second_ast_node = self.ast_stack.pop().unwrap(); // declaration_or_statement_list
+                                                    let first_ast_node = self.ast_stack.pop().unwrap(); // declaration
+
+                                                    // wrap declaration into BlockItem
+                                                    let mut block_item_ast_node: AstNode = AstNode::new();
+                                                    block_item_ast_node.node_type = AstNodeType::BlockItem;
+                                                    block_item_ast_node.lhs = Some(Box::new(first_ast_node));
+
+                                                    self.ast_stack.push(block_item_ast_node);
+                                                    self.ast_stack.push(second_ast_node);
+                                                }
+                                            }
                                         }
 
                                         // declaration_or_statement_list -> declaration
                                         187 => {
-                                            self.node_to_node("declaration_or_statement_list", string_buffer, debug_node_stack);
+                                            self.node_to_node("declaration_or_statement_list", found_rule.original_id, string_buffer, debug_node_stack);
+
+                                            //
+                                            // AST
+                                            //
+
+                                            if self.construct_ast {
+
+                                                self.child_counter = self.child_counter + 1;
+                                                println!("child_counter: {}", self.child_counter);
+                                            }
                                         }
 
                                         // declaration_or_statement_list -> statement declaration_or_statement_list
@@ -1483,37 +2085,64 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("declaration_or_statement_list"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("declaration_or_statement_list")).as_str());
-
-
-                                            // take old node from stack
-                                            let old_debug_node = debug_node_stack.pop().unwrap();
-                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("declaration_or_statement_list")).as_str());
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-
+                                            // take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            println!("{:?}", debug_node_id);
+
+                                            //
+                                            // AST - declaration_or_statement_list -> statement declaration_or_statement_list
+                                            //
+
+                                            if self.construct_ast {
+
+                                                // affects: case-statements, default-statement, 
+
+                                                // the child counter is used by the 184 rule which constructs compound statements
+                                                self.child_counter = self.child_counter + 1;
+                                                println!("child_counter: {}", self.child_counter);
+                                                
+                                                // loop {
+                                                //     let temp_node = self.ast_stack.pop().unwrap();
+                                                //     println!("{:?}", temp_node);
+                                                //     if temp_node.node_type == AstNodeType::EmptyStatement {
+                                                //         break;
+                                                //     }
+                                                // }
+                                            }
                                         }
 
                                         // declaration_or_statement_list -> statement
                                         189 => {
-                                            self.node_to_node("declaration_or_statement_list", string_buffer, debug_node_stack);
+                                            self.node_to_node("declaration_or_statement_list", found_rule.original_id, string_buffer, debug_node_stack);
+
+                                            //
+                                            // AST
+                                            //
+
+                                            if self.construct_ast {
+
+                                                self.child_counter = self.child_counter + 1;
+                                                println!("child_counter: {}", self.child_counter);
+                                            }
                                         }
 
                                         // constant_expression -> conditional_expression
                                         76 => {
-                                            self.node_to_node("constant_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("constant_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // declaration -> declaration_specifiers init_declarator_list SEMICOLON
@@ -1522,21 +2151,16 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("declaration"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("declaration")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("declaration")).as_str());
 
-
-
-                                            // take old node from stack
+                                            // take old node from stack - declaration_specifiers
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-
-                                            // take old node from stack
+                                            // take old node from stack - init_declarator_list
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
 
                                             // ;
                                             // create new node id
@@ -1546,14 +2170,135 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", semicolon_node_id, String::from(";")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, semicolon_node.id).as_str());
 
-
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            println!("debug_node_id: {}", debug_node_id);
+
+                                            //
+                                            // AST - [77] - declaration -> declaration_specifiers init_declarator_list SEMICOLON
+                                            //
+
+                                            if self.construct_ast {
+
+                                                //
+                                                // Can be a variable or function.
+                                                // 
+                                                // example: int a = 1;
+                                                // example: int foo(int a);
+                                                //
+
+                                                // Format:
+                                                // 1st pop: identifier
+                                                // 2nd pop: data type of function return or variable
+                                                // 3rd pop: initializer SingleInit or CompoundInit
+
+                                                let mut identifier_ast_node = self.ast_stack.pop().unwrap(); // name/identifier and optional initialization value
+                                                println!("{:?}", identifier_ast_node);
+                                                
+                                                let data_type_ast_node = self.ast_stack.pop().unwrap(); // (return value) data type
+                                                println!("{:?}", data_type_ast_node);
+
+                                                let ident = identifier_ast_node.string_val.clone();
+
+                                                let mut object_declaration_ast_node: AstNode = AstNode::new();
+                                                match identifier_ast_node.node_type {
+
+                                                    AstNodeType::FunctionDeclaration => {
+
+                                                        object_declaration_ast_node.parameters = std::mem::take(&mut identifier_ast_node.parameters);
+
+                                                        // println!("{:?}", data_type_ast_node.parameters);
+                                                        object_declaration_ast_node.node_type = AstNodeType::FunctionDeclaration;
+                                                        object_declaration_ast_node.rhs = Some(Box::new(data_type_ast_node));
+                                                        object_declaration_ast_node.lhs = Some(Box::new(identifier_ast_node));
+                                                        object_declaration_ast_node.string_val = ident;
+
+                                                        // peek for storage class specifier
+                                                        if self.ast_stack.len() > 0 {
+                                                            let storage_class_specifier_ast_node = self.ast_stack.pop().unwrap();
+                                                            if storage_class_specifier_ast_node.node_type == AstNodeType::StorageClassSpecifier {
+                                                                println!("storage_class: {:?}", storage_class_specifier_ast_node.string_val);
+                                                                if storage_class_specifier_ast_node.string_val == "STATIC" {
+                                                                    object_declaration_ast_node.is_static = true;
+                                                                    object_declaration_ast_node.storage_class = Some(Box::new(storage_class_specifier_ast_node));
+                                                                } else if storage_class_specifier_ast_node.string_val == "EXTERN" {
+                                                                    object_declaration_ast_node.is_extern = true;
+                                                                    object_declaration_ast_node.storage_class = Some(Box::new(storage_class_specifier_ast_node));
+                                                                }
+                                                            } else {
+                                                                self.ast_stack.push(storage_class_specifier_ast_node);
+                                                            }
+                                                        }
+                                                        
+                                                        self.ast_stack.push(object_declaration_ast_node);
+                                                    }
+
+                                                    _ => {
+
+                                                        object_declaration_ast_node.node_type = AstNodeType::VariableDeclaration;
+                                                        // println!("{:?}", object_declaration_ast_node.lhs);
+                                                        object_declaration_ast_node.lhs = Some(Box::new(data_type_ast_node));
+                                                        object_declaration_ast_node.rhs = Some(Box::new(identifier_ast_node));
+
+                                                        // peek for initializer expression
+                                                        if self.ast_stack.len() > 0 {
+
+                                                            let initializer_expression_ast_node = self.ast_stack.pop().unwrap();
+
+                                                            // if initializer_expression_ast_node.node_type == AstNodeType::Expression {
+                                                            //     object_declaration_ast_node.expression = Some(Box::new(initializer_expression_ast_node));
+                                                            // } else {
+                                                            //     self.ast_stack.push(initializer_expression_ast_node);
+                                                            // }
+
+                                                            match initializer_expression_ast_node.node_type {
+                                                                AstNodeType::SingleInit | AstNodeType::CompoundInit => {
+                                                                    object_declaration_ast_node.expression = Some(Box::new(initializer_expression_ast_node));
+                                                                }
+                                                                _ => {
+                                                                    // put it back after pop to simulate peek
+                                                                    self.ast_stack.push(initializer_expression_ast_node);
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // peek for storage class specifier
+                                                        if self.ast_stack.len() > 0 {
+                                                            let storage_class_specifier_ast_node = self.ast_stack.pop().unwrap();
+                                                            if storage_class_specifier_ast_node.node_type == AstNodeType::StorageClassSpecifier {
+                                                                println!("storage_class: {:?}", storage_class_specifier_ast_node.string_val);
+                                                                if storage_class_specifier_ast_node.string_val == "STATIC" {
+                                                                    object_declaration_ast_node.is_static = true;
+                                                                    object_declaration_ast_node.storage_class = Some(Box::new(storage_class_specifier_ast_node));
+                                                                } else if storage_class_specifier_ast_node.string_val == "EXTERN" {
+                                                                    object_declaration_ast_node.is_extern = true;
+                                                                    object_declaration_ast_node.storage_class = Some(Box::new(storage_class_specifier_ast_node));
+                                                                }
+                                                            } else {
+                                                                // push node back to simulate peek
+                                                                self.ast_stack.push(storage_class_specifier_ast_node);
+                                                            }
+                                                        }
+
+                                                        let mut declaration_ast_node: AstNode = AstNode::new();
+                                                        declaration_ast_node.node_type = AstNodeType::Declaration;
+                                                        declaration_ast_node.lhs = Some(Box::new(object_declaration_ast_node));
+
+                                                        // wrap declaration into block_item
+                                                        let mut block_item_ast_node: AstNode = AstNode::new();
+                                                        block_item_ast_node.node_type = AstNodeType::BlockItem;
+                                                        block_item_ast_node.lhs = Some(Box::new(declaration_ast_node));
+
+                                                        self.ast_stack.push(block_item_ast_node);
+                                                    }
+                                                }
+                                            }
                                         }
 
                                         // declaration -> declaration_specifiers SEMICOLON
                                         78 => {
-                                            self.node_to_node("declaration", string_buffer, debug_node_stack);
+                                            self.node_to_node("declaration", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // init_declarator_list -> init_declarator COMMA init_declarator_list
@@ -1562,20 +2307,13 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("init_declarator"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("init_declarator")).as_str());
-
-
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("init_declarator")).as_str());
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
 
                                             // ,
                                             // create new node id
@@ -1584,17 +2322,11 @@ impl Parser<String> {
                                             let comma_node = DebugNode::new(comma_node_id, String::from(","));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from(",")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
-                                            
-
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-                                            
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
@@ -1602,7 +2334,7 @@ impl Parser<String> {
 
                                         // init_declarator_list -> init_declarator
                                         86 => {
-                                            self.node_to_node("init_declarator_list", string_buffer, debug_node_stack);
+                                            self.node_to_node("init_declarator_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // init_declarator -> declarator EQUALS_SIGN initializer
@@ -1611,83 +2343,140 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("init_declarator"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("init_declarator")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("init_declarator")).as_str());
 
-
-
-
-
-                                            // take old node from stack
+                                            // take old node from stack - declarator
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-
-                                            // =
+                                            // = EQUALS_SIGN
                                             // create new node id
                                             // create new node with node id and label
                                             let comma_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let comma_node = DebugNode::new(comma_node_id, String::from("("));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("=")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
-                                            
 
-
-                                            // take old node from stack
+                                            // take old node from stack - initializer
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-
-
-                                            // // )
-                                            // // create new node id
-                                            // // create new node with node id and label
-                                            // let comma_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            // let comma_node = DebugNode::new(comma_node_id, String::from(")"));
-                                            // string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from(")")).as_str());
-                                            // string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
-
-
-
-
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - init_declarator -> declarator EQUALS_SIGN initializer
+                                            //
+
+                                            if self.construct_ast {
+
+                                                if self.direct_declarator_counter > 1 {
+
+                                                    let mut compound_init_ast_node: AstNode = AstNode::new();
+                                                    compound_init_ast_node.node_type = AstNodeType::CompoundInit;
+
+                                                    for i in 0..self.direct_declarator_counter {
+
+                                                        let initializer_ast_node = self.ast_stack.pop().unwrap();
+
+                                                        let mut expr_ast_node: AstNode = AstNode::new();
+                                                        expr_ast_node.node_type = AstNodeType::Expression;
+                                                        expr_ast_node.lhs = Some(Box::new(initializer_ast_node));
+                                                        // println!("{:?}", expr_ast_node);
+
+                                                        compound_init_ast_node.block_items.push(Box::new(expr_ast_node));
+
+                                                        self.direct_declarator_counter = self.direct_declarator_counter - 1;
+                                                    }
+
+                                                    let identifier_ast_node = self.ast_stack.pop().unwrap();
+                                                    // println!("{:?}", identifier_ast_node);
+
+                                                    let datatype_ast_node = self.ast_stack.pop().unwrap();
+                                                    // println!("{:?}", datatype_ast_node);
+
+                                                    // Format: 
+                                                    // 1st pop: identifier
+                                                    // 2nd pop: data type of function return or variable
+                                                    // 3rd pop: initializer expression
+
+                                                    self.ast_stack.push(compound_init_ast_node); // 3rd pop: initializer expression
+
+                                                    // let lhs_ast_node = self.ast_stack.pop().unwrap(); // name, identifier
+                                                    self.ast_stack.push(datatype_ast_node); // 2nd pop: data type of function return or variable
+
+                                                    // let rhs_ast_node = self.ast_stack.pop().unwrap(); // value expression
+                                                    self.ast_stack.push(identifier_ast_node); // 1st pop: identifier
+                                                    
+                                                } else if self.direct_declarator_counter == 1 {
+
+                                                    let initializer_ast_node = self.ast_stack.pop().unwrap();
+
+                                                    let mut expr_ast_node: AstNode = AstNode::new();
+                                                    expr_ast_node.node_type = AstNodeType::Expression;
+                                                    expr_ast_node.lhs = Some(Box::new(initializer_ast_node));
+                                                    // println!("{:?}", expr_ast_node);
+
+                                                    let mut single_init_ast_node: AstNode = AstNode::new();
+                                                    single_init_ast_node.node_type = AstNodeType::SingleInit;
+                                                    single_init_ast_node.lhs = Some(Box::new(expr_ast_node));
+
+                                                    self.direct_declarator_counter = self.direct_declarator_counter - 1;
+
+                                                    let identifier_ast_node = self.ast_stack.pop().unwrap();
+                                                    // println!("{:?}", identifier_ast_node);
+
+                                                    let datatype_ast_node = self.ast_stack.pop().unwrap();
+                                                    // println!("{:?}", datatype_ast_node);
+
+                                                    // Format: 
+                                                    // 1st pop: identifier
+                                                    // 2nd pop: data type of function return or variable
+                                                    // 3rd pop: initializer expression
+
+                                                    self.ast_stack.push(single_init_ast_node); // 3rd pop: initializer expression
+
+                                                    // let lhs_ast_node = self.ast_stack.pop().unwrap(); // name, identifier
+                                                    self.ast_stack.push(datatype_ast_node); // 2nd pop: data type of function return or variable
+
+                                                    // let rhs_ast_node = self.ast_stack.pop().unwrap(); // value expression
+                                                    self.ast_stack.push(identifier_ast_node); // 1st pop: identifier
+                                                }
+                                            }                                           
                                         }
 
                                         // init_declarator -> declarator
                                         88 => {
-                                            self.node_to_node("init_declarator", string_buffer, debug_node_stack);
+                                            self.node_to_node("init_declarator", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // initializer -> assignment_expression
                                         170 => {
-                                            self.node_to_node("initializer", string_buffer, debug_node_stack);
+                                            self.node_to_node("initializer", found_rule.original_id, string_buffer, debug_node_stack);
+
+                                            //
+                                            // AST - initializer -> assignment_expression
+                                            //
+
+                                            // let mut direct_declarator_ast_node: AstNode = AstNode::new();
+                                            // direct_declarator_ast_node.node_type = AstNodeType::VariableDeclaration;
+
+                                            // self.ast_stack.push(direct_declarator_ast_node);
+
+                                            self.direct_declarator_counter = self.direct_declarator_counter + 1;
                                         }
 
                                         // initializer -> OPENING_CURLY_BRACKET initializer_list CLOSING_CURLY_BRACKET
                                         171 => {
-                                            //self.node_to_node("initializer", string_buffer, debug_node_stack);
-
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("init_declarator"));
-
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("initializer"));
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("init_declarator")).as_str());
-
-
-                                            // take old node from stack
-                                            let old_debug_node = debug_node_stack.pop().unwrap();
-
-                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("initializer")).as_str());
 
                                             // {
                                             // create new node id
@@ -1697,6 +2486,10 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("{")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
                                             
+                                            // take old node from stack - initializer_list
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
                                             // }
                                             // create new node id
@@ -1705,10 +2498,6 @@ impl Parser<String> {
                                             let comma_node = DebugNode::new(comma_node_id, String::from("}"));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("}")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
-                                            
-
-
-                                            
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
@@ -1716,7 +2505,7 @@ impl Parser<String> {
 
                                         // initializer_list -> initializer
                                         173 => {
-                                            self.node_to_node("initializer_list", string_buffer, debug_node_stack);
+                                            self.node_to_node("initializer_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // initializer_list -> initializer COMMA initializer_list
@@ -1724,18 +2513,14 @@ impl Parser<String> {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("init_declarator"));
-
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("initializer_list"));
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("init_declarator")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("initializer_list")).as_str());
 
-
-                                            // take old node from stack
+                                            // take old node from stack - initializer
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
 
                                             // ,
                                             // create new node id
@@ -1744,15 +2529,11 @@ impl Parser<String> {
                                             let comma_node = DebugNode::new(comma_node_id, String::from(","));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from(",")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
-                                            
 
-
-                                            // take old node from stack
+                                            // take old node from stack - initializer_list
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
@@ -1760,27 +2541,107 @@ impl Parser<String> {
 
                                         // statement -> compound_statement
                                         176 => {
-                                            self.node_to_node("statement", string_buffer, debug_node_stack);
+                                            self.node_to_node("statement", found_rule.original_id, string_buffer, debug_node_stack);
+
+                                            //
+                                            // AST - statement -> compound_statement
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let compound_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut statement_ast_node: AstNode = AstNode::new();
+                                                statement_ast_node.node_type = AstNodeType::Statement;
+                                                statement_ast_node.lhs = Some(Box::new(compound_ast_node));
+
+                                                self.ast_stack.push(statement_ast_node);
+                                            }
                                         }
 
                                         // statement -> expression_statement
                                         177 => {
-                                            self.node_to_node("statement", string_buffer, debug_node_stack);
+                                            let debug_node_id = self.node_to_node("statement", found_rule.original_id, string_buffer, debug_node_stack);
+
+                                            println!("debug_node_id: {}", debug_node_id);
+
+                                            //
+                                            // AST - statement -> expression_statement
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let exp_ast_node = self.ast_stack.pop().unwrap();
+                                                println!("{:?}", exp_ast_node);
+
+                                                if exp_ast_node.node_type == AstNodeType::Expression {
+
+                                                    let mut statement_ast_node: AstNode = AstNode::new();
+                                                    statement_ast_node.node_type = AstNodeType::Statement;
+                                                    statement_ast_node.lhs = Some(Box::new(exp_ast_node));
+
+                                                    // wrap declaration into block_item
+                                                    let mut block_item_ast_node: AstNode = AstNode::new();
+                                                    block_item_ast_node.node_type = AstNodeType::BlockItem;
+                                                    block_item_ast_node.lhs = Some(Box::new(statement_ast_node));
+
+                                                    self.ast_stack.push(block_item_ast_node);
+
+                                                } else {
+
+                                                    self.ast_stack.push(exp_ast_node);
+
+                                                }
+                                            }
                                         }
 
                                         // statement -> selection_statement
                                         178 => {
-                                            self.node_to_node("statement", string_buffer, debug_node_stack);
+                                            self.node_to_node("statement", found_rule.original_id, string_buffer, debug_node_stack);
+
+                                            //
+                                            // AST - statement -> selection_statement
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // statement
+                                                let mut statement_ast_node: AstNode = AstNode::new();
+                                                statement_ast_node.node_type = AstNodeType::Statement;
+                                                statement_ast_node.lhs = Some(Box::new(lhs_ast_node));
+                                                
+                                                self.ast_stack.push(statement_ast_node);
+                                            }
                                         }
 
                                         // statement -> iteration_statement
                                         179 => {
-                                            self.node_to_node("statement", string_buffer, debug_node_stack);
+                                            self.node_to_node("statement", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // statement -> jump_statement
                                         180 => {
-                                            self.node_to_node("statement", string_buffer, debug_node_stack);
+                                            let debug_node_id = self.node_to_node("statement", found_rule.original_id, string_buffer, debug_node_stack);
+
+                                            println!("debug_node_id: {}", debug_node_id);
+
+                                            //
+                                            // AST - statement -> jump_statement
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // statement
+                                                let mut statement_ast_node: AstNode = AstNode::new();
+                                                statement_ast_node.node_type = AstNodeType::Statement;
+                                                statement_ast_node.lhs = Some(Box::new(lhs_ast_node));
+
+                                                self.ast_stack.push(statement_ast_node);
+                                            }
                                         }
 
                                         // expression_statement -> expression SEMICOLON
@@ -1789,28 +2650,21 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("expression_statement"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("expression_statement")).as_str());
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("expression_statement")).as_str());
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
 
                                             // ;
                                             // create new node id
                                             // create new node with node id and label
                                             let semicolon_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let semicolon_node = DebugNode::new(semicolon_node_id, String::from(";"));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", semicolon_node_id, String::from(";")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", semicolon_node_id, semicolon_node_id, String::from(";")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, semicolon_node.id).as_str());
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
@@ -1818,26 +2672,42 @@ impl Parser<String> {
 
                                         // expression_statement -> SEMICOLON
                                         191 => {
-                                            // create new node id
-                                            // create new node with node id and label
-                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("expression_statement"));
 
-                                            // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("expression_statement")).as_str());
+                                            // this affects switch-case and for loops. For loops expect at least a single body statement
+                                            let output_empty_statement = true;
+                                            if output_empty_statement {
+                                                // create new node id
+                                                // create new node with node id and label
+                                                let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                                let debug_node = DebugNode::new(debug_node_id, String::from("expression_statement"));
+                                                // print new node into string buffer. e.g.    0 [label="test"]
+                                                string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("expression_statement")).as_str());
 
+                                                // ;
+                                                // create new node id
+                                                // create new node with node id and label
+                                                let equals_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                                let equals_node = DebugNode::new(equals_node_id, String::from(";"));
+                                                string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", equals_node_id, equals_node_id, String::from(";")).as_str());
+                                                string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
 
-                                            // ;
-                                            // create new node id
-                                            // create new node with node id and label
-                                            let equals_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let equals_node = DebugNode::new(equals_node_id, String::from(";"));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from(";")).as_str());
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
+                                                // push new node to stack
+                                                debug_node_stack.push(debug_node);
+                                            }
 
+                                            //
+                                            // AST - expression_statement -> SEMICOLON
+                                            //
 
-                                            // push new node to stack
-                                            debug_node_stack.push(debug_node);
+                                            if self.construct_ast {
+
+                                                if output_empty_statement {
+                                                    let mut empty_statement_ast_node: AstNode = AstNode::new();
+                                                    empty_statement_ast_node.node_type = AstNodeType::EmptyStatement;
+
+                                                    self.ast_stack.push(empty_statement_ast_node);
+                                                }
+                                            }
                                         }
 
                                         // selection_statement -> IF OPENING_BRACKET expression CLOSING_BRACKET statement
@@ -1847,87 +2717,108 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("selection_statement"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("selection_statement")).as_str());
-
-
-
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("selection_statement")).as_str());
 
                                             // if
                                             // create new node id
                                             // create new node with node id and label
                                             let lessthan_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let lessthan_node = DebugNode::new(lessthan_node_id, String::from("if"));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from("if")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", lessthan_node_id, lessthan_node_id, String::from("if")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
 
-
-
-
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-                                            
-                                            
-
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - selection_statement -> IF OPENING_BRACKET expression CLOSING_BRACKET statement
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let first_ast_node = self.ast_stack.pop().unwrap(); // compound > block > block_items/statements
+                                                let second_ast_node = self.ast_stack.pop().unwrap(); // binary expression for if
+
+                                                // println!("{:?}", first_ast_node);
+                                                // println!("{:?}", second_ast_node);
+
+                                                if second_ast_node.node_type == AstNodeType::Binary {
+
+                                                    let mut expression_ast_node: AstNode = AstNode::new();
+                                                    expression_ast_node.node_type = AstNodeType::Expression;
+                                                    expression_ast_node.lhs = Some(Box::new(second_ast_node));
+
+                                                    let mut ast_node: AstNode = AstNode::new();
+                                                    ast_node.node_type = AstNodeType::If;
+                                                    ast_node.lhs = Some(Box::new(first_ast_node));
+                                                    // ast_node.rhs = Some(Box::new(rhs_ast_node));
+                                                    ast_node.expression = Some(Box::new(expression_ast_node));
+                                                    // ast_node.operator = Some(Box::new(operator_ast_node));
+                                                    // ast_node.operator_type = AstNodeOperatorType::LessThan;
+
+                                                    self.ast_stack.push(ast_node);
+
+                                                } else {
+
+                                                    let third_ast_node = self.ast_stack.pop().unwrap();
+
+                                                    let mut expression_ast_node: AstNode = AstNode::new();
+                                                    expression_ast_node.node_type = AstNodeType::Expression;
+                                                    expression_ast_node.lhs = Some(Box::new(third_ast_node));
+
+                                                    let mut ast_node: AstNode = AstNode::new();
+                                                    ast_node.node_type = AstNodeType::If;
+                                                    // ast_node.lhs = Some(Box::new(third_ast_node));
+                                                    ast_node.lhs = Some(Box::new(expression_ast_node));
+                                                    ast_node.rhs = Some(Box::new(second_ast_node));
+                                                    ast_node.expression = Some(Box::new(first_ast_node));
+                                                    // ast_node.operator = Some(Box::new(operator_ast_node));
+                                                    // ast_node.operator_type = AstNodeOperatorType::LessThan;
+
+                                                    self.ast_stack.push(ast_node);
+                                                }
+                                            }                                           
                                         }
 
                                         // selection_statement -> IF OPENING_BRACKET expression CLOSING_BRACKET statement ELSE statement
                                         193 => {
-
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("selection_statement"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("selection_statement")).as_str());
-
-
-
 
                                             // if
                                             // create new node id
                                             // create new node with node id and label
                                             let lessthan_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let lessthan_node = DebugNode::new(lessthan_node_id, String::from("if"));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from("if")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", lessthan_node_id, lessthan_node_id, String::from("if")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
-
-
-
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-                                            
                                             
                                             // if-branch
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
 
                                             // else-branch
 
@@ -1936,16 +2827,57 @@ impl Parser<String> {
 
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
-
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - selection_statement -> IF OPENING_BRACKET expression CLOSING_BRACKET statement ELSE statement
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let first_ast_node = self.ast_stack.pop().unwrap();
+                                                let second_ast_node = self.ast_stack.pop().unwrap();
+
+                                                if second_ast_node.node_type == AstNodeType::Binary {
+
+                                                    // build AST node for expression
+                                                    let mut expression_ast_node: AstNode = AstNode::new();
+                                                    expression_ast_node.node_type = AstNodeType::Expression;
+                                                    expression_ast_node.lhs = Some(Box::new(second_ast_node));
+
+                                                    // build AST node for IF
+                                                    let mut ast_node: AstNode = AstNode::new();
+                                                    ast_node.node_type = AstNodeType::If;
+                                                    ast_node.lhs = Some(Box::new(first_ast_node));
+                                                    ast_node.expression = Some(Box::new(expression_ast_node));
+
+                                                    self.ast_stack.push(ast_node);
+
+                                                } else {
+
+                                                    let third_ast_node = self.ast_stack.pop().unwrap();
+
+                                                    // build AST node for expression
+                                                    let mut expression_ast_node: AstNode = AstNode::new();
+                                                    expression_ast_node.node_type = AstNodeType::Expression;
+                                                    expression_ast_node.lhs = Some(Box::new(third_ast_node));
+
+                                                    // build AST node for IF
+                                                    let mut ast_node: AstNode = AstNode::new();
+                                                    ast_node.node_type = AstNodeType::If;
+                                                    ast_node.lhs = Some(Box::new(second_ast_node));
+                                                    ast_node.rhs = Some(Box::new(first_ast_node));
+                                                    ast_node.expression = Some(Box::new(expression_ast_node));
+
+                                                    self.ast_stack.push(ast_node);
+                                                }
+                                            }
                                         }
 
                                         // expression -> assignment_expression
                                         74 => {
-                                            self.node_to_node("expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // assignment_expression -> unary_expression assignment_operator assignment_expression
@@ -1955,11 +2887,8 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("assignment_expression"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("assignment_expression")).as_str());
-
-
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("assignment_expression")).as_str());
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
@@ -1972,15 +2901,128 @@ impl Parser<String> {
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            println!("debug_node_id: {}", debug_node_id);
+
+                                            //
+                                            // AST - assignment_expression -> unary_expression assignment_operator assignment_expression
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Expression;
+                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
+                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
+                                                ast_node.operator_type = AstNodeOperatorType::Assignment;
+
+                                                // println!("ast_node: {:?}", ast_node);
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // assignment_expression -> conditional_expression
                                         62 => {
-                                            self.node_to_node("assignment_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("assignment_expression", found_rule.original_id, string_buffer, debug_node_stack);
+                                        }
+
+                                        // postfix_expression -> postfix_expression OPENING_ANGULAR_BRACKET expression CLOSING_ANGULAR_BRACKET
+                                        8 => {
+
+                                            //
+                                            // LHS
+                                            //
+
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("postfix_expression"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("postfix_expression")).as_str());
+
+                                            //
+                                            // RHS
+                                            //
+
+                                            // take old node from stack - postfix_expression
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // [
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let comma_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let comma_node = DebugNode::new(comma_node_id, String::from("["));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("[")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
+                                            
+                                            // take old node from stack - expression
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // ]
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let comma_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let comma_node = DebugNode::new(comma_node_id, String::from("]"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("]")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
+                                        
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - postfix_expression -> postfix_expression OPENING_ANGULAR_BRACKET expression CLOSING_ANGULAR_BRACKET
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let index_numeric_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let pointer_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut subscript_ast_node: AstNode = AstNode::new();
+                                                subscript_ast_node.node_type = AstNodeType::Subscript;
+                                                // subscript_ast_node.operator_type = AstNodeOperatorType::Subscript;
+                                                subscript_ast_node.lhs = Some(Box::new(pointer_ast_node));
+                                                subscript_ast_node.rhs = Some(Box::new(index_numeric_ast_node));
+
+                                                self.ast_stack.push(subscript_ast_node);
+                                            }
+                                        }
+
+                                        // postfix_expression -> postfix_expression OPENING_BRACKET CLOSING_BRACKET
+                                        9 => {
+                                            self.node_to_node("postfix_expression", found_rule.original_id, string_buffer, debug_node_stack);
+
+                                            //
+                                            // AST - primary_expression -> IDENTIFIER
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let primary_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut function_call_ast_node: AstNode = AstNode::new();
+                                                function_call_ast_node.node_type = AstNodeType::FunctionCall;
+                                                function_call_ast_node.string_val = primary_ast_node.string_val;
+
+                                                let mut exp_ast_node: AstNode = AstNode::new();
+                                                exp_ast_node.node_type = AstNodeType::Expression;
+                                                exp_ast_node.operator_type = AstNodeOperatorType::FunctionCall;
+                                                exp_ast_node.lhs = Some(Box::new(function_call_ast_node));
+
+                                                self.ast_stack.push(exp_ast_node);
+                                            }
                                         }
 
                                         // postfix_expression -> postfix_expression DOT IDENTIFIER
@@ -1992,57 +3034,85 @@ impl Parser<String> {
                                                 println!("TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
                                             }
 
-
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("postfix_expression"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("postfix_expression")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("postfix_expression")).as_str());
 
-
-                                            // take old node from stack
+                                            // take old node from stack - postfix_expression
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
 
                                             // .
                                             // create new node id
                                             // create new node with node id and label
                                             let inc_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let inc_node = DebugNode::new(inc_node_id, String::from("."));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", inc_node_id, String::from(".")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", inc_node_id, inc_node_id, String::from(".")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, inc_node.id).as_str());
 
-
+                                            // IDENTIFIER
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, value.clone());
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", type_node_id, value.clone()).as_str());
-
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, value.clone()).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - postfix_expression DOT IDENTIFIER
+                                            //
+
+                                            if self.construct_ast {
+
+                                                // example: person
+                                                let struct_identifier_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // // page 496 - Dot(exp structure, identifier member)
+                                                // let mut dot_ast_node: AstNode = AstNode::new();
+                                                // dot_ast_node.node_type = AstNodeType::Dot;
+                                                // // data_type_ast_node.string_val = String::from("undefined_type:unary_expression");
+
+                                                // // operator
+                                                // let mut operator_ast_node: AstNode = AstNode::new();
+                                                // operator_ast_node.node_type = AstNodeType::Operator;
+                                                // operator_ast_node.operator_type = AstNodeOperatorType::Increment;
+
+                                                // field - e.g. age of struct person
+                                                let mut member_ast_node: AstNode = AstNode::new();
+                                                member_ast_node.node_type = AstNodeType::Identifier;
+                                                member_ast_node.operator_type = AstNodeOperatorType::Dot;
+                                                member_ast_node.string_val = value.clone();
+
+                                                // let mut ast_node: AstNode = AstNode::new();
+                                                // ast_node.node_type = AstNodeType::Unary;
+                                                // ast_node.operator = Some(Box::new(operator_ast_node));
+                                                // ast_node.operator_type = AstNodeOperatorType::Increment;
+                                                // ast_node.lhs = Some(Box::new(expression_ast_node));
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Dot;
+                                                ast_node.operator_type = AstNodeOperatorType::Dot;
+                                                ast_node.lhs = Some(Box::new(struct_identifier_ast_node)); // structure
+                                                ast_node.rhs = Some(Box::new(member_ast_node)); // structure-field / member
+                                                // ast_node.data_type = Some(Box::new(data_type_ast_node));
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // unary_expression -> postfix_expression
                                         17 => {
-                                            self.node_to_node("unary_expression", string_buffer, debug_node_stack);
-                                        }
-
-                                        // cast_expression -> unary_expression
-                                        30 => {
-                                            self.node_to_node("cast_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("unary_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // postfix_expression -> primary_expression
                                         7 => {
-                                            self.node_to_node("postfix_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("postfix_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // postfix_expression -> postfix_expression OPENING_BRACKET argument_expression_list CLOSING_BRACKET
@@ -2052,30 +3122,115 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("postfix_expression"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("postfix_expression")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("postfix_expression")).as_str());
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-                                            
-                                            
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+                                        }
+
+                                        // postfix_expression -> postfix_expression PTR_OP IDENTIFIER
+                                        //
+                                        // e.g. head_p->data
+                                        12 => {
+
+                                            let mut value = String::from("");
+                                            for terminal_rev in rule_reverse.iter().rev() {
+                                                value = terminal_rev.clone().unwrap().data;
+
+                                                // println!("TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
+                                            }
+
+                                            // println!("value: {}", value);
+
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("postfix_expression"));
+
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("postfix_expression")).as_str());
+
+                                            // postfix_expression - take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // PTR_OP
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let ptr_op_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let ptr_op_node = DebugNode::new(ptr_op_node_id, String::from("PTR_OP"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", ptr_op_node_id, String::from("PTR_OP")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, ptr_op_node.id).as_str());
+
+                                            // // IDENTIFIER - take old node from stack
+                                            // let identifier_node = debug_node_stack.pop().unwrap();
+                                            // // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            // string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, identifier_node.id).as_str());
+
+                                            // IDENTIFIER
+                                            let identifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let identifier_node = DebugNode::new(identifier_node_id, value.clone());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", identifier_node_id, identifier_node_id, value.clone()).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, identifier_node.id).as_str());
+
+                                            // // push new node
+                                            // debug_node_stack.push(identifier_node);
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - postfix_expression DOT IDENTIFIER
+                                            //
+
+                                            if self.construct_ast {
+
+                                                // example: person
+                                                let struct_identifier_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // // page 496 - Dot(exp structure, identifier member)
+                                                // let mut dot_ast_node: AstNode = AstNode::new();
+                                                // dot_ast_node.node_type = AstNodeType::Dot;
+                                                // // data_type_ast_node.string_val = String::from("undefined_type:unary_expression");
+
+                                                // // operator
+                                                // let mut operator_ast_node: AstNode = AstNode::new();
+                                                // operator_ast_node.node_type = AstNodeType::Operator;
+                                                // operator_ast_node.operator_type = AstNodeOperatorType::Increment;
+
+                                                // field - e.g. age of struct person
+                                                let mut member_ast_node: AstNode = AstNode::new();
+                                                member_ast_node.node_type = AstNodeType::Identifier;
+                                                member_ast_node.operator_type = AstNodeOperatorType::Arrow;
+                                                member_ast_node.string_val = value.clone();
+
+                                                // let mut ast_node: AstNode = AstNode::new();
+                                                // ast_node.node_type = AstNodeType::Unary;
+                                                // ast_node.operator = Some(Box::new(operator_ast_node));
+                                                // ast_node.operator_type = AstNodeOperatorType::Increment;
+                                                // ast_node.lhs = Some(Box::new(expression_ast_node));
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Arrow;
+                                                ast_node.operator_type = AstNodeOperatorType::Arrow;
+                                                ast_node.lhs = Some(Box::new(struct_identifier_ast_node)); // structure
+                                                ast_node.rhs = Some(Box::new(member_ast_node)); // structure-field / member
+                                                // ast_node.data_type = Some(Box::new(data_type_ast_node));
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // postfix_expression -> postfix_expression INC_OP
@@ -2085,10 +3240,8 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("postfix_expression"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("postfix_expression")).as_str());
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("postfix_expression")).as_str());
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
@@ -2103,12 +3256,45 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let inc_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let inc_node = DebugNode::new(inc_node_id, String::from("++"));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", inc_node_id, String::from("++")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", inc_node_id, inc_node_id, String::from("++")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, inc_node.id).as_str());
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - postfix_expression -> postfix_expression INC_OP
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let expression_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // page 252 - every expression needs a type
+                                                let mut data_type_ast_node: AstNode = AstNode::new();
+                                                data_type_ast_node.node_type = AstNodeType::DataType;
+                                                data_type_ast_node.string_val = String::from("undefined_type:unary_expression");
+
+                                                // operator
+                                                let mut operator_ast_node: AstNode = AstNode::new();
+                                                operator_ast_node.node_type = AstNodeType::Operator;
+                                                operator_ast_node.operator_type = AstNodeOperatorType::Increment;
+
+                                                // let mut ast_node: AstNode = AstNode::new();
+                                                // ast_node.node_type = AstNodeType::Unary;
+                                                // ast_node.operator = Some(Box::new(operator_ast_node));
+                                                // ast_node.operator_type = AstNodeOperatorType::Increment;
+                                                // ast_node.lhs = Some(Box::new(expression_ast_node));
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Unary;
+                                                ast_node.operator_type = AstNodeOperatorType::Increment;
+                                                ast_node.lhs = Some(Box::new(operator_ast_node)); // operator
+                                                ast_node.rhs = Some(Box::new(expression_ast_node)); // operand
+                                                ast_node.data_type = Some(Box::new(data_type_ast_node));
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // postfix_expression -> postfix_expression DEC_OP
@@ -2118,18 +3304,13 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("postfix_expression"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("postfix_expression")).as_str());
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("postfix_expression")).as_str());
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
 
                                             // --
                                             // create new node id
@@ -2139,14 +3320,13 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", inc_node_id, String::from("--")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, inc_node.id).as_str());
 
-
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
                                         }
 
                                         // argument_expression_list -> assignment_expression
                                         15 => {
-                                            self.node_to_node("argument_expression_list", string_buffer, debug_node_stack);
+                                            self.node_to_node("argument_expression_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // argument_expression_list -> argument_expression_list COMMA assignment_expression
@@ -2156,12 +3336,8 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("argument_expression_list"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("argument_expression_list")).as_str());
-
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("argument_expression_list")).as_str());
 
                                             // ,
                                             // create new node id
@@ -2171,26 +3347,15 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from(",")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
 
-
-
-
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-                                            
-                                            
-
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
@@ -2199,100 +3364,174 @@ impl Parser<String> {
                                         // primary_expression -> IDENTIFIER
                                         1 => {
 
-                                            // TODO: put new node on the stack
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
                                                 value = terminal_rev.clone().unwrap().data;
-                                                println!("TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
+
+                                                // println!("TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
                                             }
 
-                                            // let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            // let debug_node = DebugNode::new(debug_node_id, format!("primary_expression '{}'\n", value));
-                                            // debug_node_stack.push(debug_node);
-                                            // string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, format!("primary_expression '{}'", value)).as_str());
-                                        
-                                            
-                                            
-
-                                            // create new node
+                                            // create new node - primary_expression
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("primary_expression"));
-
-                                            
-
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("primary_expression")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("primary_expression")).as_str());
 
+                                            // IDENTIFIER
+                                            let identifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let identifier_node = DebugNode::new(identifier_node_id, value.clone());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", identifier_node_id, identifier_node_id, value.clone()).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, identifier_node.id).as_str());
 
-
-                                            let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let type_node = DebugNode::new(type_node_id, value.clone());
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", type_node_id, value.clone()).as_str());
-
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
-
+                                            // push new node
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - primary_expression -> IDENTIFIER
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Identifier;
+                                                ast_node.string_val = value;
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // primary_expression -> HEX_NUMERIC
                                         2 => {
-
-                                            // TODO: put new node on the stack
+                                            // put new node on the stack
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
                                                 value = terminal_rev.clone().unwrap().data;
-                                                println!("TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
+                                                //println!("TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
                                             }
-
-                                            // let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            // let debug_node = DebugNode::new(debug_node_id, format!("primary_expression '{}'\n", value));
-                                            // debug_node_stack.push(debug_node);
-                                            // string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, format!("primary_expression '{}'", value)).as_str());
-                                        
-                                            
-                                            
 
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("primary_expression"));
-
                                             debug_node_stack.push(debug_node);
 
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("primary_expression")).as_str());
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("primary_expression")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, value.clone());
-                                            // debug_node_stack.push(debug_node);
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", type_node_id, value.clone()).as_str());
 
-
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
+
+                                            //
+                                            // AST - primary_expression -> HEX_NUMERIC
+                                            //
+
+                                            if self.construct_ast {
+
+                                                println!("{:?}", debug_node_id);
+
+                                                // page 252 - every expression needs a type
+                                                let mut data_type_ast_node: AstNode = AstNode::new();
+                                                data_type_ast_node.node_type = AstNodeType::DataType;
+                                                data_type_ast_node.string_val = String::from("undefined_type:primary_expression");
+
+                                                println!("{:?}", value);
+
+                                                let mut ast_node: AstNode = AstNode::new();
+
+                                                // https://stackoverflow.com/questions/32381414/converting-a-hexadecimal-string-to-a-decimal-integer
+                                                let value_without_prefix = value.trim_start_matches("0x");
+                                                let res = match u64::from_str_radix(&value_without_prefix, 16) {
+                                                    Ok(result) => {
+                                                        println!("Ok");
+                                                        println!("{:?} {:?}", result, (2u64.pow(32)-1));
+
+                                                        if result > (2u64.pow(32)-1) {
+                                                            ast_node.node_type = AstNodeType::ConstULong;
+                                                            data_type_ast_node.string_val = String::from("ULong");
+                                                        } else {
+                                                            ast_node.node_type = AstNodeType::ConstUInt;
+                                                            data_type_ast_node.string_val = String::from("UInt");
+                                                        } 
+                                                    }
+                                                    Err(e) => {
+                                                        println!("Error: {:?}", e);
+                                                    }
+                                                };
+                                                
+                                                ast_node.string_val = value;
+                                                ast_node.data_type = Some(Box::new(data_type_ast_node));
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // primary_expression -> NUMERIC
                                         3 => {
-                                            // TODO: put new node on the stack
+                                            // retrieve value
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
                                                 value = terminal_rev.clone().unwrap().data;
-                                                println!("TerminalValue: '{}'", value);
+                                                // println!("TerminalValue: '{}'", value);
                                             }
 
-                                            // do not pop from the stack as this is a leave for a int numeric literal value
-
-                                            // create new node id
-                                            // create new node with node id and label
+                                            // create new node - primary_expression
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("primary_expression"));
+                                            // print node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("primary_expression")).as_str());
 
-                                            // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, value).as_str());
+                                            let literal_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let literal_node = DebugNode::new(literal_node_id, value.clone());
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", literal_node_id, value.clone()).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, literal_node.id).as_str());
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            println!("Rule: {:?}", found_rule.original_id);
+                                            println!("DebugNodeId: {:?}", debug_node_id);
+
+                                            //
+                                            // AST - primary_expression -> NUMERIC
+                                            //
+
+                                            if self.construct_ast {
+
+                                                // page 252 - every expression needs a type
+                                                let mut data_type_ast_node: AstNode = AstNode::new();
+                                                data_type_ast_node.node_type = AstNodeType::DataType;
+                                                data_type_ast_node.string_val = String::from("undefined_type:primary_expression");
+
+                                                let mut ast_node: AstNode = AstNode::new();
+
+                                                println!("{:?}", value);
+                                                let res = match value.parse::<u64>() {
+                                                    Ok(result) => {
+                                                        println!("Ok");
+                                                        println!("{:?} {:?}", result, (2u64.pow(32)-1));
+
+                                                        if result > (2u64.pow(32)-1) {
+                                                            ast_node.node_type = AstNodeType::ConstULong;
+                                                            data_type_ast_node.string_val = String::from("ULong");
+                                                        } else {
+                                                            ast_node.node_type = AstNodeType::ConstUInt;
+                                                            data_type_ast_node.string_val = String::from("UInt");
+                                                        }
+
+                                                        ast_node.node_type = AstNodeType::ConstInt;
+                                                    }
+                                                    Err(e) => {
+                                                        println!("Error");
+                                                    }
+                                                };
+                                                
+                                                ast_node.string_val = value;
+                                                ast_node.data_type = Some(Box::new(data_type_ast_node));
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // primary_expression -> FLOAT_NUMERIC
@@ -2300,6 +3539,7 @@ impl Parser<String> {
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
                                                 value = terminal_rev.clone().unwrap().data;
+
                                                 println!("TerminalValue: '{}'", value);
                                             }
 
@@ -2309,12 +3549,43 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("primary_expression"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, value).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, "primary_expression").as_str());
+
+                                            // push new node to stack
+
+                                            let literal_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let literal_node = DebugNode::new(literal_node_id, value.clone());
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", literal_node_id, value.clone()).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, literal_node.id).as_str());
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            println!("Rule: {:?}", found_rule.original_id);
+                                            println!("DebugNodeId: {:?}", debug_node_id);
+
+                                            //
+                                            // AST - primary_expression -> NUMERIC
+                                            //
+
+                                            if self.construct_ast {
+
+                                                println!("{:?}", value);
+
+                                                // page 252 - every expression needs a type
+                                                let mut data_type_ast_node: AstNode = AstNode::new();
+                                                data_type_ast_node.node_type = AstNodeType::DataType;
+                                                data_type_ast_node.string_val = String::from("undefined_type:primary_expression");
+                                                data_type_ast_node.string_val = String::from("Double");
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::ConstDouble;
+                                                ast_node.string_val = value;
+                                                ast_node.data_type = Some(Box::new(data_type_ast_node));
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // primary_expression -> STRING_LITERAL
@@ -2322,7 +3593,7 @@ impl Parser<String> {
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
                                                 value = terminal_rev.clone().unwrap().data;
-                                                println!("TerminalValue: '{}'", value);
+                                                // println!("TerminalValue: '{}'", value);
                                             }
 
                                             // do not pop from the stack as this is a leave for a int numeric literal value
@@ -2331,9 +3602,8 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("primary_expression"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label={}]\n", debug_node_id, value).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, value).as_str());
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
@@ -2341,7 +3611,7 @@ impl Parser<String> {
 
                                         // primary_expression -> OPENING_BRACKET expression CLOSING_BRACKET
                                         6 => {
-                                            self.node_to_node("primary_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("primary_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // assignment_operator -> EQUALS_SIGN
@@ -2350,57 +3620,143 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("assignment_operator"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("assignment_operator")).as_str());
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("assignment_operator")).as_str());
 
                                             // =
                                             // create new node id
                                             // create new node with node id and label
                                             let equals_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let equals_node = DebugNode::new(equals_node_id, String::from("="));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from("=")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", equals_node_id, equals_node_id, String::from("=")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
                                         }
 
+                                        // conditional_expression -> logical_or_expression QUESTION_MARK expression COLON conditional_expression
+                                        59 => {
+
+                                            // new node
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("conditional_expression"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("conditional_expression")).as_str());
+
+                                            // logical_or_expression - take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // ?
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let operator_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let operator_node = DebugNode::new(operator_node_id, String::from("?"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", operator_node_id, operator_node_id, String::from("?")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, operator_node.id).as_str());
+
+                                            // true_expression - take old node from stack
+                                            let true_expression_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, true_expression_node.id).as_str());
+
+                                            // :
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let colon_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let colon_node = DebugNode::new(colon_node_id, String::from(":"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", colon_node_id, colon_node_id, String::from(":")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, colon_node.id).as_str());
+
+                                            // false_expression - take old node from stack
+                                            let false_expression = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, false_expression.id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - conditional_expression -> logical_or_expression QUESTION_MARK expression COLON conditional_expression
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let first_ast_node = self.ast_stack.pop().unwrap(); // false-statement
+                                                let second_ast_node = self.ast_stack.pop().unwrap(); // true-statement
+                                                let third_ast_node = self.ast_stack.pop().unwrap(); // expression-statement
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Conditional;
+                                                ast_node.lhs = Some(Box::new(second_ast_node)); // true-statement
+                                                ast_node.rhs = Some(Box::new(first_ast_node)); // false-statement
+                                                ast_node.expression = Some(Box::new(third_ast_node)); // expression-statement
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
                                         // conditional_expression -> logical_or_expression
                                         60 => {
-                                            self.node_to_node("conditional_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("conditional_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // logical_or_expression -> logical_and_expression
                                         58 => {
-                                            self.node_to_node("logical_or_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("logical_or_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // logical_and_expression -> inclusive_or_expression
                                         56 => {
-                                            self.node_to_node("logical_and_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("logical_and_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // inclusive_or_expression -> exclusive_or_expression
                                         54 => {
-                                            self.node_to_node("inclusive_or_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("inclusive_or_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // exclusive_or_expression -> and_expression
                                         52 => {
-                                            self.node_to_node("exclusive_or_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("exclusive_or_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // and_expression -> equality_expression
                                         50 => {
-                                            self.node_to_node("and_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("and_expression", found_rule.original_id, string_buffer, debug_node_stack);
+                                        }
+
+                                        // equality_expression -> relational_expression NE_OP equality_expression
+                                        47 => {
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("equality_expression"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("equality_expression")).as_str());
+
+                                            // relational_expression - take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // !=
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let lessthan_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let lessthan_node = DebugNode::new(lessthan_node_id, String::from("!="));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", lessthan_node_id, lessthan_node_id, String::from("!=")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
+
+                                            // equality_expression - take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
                                         }
 
                                         // equality_expression -> relational_expression
                                         48 => {
-                                            self.node_to_node("equality_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("equality_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // relational_expression -> shift_expression LT relational_expression
@@ -2410,12 +3766,8 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("relational_expression"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("relational_expressions")).as_str());
-
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("relational_expressions")).as_str());
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
@@ -2433,12 +3785,84 @@ impl Parser<String> {
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
 
+                                            //
+                                            // AST - relational_expression -> shift_expression LT relational_expression
+                                            //
 
+                                            if self.construct_ast {
 
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let rhs_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut operator_ast_node: AstNode = AstNode::new();
+                                                operator_ast_node.node_type = AstNodeType::Operator;
+                                                operator_ast_node.operator_type = AstNodeOperatorType::LessThan;
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Binary;
+                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
+                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
+                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.operator_type = AstNodeOperatorType::LessThan;
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
+                                        // relational_expression -> shift_expression GT relational_expression
+                                        42 => {
+
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("relational_expression"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("relational_expressions")).as_str());
+
+                                            // take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // <
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let lessthan_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let lessthan_node = DebugNode::new(lessthan_node_id, String::from(">"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from(">")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
+
+                                            // take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - relational_expression -> shift_expression LT relational_expression
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let rhs_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut operator_ast_node: AstNode = AstNode::new();
+                                                operator_ast_node.node_type = AstNodeType::Operator;
+                                                operator_ast_node.operator_type = AstNodeOperatorType::GreaterThan;
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Binary;
+                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
+                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
+                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.operator_type = AstNodeOperatorType::GreaterThan;
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // relational_expression -> shift_expression LE_OP relational_expression
@@ -2447,12 +3871,8 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("relational_expression"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("relational_expressions")).as_str());
-
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("relational_expressions")).as_str());
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
@@ -2469,23 +3889,19 @@ impl Parser<String> {
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
-
-
-
+                                            
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
                                         }
 
                                         // relational_expression -> shift_expression
                                         45 => {
-                                            self.node_to_node("relational_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("relational_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // shift_expression -> additive_expression
                                         40 => {
-                                            self.node_to_node("shift_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("shift_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // additive_expression -> multiplicative_expression PLUS additive_expression
@@ -2495,17 +3911,13 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("additive_expression"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("additive_expression")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("additive_expression")).as_str());
 
-                                            // take old node from stack
+                                            // take old node from stack - multiplicative_expression
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
 
                                             // PLUS
                                             // create new node id
@@ -2515,44 +3927,54 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", plus_node_id, String::from("PLUS")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, plus_node.id).as_str());
 
-
-
-
-                                            // take old node from stack
+                                            // take old node from stack - additive_expression
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-
-
-
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - additive_expression -> multiplicative_expression PLUS additive_expression
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let rhs_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut operator_ast_node: AstNode = AstNode::new();
+                                                operator_ast_node.node_type = AstNodeType::Operator;
+                                                operator_ast_node.operator_type = AstNodeOperatorType::Addition;
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Binary;
+                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
+                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
+                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.operator_type = AstNodeOperatorType::Addition;
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // additive_expression -> multiplicative_expression MINUS additive_expression
                                         36 => {
-                                            // TODO: put new node on the stack
-                                            for terminal_rev in rule_reverse.iter().rev() {
-                                                println!("TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
-                                            }
 
+                                            // additive_expression
+                                            //
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("additive_expression"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("additive_expression")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("additive_expression")).as_str());
 
-                                            // take old node from stack
+                                            // take old node from stack - multiplicative_expression
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
 
                                             // MINUS
                                             // create new node id
@@ -2562,25 +3984,41 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", minus_node_id, String::from("MINUS")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, minus_node.id).as_str());
 
-
-
-
-                                            // take old node from stack
+                                            // take old node from stack - additive_expression
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
-
                                             
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - additive_expression -> multiplicative_expression MINUS additive_expression
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let rhs_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut operator_ast_node: AstNode = AstNode::new();
+                                                operator_ast_node.node_type = AstNodeType::Operator;
+                                                operator_ast_node.operator_type = AstNodeOperatorType::Subtraction;
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Binary;
+                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
+                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
+                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.operator_type = AstNodeOperatorType::Subtraction;
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // additive_expression -> multiplicative_expression
                                         37 => {
-                                            self.node_to_node("additive_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("additive_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // multiplicative_expression -> cast_expression ASTERISK multiplicative_expression
@@ -2592,15 +4030,12 @@ impl Parser<String> {
                                             let debug_node = DebugNode::new(debug_node_id, String::from("additive_expression"));
 
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("additive_expression")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("additive_expression")).as_str());
 
-                                            // take old node from stack
+                                            // take old node from stack - multiplicative_expression
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
 
                                             // MUL
                                             // create new node id
@@ -2610,20 +4045,36 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", mul_node_id, String::from("MUL")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, mus_node.id).as_str());
 
-
-
-
-                                            // take old node from stack
+                                            // take old node from stack - cast_expression
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
-
                                             
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - multiplicative_expression -> cast_expression ASTERISK multiplicative_expression
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let rhs_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut operator_ast_node: AstNode = AstNode::new();
+                                                operator_ast_node.node_type = AstNodeType::Operator;
+                                                operator_ast_node.operator_type = AstNodeOperatorType::Multiplication;
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Binary;
+                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
+                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
+                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.operator_type = AstNodeOperatorType::Multiplication;
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // multiplicative_expression -> cast_expression SLASH multiplicative_expression
@@ -2632,12 +4083,8 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("multiplicative_expression"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("multiplicative_expression")).as_str());
-
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("multiplicative_expression")).as_str());
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
@@ -2655,17 +4102,36 @@ impl Parser<String> {
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-
-
-
-
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - multiplicative_expression -> cast_expression SLASH multiplicative_expression
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let rhs_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut operator_ast_node: AstNode = AstNode::new();
+                                                operator_ast_node.node_type = AstNodeType::Operator;
+                                                operator_ast_node.operator_type = AstNodeOperatorType::Division;
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Binary;
+                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
+                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
+                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.operator_type = AstNodeOperatorType::Division;
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // multiplicative_expression -> cast_expression
                                         34 => {
-                                            self.node_to_node("multiplicative_expression", string_buffer, debug_node_stack);
+                                            self.node_to_node("multiplicative_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // jump_statement -> RETURN expression SEMICOLON
@@ -2674,23 +4140,59 @@ impl Parser<String> {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("jump_statement"));
-
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("jump_statement RETURN"));
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("jump_statement RETURN")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("jump_statement RETURN")).as_str());
 
-
-
-                                            // take old node from stack
+                                            // take old node from stack - expression
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
 
+                                            //
+                                            // AST - jump_statement -> RETURN expression SEMICOLON
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let expression_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Return;
+                                                ast_node.lhs = Some(Box::new(expression_ast_node));
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
+                                        // jump_statement -> RETURN SEMICOLON
+                                        203 => {
+
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("jump_statement RETURN"));
+
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("jump_statement RETURN")).as_str());
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - jump_statement -> RETURN SEMICOLON
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Return;
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // iteration_statement -> WHILE OPENING_BRACKET expression CLOSING_BRACKET statement
@@ -2698,12 +4200,9 @@ impl Parser<String> {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("iteration_statement WHILE"));
-
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("iteration_statement (WHILE)"));
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("iteration_statement WHILE")).as_str());
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("iteration_statement WHILE")).as_str());
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
@@ -2712,119 +4211,112 @@ impl Parser<String> {
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - iteration_statement -> WHILE OPENING_BRACKET expression CLOSING_BRACKET statement
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let expression_ast_node = self.ast_stack.pop().unwrap();
+                                                let statement_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // while
+                                                let mut while_ast_node: AstNode = AstNode::new();
+                                                while_ast_node.node_type = AstNodeType::While;
+                                                while_ast_node.lhs = Some(Box::new(statement_ast_node));
+                                                while_ast_node.rhs = Some(Box::new(expression_ast_node));
+                                                while_ast_node.string_val = "WHILE: insert label here!".to_string();
+
+                                                // statement
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Statement;
+                                                ast_node.lhs = Some(Box::new(while_ast_node));
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // iteration_statement -> FOR OPENING_BRACKET expression_statement expression_statement expression CLOSING_BRACKET statement
                                         198 => {
-
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("iteration_statement FOR"));
-
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("iteration_statement (FOR)"));
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("iteration_statement FOR")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("iteration_statement FOR")).as_str());
 
-
-
-                                            // take old node from stack
+                                            // take old node from stack - expression_statement - (initializer)
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-                                            // take old node from stack
+                                            // take old node from stack - expression_statement - (continuation predicate)
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-                                            // take old node from stack
+                                            // take old node from stack - expression - (post loop update)
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-                                            // take old node from stack
+                                            // take old node from stack - statement (body)
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
-
-                                            // push new node to stack
-                                            debug_node_stack.push(debug_node);
-                                        }
-
-                                        // labeled_statement -> CASE constant_expression COLON statement
-                                        182 => {
-
-                                            // create new node id
-                                            // create new node with node id and label
-                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("labeled_statement"));
-
-                                            // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("labeled_statement")).as_str());
-
-
-
-                                            // CASE
-                                            // create new node id
-                                            // create new node with node id and label
-                                            let lessthan_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let lessthan_node = DebugNode::new(lessthan_node_id, String::from("case"));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from("case")).as_str());
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
-
-
-
-                                            // take old node from stack
-                                            let old_debug_node = debug_node_stack.pop().unwrap();
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
-                                            // COLON
-                                            // create new node id
-                                            // create new node with node id and label
-                                            let lessthan_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let lessthan_node = DebugNode::new(lessthan_node_id, String::from(":"));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from(":")).as_str());
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
-
-
-
-                                            // take old node from stack
-                                            let old_debug_node = debug_node_stack.pop().unwrap();
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
-
-
-
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
-                                        }
+                                            //
+                                            // AST - iteration_statement -> FOR OPENING_BRACKET 
+                                            //          expression_statement expression_statement expression CLOSING_BRACKET statement
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let body_ast_node = self.ast_stack.pop().unwrap(); // (body)
+                                                println!("body: {:?}", body_ast_node);
+
+                                                let post_ast_node = self.ast_stack.pop().unwrap(); // (post loop update)
+
+                                                let expression_ast_node = self.ast_stack.pop().unwrap(); // (continuation predicate)
+
+                                                let init_ast_node = self.ast_stack.pop().unwrap(); // (initializer)
+                                                println!("init: {:?}", init_ast_node);
+
+                                                // for
+                                                let mut for_ast_node: AstNode = AstNode::new();
+                                                for_ast_node.node_type = AstNodeType::For;
+                                                for_ast_node.lhs = Some(Box::new(init_ast_node)); // initialization, e.g.: a = 0
+                                                for_ast_node.expression = Some(Box::new(expression_ast_node)); // condition, e.g. a < 10
+                                                for_ast_node.rhs = Some(Box::new(post_ast_node)); // post: e.g.: a = a + 1
+                                                for_ast_node.string_val = "FOR: insert label here!".to_string();
+
+                                                for_ast_node.block_items.push(Box::new(body_ast_node));
+
+                                                // statement
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Statement;
+                                                ast_node.lhs = Some(Box::new(for_ast_node));
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }                                        
 
                                         // statement -> labeled_statement
                                         175 => {
-                                            self.node_to_node("statement", string_buffer, debug_node_stack);
+                                            self.node_to_node("statement", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // jump_statement -> BREAK
                                         201 => {
-                                            // self.node_to_node("jump_statment", string_buffer, debug_node_stack);
-                                            
-                                            
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("jump_statement"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("jump_statement")).as_str());
-
+                                            string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("jump_statement")).as_str());
 
                                             // break
                                             // create new node id
@@ -2834,55 +4326,151 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from("break")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
 
-
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - jump_statement -> BREAK
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut break_ast_node: AstNode = AstNode::new();
+                                                break_ast_node.node_type = AstNodeType::Break;
+
+                                                self.ast_stack.push(break_ast_node);
+                                            }
                                         }
 
-                                        // labeled_statement -> DEFAULT COLON statement
-                                        183 => {
-
+                                        // labeled_statement -> CASE constant_expression COLON statement
+                                        182 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("labeled_statement"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("labeled_statement")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("labeled_statement")).as_str());
 
-
-
-                                            // DEFAULT
+                                            // CASE
                                             // create new node id
                                             // create new node with node id and label
                                             let lessthan_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let lessthan_node = DebugNode::new(lessthan_node_id, String::from("default"));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from("default")).as_str());
+                                            let lessthan_node = DebugNode::new(lessthan_node_id, String::from("case"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", lessthan_node_id, lessthan_node_id, String::from("case")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
 
-
-
-                                            
-
+                                            // take old node from stack - constant_expression
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
                                             // COLON
                                             // create new node id
                                             // create new node with node id and label
                                             let lessthan_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let lessthan_node = DebugNode::new(lessthan_node_id, String::from(":"));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from(":")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", lessthan_node_id, lessthan_node_id, String::from(":")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
 
+                                            // take old node from stack - statement
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            println!("{:?}", debug_node_id);
+
+                                            //
+                                            // AST node - labeled_statement -> CASE constant_expression COLON statement
+                                            //
+
+                                            if self.construct_ast {
+
+                                                // take the statement that this case contains from the stack
+                                                let body_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // take the expression or constant that acts as differentiator for this case from the stack
+                                                let differentiator_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // loop {
+                                                //     let temp_node = self.ast_stack.pop().unwrap();
+                                                //     if temp_node.node_type == AstNodeType::EmptyStatement {
+                                                //         break;
+                                                //     }
+                                                // }
+
+                                                // case node
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Case;
+                                                //ast_node.lhs = Some(Box::new(body_ast_node));
+                                                ast_node.block_items.push(Box::new(body_ast_node));
+                                                ast_node.expression = Some(Box::new(differentiator_ast_node));
+
+                                                self.ast_stack.push(ast_node);
+
+                                                self.switch_case_default_counter = self.switch_case_default_counter + 1;
+                                            }
+                                        }
+
+                                        // labeled_statement -> DEFAULT COLON statement
+                                        183 => {
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("labeled_statement"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("labeled_statement")).as_str());
+
+                                            // DEFAULT
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let lessthan_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let lessthan_node = DebugNode::new(lessthan_node_id, String::from("default"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", lessthan_node_id, lessthan_node_id, String::from("default")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
+
+                                            // COLON
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let lessthan_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let lessthan_node = DebugNode::new(lessthan_node_id, String::from(":"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", lessthan_node_id, lessthan_node_id, String::from(":")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-
-
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            println!("{:?}", debug_node_id);
+
+                                            //
+                                            // AST node - labeled_statement -> DEFAULT COLON statement
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let body_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // loop {
+                                                //     let temp_node = self.ast_stack.pop().unwrap();
+                                                //     if temp_node.node_type == AstNodeType::EmptyStatement {
+                                                //         break;
+                                                //     }
+                                                // }
+
+                                                // default node
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Default;
+                                                // ast_node.lhs = Some(Box::new(body_ast_node));
+                                                ast_node.block_items.push(Box::new(body_ast_node));
+
+                                                self.ast_stack.push(ast_node);
+
+                                                self.switch_case_default_counter = self.switch_case_default_counter + 1;
+                                            }
                                         }
 
                                         // selection_statement -> SWITCH OPENING_BRACKET expression CLOSING_BRACKET statement
@@ -2892,61 +4480,130 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("selection_statement"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("selection_statement")).as_str());
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("selection_statement")).as_str());
 
                                             // SWITCH
                                             // create new node id
                                             // create new node with node id and label
                                             let lessthan_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let lessthan_node = DebugNode::new(lessthan_node_id, String::from("switch"));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from("switch")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", lessthan_node_id, lessthan_node_id, String::from("switch")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
-
-
-
-                                            
-
 
                                             // (
                                             // create new node id
                                             // create new node with node id and label
                                             let lessthan_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let lessthan_node = DebugNode::new(lessthan_node_id, String::from("("));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from("(")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", lessthan_node_id, lessthan_node_id, String::from("(")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
-
-
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
 
                                             // )
                                             // create new node id
                                             // create new node with node id and label
                                             let lessthan_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let lessthan_node = DebugNode::new(lessthan_node_id, String::from(")"));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from(")")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", lessthan_node_id, lessthan_node_id, String::from(")")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
-
-
-
 
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-
-                                            
-
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - selection_statement -> SWITCH OPENING_BRACKET expression CLOSING_BRACKET statement
+                                            //
+
+                                            if self.construct_ast {
+
+                                                println!("{:?}", debug_node_id);
+                                                
+                                                // loop {
+                                                //     let temp_node = self.ast_stack.pop().unwrap();
+                                                //     println!("{:?}", temp_node);
+                                                //     if temp_node.node_type == AstNodeType::EmptyStatement {
+                                                //         break;
+                                                //     }
+                                                // }
+
+                                                let statement_ast_node = self.ast_stack.pop().unwrap();
+                                                // println!("{:?}", statement_ast_node);
+                                                let compound_ast_node = statement_ast_node.lhs.unwrap();
+
+                                                // let compound_ast_node = statement_ast_node.lhs.unwrap();
+                                                // let mut block_ast_node = compound_ast_node.lhs.unwrap();
+
+                                                let switch_expression_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // switch
+                                                let mut switch_ast_node: AstNode = AstNode::new();
+                                                switch_ast_node.node_type = AstNodeType::Switch;
+                                                switch_ast_node.expression = Some(Box::new(switch_expression_ast_node));
+
+                                                let mut temp_items = Vec::<AstNode>::new();
+
+                                                let mut case_default: AstNode = AstNode::new();
+
+                                                let mut is_first: bool = true;
+
+                                                let mut all_statements_ast_node = compound_ast_node.lhs.unwrap();
+                                                loop {
+
+                                                    let temp_node = all_statements_ast_node.block_items.pop().unwrap();
+                                                    match temp_node.node_type {
+
+                                                        AstNodeType::Case | AstNodeType::Default => {
+
+                                                            // if there is an old case or default from an older iteration
+                                                            if !is_first {
+
+                                                                // put the old case or default into the switch
+                                                                //switch_ast_node.block_items.push(Box::new(case_default));
+                                                                temp_items.push(case_default);
+                                                            }
+
+                                                            is_first = false;
+
+                                                            // temp_node.block_items.push(temp_node.lhs.expect("REASON"));
+                                                            //let lhs_item = temp_node.lhs.unwrap();
+
+                                                            case_default = *temp_node;
+                                                            
+                                                        }
+
+                                                        _ => {
+                                                            // temp_items.push(*temp_node);
+
+                                                            // println!("{:?}", case_default.lhs);
+                                                            case_default.block_items.push(Box::new(*temp_node));
+                                                        }
+                                                    }
+
+                                                    if all_statements_ast_node.block_items.len() == 0 {
+                                                        break;
+                                                    }
+                                                }
+
+                                                //switch_ast_node.block_items.push(Box::new(case_default));
+                                                temp_items.push(case_default);
+
+                                                for i in 0..temp_items.len() {
+                                                    let temp_node = temp_items.pop().unwrap();
+                                                    // let temp_lhs = temp_node.lhs.unwrap();
+                                                    // temp_node.block_items.push(temp_lhs);
+                                                    switch_ast_node.block_items.push(Box::new(temp_node));
+                                                }
+
+                                                self.ast_stack.push(switch_ast_node);
+                                            }
                                         }
 
                                         // iteration_statement -> DO statement WHILE OPENING_BRACKET expression CLOSING_BRACKET SEMICOLON
@@ -2955,11 +4612,8 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("selection_statement"));
-
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("selection_statement")).as_str());
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("selection_statement")).as_str());
 
                                             // DO
                                             // create new node id
@@ -2969,12 +4623,9 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from("do")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
 
-
-
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
 
                                             // WHILE
                                             // create new node id
@@ -2984,7 +4635,6 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from("WHILE")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
 
-
                                             // (
                                             // create new node id
                                             // create new node with node id and label
@@ -2993,13 +4643,9 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from("(")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
 
-
-
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
 
                                             // )
                                             // create new node id
@@ -3009,9 +4655,6 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from(")")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
 
-
-
-
                                             // ;
                                             // create new node id
                                             // create new node with node id and label
@@ -3020,11 +4663,380 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from(";")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
 
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
 
-                                            
+                                            //
+                                            // AST - iteration_statement -> DO statement WHILE OPENING_BRACKET expression CLOSING_BRACKET SEMICOLON
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let body_ast_node = self.ast_stack.pop().unwrap();
+                                                // let post_ast_node = self.ast_stack.pop().unwrap();
+                                                let expression_ast_node = self.ast_stack.pop().unwrap();
+                                                // let init_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // for
+                                                let mut for_ast_node: AstNode = AstNode::new();
+                                                for_ast_node.node_type = AstNodeType::DoWhile;
+                                                // for_ast_node.lhs = Some(Box::new(init_ast_node)); // initialization, e.g.: a = 0
+                                                for_ast_node.expression = Some(Box::new(expression_ast_node)); // condition, e.g. a < 10
+                                                // for_ast_node.rhs = Some(Box::new(post_ast_node)); // post: e.g.: a = a + 1
+                                                for_ast_node.string_val = "DO_WHILE: insert label here!".to_string();
+
+                                                for_ast_node.block_items.push(Box::new(body_ast_node));
+
+                                                // statement
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Statement;
+                                                ast_node.lhs = Some(Box::new(for_ast_node));
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
+                                        // unary_expression -> unary_operator cast_expression
+                                        20 => {
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("unary_expression"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("unary_expression")).as_str());
+
+                                            // unary_operator - take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // cast_expression - take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - unary_expression -> unary_operator cast_expression
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let expression_ast_node = self.ast_stack.pop().unwrap();
+                                                let operator_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // page 252 - every expression needs a type
+                                                let mut data_type_ast_node: AstNode = AstNode::new();
+                                                data_type_ast_node.node_type = AstNodeType::DataType;
+                                                data_type_ast_node.string_val = String::from("undefined_type:unary_expression");
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Unary;
+                                                ast_node.lhs = Some(Box::new(operator_ast_node)); // operator
+                                                ast_node.rhs = Some(Box::new(expression_ast_node)); // operand
+                                                ast_node.data_type = Some(Box::new(data_type_ast_node));
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
+                                        // unary_expression -> SIZEOF unary_expression
+                                        21 => {
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("unary_operator"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("unary_operator")).as_str());
+
+                                            // SIZEOF
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let equals_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let equals_node = DebugNode::new(equals_node_id, String::from("SIZEOF"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from("SIZEOF")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
+                                            
+                                            // take old node from stack - type_name
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+                                         
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            println!("{:?}", debug_node_id);
+
+                                            //
+                                            // AST - unary_expression -> SIZEOF unary_expression
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let expression_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Operator;
+                                                ast_node.operator_type = AstNodeOperatorType::SizeOf;
+                                                ast_node.expression = Some(Box::new(expression_ast_node));
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
+                                        // unary_expression -> SIZEOF OPENING_BRACKET type_name CLOSING_BRACKET
+                                        22 => {
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("unary_operator"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("unary_operator")).as_str());
+
+                                            // SIZEOF
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let equals_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let equals_node = DebugNode::new(equals_node_id, String::from("SIZEOF"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from("SIZEOF")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
+                                            
+                                            // OPENING_BRACKET
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let lessthan_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let lessthan_node = DebugNode::new(lessthan_node_id, String::from("OPENING_BRACKET"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from("OPENING_BRACKET")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
+                                            
+                                            // take old node from stack - type_name
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+                                            
+                                            // CLOSING_BRACKET
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let lessthan_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let lessthan_node = DebugNode::new(lessthan_node_id, String::from("CLOSING_BRACKET"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from("CLOSING_BRACKET")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - unary_expression -> SIZEOF OPENING_BRACKET type_name CLOSING_BRACKET
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Operator;
+                                                ast_node.operator_type = AstNodeOperatorType::SizeOf;
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
+                                        // unary_operator -> AMPERSAND
+                                        23 => {
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("unary_operator"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("unary_operator")).as_str());
+
+                                            // AMPERSAND
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let equals_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let equals_node = DebugNode::new(equals_node_id, String::from("&"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from("&")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - unary_operator -> AMPERSAND
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Operator;
+                                                ast_node.operator_type = AstNodeOperatorType::AddrOf;
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
+                                        // unary_operator -> ASTERISK
+                                        24 => {
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("unary_operator"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("unary_operator")).as_str());
+
+                                            // ASTERISK
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let equals_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let equals_node = DebugNode::new(equals_node_id, String::from("*"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from("*")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - unary_operator -> ASTERISK
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Operator;
+                                                ast_node.operator_type = AstNodeOperatorType::Dereference;
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
+                                        // unary_operator -> MINUS
+                                        26 => {
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("unary_operator"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("unary_operator")).as_str());
+
+                                            // MINUS
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let equals_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let equals_node = DebugNode::new(equals_node_id, String::from("-"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from("-")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);                                            
+
+                                            //
+                                            // AST - unary_operator -> MINUS
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Operator;
+                                                ast_node.operator_type = AstNodeOperatorType::Negate;
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
+                                        // unary_operator -> TILDE
+                                        27 => {
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("unary_operator"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("unary_operator")).as_str());
+
+                                            // break
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let equals_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let equals_node = DebugNode::new(equals_node_id, String::from("~"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from("~")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - unary_operator -> TILDE
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new();
+                                                ast_node.node_type = AstNodeType::Operator;
+                                                ast_node.operator_type = AstNodeOperatorType::Complement;
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
+                                        // cast_expression -> OPENING_BRACKET type_name CLOSING_BRACKET cast_expression
+                                        29 => {
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("cast_expression"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("cast_expression")).as_str());
+
+                                            // OPENING_BRACKET
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let equals_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let equals_node = DebugNode::new(equals_node_id, String::from("("));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from("(")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
+
+                                            // type_name - take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // CLOSING_BRACKET
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let equals_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let equals_node = DebugNode::new(equals_node_id, String::from(")"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from(")")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
+
+                                            // cast_expression - take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - cast_expression -> OPENING_BRACKET type_name CLOSING_BRACKET cast_expression
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let expression_ast_node = self.ast_stack.pop().unwrap();
+                                                let type_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // page 252 - every expression needs a type
+                                                let mut data_type_ast_node: AstNode = AstNode::new();
+                                                data_type_ast_node.node_type = AstNodeType::DataType;
+                                                data_type_ast_node.string_val = String::from("undefined_type:primary_expression");
+
+                                                let mut cast_ast_node: AstNode = AstNode::new();
+                                                cast_ast_node.node_type = AstNodeType::Expression;
+                                                cast_ast_node.operator_type = AstNodeOperatorType::Cast;
+                                                cast_ast_node.lhs = Some(Box::new(type_ast_node));
+                                                cast_ast_node.rhs = Some(Box::new(expression_ast_node));
+                                                cast_ast_node.data_type = Some(Box::new(data_type_ast_node));
+
+                                                self.ast_stack.push(cast_ast_node);
+                                            }
+                                        }
+
+                                        // cast_expression -> unary_expression
+                                        30 => {
+                                            self.node_to_node("cast_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         _ => {
@@ -3086,7 +5098,6 @@ impl Parser<String> {
     // Then it will potentially perform many reduction operations because one rule reduction
     // may lead to another and so on ...
     pub fn provide_input(&mut self,
-        // grammar_state_hashmap: &BTreeMap<usize, GrammarState<String>>,
         rule_map: &BTreeMap<usize, Rule<String>>,
         step: &mut usize, 
         terminal_token_rule_element: &RuleElement<String>,
@@ -3112,7 +5123,6 @@ impl Parser<String> {
 
                 consumed = self.consume(RuleElement::Terminal(String::from("TYPE_NAME")), 
                     &terminal_value, 
-                    // &grammar_state_hashmap,
                     &rule_map,
                     string_buffer, 
                     debug_node_stack,
@@ -3122,7 +5132,6 @@ impl Parser<String> {
 
                 consumed = self.consume(terminal_token_rule_element.clone(), 
                     &terminal_value, 
-                    // &grammar_state_hashmap,
                     &rule_map,
                     string_buffer, 
                     debug_node_stack,

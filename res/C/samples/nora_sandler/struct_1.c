@@ -1,0 +1,3 @@
+struct Date {
+    float year;
+};
