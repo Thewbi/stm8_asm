@@ -1,0 +1,7 @@
+Program("binary_0.c")
+  Function("", true)
+    Return(Constant(1))
+  Function("", true)
+    Return(Constant(2))
+  Function("", true)
+    Return(Constant(1))

@@ -1513,3 +1513,282 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
         println!("Test2");
     }
         */
+
+
+
+        
+
+
+
+
+
+// let mut stack_offset_value = 0i32;
+
+                // match &asm_ast_instruction.src.operand_type {
+
+                //     AsmAstOperandType::Stack(stack_offset) => {
+                //         // println!("Stack, offset:{}", stack_offset);
+                //     }
+
+                //     AsmAstOperandType::Pseudo(pseudo_name) => {
+                //         // println!("Pseudo");
+
+                //         if self.replace_pseudo {
+
+                //             if self.stack_offset_map.contains_key(pseudo_name) {
+
+                //                 stack_offset_value = *self.stack_offset_map.get(pseudo_name).unwrap();
+
+                //             } else {
+
+                //                 self.stack_offset = self.stack_offset - 4;
+                //                 self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
+                                
+                //                 stack_offset_value = self.stack_offset;
+                                
+                //             }
+                //         }
+
+                //         asm_ast_instruction.src = AsmAstOperand { operand_type: AsmAstOperandType::Stack(stack_offset_value) };
+                //     }
+
+                //     AsmAstOperandType::Imm(immediate_value) => {
+                //         // println!("Imm");
+                //     }
+
+                //     AsmAstOperandType::Reg(register_name) => {
+                //         // println!("Reg, register_name:{:?}", register_name);
+                //     }
+
+                //     // AsmAstOperandType::Reg(AsmAstReg),
+                //     // AsmAstOperandType::Pseudo(String),
+                //     // AsmAstOperandType::Stack(i32),
+
+                //     // ValueElement::Constant(value) => {
+                //     //     println!("Constant: {:?}", value);
+                //     // }
+
+                //     // ValueElement::Variable(value) => {
+                //     //     // println!("Variable: {:?}", value);
+
+                //     //     if self.replace_pseudo {
+
+                //     //         if self.stack_offset_map.contains_key(value) {
+
+                //     //             value_test = *self.stack_offset_map.get(value).unwrap();
+
+                //     //         } else {
+
+                //     //             self.stack_offset = self.stack_offset - 4;
+                //     //             self.stack_offset_map.insert(value.to_string(), self.stack_offset);
+                                
+                //     //             value_test = self.stack_offset;
+                                
+                //     //         }
+                //     //     }
+                //     // }
+
+                //     _ => {
+                //         // panic!("Test");
+                //         panic!("{}", format!("Unhandled InstructionType {:?}!\n", asm_ast_instruction.src.operand_type ).as_str());
+                //     }
+
+                //     // asm_ast_instruction.src = ValueElement::Variable("contains".to_string());
+                //     // asm_ast_instruction.src = ValueElement::Variable(value_test.to_string());
+                //     // asm_ast_instruction.src = ValueElement::Variable(self.stack_offset.to_string());
+                // }
+
+                
+
+
+
+
+
+                // match &asm_ast_instruction.dst.operand_type {
+
+                //     AsmAstOperandType::Stack(stack_offset) => {
+                //         // println!("Stack, offset:{}", stack_offset);
+                //     }
+
+                //     AsmAstOperandType::Pseudo(pseudo_name) => {
+                //         // println!("Pseudo");
+
+                //         if self.replace_pseudo {
+
+                //             if self.stack_offset_map.contains_key(pseudo_name) {
+
+                //                 stack_offset_value = *self.stack_offset_map.get(pseudo_name).unwrap();
+
+                //             } else {
+
+                //                 self.stack_offset = self.stack_offset - 4;
+                //                 self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
+                                
+                //                 stack_offset_value = self.stack_offset;
+                                
+                //             }
+                //         }
+
+                //         asm_ast_instruction.dst = AsmAstOperand { operand_type: AsmAstOperandType::Stack(stack_offset_value) };
+                //     }
+
+                //     AsmAstOperandType::Imm(immediate_value) => {
+                //         // println!("Imm");
+                //     }
+
+                //     AsmAstOperandType::Reg(register_name) => {
+                //         // println!("Reg, register_name:{:?}", register_name);
+                //     }
+
+                //     // AsmAstOperandType::Reg(AsmAstReg),
+                //     // AsmAstOperandType::Pseudo(String),
+                //     // AsmAstOperandType::Stack(i32),
+
+                //     // ValueElement::Constant(value) => {
+                //     //     println!("Constant: {:?}", value);
+                //     // }
+
+                //     // ValueElement::Variable(value) => {
+                //     //     // println!("Variable: {:?}", value);
+
+                //     //     if self.replace_pseudo {
+
+                //     //         if self.stack_offset_map.contains_key(value) {
+
+                //     //             value_test = *self.stack_offset_map.get(value).unwrap();
+
+                //     //         } else {
+
+                //     //             self.stack_offset = self.stack_offset - 4;
+                //     //             self.stack_offset_map.insert(value.to_string(), self.stack_offset);
+                                
+                //     //             value_test = self.stack_offset;
+                                
+                //     //         }
+                //     //     }
+                //     // }
+
+                //     _ => {
+                //         // panic!("Test");
+                //         panic!("{}", format!("Unhandled InstructionType {:?}!\n", asm_ast_instruction.dst.operand_type ).as_str());
+                //     }
+
+                //     // asm_ast_instruction.src = ValueElement::Variable("contains".to_string());
+                //     // asm_ast_instruction.src = ValueElement::Variable(value_test.to_string());
+                //     // asm_ast_instruction.src = ValueElement::Variable(self.stack_offset.to_string());
+                // }
+
+
+
+// let mut stack_offset_value = 0i32;
+
+                // match &asm_ast_instruction.dst.operand_type {
+
+                //     AsmAstOperandType::Stack(stack_offset) => {
+                //         // println!("Stack, offset:{}", stack_offset);
+                //     }
+
+                //     AsmAstOperandType::Pseudo(pseudo_name) => {
+                //         // println!("Pseudo");
+
+                //         if self.replace_pseudo {
+
+                //             if self.stack_offset_map.contains_key(pseudo_name) {
+
+                //                 stack_offset_value = *self.stack_offset_map.get(pseudo_name).unwrap();
+
+                //             } else {
+
+                //                 self.stack_offset = self.stack_offset - 4;
+                //                 self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
+                                
+                //                 stack_offset_value = self.stack_offset;
+                                
+                //             }
+                //         }
+
+                //         asm_ast_instruction.src = AsmAstOperand { operand_type: AsmAstOperandType::Stack(stack_offset_value) };
+                //     }
+
+                //     AsmAstOperandType::Imm(immediate_value) => {
+                //         // println!("Imm");
+                //     }
+
+                //     _ => {
+                //         // panic!("Test");
+                //         panic!("{}", format!("Unhandled InstructionType {:?}!\n", asm_ast_instruction.src.operand_type ).as_str());
+                //     }
+                // }
+
+
+                
+
+
+
+/*
+        match ast_node.operator_type {
+
+            AstNodeOperatorType::Addition => {
+                println!("visit!");
+                // binary_instruction.binary_operator = BinaryOperator::Add;
+            }
+
+            AstNodeOperatorType::Subtraction => {
+                println!("visit!");
+                // binary_instruction.binary_operator = BinaryOperator::Subtract;
+            }
+
+            AstNodeOperatorType::Multiplication => {
+                println!("visit!");
+                // binary_instruction.binary_operator = BinaryOperator::Multiply;
+            }
+
+            AstNodeOperatorType::Division => {
+                println!("visit!");
+                // binary_instruction.binary_operator = BinaryOperator::Division;
+            }
+
+            AstNodeOperatorType::Remainder => {
+                println!("visit!");
+                // binary_instruction.binary_operator = BinaryOperator::Remainder;
+            }
+
+            AstNodeOperatorType::LessThan => {
+                println!("visit!");
+                // binary_instruction.binary_operator = BinaryOperator::LessThan;
+            }
+
+            AstNodeOperatorType::GreaterThan => {
+                println!("visit!");
+                // binary_instruction.binary_operator = BinaryOperator::GreaterThan;
+            }
+
+            AstNodeOperatorType::Equal => {
+                println!("visit!");
+                // binary_instruction.binary_operator = BinaryOperator::Equal;
+            }
+
+            AstNodeOperatorType::NotEqual => {
+                println!("visit!");
+                // binary_instruction.binary_operator = BinaryOperator::NotEqual;
+            }
+
+            AstNodeOperatorType::LessThanOrEqual => {
+                println!("visit!");
+                // binary_instruction.binary_operator = BinaryOperator::LessThanOrEqual;
+            }
+
+            AstNodeOperatorType::GreaterThanOrEqual => {
+                println!("visit!");
+                // binary_instruction.binary_operator = BinaryOperator::GreaterThanOrEqual;
+            }
+
+            AstNodeOperatorType::NotApplicable => {
+                println!("visit!");
+            }
+
+            _ => {
+                panic!("{}", format!("Unhandled ast_node.operator_type {:?}!\n", ast_node.operator_type).as_str());
+            }
+        }
+        */

@@ -1,6 +1,16 @@
 use std::fs;
 
-pub fn provide_sourcode_input() -> String {
+use std::fs::File;
+
+use std::io::BufRead;
+use std::io::BufReader;
+
+use std::io::BufWriter;
+use std::io::Write;
+
+// first element: text data
+// second element: filename which is the source of the text data
+pub fn provide_sourcode_input() -> ( String, String ) {
 
     // NUMERIC PLUS NUMERIC
     // let str = "2 + 2";
@@ -233,14 +243,31 @@ pub fn provide_sourcode_input() -> String {
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/page_26.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/listing_1_1_page_4.c").expect("file cannot be read!");
 
-    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/unary_0.c").expect("file cannot be read!");
-    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/unary_1.c").expect("file cannot be read!");
-    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/unary_2.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/unary_0.c").expect("file cannot be read!"); // return -8; Result: "-8" (0xfffffff8)
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/unary_1.c").expect("file cannot be read!"); // return ~8; Result: "-9" (0xfffffff7)
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/unary_2.c").expect("file cannot be read!"); // return ~(-8); Result: "7" (0x7)
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/unary_3.c").expect("file cannot be read!"); // return -(~(-8)); Result: "-7" (0xfffffff9)
 
-    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_0.c").expect("file cannot be read!");
-    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_1.c").expect("file cannot be read!");
-    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_2.c").expect("file cannot be read!");
-    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_3.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_0.c").expect("file cannot be read!"); // return 1 + 2; Result: 3
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_1.c").expect("file cannot be read!"); // return 1 + (2 * 3); Result: 7
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_2.c").expect("file cannot be read!"); // return (1 + 2) * 3; Result: 9
+    // TODO: somehow no negative result is computed
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_3.c").expect("file cannot be read!"); // return (1 - 2) * 3; Result: -3
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_4.c").expect("file cannot be read!"); // return 5 / 2; Result: 2
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_5.c").expect("file cannot be read!"); // return 20 % 17; Result: 3
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_6.c").expect("file cannot be read!"); // return 10 - 3; Result: "7" (0x7)
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_7.c").expect("file cannot be read!"); // return 10 * 3; Result: "30" (0x1e) 
+
+    // // &	bitwise AND
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_bitwise_0.c").expect("file cannot be read!");
+    // // |	bitwise inclusive OR
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_bitwise_1.c").expect("file cannot be read!");
+    // // ^	bitwise XOR (exclusive OR)
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_bitwise_2.c").expect("file cannot be read!");
+    // // <<	left shift
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_bitwise_3.c").expect("file cannot be read!");
+    // // >>	right shift
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_bitwise_4.c").expect("file cannot be read!");
 
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/declaration_0.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/declaration_1.c").expect("file cannot be read!");
@@ -253,6 +280,29 @@ pub fn provide_sourcode_input() -> String {
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/declaration_8.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/declaration_9.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/declaration_10.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/declaration_11.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/declaration_12.c").expect("file cannot be read!");
+    // let filename = "res/C/samples/nora_sandler/declaration_13.c";
+    // let filename = "res/C/samples/nora_sandler/declaration_14.c";
+
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_0.c").expect("file cannot be read!");
+    // let filename = "res/C/samples/nora_sandler/assignment_0.c";
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_1.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_2.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_3.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_4.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_5.c").expect("file cannot be read!");
+
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_assignment_0.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_assignment_1.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_assignment_2.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_assignment_3.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_assignment_4.c").expect("file cannot be read!");
+
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/prefix_postfix_0.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/prefix_postfix_1.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/prefix_postfix_2.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/prefix_postfix_3.c").expect("file cannot be read!");
 
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/double_variable_decl_0.c").expect("file cannot be read!");
 
@@ -264,34 +314,72 @@ pub fn provide_sourcode_input() -> String {
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/block_2.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/block_3.c").expect("file cannot be read!");
 
-    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/if_0.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/if_0.c").expect("file cannot be read!"); // Result: 123
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/if_1.c").expect("file cannot be read!"); // Result: 0
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/if_2.c").expect("file cannot be read!"); // Result: 0
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/if_3.c").expect("file cannot be read!"); // Result: 0
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/if_4.c").expect("file cannot be read!"); // Result: 0
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/if_5.c").expect("file cannot be read!"); // Result: 0
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/if_6.c").expect("file cannot be read!"); // Result: 0
+    // let filename = "res/C/samples/nora_sandler/if_0.c";
+    // let filename = "res/C/samples/nora_sandler/if_1.c";
+    // let filename = "res/C/samples/nora_sandler/if_2.c";
+    // let filename = "res/C/samples/nora_sandler/if_3.c";
+    // let filename = "res/C/samples/nora_sandler/if_4.c";
+    // let filename = "res/C/samples/nora_sandler/if_5.c";
+    // let filename = "res/C/samples/nora_sandler/if_6.c";
+    // let filename = "res/C/samples/nora_sandler/if_7.c";
+
+    // let filename = "res/C/samples/nora_sandler/scopes_0.c";
+    // let filename = "res/C/samples/nora_sandler/scopes_1.c";
+    // let filename = "res/C/samples/nora_sandler/scopes_2.c";
+    // let filename = "res/C/samples/nora_sandler/scopes_3.c";
+
+    // let filename = "res/C/samples/nora_sandler/scopes_illegal_0.c";
+
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/if_else_0.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/if_else_1.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/if_else_2.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/if_else_3.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/if_else_4.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/if_else_5.c").expect("file cannot be read!");
 
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/while_0.c").expect("file cannot be read!");
 
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/for_0.c").expect("file cannot be read!");
+    // let filename = "res/C/samples/nora_sandler/for_0.c";
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/for_1.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/for_2.c").expect("file cannot be read!");
+    // let filename = "res/C/samples/nora_sandler/for_2.c";
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/for_3.c").expect("file cannot be read!");
+
+    // let filename = "res/C/samples/nora_sandler/return_0.c";
     
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/do_while_0.c").expect("file cannot be read!");
 
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/conditional_0.c").expect("file cannot be read!");
 
     // TODO: check if a fall-through is converted to a valid AST!
-    //
+    
+    // TODO: The discriminator "test_val" is not output to the AST! check if information is just not printed or if information is missing!
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/switch_0.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/switch_1.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/switch_2.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/switch_3.c").expect("file cannot be read!");
 
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/function_declaration_0.c").expect("file cannot be read!");
+    // let filename = "res/C/samples/nora_sandler/function_declaration_0.c";
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/function_declaration_1.c").expect("file cannot be read!");
-    // The file function_declaration_2.c contains an syntactically invalid application
+    
+    // The file function_declaration_2.c contains an syntactically invalid application according to the C-grammar used!
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/function_declaration_2.c").expect("file cannot be read!");
+    // let filename = "res/C/samples/nora_sandler/function_declaration_2.c";
+    
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/function_declaration_3.c").expect("file cannot be read!");
+    // let filename = "res/C/samples/nora_sandler/function_declaration_3.c";
+    // let filename = "res/C/samples/nora_sandler/function_declaration_4.c";
+    // let filename = "res/C/samples/nora_sandler/function_declaration_5.c"; // two declarations both with bodies, is not allowed.
+    let filename = "res/C/samples/nora_sandler/function_declaration_6.c";
 
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/function_prototype_0.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/function_prototype_1.c").expect("file cannot be read!");
@@ -301,6 +389,7 @@ pub fn provide_sourcode_input() -> String {
 
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/function_call_0.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/function_call_1.c").expect("file cannot be read!");
+    // let filename = "res/C/samples/nora_sandler/function_call_2.c";
 
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/storage_class_static_0.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/storage_class_static_1.c").expect("file cannot be read!");
@@ -331,13 +420,18 @@ pub fn provide_sourcode_input() -> String {
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/struct_0.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/struct_1.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/struct_2.c").expect("file cannot be read!");
+    // todo: TACKY visitor fails
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/struct_3.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/struct_4.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/struct_5.c").expect("file cannot be read!");
+    // todo: AST broken
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/struct_6.c").expect("file cannot be read!");
+
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/struct_linked_list_0.c").expect("file cannot be read!");
 
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/sizeof_0.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/sizeof_1.c").expect("file cannot be read!");
-    let str: String = fs::read_to_string("res/C/samples/nora_sandler/sizeof_2.c").expect("file cannot be read!");
+    // let str: String = fs::read_to_string("res/C/samples/nora_sandler/sizeof_2.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/sizeof_3.c").expect("file cannot be read!");
 
     //
@@ -379,5 +473,63 @@ pub fn provide_sourcode_input() -> String {
 
     // let str: String = fs::read_to_string("res/C/samples/c_samples/scratchpad.c").expect("file cannot be read!");
 
-    str.to_string()
+
+
+    //
+    // Preprocessor - step 1 - remove single-line comments
+    //
+
+    // 1. Create or overwrite the file
+    let preprocessed_file = File::create("preprocessed.c").expect("Create file failed!");
+    
+    // 2. Wrap the file in a BufWriter
+    let mut writer = BufWriter::new(preprocessed_file);
+
+    // 3. Write data
+    let f = match File::open(filename) {
+
+        Ok(f) => {
+
+            let mut line_num = 0;
+
+            let file = BufReader::new(&f);
+            for line in file.lines() {
+
+                let curr_line = line.unwrap();
+
+                // // DEBUG
+                // println!("{}", l);
+
+                // start adding linebreaks after the first line
+                if line_num > 0 {
+                    write!(writer, "{}", "\n");
+                }
+            
+                // remove single-line comments by a space
+                if curr_line.trim().starts_with("//") {
+                    write!(writer, "{}", " ");
+                } else {
+                    write!(writer, "{}", curr_line);
+                }
+
+                line_num = line_num + 1;
+            } 
+        }
+
+        Err(e) => {
+            // fallback in case of failure.
+            // you could log the error, panic, or do anything else.
+            panic!("{}", e);
+        }
+
+    };
+
+    // 4. Explicitly flush the remaining data to disk
+    writer.flush().expect("flush failed!");
+
+    // output C-application translation unit into a fixed file called "preprocessed.c".
+    // The C-compiler will read input from "preprocessed.c"
+    let str: String = fs::read_to_string("preprocessed.c").expect("file cannot be read!");
+
+    return ( str.to_string(), filename.to_string() )
 }

@@ -1,7 +1,10 @@
 int main() {
 
     int a;
-    for (a = 0; a < 5; a = a + 1) {
+    
+    int b = 0;
+    
+    for (a = 3; a < 5; a = a + 1) {
         b = b + 1;
     }
 

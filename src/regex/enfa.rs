@@ -1,5 +1,7 @@
 use std::fs::File;
 use std::io::{BufWriter, Write};
+use std::io::BufReader;
+use std::io::BufRead;
 
 use std::fmt;
 use std::fmt::Debug;
@@ -79,7 +81,6 @@ impl StateTrait for State {
 pub enum Input<T> {
     Symbol(T),
     Epsilon,
-    // AllOther,
 }
 
 // Transition table type: (CurrentState, Input) -> Set of NextStates
@@ -120,6 +121,14 @@ where
         result
     }
 
+    pub fn clear(&mut self) {
+        self.states.clear();
+        self.alphabet.clear();
+        self.transitions.clear();
+        self.start_state_id = 0;
+        self.accept_states.clear();
+    }
+
     pub fn add_transition(&mut self, start_id: usize, input: Input<T>, end_id: usize) {
         self.transitions
              .entry((start_id, input))
@@ -156,6 +165,298 @@ where
 
     pub fn is_empty(&mut self) -> bool {
         self.states.len() == 1
+    }
+}
+
+//
+// Format:
+// 
+// The ENFA is characterized by the following objects:
+// - (S) States
+// - (T) Transitions
+// - (ALPHA) Alphabet (ignored for now)
+// - (S_ID) A single start state id
+// - (ACC) Set of acceptance states
+//
+// Each line is constructed of cells, separated by semicolon.
+// The first cell of each line contains a code that identifies the type of object that the row describes.
+// The code is given in the listing of objects above (S, T, ALPHA, S_ID, ACC).
+//
+// The format for a state object (S) is:
+// S;<state_id>;<token_id>;<token_name>;<start_state>;<end_state>;<trap_state>
+// 1st cell <code> - Contains the code for states "S"
+// 2nd cell <state_id> - Contains the id of this state
+// 3rd cell <token_id> - Contains the token id which will be detected when following this state
+// 4th cell <token_name> - Human Readable Name of token. Also used to interact with the parser. This name is used in parser rules.
+// 5th cell <start_state> - 1 if this state is a start state (true), 0 if not (false)
+// 6th cell <end_state> - 1 if this state is a end state (true), 0 if not (false)
+// 7th cell <trap_state> - 1 if this state is a trap state (true), 0 if not (false)
+//
+// The format of the start state id (S_ID) is:
+// S_ID;<start_state_id>
+// 1st cell <code> - Contains the code for start state id "S_ID"
+// 2nd cell <start_state_id> - Contains the id of the start state
+//
+// The format of the transitions (T) is:
+// T;<start_state_id>;<symbol>;<target_state_id_0>;<target_state_id_1>;...;<target_state_id_n>
+// 1st cell <code> - Contains the code for a transition "T"
+// 2nd cell <start_state_id> - Contains the id of the start state
+// 3rd cell <symbol> - The symbol to transition with
+// 4th cell - All the ids of the target states to transition to
+// 5th cell - All the ids of the target states to transition to
+// ... cell - ...
+// nth cell - All the ids of the target states to transition to
+pub fn enfa_serialize(enfa: &mut EpsilonNfa<State, RegexBuildingBlock>, filename: &str) {
+
+    let mut string_buffer = String::new();
+
+    // 1. Create or overwrite the file
+    let file = File::create(filename).expect("Creating file failed!");
+    
+    // 2. Wrap the file in a BufWriter
+    let mut writer = BufWriter::new(file);
+
+    // iterate over states
+    //
+    // Example Debug Format when outputting a state to the console:
+    // 1200 State { id: 1200, copy_id: 0, token_id: 37, token_name: "PLUS", start_state: false, end_state: true, trap_state: false }
+    for (state_id, state) in enfa.states.iter_mut() {
+
+        println!("{:?} {:?}", state_id, state);
+
+        // code
+        string_buffer.push_str("S;");
+
+        // state id
+        string_buffer.push_str(format!("{};", state_id).as_str());
+
+        // token id
+        string_buffer.push_str(format!("{};", state.token_id).as_str());
+
+        // token name
+        string_buffer.push_str(&state.token_name.clone());
+        string_buffer.push_str(";");
+
+        // start state flag
+        if state.start_state {
+            string_buffer.push_str("1;");
+        } else {
+            string_buffer.push_str("0;");
+        }
+
+        // end state flag
+        if state.end_state {
+            string_buffer.push_str("1;");
+        } else {
+            string_buffer.push_str("0;");
+        }
+
+        // trap state flag
+        if state.trap_state {
+            string_buffer.push_str("1");
+        } else {
+            string_buffer.push_str("0");
+        }
+
+        // 3. Write data to file
+        write!(writer, "{}\n", string_buffer);
+
+        string_buffer.clear();
+    }
+
+    // alphabet -- ignored for now
+    let output_alphabet = false;
+    if output_alphabet {
+        for regex_building_block in enfa.alphabet.iter() {
+            println!("{:?}", regex_building_block);
+        }
+    }
+
+    // transitions
+    //
+    // Example:
+    // (1273, Symbol(w)) {1182}
+    for (transition_id, transition) in enfa.transitions.iter() {
+        // println!("{:?} {:?}", transition_id, transition);
+
+        // code
+        string_buffer.push_str("T;");
+
+        // start state id
+        string_buffer.push_str(format!("{};", transition_id.0).as_str());
+
+        // alphabet symbol
+        match transition_id.1 {
+            Input::Symbol(RegexBuildingBlock::CharacterLiteral(char_value)) => {
+                if char_value == ';' {
+                    string_buffer.push_str("SEMICOLON");
+                } else {
+                    string_buffer.push_str(format!("{:?}", char_value).as_str());
+                }
+            }
+            _ => {
+                todo!("Not implemented yet!");
+            }
+        }
+
+        // all target states
+        for target_state_id in transition.iter() {
+            // println!("{:?}", target_state_id);
+            string_buffer.push_str(format!(";{}", target_state_id).as_str());
+        }
+
+        // 3. Write data to file
+        write!(writer, "{}\n", string_buffer);
+
+        string_buffer.clear();
+    }
+
+    // start state's id
+    //
+    // Example:
+    // 1168
+    println!("StartStateId: {:?}", enfa.start_state_id);
+
+    string_buffer.push_str("S_ID;");
+    string_buffer.push_str(format!("{}", enfa.start_state_id).as_str());
+    write!(writer, "{}\n", string_buffer);
+    string_buffer.clear();
+    
+    // states for acceptance -- ignored for now
+    let output_acceptance_states = false;
+    if output_acceptance_states {
+        for accept_state in enfa.accept_states.iter() {
+            println!("{:?}", accept_state);
+        }
+    }
+
+    // 4. Explicitly flush the remaining data to disk
+    writer.flush().expect("flush failed!");
+}
+
+// File-Format: See comment on function enfa_serialize()
+pub fn enfa_deserialize(enfa: &mut EpsilonNfa<State, RegexBuildingBlock>, filename: &str) {
+
+    let debug: bool = false;
+
+    enfa.clear();
+
+    let file = File::open(filename).expect("Reading file failed!");
+    let reader = BufReader::new(file);
+
+    let mut state_count = 0;
+    let mut transition_count = 0;
+    let mut current_line_index = 1;
+
+    // DEBUG - output the lines read from the parse table file
+    for line_result in reader.lines() {
+
+        if let Ok(line) = line_result {
+
+            // DEBUG
+            // println!("{:?}", line);
+
+            let row_split: Vec<_> = line.split(';').collect();
+
+            // DEBUG
+            // println!("{:?}", row_split);
+
+            let type_code = row_split[0];
+
+            match type_code {
+
+                "S" => {
+                    // struct state is defined in enfa.rs (top of the file)
+                    let mut state: State = State::new(usize::from_str_radix(row_split[1], 10).expect("Number conversion failed!"));
+                    state.token_id = usize::from_str_radix(row_split[2], 10).expect("Number conversion failed!");
+                    state.token_name = String::from(row_split[3]);
+                    state.start_state = row_split[4] == "1";
+                    state.end_state = row_split[5] == "1";
+                    state.trap_state = row_split[6] == "1";
+
+                    enfa.add_state(state);
+
+                    state_count = state_count + 1;
+                }
+
+                "T" => {
+                    let string_val = row_split[2].trim_matches('\'');
+
+                    let mut char_val = ' ';
+                    if string_val == "SEMICOLON" {
+                        char_val = ';';
+                    } 
+                    else if string_val.starts_with("\\\\") {
+                        char_val = '\\';
+                    } 
+                    else if string_val.starts_with("\\r") {
+                        char_val = '\r';
+                    }
+                    else if string_val.starts_with("\\n") {
+                        char_val = '\n';
+                    }
+                    else {
+                        char_val = string_val.chars().next().unwrap();
+                    }
+
+                    let start_state_id:usize = usize::from_str_radix(row_split[1], 10).expect("Number conversion failed!");
+                    let end_state_id:usize = usize::from_str_radix(row_split[3], 10).expect("Number conversion failed!");
+
+                    // // DEBUG
+                    // if start_state_id == 1246 && end_state_id == 1171 {
+                    //     println!("{} {:?} {}", current_line_index, line, char_val);
+                    //     println!("test");
+                    // }
+
+                    let before = enfa.transitions.len();
+
+                    enfa.add_transition(start_state_id, Input::Symbol(RegexBuildingBlock::CharacterLiteral(char_val)), end_state_id);
+
+                    let after = enfa.transitions.len();
+
+                    // error case
+                    if before == after {
+                        println!("{:?}", line);
+                        println!("{}", string_val);
+                        println!("Same");
+
+                        panic!("DFA transition did not increase overall amount of transitions! This cannot be! Some characters are interpreted incorrectly! FIX ME!")
+                    }
+
+                    transition_count = transition_count + 1;
+                }
+
+                "S_ID" => {
+                    enfa.start_state_id = usize::from_str_radix(row_split[1], 10).expect("Number conversion failed!");
+                }
+
+                _ => {
+                    todo!();
+                }
+            }
+        }
+
+        current_line_index = current_line_index + 1;
+    }
+
+    if debug {
+        println!("state_count: {}", state_count);
+    }
+
+    if enfa.states.len() != state_count {
+        panic!("Load failed! State count does not match!");
+    }
+
+    if debug {
+        println!("transition_count: {}", transition_count);
+    }
+
+    if enfa.transitions.len() != transition_count {
+        panic!("Load failed! Transition count does not match!");
+    }
+
+    if debug {
+        println!("end");
     }
 }
 
@@ -1226,7 +1527,8 @@ pub fn enfa_copy(dest: &mut EpsilonNfa::<State, RegexBuildingBlock>, src: &mut E
     (copied_start_id, copied_end_id)
 }
 
-pub fn enfa_to_dfa(enfa: &mut EpsilonNfa::<State, RegexBuildingBlock>, alphabet: &HashSet<RegexBuildingBlock>) -> EpsilonNfa::<State, RegexBuildingBlock> {
+pub fn enfa_to_dfa(enfa: &mut EpsilonNfa::<State, RegexBuildingBlock>, 
+    alphabet: &HashSet<RegexBuildingBlock>) -> EpsilonNfa::<State, RegexBuildingBlock> {
 
     let mut power_state_id_map = HashMap::<BTreeSet::<usize>, usize>::new();
 
@@ -1405,6 +1707,7 @@ pub fn transition_dfa(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>, start_i
     let target_state_ids = dfa.transitions.entry((start_id, Input::Symbol(*input)));
     let val = target_state_ids.or_default();
     
+    // DEBUG
     // println!("{:?}", val);
 
     val.clone().into_iter().next().unwrap()

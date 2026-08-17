@@ -19,17 +19,21 @@ pub struct Lexer {
     pub dfa: EpsilonNfa::<State, RegexBuildingBlock>,
     pub current_state_id: usize,
     pub token_string_buffer: String,
+    pub lexer_debug: bool,
+    pub lexer_token_debug: bool,
 }
 
 impl Lexer {
 
-    pub fn new(dfa_param: EpsilonNfa::<State, RegexBuildingBlock>) -> Self {
+    pub fn new(dfa_param: EpsilonNfa::<State, RegexBuildingBlock>, 
+        lexer_debug_param: bool, lexer_token_debug_param: bool) -> Self {
 
-        // let mut lexer = Lexer {
         let lexer = Lexer {
             current_state_id: dfa_param.start_state_id,
             dfa: dfa_param,
             token_string_buffer: String::new(),
+            lexer_debug: lexer_debug_param,
+            lexer_token_debug: lexer_token_debug_param,
         };
 
         lexer
@@ -44,14 +48,16 @@ impl Lexer {
         parser: &mut Parser::<String>,
         rule_map: &BTreeMap<usize, Rule<String>>,
         debug_node_string_buffer: &mut String,
-        debug_node_stack: &mut Vec::<DebugNode>) -> usize {
+        debug_node_stack: &mut Vec::<DebugNode>,
+        file: &String,
+        line: usize) -> usize {
 
-        // let lexer_debug = true;
-        let lexer_debug = false;
+        // TODO: write line and file into the token before passing it to the parser 
+        // so that the parser has line and file information        
 
         // check if there is a valid transition for the next character
         // greedily consume it and do not directly feed a half finished token to the parser
-        if lexer_debug {
+        if self.lexer_debug {
             println!("[LEXER.TRAP_STATE] Lookahead character is: '{}'", lookahead_character);
         }
 
@@ -60,7 +66,8 @@ impl Lexer {
         let mut char_consumed = false;
         while !char_consumed {
 
-            if lexer_debug {
+            // DEBUG
+            if self.lexer_debug {
                 println!("[LEXER] State; '{}', Input: '{}', lookahead: '{}'", 
                     self.current_state_id, current_character, lookahead_character);
             }
@@ -73,7 +80,7 @@ impl Lexer {
             next_state_id = transition_dfa(&mut self.dfa, 
                 self.current_state_id, &RegexBuildingBlock::CharacterLiteral(current_character));
 
-            if lexer_debug {
+            if self.lexer_debug {
                 println!("[LEXER] From State: '{}', To State: '{}'", self.current_state_id, next_state_id);
             }
 
@@ -83,11 +90,14 @@ impl Lexer {
 
             if self.dfa.is_trap_state(next_state_id) {
 
-                if lexer_debug {
-                    println!("[LEXER.TRAP_STATE] Emitting '{}', Token-Id: {}, Token-Name: {}", 
+                // DEBUG
+                if self.lexer_debug {
+                    println!("[LEXER.TRAP_STATE] Emitting '{}', Token-Id: {}, Token-Name: {} | File: {:?}, Line: {:?}", 
                         self.token_string_buffer, 
                         self.dfa.states[&self.current_state_id].token_id, 
-                        self.dfa.states[&self.current_state_id].token_name);
+                        self.dfa.states[&self.current_state_id].token_name,
+                        file,
+                        line);
                     println!("");
                 }
 
@@ -96,22 +106,26 @@ impl Lexer {
 
                 // DEBUG - this outputs the string and the token generated from the string
                 // This is a good starting point for debugging
-                if lexer_debug {
-                    println!("[LEXER.TRAP_STATE] {:?} ---> {:?}", self.token_string_buffer, terminal);
+                if self.lexer_token_debug {
+                    println!("[LEXER.TRAP_STATE] {:?} ---> {:?} | File: {:?}, Line: {:?}",
+                        self.token_string_buffer,
+                        terminal,
+                        file,
+                        line);
                 }
 
                 match self.dfa.states[&self.current_state_id].token_id {
                     
                     NEWLINE_TOKEN_ID | WHITESPACE_TOKEN_ID => {
                         // ignore NEWLINE and WHITESPACE
-                        if lexer_debug {
+                        if self.lexer_debug {
                             println!("[LEXER.TRAP_STATE] NOT Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
                         }
                     }
 
                     IDENTIFIER_TOKEN_ID => {
 
-                        if lexer_debug {
+                        if self.lexer_debug {
                             println!("[LEXER.TRAP_STATE] Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
                         }
 
@@ -144,7 +158,8 @@ impl Lexer {
 
                     _ => {
 
-                        if lexer_debug {
+                        // DEBUG
+                        if self.lexer_debug {
                             println!("[LEXER.TRAP_STATE] Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
                         }
 
@@ -170,23 +185,26 @@ impl Lexer {
                 self.current_state_id = self.dfa.start_state_id;
                 self.token_string_buffer.clear();
 
-            } else if self.dfa.is_end_state(next_state_id) { 
+            } else if self.dfa.is_end_state(next_state_id) {
+
+                self.token_string_buffer.push(current_character);
+
+                char_consumed = true;
                 
                 //
                 // if the state is normal or an end state, just consume the character
                 //
 
                 // DEBUG
-                if lexer_debug {
-                    println!("[LEXER] Emitting '{}', Token-Id: {}, Token-Name: {}", 
+                if self.lexer_debug {
+                    println!("[LEXER] Emitting '{}', Token-Id: {}, Token-Name: {} | File: {:?}, Line: {:?}", 
                         self.token_string_buffer, 
                         self.dfa.states[&next_state_id].token_id, 
-                        self.dfa.states[&next_state_id].token_name);
+                        self.dfa.states[&next_state_id].token_name,
+                        file,
+                        line
+                    );
                 }
-
-                self.token_string_buffer.push(current_character);
-
-                char_consumed = true;
 
             } else {
 

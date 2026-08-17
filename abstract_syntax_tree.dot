@@ -1,51 +1,77 @@
 digraph {
 0 [label="0 Program"]
-1 [label="1 FunctionDeclaration: main"]
-2 [label="2  DataType: void"]
-1 -> 2
-3 [label="3 Identifier: 'main'"]
-1 -> 3
-4 [label="4 params"]
-1 -> 4
-5 [label="5 Body/Block: main"]
-1 -> 5
-6 [label="6 BlockItem"]
-7 [label="7 Compound: "]
-8 [label="8 Block: "]
-9 [label="9 BlockItem"]
-10 [label="10 Declaration"]
-11 [label="11  DataType: int"]
-12 [label="12 Identifier: array_elem_count"]
-13 [label="13 SingleInit: "]
-14 [label="14 Exp (NotApplicable)"]
-15 [label="15 SizeOf"]
-16 [label="16 Subscript: "]
-17 [label="17 Identifier: array"]
-16 -> 17
-18 [label="18 index: ConstInt(0)"]
-19 [label="19  DataType: UInt"]
-18 -> 19
-16 -> 18
-15 -> 16
-20 [label="20 SizeOf"]
-21 [label="21 Identifier: array"]
-20 -> 21
-22 [label="22 Division"]
-23 [label="23 Binary"]
-23 -> 15
-23 -> 20
+17 [label="17 FunctionDeclaration: "]
+1 [label="1  DataType: int"]
+17 -> 1
+18 [label="18 Identifier: foo"]
+17 -> 18
+4 [label="4 Identifier: a"]
+3 [label="3  DataType: int"]
+5 [label="5 ParameterDeclaration"]
+5 -> 4
+5 -> 3
+17 -> 5
+7 [label="7 Identifier: b"]
+6 [label="6  DataType: int"]
+8 [label="8 ParameterDeclaration"]
+8 -> 7
+8 -> 6
+17 -> 8
+14 [label="14 Body/Block: "]
+17 -> 14
+15 [label="15 BlockItem"]
+11 [label="11  ConstInt(1)"]
+10 [label="10  DataType: UInt"]
+11 -> 10
+12 [label="12 Return"]
+12 -> 11
+13 [label="13 Statement:  "]
+13 -> 12
+15 -> 13
+14 -> 15
+0 -> 17
+43 [label="43 FunctionDeclaration: "]
+19 [label="19  DataType: int"]
+43 -> 19
+44 [label="44 Identifier: main"]
+43 -> 44
+22 [label="22 Identifier: Unnamed!"]
+21 [label="21  DataType: void"]
+23 [label="23 ParameterDeclaration"]
 23 -> 22
-14 -> 23
-13 -> 14
-24 [label="24 VariableDeclaration"]
-24 -> 11
-24 -> 12
-24 -> 13
-10 -> 24
-9 -> 10
-8 -> 9
-7 -> 8
-6 -> 7
-5 -> 6
-0 -> 1
+23 -> 21
+43 -> 23
+40 [label="40 Body/Block: "]
+43 -> 40
+35 [label="35 BlockItem"]
+33 [label="33 Exp (FunctionCall)"]
+32 [label="32 FunctionCall: foo"]
+27 [label="27  ConstInt(1)"]
+26 [label="26  DataType: UInt"]
+27 -> 26
+32 -> 27
+29 [label="29  ConstInt(2)"]
+28 [label="28  DataType: UInt"]
+29 -> 28
+32 -> 29
+31 [label="31  ConstInt(3)"]
+30 [label="30  DataType: UInt"]
+31 -> 30
+32 -> 31
+33 -> 32
+34 [label="34 Statement:  "]
+34 -> 33
+35 -> 34
+40 -> 35
+41 [label="41 BlockItem"]
+37 [label="37  ConstInt(1)"]
+36 [label="36  DataType: UInt"]
+37 -> 36
+38 [label="38 Return"]
+38 -> 37
+39 [label="39 Statement:  "]
+39 -> 38
+41 -> 39
+40 -> 41
+0 -> 43
 }

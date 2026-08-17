@@ -5,15 +5,19 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering}
 };
 
-static AST_NODE_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+// static DOT_NODE_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-// Just to be fair, I asked AI on how to design a recursive data structure
-// which can be iterated over recursively several times without beeing consume
+// Just to be fair, I asked AI on how to design a recursive data structure in rust
+// which can be iterated over recursively several times without being consumed
 // and AI delivered ...
 //
 // I would not have been able to do this without the use of AI :(
 
-#[derive(Debug, PartialEq)]
+//
+// DOT graphviz - https://dreampuf.github.io/GraphvizOnline
+//
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum AstNodeType {
     Program,
     ConstInt,
@@ -30,12 +34,12 @@ pub enum AstNodeType {
     Unary,
     Binary,
     Operator,
+    PrefixOperator,
     DataType,
     Declaration, // variable declaration or function declaration
     FunctionDeclaration,
     VariableDeclaration,
     StructureDeclaration,
-    // StructDeclaration,
     ParameterDeclaration,
     Statement,
     Block,
@@ -60,6 +64,7 @@ pub enum AstNodeType {
     MemberDeclaration,
     Dot,
     Arrow,
+    AssignmentOperator,
     Unknown,
 }
 
@@ -67,26 +72,80 @@ pub enum AstNodeType {
 pub enum AstNodeOperatorType {
     Negate,
     Complement,
+    Not,
     Addition,
     Subtraction,
     Multiplication,
     Division,
+    Remainder,
     LessThan,
     GreaterThan,
+    Equal,
+    NotEqual,
+    LessThanOrEqual,
+    GreaterThanOrEqual,
     Assignment,
+    AddAssignment,
+    SubAssignment,
+    MulAssignment,
+    DivAssignment,
+    ModAssignment,
     FunctionCall,
-    NotApplicable,
     Cast,
     Dereference,
     AddrOf,
     Increment,
+    PrefixIncrement,
     Decrement,
+    PrefixDecrement,
     Dot,
     Arrow,
     SizeOf,
+    And,
+    Or,
+    Xor,
+    LeftShift,
+    RightShift,
+    BinaryAndAssignment,
+    BinaryOrAssignment,
+    BinaryXorAssignment,
+    LeftShiftAssignment,
+    RightShiftAssignment,
+
+    NotApplicable,
+}
+
+//std::fmt::Display
+// impl fmt::Debug for AstNodeOperatorType {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match *self {
+//             AstNodeOperatorType::Equal => write!(f, "E"),
+//             AstNodeOperatorType::NotEqual => write!(f, "NE"),
+//             AstNodeOperatorType::LessThan => write!(f, "L"),
+//             AstNodeOperatorType::LessThanOrEqual => write!(f, "LE"),
+//             AstNodeOperatorType::GreaterThan => write!(f, "G"),
+//             AstNodeOperatorType::GreaterThanOrEqual => write!(f, "GE"),
+//             _ => todo!(),
+//         }
+//     }
+// }
+
+impl fmt::Display for AstNodeOperatorType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            AstNodeOperatorType::Equal => write!(f, "E"),
+            AstNodeOperatorType::NotEqual => write!(f, "NE"),
+            AstNodeOperatorType::LessThan => write!(f, "L"),
+            AstNodeOperatorType::LessThanOrEqual => write!(f, "LE"),
+            AstNodeOperatorType::GreaterThan => write!(f, "G"),
+            AstNodeOperatorType::GreaterThanOrEqual => write!(f, "GE"),
+            _ => todo!(),
+        }
+    }
 }
 
 pub struct AstNode {
+    pub id: usize,
     pub node_type: AstNodeType,
     pub lhs: Option<Box<AstNode>>,
     pub rhs: Option<Box<AstNode>>,
@@ -101,6 +160,8 @@ pub struct AstNode {
     pub is_extern: bool,
     pub is_static: bool,
     pub indent: usize,
+
+    pub function_name_ast_node: Option<Box<AstNode>>, 
 }
 
 impl fmt::Debug for AstNode {
@@ -164,8 +225,8 @@ impl fmt::Debug for AstNode {
             }            
 
             AstNodeType::VariableDeclaration => {
-                print!("VariableDeclaration ");
-                println!("{:?}", self.string_val);
+                // println!("VariableDeclaration");
+                // println!("{:?}", self.string_val);
 
                 // data type
                 if let Some(left_node) = self.lhs.as_ref() {
@@ -174,6 +235,10 @@ impl fmt::Debug for AstNode {
                 // identifier
                 if let Some(right_node) = self.rhs.as_ref() {
                     print!("{:?}", right_node);
+                }
+                // initialization expression
+                if let Some(expression_node) = self.expression.as_ref() {
+                    print!("{:?}", expression_node);
                 }
             }
 
@@ -197,8 +262,7 @@ impl fmt::Debug for AstNode {
             }
 
             AstNodeType::Identifier => {
-                print!("Identifier: ");
-                println!("'{:?}'", self.string_val);
+                println!("Identifier: '{}'", self.string_val);
                 if let Some(left_node) = self.lhs.as_ref() {
                     print!("{:?}", left_node);
                 }
@@ -260,6 +324,10 @@ impl fmt::Debug for AstNode {
                 println!("Operator {:?}", self.operator);
             }
 
+            AstNodeType::PrefixOperator => {
+                println!("PrefixOperator {:?}", self.operator);
+            }
+
             AstNodeType::EmptyStatement => {
                 println!("EmptyStatement");
             }
@@ -314,9 +382,80 @@ impl fmt::Debug for AstNode {
                 }
             }
 
+            AstNodeType::SingleInit => {
+                println!("SingleInit");
+                if let Some(left_node) = self.lhs.as_ref() {
+                    print!("LHS: {:?}", left_node);
+                }
+                if let Some(right_node) = self.rhs.as_ref() {
+                    print!("RHS: {:?}", right_node);
+                }
+            }
+
+            AstNodeType::StructureDeclaration => {
+                println!("StructureDeclaration");
+                if let Some(left_node) = self.lhs.as_ref() {
+                    print!("LHS: {:?}", left_node);
+                }
+                if let Some(right_node) = self.rhs.as_ref() {
+                    print!("RHS: {:?}", right_node);
+                }
+            }
+
+            AstNodeType::MemberDeclaration => {
+                println!("MemberDeclaration");
+                if let Some(left_node) = self.lhs.as_ref() {
+                    print!("LHS: {:?}", left_node);
+                }
+                if let Some(right_node) = self.rhs.as_ref() {
+                    print!("RHS: {:?}", right_node);
+                }
+            }
+
+            AstNodeType::For => {
+                println!("For");
+
+                // LHS - initialization, e.g.: a = 0
+                if let Some(left_node) = self.lhs.as_ref() {
+                    print!("LHS: {:?}", left_node);
+                }
+                // expression - expression_ast_node, condition, e.g. a < 10
+                if let Some(expression_node) = self.expression.as_ref() {
+                    print!("{:?}", expression_node);
+                }
+                // RHS - post, e.g.: a = a + 1
+                if let Some(right_node) = self.rhs.as_ref() {
+                    print!("RHS: {:?}", right_node);
+                }
+                // BLOCK_ITEMS - instructions and declarations
+                for i in 0..self.block_items.len() {
+                    let block_item_ast_node = &self.block_items[self.block_items.len()-1-i];
+                    print!("BLOCK_ITEM: {:?}", block_item_ast_node);
+                }
+            }
+
+            AstNodeType::FunctionCall => {
+                println!("FunctionCall: to function: \"{}\"", self.string_val);
+
+                // // LHS - function name
+                // if let Some(left_node) = self.lhs.as_ref() {
+                //     println!("{:?}", left_node.string_val);
+                // }
+
+                // // RHS - 
+                // if let Some(right_node) = self.rhs.as_ref() {
+                //     println!("{:?}", right_node.string_val);
+                // }
+
+                // PARAMETERS / ARGUMENTS
+                for i in 0..self.parameters.len() {
+                    let parameter_ast_node = &self.parameters[self.parameters.len()-1-i];
+                    println!("ARGUMENT_{}: {:?}", i, parameter_ast_node);
+                }
+            }
+
             _ => {
-                println!("{:?}", self.node_type);
-                todo!();
+                panic!("Unhandled node type: {:?}", self.node_type);
             }
         }
 
@@ -326,8 +465,10 @@ impl fmt::Debug for AstNode {
 
 impl AstNode {
 
-    pub fn new() -> Self {
+    pub fn new(id_param: usize) -> Self {
+
         let ast_node = AstNode {
+            id: id_param,
             node_type: AstNodeType::Unknown,
             lhs: None,
             rhs: None,
@@ -342,63 +483,12 @@ impl AstNode {
             is_extern: false,
             is_static: false,
             indent: 0,
+
+            function_name_ast_node: None,
         };
+        
         ast_node
     }
-
-    //
-    // JSON
-    //
-
-    // pub fn pretty_print_ast_json(&self) {
-    //     match self.node_type {
-    //         AstNodeType::FunctionDefinition => {
-    //             self.pretty_print_ast_function_definition_json();
-    //         }
-    //         AstNodeType::Return => {
-    //             self.pretty_print_ast_return_json();
-    //         }
-    //         AstNodeType::Constant => {
-    //             self.pretty_print_ast_constant_json();
-    //         }
-    //         AstNodeType::Unary => {
-    //             self.pretty_print_ast_unary_json();
-    //         }
-    //         _ => {
-    //             panic!("Test");
-    //         }
-    //     }
-    // }
-
-    // fn pretty_print_ast_function_definition_json(&self) {
-    //     println!("{{");
-    //     println!("\"name\":\"{}\",", self.string_val);
-    //     println!("\"body\": [");
-    //     if let Some(left_node) = self.lhs.as_ref() {
-    //         left_node.pretty_print_ast_json();
-    //     }
-    //     println!("]");
-    //     println!("}}");
-    // }
-
-    // fn pretty_print_ast_return_json(&self) {
-    //     println!("{{");
-    //     println!("\"name\":\"return\",");
-    //     println!("\"value\":{{");
-    //     if let Some(left_node) = self.lhs.as_ref() {
-    //         left_node.pretty_print_ast_json();
-    //     }
-    //     println!("}}");
-    //     println!("}}");
-    // }
-
-    // fn pretty_print_ast_constant_json(&self) {
-    //     println!("\"constant\":\"{}\"", self.string_val);
-    // }
-
-    //
-    // DOT graphviz - https://dreampuf.github.io/GraphvizOnline
-    //
 
     pub fn set_indent(&mut self, indent_param: usize) {
         self.indent = indent_param;
@@ -409,7 +499,6 @@ impl AstNode {
     }
 
     pub fn pretty_print_ast_dot_ex(&self, string_buffer: &mut String, extended_string: &str) -> usize {
-
         match self.node_type {
             AstNodeType::Program => {
                 self.pretty_print_ast_program_dot(string_buffer)
@@ -439,6 +528,9 @@ impl AstNode {
             AstNodeType::Operator => {
                 self.pretty_print_ast_operator_dot(string_buffer)
             }
+            AstNodeType::PrefixOperator => {
+                self.pretty_print_ast_prefix_operator_dot(string_buffer)
+            }
             AstNodeType::BlockItem => {
                 self.pretty_print_ast_block_item_dot(string_buffer, extended_string)
             }
@@ -446,10 +538,10 @@ impl AstNode {
                 self.pretty_print_ast_declaration_dot(string_buffer)
             }
             AstNodeType::VariableDeclaration => {
-                self.pretty_print_ast_variable_declaration_dot(string_buffer)
+                self.pretty_print_ast_variable_declaration_dot(string_buffer, false)
             }
             AstNodeType::ParameterDeclaration => {
-                self.pretty_print_ast_variable_declaration_dot(string_buffer)
+                self.pretty_print_ast_variable_declaration_dot(string_buffer, true)
             }
             AstNodeType::Statement => {
                 self.pretty_print_ast_statement_dot(string_buffer, extended_string)
@@ -540,7 +632,9 @@ impl AstNode {
 
     fn pretty_print_ast_program_dot(&self, string_buffer: &mut String) -> usize {
 
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Program: {}\"]", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Program\"]\n", ast_node_id, ast_node_id).as_str());
 
@@ -559,7 +653,9 @@ impl AstNode {
     fn pretty_print_ast_function_declaration_dot(&self, string_buffer: &mut String) -> usize {
         
         // create node for this AstNode and also output the name into the label
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} FunctionDeclaration: {}\"]", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} FunctionDeclaration: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -571,35 +667,45 @@ impl AstNode {
         }
 
         // create node for the function name
-        let identifier_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-        string_buffer.push_str(format!("{} [label=\"{} Identifier: '{}'\"]\n", identifier_ast_node_id, identifier_ast_node_id, self.string_val).as_str());
-        string_buffer.push_str(format!("{} -> {}\n", ast_node_id, identifier_ast_node_id).as_str());
+        // let identifier_ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // string_buffer.push_str(format!("{} [label=\"{} Identifier: '{}'\"]\n", identifier_ast_node_id, identifier_ast_node_id, self.string_val).as_str());
+        // string_buffer.push_str(format!("{} -> {}\n", ast_node_id, identifier_ast_node_id).as_str());
+        if let Some(function_name_ast_node) = self.function_name_ast_node.as_ref() {
+            let function_name_ast_node_id = function_name_ast_node.pretty_print_ast_dot(string_buffer);
+            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, function_name_ast_node_id).as_str());
+        }
 
-        // create node for the parameters
-        let parameters_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-        // println!("{} [label=\"{} params\"]", parameters_ast_node_id, parameters_ast_node_id);
-        string_buffer.push_str(format!("{} [label=\"{} params\"]\n", parameters_ast_node_id, parameters_ast_node_id).as_str());
-        // println!("{} -> {}", ast_node_id, parameters_ast_node_id);
-        string_buffer.push_str(format!("{} -> {}\n", ast_node_id, parameters_ast_node_id).as_str());
+        // // create node for the parameters
+        // let parameters_ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // // println!("{} [label=\"{} params\"]", parameters_ast_node_id, parameters_ast_node_id);
+        // string_buffer.push_str(format!("{} [label=\"{} params\"]\n", parameters_ast_node_id, parameters_ast_node_id).as_str());
+        // // println!("{} -> {}", ast_node_id, parameters_ast_node_id);
+        // string_buffer.push_str(format!("{} -> {}\n", ast_node_id, parameters_ast_node_id).as_str());
 
         // add parameters into parameters block
         for i in 0..self.parameters.len() {
             let parameter_ast_node_id = self.parameters[self.parameters.len()-1-i].pretty_print_ast_dot(string_buffer);
+
             // connect parent and child
             // println!("{} -> {}", parameters_ast_node_id, parameter_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", parameters_ast_node_id, parameter_ast_node_id).as_str());
+            //string_buffer.push_str(format!("{} -> {}\n", parameters_ast_node_id, parameter_ast_node_id).as_str());
+
+            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, parameter_ast_node_id).as_str());
         }
 
-        // create node for the body/block
-        let block_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-        // println!("{} [label=\"{} Body/Block: {}\"]", block_ast_node_id, block_ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Body/Block: {}\"]\n", block_ast_node_id, block_ast_node_id, self.string_val).as_str());
-        // connect parent and child
-        // println!("{} -> {}", ast_node_id, block_ast_node_id);
-        string_buffer.push_str(format!("{} -> {}\n", ast_node_id, block_ast_node_id).as_str());
-
-        // add instructions and declarations into body/block
         if let Some(block) = self.lhs.as_ref() {
+
+            // create node for the body/block
+            // let block_ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+            let block_ast_node_id = block.id;
+
+            // println!("{} [label=\"{} Body/Block: {}\"]", block_ast_node_id, block_ast_node_id, self.string_val);
+            string_buffer.push_str(format!("{} [label=\"{} Body/Block: {}\"]\n", block_ast_node_id, block_ast_node_id, self.string_val).as_str());
+            // connect parent and child
+            // println!("{} -> {}", ast_node_id, block_ast_node_id);
+            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, block_ast_node_id).as_str());
+
+            // add instructions and declarations into body/block
             for i in 0..block.block_items.len() {
                 let block_item_ast_node_id = block.block_items[block.block_items.len()-1-i].pretty_print_ast_dot(string_buffer);
                 // connect parent and child
@@ -608,18 +714,12 @@ impl AstNode {
             }
         }
 
-        // add instructions and declarations into body/block
-        for i in 0..self.block_items.len() {
-            let block_item_ast_node_id = self.block_items[self.block_items.len()-1-i].pretty_print_ast_dot(string_buffer);
-            // connect parent and child
-            // println!("{} -> {}", block_ast_node_id, block_item_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", block_ast_node_id, block_item_ast_node_id).as_str());
-        }
-
         // storage class
         if let Some(storage_class_node) = self.storage_class.as_ref() {
 
-            let storage_class_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+            // let storage_class_ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+            let storage_class_ast_node_id = storage_class_node.id;
+
             // println!("{} [label=\"{} StorageClass: {}\"]", storage_class_ast_node_id, storage_class_ast_node_id, self.string_val);
             string_buffer.push_str(format!("{} [label=\"{} StorageClass: {}\"]\n", storage_class_ast_node_id, storage_class_ast_node_id, storage_class_node.string_val).as_str());
 
@@ -639,7 +739,9 @@ impl AstNode {
         }
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Return\"]", ast_node_id, ast_node_id);
         string_buffer.push_str(format!("{} [label=\"{} Return\"]\n", ast_node_id, ast_node_id).as_str());
 
@@ -654,7 +756,8 @@ impl AstNode {
 
     fn pretty_print_ast_constant_dot_ex(&self, string_buffer: &mut String, extended_string: &str) -> usize {
 
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
 
         match self.node_type {
 
@@ -697,7 +800,8 @@ impl AstNode {
 
     fn pretty_print_ast_expression_dot(&self, string_buffer: &mut String) -> usize {
 
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Exp ({:?})\"]", ast_node_id, ast_node_id, self.operator_type);
         string_buffer.push_str(format!("{} [label=\"{} Exp ({:?})\"]\n", ast_node_id, ast_node_id, self.operator_type).as_str());
@@ -746,30 +850,43 @@ impl AstNode {
     fn pretty_print_ast_unary_dot(&self, string_buffer: &mut String) -> usize {
 
         // print the child tree
+
+        // operator
         let mut lhs_ast_node_id = 0;
         if let Some(left_node) = self.lhs.as_ref() {
             lhs_ast_node_id = left_node.pretty_print_ast_dot(string_buffer);
         }
+
+        // operand
         let mut rhs_ast_node_id = 0;
         if let Some(right_node) = self.rhs.as_ref() {
             rhs_ast_node_id = right_node.pretty_print_ast_dot(string_buffer);
         }
+
+        // data type
         let mut data_type_ast_node_id = 0;
         if let Some(data_type_node) = self.data_type.as_ref() {
             data_type_ast_node_id = data_type_node.pretty_print_ast_dot(string_buffer);
         }
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Unary\"]", ast_node_id, ast_node_id);
         string_buffer.push_str(format!("{} [label=\"{} Unary\"]\n", ast_node_id, ast_node_id).as_str());
 
         // connect parent and child
+
+        // operator
         // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
         string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
+
+        // operand
         // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
         string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
 
+        // data type
         string_buffer.push_str(format!("{} -> {}\n", ast_node_id, data_type_ast_node_id).as_str());
 
         ast_node_id
@@ -794,7 +911,9 @@ impl AstNode {
         }
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Binary\"]", ast_node_id, ast_node_id);
         string_buffer.push_str(format!("{} [label=\"{} Binary\"]\n", ast_node_id, ast_node_id).as_str());
 
@@ -818,7 +937,9 @@ impl AstNode {
         }
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} {:?}\"]", ast_node_id, ast_node_id, self.operator_type);
         string_buffer.push_str(format!("{} [label=\"{} {:?}\"]\n", ast_node_id, ast_node_id, self.operator_type).as_str());
 
@@ -840,10 +961,30 @@ impl AstNode {
         ast_node_id
     }
 
+    fn pretty_print_ast_prefix_operator_dot(&self, string_buffer: &mut String) -> usize {
+
+        // print the child tree
+        let mut lhs_ast_node_id = 0;
+        if let Some(left_node) = self.lhs.as_ref() {
+            lhs_ast_node_id = left_node.pretty_print_ast_dot(string_buffer);
+        }
+
+        // create node for this AstNode
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
+        // println!("{} [label=\"{} {:?}\"]", ast_node_id, ast_node_id, self.operator_type);
+        string_buffer.push_str(format!("{} [label=\"{} PREFIX {:?}\"]\n", ast_node_id, ast_node_id, self.operator_type).as_str());
+
+        ast_node_id
+    }
+
     fn pretty_print_ast_block_item_dot(&self, string_buffer: &mut String, extended_string: &str) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} BlockItem\"]", ast_node_id, ast_node_id);
         string_buffer.push_str(format!("{} [label=\"{} BlockItem\"]\n", ast_node_id, ast_node_id).as_str());
 
@@ -860,7 +1001,9 @@ impl AstNode {
     fn pretty_print_ast_declaration_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Declaration\"]", ast_node_id, ast_node_id);
         string_buffer.push_str(format!("{} [label=\"{} Declaration\"]\n", ast_node_id, ast_node_id).as_str());
 
@@ -874,13 +1017,13 @@ impl AstNode {
         ast_node_id
     }
 
-    fn pretty_print_ast_variable_declaration_dot(&self, string_buffer: &mut String) -> usize {
+    fn pretty_print_ast_variable_declaration_dot(&self, string_buffer: &mut String, is_parameter: bool) -> usize {
 
         // data type
         let mut lhs_ast_node_id = 0;
         if let Some(left_node) = self.lhs.as_ref() {
             lhs_ast_node_id = left_node.pretty_print_ast_dot(string_buffer);
-            println!("left_node: {:?}", left_node);
+            // println!("left_node: {:?}", left_node);
         }
         // name
         let mut rhs_ast_node_id = 0;
@@ -899,9 +1042,17 @@ impl AstNode {
         }
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} VariableDeclaration\"]", ast_node_id, ast_node_id);
-        string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration\"]\n", ast_node_id, ast_node_id).as_str());
+
+        // either print Parameter or Variable to the dot output
+        if is_parameter {
+            string_buffer.push_str(format!("{} [label=\"{} ParameterDeclaration\"]\n", ast_node_id, ast_node_id).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration\"]\n", ast_node_id, ast_node_id).as_str());
+        }
 
         // connect parent and child
         // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
@@ -933,7 +1084,9 @@ impl AstNode {
         }
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Statement: {} {}\"]", ast_node_id, ast_node_id, extended_string, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Statement: {} {}\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val).as_str());
 
@@ -947,7 +1100,9 @@ impl AstNode {
     fn pretty_print_ast_datatype_dot(&self, string_buffer: &mut String, extended_string: &str) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} DataType: {}\"]", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} {} DataType: {}\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val).as_str());
 
@@ -974,7 +1129,9 @@ impl AstNode {
     fn pretty_print_ast_identifier_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Identifier: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Identifier: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -985,7 +1142,9 @@ impl AstNode {
     fn pretty_print_ast_if_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} If: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} If: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1023,7 +1182,9 @@ impl AstNode {
     fn pretty_print_ast_compound_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Compound: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Compound: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1042,7 +1203,9 @@ impl AstNode {
     fn pretty_print_ast_block_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Block: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Block: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1062,7 +1225,9 @@ impl AstNode {
     fn pretty_print_ast_while_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} While: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} While: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1091,7 +1256,9 @@ impl AstNode {
     fn pretty_print_ast_do_while_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} DoWhile: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} DoWhile: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1121,11 +1288,13 @@ impl AstNode {
     fn pretty_print_ast_for_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} For: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} For: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
-        // initialization, e.g.: a = 0
+        // LHS - initialization, e.g.: a = 0
         let mut lhs_ast_node_id = 0;
         if let Some(left_node) = self.lhs.as_ref() {
             lhs_ast_node_id = left_node.pretty_print_ast_dot_ex(string_buffer, "INIT");
@@ -1134,16 +1303,16 @@ impl AstNode {
             // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
             string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
         }
-        // expression_ast_node, condition, e.g. a < 10
-        let mut rhs_ast_node_id = 0;
-        if let Some(right_node) = self.expression.as_ref() {
-            rhs_ast_node_id = right_node.pretty_print_ast_dot_ex(string_buffer, "CONDITION");
+        // Expression - expression_ast_node, condition, e.g. a < 10
+        let mut expression_ast_node_id = 0;
+        if let Some(expression_node) = self.expression.as_ref() {
+            expression_ast_node_id = expression_node.pretty_print_ast_dot_ex(string_buffer, "CONDITION");
 
             // connect parent and child
-            // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
+            // println!("{} -> {}", ast_node_id, expression_ast_node_id);
+            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, expression_ast_node_id).as_str());
         }
-        // post, e.g.: a = a + 1
+        // RHS - post, e.g.: a = a + 1
         let mut rhs_ast_node_id = 0;
         if let Some(right_node) = self.rhs.as_ref() {
             rhs_ast_node_id = right_node.pretty_print_ast_dot_ex(string_buffer, "POST");
@@ -1153,7 +1322,7 @@ impl AstNode {
             string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
         }
 
-        // instructions and declarations
+        // BLOCK_ITEMS - instructions and declarations
         for i in 0..self.block_items.len() {
 
             let block_item_ast_node_id = self.block_items[self.block_items.len()-1-i].pretty_print_ast_dot(string_buffer);
@@ -1169,7 +1338,9 @@ impl AstNode {
     fn pretty_print_ast_conditional_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1209,9 +1380,20 @@ impl AstNode {
     fn pretty_print_ast_function_call_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-        // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         string_buffer.push_str(format!("{} [label=\"{} FunctionCall: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+
+        // parameters
+        let parameter_ast_node_id = 0;
+        for i in 0..self.parameters.len() {
+
+            let parameter_ast_node_id = self.parameters[self.parameters.len()-1-i].pretty_print_ast_dot(string_buffer);
+
+            // connect parent and child
+            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, parameter_ast_node_id).as_str());
+        }
 
         ast_node_id
     }
@@ -1219,7 +1401,9 @@ impl AstNode {
     fn pretty_print_ast_storage_class_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} StorageClass: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1229,7 +1413,9 @@ impl AstNode {
     fn pretty_print_ast_pointer_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Pointer: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1239,7 +1425,9 @@ impl AstNode {
     fn pretty_print_ast_switch_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Switch: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1258,7 +1446,9 @@ impl AstNode {
     fn pretty_print_ast_case_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Case: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1293,7 +1483,9 @@ impl AstNode {
     fn pretty_print_ast_default_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Default: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1318,7 +1510,9 @@ impl AstNode {
     fn pretty_print_ast_break_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Break\"]\n", ast_node_id, ast_node_id);
         string_buffer.push_str(format!("{} [label=\"{} Break\"]\n", ast_node_id, ast_node_id).as_str());
 
@@ -1328,7 +1522,9 @@ impl AstNode {
     fn pretty_print_ast_empty_statement_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} EmptyStatement: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1338,7 +1534,9 @@ impl AstNode {
     fn pretty_print_ast_single_init_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} SingleInit: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1357,7 +1555,9 @@ impl AstNode {
     fn pretty_print_ast_compound_init_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} CompoundInit: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1374,7 +1574,9 @@ impl AstNode {
     fn pretty_print_ast_subscript_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Subscript: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1404,7 +1606,9 @@ impl AstNode {
     fn pretty_print_ast_structure_declaration_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} StructDecl: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1421,7 +1625,9 @@ impl AstNode {
     fn pretty_print_ast_member_declaration_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} MemberDecl: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1451,7 +1657,9 @@ impl AstNode {
     fn pretty_print_ast_array_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Array: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1481,7 +1689,9 @@ impl AstNode {
     fn pretty_print_ast_structure_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Struct: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1511,7 +1721,9 @@ impl AstNode {
     fn pretty_print_ast_dot_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Dot: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1541,7 +1753,9 @@ impl AstNode {
     fn pretty_print_ast_arrow_dot(&self, string_buffer: &mut String) -> usize {
         
         // create node for this AstNode
-        let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let ast_node_id = self.id;
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Arrow: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
@@ -1569,3 +1783,83 @@ impl AstNode {
     }
     
 }
+
+
+
+//
+    // JSON
+    //
+
+    // pub fn pretty_print_ast_json(&self) {
+    //     match self.node_type {
+    //         AstNodeType::FunctionDefinition => {
+    //             self.pretty_print_ast_function_definition_json();
+    //         }
+    //         AstNodeType::Return => {
+    //             self.pretty_print_ast_return_json();
+    //         }
+    //         AstNodeType::Constant => {
+    //             self.pretty_print_ast_constant_json();
+    //         }
+    //         AstNodeType::Unary => {
+    //             self.pretty_print_ast_unary_json();
+    //         }
+    //         _ => {
+    //             panic!("Test");
+    //         }
+    //     }
+    // }
+
+    // fn pretty_print_ast_function_definition_json(&self) {
+    //     println!("{{");
+    //     println!("\"name\":\"{}\",", self.string_val);
+    //     println!("\"body\": [");
+    //     if let Some(left_node) = self.lhs.as_ref() {
+    //         left_node.pretty_print_ast_json();
+    //     }
+    //     println!("]");
+    //     println!("}}");
+    // }
+
+    // fn pretty_print_ast_return_json(&self) {
+    //     println!("{{");
+    //     println!("\"name\":\"return\",");
+    //     println!("\"value\":{{");
+    //     if let Some(left_node) = self.lhs.as_ref() {
+    //         left_node.pretty_print_ast_json();
+    //     }
+    //     println!("}}");
+    //     println!("}}");
+    // }
+
+    // fn pretty_print_ast_constant_json(&self) {
+    //     println!("\"constant\":\"{}\"", self.string_val);
+    // }
+
+
+
+    // match self.operator_type {
+
+        //     AstNodeOperatorType::SizeOf => {
+        //         let mut expression_ast_node_id = 0;
+        //         if let Some(expression_node) = self.expression.as_ref() {
+        //             expression_ast_node_id = expression_node.pretty_print_ast_dot(string_buffer);
+        //             string_buffer.push_str(format!("{} -> {}\n", ast_node_id, expression_ast_node_id).as_str());
+        //         }
+        //     }
+
+        //     _ => {
+
+        //     }
+        // }
+
+
+
+        // // add instructions and declarations into body/block
+            // for i in 0..self.block_items.len() {
+            //     let block_item_ast_node_id = self.block_items[self.block_items.len()-1-i].pretty_print_ast_dot(string_buffer);
+            //     // connect parent and child
+            //     // println!("{} -> {}", block_ast_node_id, block_item_ast_node_id);
+            //     string_buffer.push_str(format!("{} -> {}\n", block_ast_node_id, block_item_ast_node_id).as_str());
+            // }
+    

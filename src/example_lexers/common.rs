@@ -1,15 +1,12 @@
 use std::collections::HashSet;
 
 use crate::EpsilonNfa;
-// use crate::enfa_to_dfa;
-// use crate::enfa_copy;
 use crate::regex::enfa::enfa_copy;
 use crate::State;
 use crate::RegexBuildingBlock;
 use crate::regex::enfa::Fragment;
 use crate::regex::enfa::FragmentStack;
 use crate::InfixPostfixConverter;
-// use crate::recurse_postfix_build_fragment_stack;
 use crate::regex::enfa::recurse_postfix_build_fragment_stack;
 use crate::Input;
 

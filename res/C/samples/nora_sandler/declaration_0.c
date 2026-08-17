@@ -1,4 +1,6 @@
 void main() {
-    int b;
+
+    int a;
+
     return;
 }

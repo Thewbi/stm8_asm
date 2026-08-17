@@ -1,4 +1,20 @@
+# C Compiler build according to Nora Sandler's Book - Writing a C Compiler
+
+This is a C compiler written in Rust for the C programming language.
+
+## Assembler
+
+Good Overview of x86 and also x86-64 bit: https://en.wikibooks.org/wiki/X86_Assembly/Print_Version
+
+To assemble the output, you may use MASM from within Visual Studio.
+
+[MASM](MASM.md)
+
 # Disclaimer
+
+```
+Roses are red, violets are blue... Unexpected ‘{‘ on line 32.
+```
 
 I am not an expert compiler designer! Read with caution!
 Also excuse the horrible drawings! I am not a graphics designer by any means! I just do not know how to generate nice digital images. Having analog drawings is better than nothing.
@@ -138,13 +154,15 @@ This lexer is implemented based on regular expressions. The token or terminals a
 
 Having the regular expression a in postfix notation allows it to be fed into the algorithm described by Russ Cox (https://swtch.com/%7Ersc/regexp/regexp1.html). 
 
+https://www.youtube.com/watch?v=dyZptpZLwIE
+
 The algorithm on the highest level uses fragments. A fragment is an object that can be placed on a stack, the fragment stack. The algorithm will place fragments on the fragment stack and merge fragment on the frament stack based on the operators it encounters in the regular expression as it scans the regular expression.
 
 Here is a graphical depiction of all the operations that the implementation of the algorithm will perform:
 
 ![eNFA_Construction](res/images/eNFA_Construction.jpg "eNFA Construction")
 
-In the drawing fragments are depcited using rectangles. For the # operation, which is the concatenation operation, you can see that the fragment stack starts out with two fragments on it (two rectangles stacked on top of each other). After the contatenation operation is applied, the stack only contains a single fragment which was created by popping the two fragments, processing them and pushing the result onto the stack.
+In the drawing fragments are depicted using rectangles. For the # operation, which is the concatenation operation, you can see that the fragment stack starts out with two fragments on it (two rectangles stacked on top of each other). After the contatenation operation is applied, the stack only contains a single fragment which was created by popping the two fragments, processing them and pushing the result onto the stack.
 
 Other than being objects which are pushed to a stack, fragments also serve a second purpose. They point to the start and end state of nondeterministic automata. When an operation is applied to a fragment, the fragment's automata will also change according to the operation. The image also shows, which changes are performed on the automata. When two fragments are merged into a new fragment, their automata are also merged to form a new automaton. After the entire process is done, the outcome is a non-deterministic automaton that accepts the regular expression.
 
@@ -196,7 +214,7 @@ In order to test, what token the lexer will create using a given test input, use
 [LEXER.TRAP_STATE] " " ---> WHITESPACE
 [LEXER.TRAP_STATE] " " ---> WHITESPACE
 [LEXER.TRAP_STATE] " " ---> WHITESPACE
-[LEXER.TRAP_STATE] "head_p" ---> IDENTIFIE
+[LEXER.TRAP_STATE] "head_p" ---> IDENTIFIER
 [LEXER.TRAP_STATE] "->" ---> PTR_OP
 [LEXER.TRAP_STATE] "data" ---> IDENTIFIER
 [LEXER.TRAP_STATE] " " ---> WHITESPACE
@@ -214,7 +232,7 @@ In order to test, what token the lexer will create using a given test input, use
 
 # The Parser
 
-**Motivation:** I need a component that consumes the source code, allows for reactions to detected language constructs such as if, function declarations, structs, ... and also the component needs to be able to detect syntax errors as precise as possible.
+**Motivation:** I need a component that consumes the source code, allows for reactions to detected language constructs such as if, function declarations, structs, ... and also the component needs to be able to detect syntax errors as precisely as possible.
 
 **Warning:** If you want to hand-craft a parser, skip this section. This section is about generating a parser from a grammar using an algorithm! This section explains how the parser is generated using the algorithm from the dragon book! If you think this is not what you want, skip this section! The reason for the dragon book LALR(1) parser is that I got burned in the past pretty hard by investing days into a grammar just to eventually realize that I am not smart enough to come up with a working grammar for C! That is why I assume that I am not smart enough to create a hand-written compiler for the language which is even harder than formulating a grammar! If you want to hand-write a parser, be warned. My advice is it to find a way to perform rapid prototyping so failure is not too expensive! You will probably not get it right the first time around.
 
@@ -248,7 +266,7 @@ Why build LALR(1) in the first place using the hard to understand channel algori
 
 So, we assume the grammar is LALR(1) and the parser will be constructed from the LR(0) graph directly using the channel algorithm. Now the channel algorithm from the dragon book needs to be understood which is hard (at least for me it was)!
 
-The overview that comes next is a blend of the dragon book and an answer that the AI has produced. It is actually the instruction I followd:
+The overview that comes next is a blend of the dragon book and an answer that the AI has produced. It is actually the instruction I followed:
 
 ```
 # 4.7.5 Efficient Construction of LALR Parsing Tables, Dragon Book, 2nd Edition, page 271
@@ -308,15 +326,15 @@ You need to augment the grammar start rule.
 
 ## General Workings of the Channel Algorithm
 
-The channel algorithm works like this: For each rule, it builds a node in the graph! It starts out with the start production of the grammar. A node in the graph consists of identification rules which form the kernel of that node. The kernel contains all rules that where used to create that state before the closure was applied. Rules created by the closure operation will not be part of the kernel but just added into the state into the rules vector.
+The channel algorithm works like this: For each rule, it builds a node in the graph! It starts out with the start production of the grammar. A node in the graph consists of identification rules which form the kernel of that node. The kernel contains all rules which had been used to create that state before the closure was applied. Rules created by the closure operation will not be part of the kernel but just added into the state's rules vector.
 
-When a new rule is added by the closure operation, lookahead symbols are also determined for the new rule. The lookaheads for the new rule are derived from the old rule. The first thing to understand is that an old rule creates a new rule based on the current position of the dot marker with in the old rule. If the dot marker marks (sits in front of or points to) a non-terminal, then a new rule is inserted which has that exact non-terminal as LHS (left-hand side). The dot marker in the new rule will be placed onto the first RHS (right-hand side) element. The lookaheads inserted into the new rule are the lookaheads of beta (will be explained shortly in the section about the closure operation "Building the Closure") or, if beta is empty, the lookaheads of the old rule are transferred over to the new rule. If two or more rules lead to the same new rule, then all lookaheads combine! This means the lookaheads are just added together for each time, the new rule is inserted by the closure operation.
+When a new rule is added by the closure operation, lookahead symbols are also determined for the new rule. The lookaheads for the new rule are derived from the old rule. The first thing to understand is that an old rule creates a new rule based on the current position of the dot marker within the old rule. If the dot marker marks (sits in front of or points to) a non-terminal, then a new rule is inserted which has that exact non-terminal as LHS (left-hand side). The dot marker in the new rule will be placed onto the first RHS (right-hand side) element. The lookaheads inserted into the new rule are the lookaheads of beta (will be explained shortly in the section about the closure operation "Building the Closure") or, if beta is empty, the lookaheads of the old rule are transferred over to the new rule. If two or more rules lead to the same new rule, then all lookaheads combine! This means the lookaheads are just added together for each time, the new rule is inserted by the closure operation.
 
-First it will build the closure of a state. Once the kernel and the closure rules are available. It will build transitions to new states. The states are created on the fly. One very important thing is to only transition to a state given a symbol, if the source state for that symbol activates ALL the rules in the kernel of the next state! (If no state for such a kernel exists yet, add a new node to the graph!). The ALL rules part is very, very important! A transition only happens if ALL rules that form the kernel of the next state are activated by the symbol at the same time! This means a transition consisist of a set of rules not just on a single rule! And all rules in the kernel need to be satisified to transition to a target state. If no such state exists, create a new one!
+First it will build the closure of a state. Once the kernel and the closure rules are available. It will build transitions to new states. The states are created on the fly. One very important thing is to only transition to a state given a symbol, if the source state for that symbol activates ALL the rules in the kernel of the next state! (If no state for such a kernel exists yet, add a new node to the graph!). The ALL rules part is very, very important! A transition only happens if ALL rules that form the kernel of the next state are activated by the symbol at the same time! This means a transition consists of a set of rules and not just of a single rule! All rules in the kernel of the target state need to be satisified to transition to a target state. If no such state exists, create a new one!
 
-The closure operation is what inserts the lookahead symbols into the rules initially! It uses First and Nullable information for that! (I have never used a Follow-Set! I do not know what that is!) The closure operation in this implementation is called pub fn unfold_grammar_state().
+The closure operation in this implementation is called pub fn unfold_grammar_state(). The closure operation is what inserts the lookahead symbols into the rules initially! It uses First and Nullable information for that! (I have never used a Follow-Set! I do not know what that is! The AI says to use follow sets! I must have used something akin to a follow set as my implementation does in fact work although I have not explicitly computed any follow sets! I do not actually know what is goint on! Make sure you understand what a follow set is before you implement the channel algorithm.) 
 
-During all the graph construction, somehow maintain information, which rule has a channel to which rule. Rules form channels, if a destination rule was created based on a source rule. Then there is a channel between the source rule and the target rule in that direction.
+During all the graph construction, somehow maintain information, which source rule has a channel to which target rule. Rules form channels, if a destination rule was created based on a source rule. Then there is a channel between the source rule and the target rule in that direction.
 
 Once the graph of nodes is constructed and the transitions between nodes are available, the last step is to push lookahead symbols through the channels until no state has seen any change any more. This means this is an iterative process which repeats until no more lookaheads are pushed because all states have received all data they need.
 
@@ -437,14 +455,14 @@ rules in the destination kernel are empty-beta at the same time! I cannot stress
 inter-channel lookaheads if ALL target kernel rules are ALL empty-beta at at the same time! If one or more of
 them are not empty beta, then no propagation takes place at all!**
 
-# Creating the parser table
+# Creating the Parse Table
 
 The only reason why the LALR(1) Channel Algorithm performs LR(0) graph construction, closure, channel management
 and lookahead propagation is that from the final information, a parse table can be determined! The parse table
 is the result of the algorithm and the parse table is what is really needed! The LALR(1) graph including all
 state, lookaheads and channels can go into the trash after the parse table is available! In theory, the 
 LALR(1) Channel Algorithm is a parser generator and it only needs to run, when no parse table is available yet
-and when the original grammar has changed and the parse table needs to be reconstructed!
+or when the original grammar has changed and the parse table needs to be reconstructed!
 
 A word about performance: This implementation is slow when it comes to constructing the Lexer and Parser. It is
 definitely recommended to persist the large Lexer DFA and the ParseTable instead of recomputing it every time you start
@@ -463,6 +481,8 @@ Both online tools:
 * https://jsmachines.sourceforge.net/machines/lalr1.html
 
 display the parse table. Use them to compare your parse table to them!
+
+In theory, for the parser, you could scrape the parse table from these online tools HTML output to get your parse table quickly, but what fun is that?
 
 # Lexer/Parser - Handling the typedef Keyword
 
@@ -576,6 +596,8 @@ The parser
 Imagine you use code loaded from a sample file as input and you are sure that the code is valid C but the parser will not accpet the code! How do you find the issue!
 
 As a hot-fix, take a look at your sample file. If the file ends with empty lines containing whitespace characters, first remove those trailing whitespace characters so that only your source code is left! Currently the grammar is inflexible in that it will fail on trailing whitespace. If this fixes your issue, that is the simplest of all cases.
+
+Another important hot-fix is to remove any comments! The C grammar does not define single or multi-line comments because the C preprocessor deals with comments. The preprocessor (which is not implemented yet) has the job to replace any comment by a single whitespace. As long as there is no preprocessor, you have to replace any comments by a single whitespace manually!
 
 Edit the file src\example_input\input.rs. As an input, provide the code that refuses to parse:
 
@@ -1076,7 +1098,36 @@ declarator =
 
 Page 432 - Chapter 16 - strings
 
-Page 463/464 - Chapter 17 - Supporting Dynamic Memory Allocation
+Page 463/464 - Chapter 17 - Supporting Dynamic Memory Allocation (Sizeof operator: page 462)
+
+```
+type = 
+    Char
+    | SChar
+    | UChar
+    | Int 
+    | Long 
+    | UInt 
+    | ULong 
+    | Double 
+    | Void // new
+    | FunType(type* params, type ret) 
+    | Pointer(type referenced) 
+    | Array(type element, int size)
+```
+
+```
+statement =
+    ...
+    | Return(exp?) // changed: exp is now optional
+    ```
+```
+
+```
+exp = 
+    SizeOf(exp)
+    | SizeOfT(type)
+```
 
 Page 495/496 - Chapter 18 - Structures
 
@@ -1124,9 +1175,845 @@ exp =
 ```
 
 ------- Here the Chapter on Optimization starts -------
+
 ------- I have not checked for AST changes beyond this point -------
 
+
+
+
+
+# The Intermediate Language Step - TACKY
+
+An intermediate language allows to split the compiler into a frontend for each programming language and a backend for each target.architecture.
+
+It is overkill for compilers that translate a single source programming language for a single target. In this case the idea is to translate the C programming language to several target architectures (x86, RISC-V, 6502 and STM-8).
+
+In the book, three address code is introduced on page 35. TACKY is defined on page 36.
+
+Each chapter defines new TACKY constructs and also contains a table mapping AST nodes to TACKY elements.
+
+TACKY is then converted into an Assembly AST (!= the AST, but a new assembly AST!). The assembly AST is then converted to the target assembler program code. This is stated on page 39.
+
+## A word about storing TACKY to files
+
+One problem with Nora Sandler's TACKY is that it does not store type information. This means that you cannot persist the TACKY IR into a file and read it back from the file since the type information is not output to TACKY but lives in RAM and is forwarded to subsequent compiler stages along with the TACKY IR code at runtime!
+
+This means TACKY is not really a language that can be output to files. Instead TACKY is designed to live in RAM at compile time! If you want to persist TACKY to disc, you also need to perists and then deserialize the type information later!
+
+Another issue is with Arrays. TACKY has no way of storing the amount of elements in an array. The amount of elements is also part of the type information which TACKY does not make explicit. This means you cannot read TACKY back from a file and detect arrays! Arrays are normal variables but there is no information in the TACKY syntax that the variable is an array and how many elements the array has. (https://github.com/Thewbi/cpp_compiler/blob/main/src/test/resources/TACKY/array_1.tky therefor introduces custom TACKY constructs that are not defined in Nora Sandler's book.)
+
+## Open Questions:
+unions,
+sizeof,
+
+
+
+## Page 36 - Unary Operations
+
+The TACKY definition is contained on page 36.
+
+```
+program = Program(function_definition)
+
+function_definition = Function(identifier, instruction* body)
+
+instruction = 
+    Return(val)
+    | Unary(unary_operator, val src, val dst)
+
+val = Constant(int)
+    | Var(identifier)
+
+unary_operator = 
+    Complement
+    | Negate
+```
+
+The AST -> TACKY conversion table is contained on page 37.
+The TACKY -> ASM_AST converstion table is contained on page 41.
+The ASM_AST -> ASM conversion table is contained on page 43, 44.
+
+
+
+## Page 58 - Binary Operations
+
+The TACKY definition is contained on page 58.
+
+```
+program = Program(function_definition)
+
+function_definition = Function(identifier, instruction* body)
+
+instruction = 
+    Return(val)
+    | Unary(unary_operator, val src, val dst)
+    | Binary(binary_operator, val src1, val src2, val dst)
+
+val = Constant(int)
+    | Var(identifier)
+
+unary_operator = 
+    Complement
+    | Negate
+
+binary_operator = 
+    Add
+    | Subtract
+    | Multiply
+    | Divide
+    | Remainder
+```
+
+The AST -> TACKY conversion table is contained on page 58.
+The TACKY -> ASM_AST converstion table is contained on page 62.
+The ASM_AST -> ASM conversion table is contained on page 63.
+
+
+
+## Page 75 - Logical and Relational Operators
+
+The TACKY definition is contained on page 75.
+
+```
+program = Program(function_definition)
+
+function_definition = Function(identifier, instruction* body)
+
+instruction = 
+    Return(val)
+    | Unary(unary_operator, val src, val dst)
+    | Binary(binary_operator, val src1, val src2, val dst)
+    | Copy(val src, val dst)
+    | Jump(identifier target)
+    | JumpIfZero(val condition, identifier target)
+    | JumpIfNotZero(val condition, identifier target)
+    | Label(identifier)
+
+val = Constant(int)
+    | Var(identifier)
+
+unary_operator = 
+    Complement
+    | Negate
+    | Not
+
+binary_operator = 
+    Add
+    | Subtract
+    | Multiply
+    | Divide
+    | Remainder
+    | Equal
+    | NotEqual
+    | LessThan
+    | LessOrEqual
+    | GreaterThan
+    | GreaterOrEqual
+```
+
+The AST -> TACKY conversion table is contained on page 76.
+The TACKY -> ASM_AST converstion table is contained on page 85, 87.
+The ASM_AST -> ASM conversion table is contained on page 89.
+
+
+
+## Page 109 - Local Variables
+
+There are no new TACKY definitions.
+The AST -> TACKY conversion table is contained on page 110.
+The TACKY -> ASM_AST converstion table is contained on page ?.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+
+
+## Page 126 - If Statements and Conditional Expressions
+
+The TACKY definition is contained on page -- No new elements are introduced. 
+
+The AST -> TACKY conversion table is contained on page 126.
+Templates to show how to construct TACKY are added.
+
+AST: 
+```
+if '(' <condition> ')' then <statement>
+```
+
+TACKY-Template:
+```
+<instructions for condition>
+c = <result of condition> // There is no TACKY definition for an assignment! How is this assignment defined?
+JumpIfZero(c, end)
+<instructions for statement>
+Label(end)
+```
+
+AST:
+```
+if '(' <condition> ')' then <statement_1> else <statement_2>
+```
+
+TACKY-Template:
+```
+<instructions for condition>
+c = <result of condition> // There is no TACKY definition for an assignment! How is this assignment defined?
+JumpIfZero(c, else_label)
+<instructions for statement_1>
+Jump(end)
+Label(else_label)
+<instructions for statement_2>
+Label(end)
+```
+
+AST:
+```
+<condition> ? <e_1> else <e_2>
+```
+
+TACKY-Template:
+```
+<instructions for condition>
+c = <result of condition>   // There is no TACKY definition for an assignment! How is this assignment defined?
+JumpIfZero(c, e2_label)
+<instructions to calculate e_1>
+v1 = <result of e1>         // There is no TACKY definition for an assignment! How is this assignment defined?
+result = v1                 // There is no TACKY definition for an assignment! How is this assignment defined?
+Jump(end)
+Label(e2_label)
+<instructions to calculate e_2>
+v2 = <result of e2>         // There is no TACKY definition for an assignment! How is this assignment defined?
+result = v2                 // There is no TACKY definition for an assignment! How is this assignment defined?
+Label(end)
+```
+
+The TACKY -> ASM_AST converstion table is contained on page ?.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+
+
+## Page 140 - Compound Statements
+
+The TACKY definition is contained on page ? -- No new elements are introduced.
+
+The AST -> TACKY conversion table is contained on page ?.
+
+The book says on page 140
+
+```
+To convert a compound statement to TACKY, just convert each block item inside it to TACKY.
+```
+
+The TACKY -> ASM_AST converstion table is contained on page ?.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+
+
+## Page 155 - Loops
+
+The TACKY definition is contained on page ? -- No new elements are introduced.
+
+The AST -> TACKY conversion table is contained on page 155.
+
+Assumption: Loop Annotations from page 152 has been successfully performed.
+
+AST:
+```
+do <body> while '(' <condition> ')'
+```
+
+TACKY-Template:
+```
+Label(start)
+    -- body
+    <instructions for body>
+Label<continue_label>
+    -- condition
+    <instructions for condition>
+    v = <result of condition>       // There is no TACKY definition for an assignment! How is this assignment defined?
+    JumpIfNotZero(v, start)
+Label<break_label>
+```
+
+
+
+AST:
+```
+while '(' <condition> ')' <body>
+```
+
+TACKY-Template:
+```
+Label<continue_label>
+
+    -- condition
+    <instructions for condition>
+    v = <result of condition>       // There is no TACKY definition for an assignment! How is this assignment defined?
+    JumpIfNotZero(v, break_label)
+
+    -- body
+    <instructions for body>
+    Jump(continue_label)
+
+Label<break_label>
+```
+
+
+
+AST:
+```
+for '(' <init> ; <condition> ; <post> ')' <body>
+```
+
+TACKY-Template:
+```
+    -- init
+    <instructions for init>
+
+Label(start)
+
+    -- condition
+    <instructions for condition>
+    v = <result of condition>       // There is no TACKY definition for an assignment! How is this assignment defined?
+    JumpIfNotZero(v, break_label)
+
+    -- body
+    <instructions for body>
+
+Label<continue_label>
+
+    -- post
+    <instructions for post>
+
+    Jump(start)
+
+Label<break_label>
+```
+
+
+
+Switch on page 159
+AST:
+```
+switch (test_val) {
+    case 1:
+        <body_1>
+        break;
+        
+    case 2:
+        <body_2>
+        break;
+
+    case 3:
+    case 4:
+        <body_3_4>
+        break;
+    
+    default:
+        <body_default>
+        break;
+}
+```
+
+TACKY-Template:
+```
+    -- condition case 1
+    Binary(Equal, test_val, 1, v)
+    JumpIfZero(v, label_body_1)
+
+    -- condition case 2
+    Binary(Equal, test_val, 2, v)
+    JumpIfZero(v, label_body_2)
+
+    -- condition case 3
+    Binary(Equal, test_val, 3, v)
+    JumpIfZero(v, label_body_3_4)
+
+    -- condition case 4
+    Binary(Equal, test_val, 4, v)
+    JumpIfZero(v, label_body_3_4)
+
+    Jump(label_default)
+
+Label<label_body_1>
+    <instructions for body_1>
+    Jump(break_label)
+
+Label<label_body_2>
+    <instructions for body_2>
+    Jump(break_label)
+
+Label<label_body_3_4>
+    <instructions for body_3_4>
+    Jump(break_label)
+
+Label<label_default>
+    <instructions for body_default>
+    Jump(break_label)
+
+Label<break_label>
+```
+
+The TACKY -> ASM_AST converstion table is contained on page ?.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+
+
+## Page ? - Function Calls 
+
+The TACKY definition is contained on page 182.
+
+```
+program = Program(function_definition*)
+
+function_definition = Function(identifier, identifier* params, instruction* body)
+
+instruction = 
+    Return(val)
+    | Unary(unary_operator, val src, val dst)
+    | Binary(binary_operator, val src1, val src2, val dst)
+    | Copy(val src, val dst)
+    | Jump(identifier target)
+    | JumpIfZero(val condition, identifier target)
+    | JumpIfNotZero(val condition, identifier target)
+    | Label(identifier)
+    | FunCall(identifier fun_name, val* args, val dst)
+```
+
+The AST -> TACKY conversion table is contained on page 183.
+
+First convert every function_definition with body found in the AST into TACKY function_definition nodes.
+The book says:
+```
+To convert an entire program to TACKY, process the top-level function declarations one at a time, converting each function definition to a TACKY function_definition and discarding any declaration without a body.
+```
+
+To convert function calls to TACKY:
+```
+To convert a function call to TACKY, generate the instructions to evaluate each argument and construct a list of the resulting TACKY values.
+...
+Remember to add a Return(0) instruction to the end of every function.
+```
+In case some paths do not contain a return or the user forgot to add a return.
+Also read page 261 - "Generating Extra Return Instructions" to read about why return(0) is okay even if the function does not return an integer.
+
+```
+<instructions for e1>
+v1 = <result of e1>
+
+<instructions for e2>
+v2 = <result of e2>
+
+result = FunCall(fun, [v1, v2, ...])
+```
+
+The TACKY -> ASM_AST converstion table is contained on page ?.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+
+
+## Page 234 File Scope Variable Declarations and Storage-Class Specifiers
+
+The TACKY definition is contained on page 234.
+
+```
+program = Program(top_level*)
+
+top_level = 
+    Function(identifier, bool global, identifier* params, instruction* body)
+    | StaticVariable(identifier, bool global, int init)
+```
+
+The AST -> TACKY conversion table is contained on page ?.
+The TACKY -> ASM_AST converstion table is contained on page 235, 236.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+
+
+## Page ? Long Integers
+
+The TACKY definition is contained on page 258, 259.
+
+```
+StaticVariable(identifier, bool global, type t, static_init init)
+
+instruction = 
+    Return(val)
+    | SignExtend(val src, val dst)
+    | Truncate(val src, val dst)
+    | Unary(unary_operator, val src, val dst)
+    | Binary(binary_operator, val src1, val src2, val dst)
+    | Copy(val src, val dst)
+    | Jump(identifier target)
+    | JumpIfZero(val condition, identifier target)
+    | JumpIfNotZero(val condition, identifier target)
+    | Label(identifier)
+    | FunCall(identifier fun_name, val* args, val dst)
+
+val = Constant(const)
+    | Var(identifier)
+```
+
+The AST -> TACKY conversion table is contained on page 259, 260.
+The TACKY -> ASM_AST converstion table is contained on page 261 and page 264, 265.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+
+
+## Page ? Unsigned Integers
+
+The TACKY definition is contained on page 281 and page 289.
+
+```
+instruction = 
+    Return(val)
+    | SignExtend(val src, val dst)
+    | Truncate(val src, val dst)
+    | ZeroExtend(val src, val dst)
+    | Unary(unary_operator, val src, val dst)
+    | Binary(binary_operator, val src1, val src2, val dst)
+    | Copy(val src, val dst)
+    | Jump(identifier target)
+    | JumpIfZero(val condition, identifier target)
+    | JumpIfNotZero(val condition, identifier target)
+    | Label(identifier)
+    | FunCall(identifier fun_name, val* args, val dst)
+
+const = ConstInt(int) 
+    | ConstUInt(int)
+    | ConstLong(int)
+    | ConstULong(int)
+```
+
+The AST -> TACKY conversion table is contained on page ?.
+The TACKY -> ASM_AST converstion table is contained on page ?.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+
+
+## Page ? - Floating Point Numbers
+
+The TACKY definition is contained on page 309.
+
+```
+instruction = 
+    Return(val)
+    | SignExtend(val src, val dst)
+    | Truncate(val src, val dst)
+    | ZeroExtend(val src, val dst)
+    | DoubleToInt(val src, val dst)
+    | DoubleToUInt(val src, val dst)
+    | IntToDouble(val src, val dst)
+    | UIntToDouble(val src, val dst)
+    | Unary(unary_operator, val src, val dst)
+    | Binary(binary_operator, val src1, val src2, val dst)
+    | Copy(val src, val dst)
+    | Jump(identifier target)
+    | JumpIfZero(val condition, identifier target)
+    | JumpIfNotZero(val condition, identifier target)
+    | Label(identifier)
+    | FunCall(identifier fun_name, val* args, val dst)
+```
+
+The AST -> TACKY conversion table is contained on page ?.
+The TACKY -> ASM_AST converstion table is contained on page ?.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+
+
+## Page ? - Pointers
+
+The TACKY definition is contained on page 371.
+
+```
+instruction = 
+    Return(val)
+    | SignExtend(val src, val dst)
+    | Truncate(val src, val dst)
+    | ZeroExtend(val src, val dst)
+    | DoubleToInt(val src, val dst)
+    | DoubleToUInt(val src, val dst)
+    | IntToDouble(val src, val dst)
+    | UIntToDouble(val src, val dst)
+    | Unary(unary_operator, val src, val dst)
+    | Binary(binary_operator, val src1, val src2, val dst)
+    | Copy(val src, val dst)
+    | GetAddress(val src, val dst)
+    | Load(val src_ptr, val dst)
+    | Store(val src, val dst_ptr)
+    | Jump(identifier target)
+    | JumpIfZero(val condition, identifier target)
+    | JumpIfNotZero(val condition, identifier target)
+    | Label(identifier)
+    | FunCall(identifier fun_name, val* args, val dst)
+```
+
+PlainOperand is defined on page 372.
+
+```
+exp_result = PlainOperand(val) | DereferencedPointer(val)
+```
+
+QUESTION: The symbol exp_result, PlainOperand, DereferencedPointer 
+never appear in any overview of the TACKY definitions in the book!
+It is as if they are defined but never really displayed in full context!
+
+The AST -> TACKY conversion table is contained on page ?.
+The TACKY -> ASM_AST converstion table is contained on page ?.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+
+
+## Page ? - Arrays and Pointer
+
+The TACKY definition is contained on page 406, 407.
+
+```
+instruction = 
+    ...
+    | AddPtr(val ptr, val index, int scale, val dst)
+    | CopyToOffset(val src, identifier dst, int offset)
+    ...
+```
+
+The AST -> TACKY conversion table is contained on page ?.
+The TACKY -> ASM_AST converstion table is contained on page 416.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+
+
+## Page ? - Chapter 16 - Characters and Strings
+
+The TACKY definition is contained on page ?.
+
+```
+
+```
+
+The AST -> TACKY conversion table is contained on page ?.
+The TACKY -> ASM_AST converstion table is contained on page ?.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+
+
+## Page 480 - (Not a full chapter but a sidenote on SizeOf(exp) and SizeOfT(type))
+
+Page 480
+
+"We'll evaluate  sizeof expressions during TACKY generation and represent the result as unsigned long constants ..."
+
+No new TACKY elements are introduced for SizeOf and SizeOfT instead, compute the size of the variable or type and then
+emit a constant for the size:
+
+```
+| SizeOf(inner) -> 
+    type = get_type(inner)
+    result = size(type)
+    return PlainOperand(Constant(ConstULong(result)))
+
+| SizeOfT(type) -> 
+    result = size(type)
+    return PlainOperand(Constant(ConstULong(result)))
+```
+
+I do not know what PlainOperand() is! It is not defined in TACKY!
+PlainOperand is defined on page 372.
+
+```
+exp_result = PlainOperand(val) | DereferencedPointer(val)
+```
+
+
+
+
+## Page 487 - Supporting Dynamic Memory Allocation
+
+The TACKY definition is contained on page 481.
+
+```
+program = Program(top_level*)
+
+top_level = 
+    Function(identifier, bool global, identifier* params, instruction* body)
+    | StaticVariable(identifier, bool global, type t, static_init init)
+    | StaticConstant(identifier, type t, static_init init)
+
+instruction = 
+    Return(val?)
+    | SignExtend(val src, val dst)
+    | Truncate(val src, val dst)
+    | ZeroExtend(val src, val dst)
+    | DoubleToInt(val src, val dst)
+    | DoubleToUInt(val src, val dst)
+    | IntToDouble(val src, val dst)
+    | UIntToDouble(val src, val dst)
+    | Unary(unary_operator, val src, val dst)
+    | Binary(binary_operator, val src1, val src2, val dst)
+    | Copy(val src, val dst)
+    | GetAddress(val src, val dst)
+    | Load(val src_ptr, val dst)
+    | Store(val src, val dst_ptr)
+    | AddPtr(val ptr, val index, int scale, val dst)
+    | CopyToOffset(val src, identifier dst, int offset)
+    | Jump(identifier target)
+    | JumpIfZero(val condition, identifier target)
+    | JumpIfNotZero(val condition, identifier target)
+    | Label(identifier)
+    | FunCall(identifier fun_name, val* args, val? dst)
+
+val = Constant(const)
+    | Var(identifier)
+
+unary_operator = 
+    Complement
+    | Negate
+    | Not
+
+binary_operator = 
+    Add
+    | Subtract
+    | Multiply
+    | Divide
+    | Remainder
+    | Equal
+    | NotEqual
+    | LessThan
+    | LessOrEqual
+    | GreaterThan
+    | GreaterOrEqual
+```
+
+The AST -> TACKY conversion table is contained on page ?.
+The TACKY -> ASM_AST converstion table is contained on page ?.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+## Page 485 - Structures
+
+The TACKY definition is contained on page 513.
+
+```
+instruction = 
+    ...
+    | CopyToOffset(val src, identifier dst, int offset)
+    | CopyFromOffset(identifier src, int offset, val dst)
+    ...
+```
+
+The AST -> TACKY conversion table is contained on page ?.
+The TACKY -> ASM_AST converstion table is contained on page ?.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+## Page ?
+
+The TACKY definition is contained on page ?.
+The AST -> TACKY conversion table is contained on page ?.
+The TACKY -> ASM_AST converstion table is contained on page ?.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+## Page ?
+
+The TACKY definition is contained on page ?.
+The AST -> TACKY conversion table is contained on page ?.
+The TACKY -> ASM_AST converstion table is contained on page ?.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+## Page ?
+
+The TACKY definition is contained on page ?.
+The AST -> TACKY conversion table is contained on page ?.
+The TACKY -> ASM_AST converstion table is contained on page ?.
+The ASM_AST -> ASM conversion table is contained on page ?.
+
+
+
+## Final Version of TACKY Definitions
+
+### Hint
+```
+exp_result = PlainOperand(val) | DereferencedPointer(val)
+```
+are still missing from the overview somehow!
+
+### Full Definitions
+
+```
+program = Program(top_level*)
+
+top_level = 
+    Function(identifier name, bool global, identifier* params, instruction* body)
+    | StaticVariable(identifier name, bool global, type t, static_init init)
+    | StaticConstant(identifier name, type t, static_init init)
+
+static_init = 
+    | Constant(const)
+
+type = 
+    <take this value from the type information data structure> (char, bool, int, short, float, double, ...)
+
+instruction = 
+    Return(val?)
+    | Unary(unary_operator op, val src, val dst)
+    | Binary(binary_operator op, val src1, val src2, val dst)
+    | Jump(identifier target)
+    | JumpIfZero(val condition, identifier target)
+    | JumpIfNotZero(val condition, identifier target)
+    | Copy(val src, val dst)    
+    | Load(val src_ptr, val dst)
+    | Store(val src, val dst_ptr)
+    | GetAddress(val src, val dst)
+    | AddPtr(val ptr, val index, int scale, val dst)
+    | CopyToOffset(val src, identifier dst, int offset)
+    | CopyFromOffset(identifier src, int offset, val dst)
+    | Label(identifier name)
+    | FunCall(identifier function_name, val* args, val? dst)
+    | ZeroExtend(val src, val dst)
+    | SignExtend(val src, val dst)
+    | Truncate(val src, val dst)
+    | IntToDouble(val src, val dst)
+    | DoubleToInt(val src, val dst)
+    | UIntToDouble(val src, val dst)
+    | DoubleToUInt(val src, val dst)
+
+val = Constant(const value)
+    | Var(identifier name)
+
+unary_operator = 
+    Complement
+    | Negate
+    | Not
+
+binary_operator = 
+    Add
+    | Subtract
+    | Multiply
+    | Divide
+    | Remainder
+    | Equal
+    | NotEqual
+    | LessThan
+    | LessOrEqual
+    | GreaterThan
+    | GreaterOrEqual
+```
+
+
+
+
 # Assembly AST (!= Normal AST)
+
+Page 18
+
+```
+program = 
+    | Program(function_definition)
+
+function_definition = Function(identifier name, instruction* instructions)
+
+instruction = 
+    Mov(operand src, operand dst)
+    | Ret
+
+operand = Imm(int) 
+    | Register
+```
 
 Page 40
 
@@ -1160,6 +2047,145 @@ reg = AX
 page 62
 
 page 85
+
+
+
+
+
+
+# SemanticAnalysis and Building the Identifier Map
+
+## Identifier Resolution Phase Pass (see page 174ff)
+
+Objects without linkage (such as local variables) get a new, unique name assigned. Objects with external linkage however, such as functions, are inserted into the identifier map using their original name because the linker will refer to objects with external linkage with that name so they can be correlated accross compilation units, libraries and object files.
+
+Variables are inserted into the Naming Source (Identifier Map) by the SemanticAnalysisVisitor in main.rs. The SemanticAnalysisVisitor visits all nodes in the AST. When it encounters a AstNodeType::VariableDeclaration it will turn the user-choosen variable name into a unique variable name as it expects that variable have no linkage (No external linkage).
+
+When a function declaration is encountered, the SemanticAnalysisVisitor will process a AstNodeType::FunctionDeclaration node.
+
+## Type Checking Pass (see page 174, 178ff)
+
+The purpose of Type Checking is that all declarations of identifiers and all usages have compatible types!
+
+Identifiers (variable and functions) are inserted into the Symbol Table which maps an identifier to it's type.
+
+
+
+
+
+# Emitting Assembly Intructions
+
+## Emission Infrastructure
+
+The main.rs function uses a parser to build the parse tree. 
+It uses a lexer of type Lexer which is connected to the parser of type parser.
+
+```
+// init
+let mut parser: Parser<String> = Parser::<String>::new(parse_table);
+let mut lexer: Lexer = Lexer::new(dfa);
+```
+
+Every individual input character along with a reference to the parser is placed into a call to the lexer's consume_character() function:
+
+```
+lexer.consume_character(current_character, 
+    lookahead_character, 
+    &mut step, 
+    &mut parser, 
+    &rule_map,
+    &mut debug_node_string_buffer, 
+    &mut debug_node_stack);
+```
+
+When the lexer produces a token, that token is passed to the lexer and when the lexer reduces a production rule, the AST is extended.
+
+When the input is lexed and parser, the AST is retrieved from the parser and a tacky_visitor is run over the AST to produce a TACKY intermediate code application.
+
+```
+let ast_stack_root_option = parser.ast_stack.pop();
+if let Some(ref program_ast_node) = ast_stack_root_option {
+
+    ...
+
+    tacky_visitor.program.name = String::from("binary_0.c");
+    let mut br_cnt = 0;
+    tacky_visitor.visit(program_ast_node, &String::from(""), &mut br_cnt);
+
+    ...
+}
+```
+
+The TACKY intermediate code is then passed to the AsmAstConversionVisitor struct, which converts TACKY into an Assembler AST (Asm AST).
+The Assembler AST is not the final assembly but only another intermediate step.
+
+```
+let mut asm_ast_conversion_visitor = AsmAstConversionVisitor::new();
+asm_ast_conversion_visitor.visit_tacky_program(&tacky_visitor.program);
+```
+
+Next, a AsmAstFixupVisitor is run over the Asm AST perform fixes on the Asm AST such as replacing pseudo variables by stack addresses (local variables)
+
+```
+let mut asm_ast_fixup_visitor = AsmAstFixupVisitor::new();
+
+// replace pseudo variables (from TACKY) by addresses on the stack
+// replace illegal MOV (mem2mem) by a combination of mem2reg reg2mem
+asm_ast_fixup_visitor.replace_pseudo = true;
+asm_ast_fixup_visitor.visit_asm_ast_program(&mut asm_ast_conversion_visitor.asm_ast_program);
+```
+
+Finally, the main.rs function uses a Emitter-Visitor specific to a processor target architecture and assembler to emit assembler instructions for a specific target and/or assembler (MASM, NASM, FASM, as, ...). 
+
+Currently these Emitter-Visitors exist
+
+* AsmAstEmitterVisitor (for as used on Linux)
+* AsmAstMasmEmitterVisitor (for Visual Studio which contains MASM)
+
+The Emitter-Visitors receive the top-level Asm AST 'program' node as an input 
+
+```
+let mut asm_ast_emitter_visitor = AsmAstMasmEmitterVisitor::new();
+asm_ast_emitter_visitor.visit_asm_ast_program(&mut asm_ast_conversion_visitor.asm_ast_program);
+```
+
+### Page 20
+
+On linux add at end of file:
+
+```
+.section .note.GNU-stack,"",@progbits
+```
+
+Function(name, instruction) 
+```
+.globl <name>
+<name>:
+    <instructions>
+```
+
+### Page 43
+
+On linux add at end of file:
+```
+.section .note.GNU-stack,"",@progbits
+```
+
+Function(name, instruction) 
+```
+.globl <name>
+<name>:
+    pushq   %rbp
+    movq    %rsp, %rbp
+    <instructions>
+```
+
+For NASM:
+
+For MASM:
+
+
+
 
 
 # Proxy
