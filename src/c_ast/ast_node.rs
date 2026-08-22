@@ -68,7 +68,7 @@ pub enum AstNodeType {
     Unknown,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum AstNodeOperatorType {
     Negate,
     Complement,
@@ -115,30 +115,21 @@ pub enum AstNodeOperatorType {
     NotApplicable,
 }
 
-//std::fmt::Display
-// impl fmt::Debug for AstNodeOperatorType {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match *self {
-//             AstNodeOperatorType::Equal => write!(f, "E"),
-//             AstNodeOperatorType::NotEqual => write!(f, "NE"),
-//             AstNodeOperatorType::LessThan => write!(f, "L"),
-//             AstNodeOperatorType::LessThanOrEqual => write!(f, "LE"),
-//             AstNodeOperatorType::GreaterThan => write!(f, "G"),
-//             AstNodeOperatorType::GreaterThanOrEqual => write!(f, "GE"),
-//             _ => todo!(),
-//         }
-//     }
-// }
-
 impl fmt::Display for AstNodeOperatorType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+
+            // binary
             AstNodeOperatorType::Equal => write!(f, "E"),
             AstNodeOperatorType::NotEqual => write!(f, "NE"),
             AstNodeOperatorType::LessThan => write!(f, "L"),
             AstNodeOperatorType::LessThanOrEqual => write!(f, "LE"),
             AstNodeOperatorType::GreaterThan => write!(f, "G"),
             AstNodeOperatorType::GreaterThanOrEqual => write!(f, "GE"),
+
+            // pointers / memory
+            AstNodeOperatorType::Dereference => write!(f, "Deref *"),
+
             _ => todo!(),
         }
     }
@@ -219,8 +210,13 @@ impl fmt::Debug for AstNode {
 
             AstNodeType::ParameterDeclaration => {
                 println!("ParameterDeclaration");
+                // name
                 if let Some(left_node) = self.lhs.as_ref() {
                     print!("{:?}", left_node);
+                }
+                // data type
+                if let Some(right_node) = self.rhs.as_ref() {
+                    print!("{:?}", right_node);
                 }
             }            
 
@@ -289,7 +285,7 @@ impl fmt::Debug for AstNode {
             }
 
             AstNodeType::Expression => {
-                print!("Expression: ");
+                println!("Expression: node_id:{}", self.id);
                 if let Some(left_node) = self.lhs.as_ref() {
                     print!("LHS: {:?}", left_node);
                 }
@@ -299,7 +295,7 @@ impl fmt::Debug for AstNode {
             }
 
             AstNodeType::Unary => {
-                print!("Unary: ");
+                println!("Unary: node_id:{}", self.id);
                 println!("  Unary.OperatorType: {:?}", self.operator_type);
                 if let Some(left_node) = self.lhs.as_ref() {
                     print!("LHS: {:?}", left_node);
@@ -412,8 +408,8 @@ impl fmt::Debug for AstNode {
                 }
             }
 
-            AstNodeType::For => {
-                println!("For");
+            AstNodeType::While | AstNodeType::For => {
+                println!("While/For");
 
                 // LHS - initialization, e.g.: a = 0
                 if let Some(left_node) = self.lhs.as_ref() {
@@ -454,6 +450,41 @@ impl fmt::Debug for AstNode {
                 }
             }
 
+            AstNodeType::If => {
+                println!("If");
+
+                // expression - expression_ast_node, condition/predicate, e.g. a < 10
+                if let Some(expression_node) = self.expression.as_ref() {
+                    print!("Predicate: {:?}", expression_node);
+                }
+
+                // LHS - true-case
+                if let Some(left_node) = self.lhs.as_ref() {
+                    print!("TRUE-Branch: {:?}", left_node);
+                }
+                
+                // RHS - false-case
+                if let Some(right_node) = self.rhs.as_ref() {
+                    print!("FALSE-Branch: {:?}", right_node);
+                }
+            }
+
+            AstNodeType::Pointer => {
+                println!("Pointer");
+
+                // // LHS - true-case
+                // if let Some(left_node) = self.lhs.as_ref() {
+                //     print!("TRUE-Branch: {:?}", left_node);
+                // }
+
+                // RHS - user defined variable name
+                if let Some(right_node) = self.rhs.as_ref() {
+                    print!("User Choosen Variable Name: {:?}", right_node);
+                }
+
+                println!("Replaced Variable Name: {:?}", self.string_val);
+            }
+
             _ => {
                 panic!("Unhandled node type: {:?}", self.node_type);
             }
@@ -488,6 +519,50 @@ impl AstNode {
         };
         
         ast_node
+    }
+
+    pub fn serialize(&self) -> String {
+        let mut lhs_string = String::new();
+        if let Some(left_node) = self.lhs.as_ref() {
+            lhs_string = left_node.serialize();
+        }
+        let mut rhs_string = String::new();
+        if let Some(right_node) = self.rhs.as_ref() {
+           rhs_string = right_node.serialize();
+        }
+        let mut expression_string = String::new();
+        if let Some(expression_node) = self.expression.as_ref() {
+           expression_string = expression_node.serialize();
+        }
+
+        // lhs_string.push_str(" ");
+        // lhs_string.push_str(&self.id.to_string());
+
+        match self.operator_type {
+
+            AstNodeOperatorType::AddrOf => {
+                lhs_string.push_str(" = &");
+            }
+
+            AstNodeOperatorType::Dereference => {
+                lhs_string.push_str(" = *");
+            }
+
+            _ => {
+
+            }
+        }
+
+        lhs_string.push_str(" ");
+        lhs_string.push_str(&self.string_val);
+
+        lhs_string.push_str(" ");
+        lhs_string.push_str(&rhs_string);
+
+        lhs_string.push_str(" ");
+        lhs_string.push_str(&expression_string);
+
+        return lhs_string;
     }
 
     pub fn set_indent(&mut self, indent_param: usize) {
@@ -1863,3 +1938,20 @@ impl AstNode {
             //     string_buffer.push_str(format!("{} -> {}\n", block_ast_node_id, block_item_ast_node_id).as_str());
             // }
     
+
+            
+
+//std::fmt::Display
+// impl fmt::Debug for AstNodeOperatorType {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match *self {
+//             AstNodeOperatorType::Equal => write!(f, "E"),
+//             AstNodeOperatorType::NotEqual => write!(f, "NE"),
+//             AstNodeOperatorType::LessThan => write!(f, "L"),
+//             AstNodeOperatorType::LessThanOrEqual => write!(f, "LE"),
+//             AstNodeOperatorType::GreaterThan => write!(f, "G"),
+//             AstNodeOperatorType::GreaterThanOrEqual => write!(f, "GE"),
+//             _ => todo!(),
+//         }
+//     }
+// }

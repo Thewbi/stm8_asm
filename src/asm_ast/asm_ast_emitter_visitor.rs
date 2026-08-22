@@ -35,16 +35,19 @@ impl AsmAstASEmitterVisitor {
         }
     }
 
-    pub fn visit_asm_ast_program(&mut self, asm_ast_program: &AsmAstProgram) {
+    pub fn visit_asm_ast_program(&mut self, asm_ast_program: &mut AsmAstProgram) {
         // println!("[AsmAstASEmitterVisitor::visit_asm_ast_program()]");
 
         // page 43
         println!(".section .note.GNU-stack,\"\",@progbits");
 
-        self.visit_asm_ast_function(&asm_ast_program.function);
+        // self.visit_asm_ast_function(&asm_ast_program.function);
+        for i in 0..asm_ast_program.functions.len() {
+            self.visit_asm_ast_function(&mut asm_ast_program.functions[i]);
+        }
     }
 
-    pub fn visit_asm_ast_function(&mut self, asm_ast_function: &AsmAstFunction) {
+    pub fn visit_asm_ast_function(&mut self, asm_ast_function: &mut AsmAstFunction) {
         // println!("[AsmAstASEmitterVisitor::visit_asm_ast_function()] name={}", asm_ast_function.name);
 
         // page 43
@@ -142,8 +145,8 @@ impl AsmAstASEmitterVisitor {
                 panic!("Should not be here!");
             }
 
-            AsmAstOperandType::Stack(stack_val) => {
-                print!("{}(%rbp)", stack_val);
+            AsmAstOperandType::Memory(register, stack_val) => {
+                print!("{}(%{})", stack_val, register.to_string());
             }
 
             _ => {

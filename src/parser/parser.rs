@@ -25,6 +25,7 @@ pub struct Transition<T>(pub usize, pub RuleElement<T>);
 static DEBUG_NODE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 pub static AST_NODE_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
+#[derive(Debug)]
 pub struct DebugNode {
     pub id: usize,
     pub label: String,
@@ -1397,13 +1398,15 @@ impl Parser<String> {
                                             // print new node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("unary_expression")).as_str());
 
-                                            // unary_operator - take old node from stack
-                                            let old_debug_node = debug_node_stack.pop().unwrap();
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+                                            // RHS (value that the operator is applied to) - take old node from stack
+                                            let rhs_debug_node = debug_node_stack.pop().unwrap();
+                                            println!("{:?}", rhs_debug_node);
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, rhs_debug_node.id).as_str());
 
-                                            // cast_expression - take old node from stack
-                                            let old_debug_node = debug_node_stack.pop().unwrap();
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+                                            // unary operator - take old node from stack
+                                            let unary_operator_debug_node = debug_node_stack.pop().unwrap();
+                                            println!("{:?}", unary_operator_debug_node);
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, unary_operator_debug_node.id).as_str());
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
@@ -1415,7 +1418,9 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 let expression_ast_node = self.ast_stack.pop().unwrap();
+                                                // println!("{:?}", expression_ast_node);
                                                 let operator_ast_node = self.ast_stack.pop().unwrap();
+                                                // println!("{:?}", operator_ast_node);
 
                                                 // page 252 - every expression needs a type
                                                 let mut data_type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
@@ -1424,6 +1429,7 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Unary;
+                                                ast_node.operator_type = operator_ast_node.operator_type.clone();
                                                 ast_node.lhs = Some(Box::new(operator_ast_node)); // operator
                                                 ast_node.rhs = Some(Box::new(expression_ast_node)); // operand
                                                 ast_node.data_type = Some(Box::new(data_type_ast_node));
@@ -1568,9 +1574,9 @@ impl Parser<String> {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("unary_operator"));
+                                            let debug_node = DebugNode::new(debug_node_id, format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, String::from("unary_operator"), found_rule.original_id));
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("unary_operator")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} Rule:{}\"]\n", debug_node_id, String::from("unary_operator"), found_rule.original_id).as_str());
 
                                             // ASTERISK
                                             // create new node id
@@ -1599,10 +1605,11 @@ impl Parser<String> {
 
                                         // unary_operator -> MINUS
                                         26 => {
+
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("unary_operator"));
+                                            let debug_node = DebugNode::new(debug_node_id, format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, String::from("unary_operator"), found_rule.original_id));
                                             // print new node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("unary_operator")).as_str());
 
@@ -1633,10 +1640,11 @@ impl Parser<String> {
 
                                         // unary_operator -> TILDE
                                         27 => {
+
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("unary_operator"));
+                                            let debug_node = DebugNode::new(debug_node_id, format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, String::from("unary_operator"), found_rule.original_id));
                                             // print new node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("unary_operator")).as_str());
 
@@ -4289,6 +4297,9 @@ impl Parser<String> {
                                                 value = terminal_rev.clone().unwrap().data;
                                             }
 
+                                            // // DEBUG
+                                            // println!("{:?}", value);
+
                                             // direct_declarator
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("direct_declarator"));
@@ -4310,6 +4321,9 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Identifier;
                                                 ast_node.string_val = value.clone();
+
+                                                // // DEBUG
+                                                // println!("{:?}", &ast_node.string_val);
 
                                                 self.ast_stack.push(ast_node);
                                             }
@@ -4581,7 +4595,16 @@ impl Parser<String> {
 
                                                 let mut function_definition_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 function_definition_ast_node.node_type = AstNodeType::FunctionDeclaration;
-                                                function_definition_ast_node.string_val = identifier_ast_node.string_val;
+                                                function_definition_ast_node.string_val = identifier_ast_node.string_val.clone();
+
+                                                let mut function_name_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                function_name_ast_node.node_type = AstNodeType::Identifier;
+                                                function_name_ast_node.string_val = identifier_ast_node.string_val.clone();
+
+                                                function_definition_ast_node.function_name_ast_node = Some(Box::new(function_name_ast_node));
+
+                                                // // DEBUG
+                                                // println!("{:?}", &function_definition_ast_node.string_val);
 
                                                 self.ast_stack.push(function_definition_ast_node);
                                             }
@@ -6063,9 +6086,9 @@ impl Parser<String> {
                                                     let mut sub_ast_node = self.ast_stack.pop().unwrap();
                                                     match sub_ast_node.node_type {
 
-                                                        AstNodeType::Identifier => {
-                                                            function_name = sub_ast_node.string_val;
-                                                        }
+                                                        // AstNodeType::Identifier => {
+                                                        //     function_name = sub_ast_node.string_val;
+                                                        // }
 
                                                         AstNodeType::BlockItem => {
                                                             //function_body_block_ast_node.block_items.push(Box::new(sub_ast_node));
@@ -6089,6 +6112,10 @@ impl Parser<String> {
                                                         }
 
                                                         AstNodeType::DataType => {
+                                                            //
+                                                            // Return Value
+                                                            //
+
                                                             // Assumption: return-value data-type of function
                                                             // return-value data-type of function
                                                             function_definition_ast_node.rhs = Some(Box::new(sub_ast_node));
@@ -6103,7 +6130,6 @@ impl Parser<String> {
 
                                                             //function_body_block_ast_node.block_items.push(Box::new(block_item_ast_node));
                                                             function_definition_ast_node.block_items.push(Box::new(block_item_ast_node));
-
                                                         }
 
                                                         AstNodeType::FunctionDeclaration => {
@@ -6111,6 +6137,11 @@ impl Parser<String> {
                                                                 function_name = function_name_ast_node_deref.string_val.clone();
                                                             }
                                                             function_definition_ast_node.parameters = std::mem::take(&mut sub_ast_node.parameters);
+
+                                                            // function_name = sub_ast_node.string_val;
+
+                                                            // there should be a non-empty name for the function to call
+                                                            assert!(function_name.len() > 0);
                                                         }
 
                                                         _ => {
@@ -6123,15 +6154,15 @@ impl Parser<String> {
                                                 // // LHS contains the block, the block contains all statements as block_items
                                                 // function_definition_ast_node.lhs = Some(Box::new(function_body_block_ast_node));
                                                 
+                                                //
                                                 // function name
+                                                //
 
-                                                //function_definition_ast_node.string_val = function_name;
-
-                                                // DEBUG
-                                                // println!("{:?}", return_type_ast_node);
+                                                // there should be a non-empty name for the function to call
+                                                assert!(function_name.len() > 0);
 
                                                 let mut function_name_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
-                                                function_name_ast_node.string_val = function_name;
+                                                function_name_ast_node.string_val = function_name.clone();
                                                 function_name_ast_node.node_type = AstNodeType::Identifier;
 
                                                 function_definition_ast_node.function_name_ast_node = Some(Box::new(function_name_ast_node));

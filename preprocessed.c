@@ -1,8 +1,15 @@
-int foo(int a, int b) {
-    return 1;
-}
-
 int main(void) {
-    foo(1, 2,3);
-    return 1;
+
+ 
+ 
+    int a = 1;
+
+ 
+ 
+    int* a_ptr = &a;
+
+ 
+    *a_ptr = 122;
+
+    return a;
 }

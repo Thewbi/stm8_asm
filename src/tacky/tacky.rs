@@ -64,6 +64,10 @@ use std::io::Write;
 use std::fmt;
 use std::fmt::Display;
 
+use std::option::Option::None;
+
+use crate::common::data_type::DataType;
+
 pub struct Program {
     pub name: String,
     pub top_level: Vec<Box<TopLevel>>,
@@ -78,13 +82,30 @@ impl Program {
     }
 }
 
+#[derive(Debug)]
+pub struct Argument {
+    pub name: String,
+    pub data_type: DataType,
+}
+
+impl Argument {
+    pub fn new() -> Argument {
+        Argument {
+            name: String::from(""),
+            data_type: DataType::DataTypeUnknown,
+        }
+    }
+}
+
 pub struct TopLevel {
     pub name: String,
     pub top_level_type: TopLevelType,
     pub global: bool,
     pub type_id: String,
     pub init: String,
+    pub arguments: Vec::<Box<Argument>>,
     pub body: Vec<Box<Instruction>>,
+    pub return_type: Option<DataType>,
 }
 
 impl TopLevel {
@@ -95,7 +116,9 @@ impl TopLevel {
             global: false,
             type_id: String::from("function"),
             init: String::from("init"),
+            arguments: Vec::<Box<Argument>>::new(),
             body: Vec::<Box<Instruction>>::new(),
+            return_type: Option::None,
         }
     }
 }
@@ -152,8 +175,8 @@ pub enum InstructionType {
     JumpIfZero,
     JumpIfNotZero,
     Copy,
-    Load,
-    Store,
+    Load, // load from memory into variable
+    Store, // store from variable into memory
     GetAddress,
     AddPtr,
     CopyToOffset,
@@ -168,6 +191,8 @@ pub enum InstructionType {
     UIntToDouble,
     DoubleToUInt,
     VariableDeclaration,
+
+    Comment, // artifically added
 }
 
 #[derive(Debug, Clone)]
@@ -176,6 +201,8 @@ pub enum UnaryOperator {
     Negate,
     Not,
     Increment,
+    Dereference,
+    AddrOf,
 }
 
 #[derive(Debug, Clone)]
@@ -229,6 +256,10 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
     string_buffer.push_str(&indent_string);
 
     match &instruction.instruction_type {
+
+        InstructionType::Comment => {
+            string_buffer.push_str(format!("// {}\n", instruction.label).as_str());
+        }
 
         InstructionType::Return => {
             string_buffer.push_str(format!("Return({:?})\n", instruction.src).as_str());
@@ -345,10 +376,20 @@ pub fn print_tacky_function(function: &TopLevel, string_buffer: &mut String, ind
     let indent_string = std::iter::repeat(" ").take(indent * 2).collect::<String>();
     string_buffer.push_str(&indent_string);
 
-    // add function
-    string_buffer.push_str(format!("Function(\"{}\", {})\n", function.name, function.global).as_str());
+    // add function name and function global
+    let mut function_string_buffer = String::new();
+    function_string_buffer.push_str(format!("Function(\"{}\", {}", function.name, function.global).as_str());
 
-    // print top-level
+    // add all format arguments (name and data type)
+    for argument in function.arguments.iter() {
+        function_string_buffer.push_str(format!(", Arg(\"{}\", {:?})", argument.name, argument.data_type).as_str());
+    }
+
+    function_string_buffer.push_str(")\n");
+
+    string_buffer.push_str(&function_string_buffer);
+
+    // print all statements in the function body
     for i in 0..function.body.len() {
         print_tacky_instruction(&function.body[i], string_buffer, indent + 1);
     }
@@ -392,19 +433,19 @@ pub fn print_tacky_program(program: &Program, string_buffer: &mut String, indent
     }
 }
 
-pub fn add(a: i32, b: i32) -> i32 {
-    a + b
-}
+// pub fn add(a: i32, b: i32) -> i32 {
+//     a + b
+// }
 
 #[cfg(test)]
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 
-    #[test]
-    fn test_add() {
-        assert_eq!(add(1, 2), 3);
-    }
+    // #[test]
+    // fn test_add() {
+    //     assert_eq!(add(1, 2), 3);
+    // }
 
     #[test]
     fn test_print() {
@@ -416,43 +457,43 @@ mod tests {
         top_level_var.global = true;
         top_level_var.init = String::from("0");
 
-        // | ZeroExtend(val src, val dst)
+        // ZeroExtend(val src, val dst)
         let mut zero_extend_instruction: Instruction = Instruction::new();
         zero_extend_instruction.instruction_type = InstructionType::ZeroExtend;
         zero_extend_instruction.src = ValueElement::Variable(String::from("var.0"));
         zero_extend_instruction.dst = ValueElement::Variable(String::from("var.1"));
 
-        // | SignExtend(val src, val dst)
+        // SignExtend(val src, val dst)
         let mut sign_extend_instruction: Instruction = Instruction::new();
         sign_extend_instruction.instruction_type = InstructionType::SignExtend;
         sign_extend_instruction.src = ValueElement::Variable(String::from("var.0"));
         sign_extend_instruction.dst = ValueElement::Variable(String::from("var.1"));
 
-        // | Truncate(val src, val dst)
+        // Truncate(val src, val dst)
         let mut truncate_instruction: Instruction = Instruction::new();
         truncate_instruction.instruction_type = InstructionType::Truncate;
         truncate_instruction.src = ValueElement::Variable(String::from("var.0"));
         truncate_instruction.dst = ValueElement::Variable(String::from("var.1"));
 
-        // | IntToDouble(val src, val dst)
+        // IntToDouble(val src, val dst)
         let mut int_to_double_instruction: Instruction = Instruction::new();
         int_to_double_instruction.instruction_type = InstructionType::IntToDouble;
         int_to_double_instruction.src = ValueElement::Variable(String::from("var.0"));
         int_to_double_instruction.dst = ValueElement::Variable(String::from("var.1"));
 
-        // | DoubleToInt(val src, val dst)
+        // DoubleToInt(val src, val dst)
         let mut double_to_int_instruction: Instruction = Instruction::new();
         double_to_int_instruction.instruction_type = InstructionType::DoubleToInt;
         double_to_int_instruction.src = ValueElement::Variable(String::from("var.0"));
         double_to_int_instruction.dst = ValueElement::Variable(String::from("var.1"));
 
-        // | UIntToDouble(val src, val dst)
+        // UIntToDouble(val src, val dst)
         let mut uint_to_double_instruction: Instruction = Instruction::new();
         uint_to_double_instruction.instruction_type = InstructionType::UIntToDouble;
         uint_to_double_instruction.src = ValueElement::Variable(String::from("var.0"));
         uint_to_double_instruction.dst = ValueElement::Variable(String::from("var.1"));
 
-        //| DoubleToUInt(val src, val dst)
+        // DoubleToUInt(val src, val dst)
         let mut double_to_uint_instruction: Instruction = Instruction::new();
         double_to_uint_instruction.instruction_type = InstructionType::DoubleToUInt;
         double_to_uint_instruction.src = ValueElement::Variable(String::from("var.0"));
@@ -477,7 +518,7 @@ mod tests {
         label_instruction.instruction_type = InstructionType::Label;
         label_instruction.label = String::from("new_label");
 
-        // FunCall
+        // FunCall - Function Call (!= Function Declaration)
         let mut function_call_instruction: Instruction = Instruction::new();
         function_call_instruction.instruction_type = InstructionType::FunCall;
         function_call_instruction.function_name = String::from("test_func");
@@ -554,7 +595,7 @@ mod tests {
         return_instruction.instruction_type = InstructionType::Return;
         return_instruction.src = ValueElement::Variable(String::from("var.1"));
 
-        // TopLevel Element - Function
+        // Function Declaration (!= Function Call) - TopLevel Element 
         let mut top_level_function: TopLevel = TopLevel::new();
         top_level_function.name = String::from("function_1");
         top_level_function.top_level_type = TopLevelType::Function;

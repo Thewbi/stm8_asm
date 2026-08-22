@@ -11,6 +11,8 @@ pub enum DataType {
     DataTypeFloat,
     DataTypeDouble,
 
+    DataTypeVoid, // is it beneficial to treat void as a data type? (void-pointer?)
+
     DataTypeUnknown,
 }
 
@@ -29,6 +31,8 @@ impl FromStr for DataType {
             Ok(DataType::DataTypeFloat)
         } else if s == "double" {
             Ok(DataType::DataTypeDouble)
+        } else if s == "void" {
+            Ok(DataType::DataTypeVoid)
         } else {
             Err(format!("Can not parse {}", s).into())
         }

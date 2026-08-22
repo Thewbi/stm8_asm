@@ -1,77 +1,83 @@
 digraph {
 0 [label="0 Program"]
-17 [label="17 FunctionDeclaration: "]
+44 [label="44 FunctionDeclaration: "]
 1 [label="1  DataType: int"]
-17 -> 1
-18 [label="18 Identifier: foo"]
-17 -> 18
-4 [label="4 Identifier: a"]
-3 [label="3  DataType: int"]
+44 -> 1
+45 [label="45 Identifier: main"]
+44 -> 45
+4 [label="4 Identifier: Unnamed!"]
+3 [label="3  DataType: void"]
 5 [label="5 ParameterDeclaration"]
 5 -> 4
 5 -> 3
-17 -> 5
-7 [label="7 Identifier: b"]
-6 [label="6  DataType: int"]
-8 [label="8 ParameterDeclaration"]
-8 -> 7
-8 -> 6
-17 -> 8
-14 [label="14 Body/Block: "]
-17 -> 14
+44 -> 5
+41 [label="41 Body/Block: "]
+44 -> 41
 15 [label="15 BlockItem"]
-11 [label="11  ConstInt(1)"]
-10 [label="10  DataType: UInt"]
+14 [label="14 Declaration"]
+7 [label="7  DataType: int"]
+8 [label="8 Identifier: a"]
+12 [label="12 SingleInit: "]
+11 [label="11 Exp (NotApplicable)"]
+10 [label="10  ConstInt(1)"]
+9 [label="9  DataType: UInt"]
+10 -> 9
 11 -> 10
-12 [label="12 Return"]
 12 -> 11
-13 [label="13 Statement:  "]
+13 [label="13 VariableDeclaration"]
+13 -> 7
+13 -> 8
 13 -> 12
-15 -> 13
-14 -> 15
-0 -> 17
-43 [label="43 FunctionDeclaration: "]
-19 [label="19  DataType: int"]
-43 -> 19
-44 [label="44 Identifier: main"]
-43 -> 44
-22 [label="22 Identifier: Unnamed!"]
-21 [label="21  DataType: void"]
-23 [label="23 ParameterDeclaration"]
+14 -> 13
+15 -> 14
+41 -> 15
+27 [label="27 BlockItem"]
+26 [label="26 Declaration"]
+16 [label="16  DataType: int"]
+18 [label="18 Pointer: a_ptr"]
+24 [label="24 SingleInit: "]
+23 [label="23 Exp (NotApplicable)"]
+19 [label="19 AddrOf"]
+20 [label="20 Identifier: a"]
+21 [label="21  DataType: undefined_type:unary_expression"]
+22 [label="22 Unary"]
+22 -> 19
+22 -> 20
+22 -> 21
 23 -> 22
-23 -> 21
-43 -> 23
-40 [label="40 Body/Block: "]
-43 -> 40
-35 [label="35 BlockItem"]
-33 [label="33 Exp (FunctionCall)"]
-32 [label="32 FunctionCall: foo"]
-27 [label="27  ConstInt(1)"]
-26 [label="26  DataType: UInt"]
+24 -> 23
+25 [label="25 VariableDeclaration"]
+25 -> 16
+25 -> 18
+25 -> 24
+26 -> 25
 27 -> 26
-32 -> 27
-29 [label="29  ConstInt(2)"]
-28 [label="28  DataType: UInt"]
-29 -> 28
-32 -> 29
-31 [label="31  ConstInt(3)"]
-30 [label="30  DataType: UInt"]
+41 -> 27
+37 [label="37 BlockItem"]
+35 [label="35 Exp (Assignment)"]
+28 [label="28 Dereference"]
+29 [label="29 Identifier: a_ptr"]
+30 [label="30  DataType: undefined_type:unary_expression"]
+31 [label="31 Unary"]
+31 -> 28
+31 -> 29
 31 -> 30
-32 -> 31
-33 -> 32
-34 [label="34 Statement:  "]
+35 -> 31
+34 [label="34  ConstInt(122)"]
+33 [label="33  DataType: UInt"]
 34 -> 33
 35 -> 34
-40 -> 35
-41 [label="41 BlockItem"]
-37 [label="37  ConstInt(1)"]
-36 [label="36  DataType: UInt"]
+36 [label="36 Statement:  "]
+36 -> 35
 37 -> 36
-38 [label="38 Return"]
-38 -> 37
-39 [label="39 Statement:  "]
+41 -> 37
+42 [label="42 BlockItem"]
+38 [label="38 Identifier: a"]
+39 [label="39 Return"]
 39 -> 38
-41 -> 39
-40 -> 41
-0 -> 43
+40 [label="40 Statement:  "]
+40 -> 39
+42 -> 40
+41 -> 42
+0 -> 44
 }

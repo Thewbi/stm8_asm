@@ -85,6 +85,8 @@ impl VariableNamingSource {
         self.varname_map_stack.pop();
     }
 
+    // checks a user-choosen varname if there is an entry inside the varname_map or if
+    // this identifier has never been processed before.
     pub fn is_variable_name_defined(&mut self, varname: &String) -> bool {
 
         // look into the topmost map 
@@ -120,13 +122,18 @@ impl VariableNamingSource {
             let varname_map = self.varname_map_stack[stack_size - 1].borrow();
 
             // DEBUG
-            println!("Trying to resolve variable: \"{}\"", varname);
+            println!("[VariableNamingSource::get_replaced_variable_name] Trying to resolve variable: \"{}\" ...", varname);
 
             if !varname_map.contains_key(varname) {
                 return Err(format!("Variable \"{}\" not defined!", varname).into());
             }
 
-            return Ok(varname_map.get(varname).unwrap().varname.clone());
+            let resolved_var_name = varname_map.get(varname).unwrap().varname.clone();
+
+            // DEBUG
+            println!("[VariableNamingSource::get_replaced_variable_name] Resolved variable: \"{}\" to \"{}\"", varname, resolved_var_name);
+
+            return Ok(resolved_var_name);
         }
 
         return Err(format!("Variable \"{}\" not defined!", varname).into());

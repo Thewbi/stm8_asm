@@ -16,7 +16,8 @@ use crate::asm_ast::asm_ast::AsmAstReg;
 // Fixes up the Asm AST by 
 //
 // - replacing pseudo variables/operands with stack addresses
-// - replacing mov which move from memory to memory without using a temp register (not possible in x86)
+// - replacing mov instructions which move from memory to memory 
+//   without using a intermediate temp register (not possible in x86)
 //
 // 1. c_ast/IdentifierResolutionVisitor - checks for duplicate or undeclared variable names
 // 2. tacky/TackyVisitor - Generate TACKY (from AST)
@@ -47,7 +48,9 @@ impl AsmAstFixupVisitor {
         // println!("[FixupAsmAstVisitor::visit_asm_ast_program()]");
         // println!("  name = {}", asm_ast_program.name);
 
-        self.visit_asm_ast_function(&mut asm_ast_program.function);
+        for i in 0..asm_ast_program.functions.len() {
+            self.visit_asm_ast_function(&mut asm_ast_program.functions[i]);
+        }
     }
 
     pub fn visit_asm_ast_function(&mut self, asm_ast_function: &mut AsmAstFunction) {
@@ -63,11 +66,14 @@ impl AsmAstFixupVisitor {
         }
 
         if self.replace_pseudo {
-            // patch allocate stack because right now, the required stack size is readily available
-            let asm_ast_instruction = &mut new_body[0];
-            asm_ast_instruction.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(self.stack_offset * -1) };
-            // asm_ast_instruction.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(self.stack_offset) };
 
+            // patch allocate stack because right now, the required stack size is readily available
+            let asm_ast_allocate_stack = &mut new_body[0];
+            asm_ast_allocate_stack.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(self.stack_offset * -1) };
+            // asm_ast_allocate_stack.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(self.stack_offset) };
+
+            asm_ast_allocate_stack.comment.push_str("    ; + Updated in AsmAstFixupVisitor::visit_asm_ast_function()\n");
+            
             asm_ast_function.stack_frame_size = self.stack_offset * -1;
         }
 
@@ -88,12 +94,6 @@ impl AsmAstFixupVisitor {
 
         match asm_ast_instruction.instruction_type {
 
-            AsmAstInstructionType::AllocateStack => {
-                println!("AllocateStack({:?})", asm_ast_instruction.src);
-                // println!("{:?}", asm_ast_instruction);
-                new_body.push(Box::new(asm_ast_instruction));
-            }
-
             AsmAstInstructionType::Ret => {
                 println!("Ret");
                 // println!("{:?}", asm_ast_instruction);
@@ -112,8 +112,8 @@ impl AsmAstFixupVisitor {
                     let mut fix: bool = false;
 
                     // x86 mov cannot move from memory (stack or other memory) to memory directly!
-                    if matches!(asm_ast_instruction.src.operand_type, AsmAstOperandType::Stack(_)) {
-                        if matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::Stack(_)) {
+                    if matches!(asm_ast_instruction.src.operand_type, AsmAstOperandType::Memory(_, _)) {
+                        if matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::Memory(_, _)) {
                             fix = true;
                         }
                     }
@@ -147,12 +147,14 @@ impl AsmAstFixupVisitor {
             }
 
             AsmAstInstructionType::Binary => {
+
+                // DEBUG
                 println!("Binary {:?} {:?} {:?}", asm_ast_instruction.binary_operator, asm_ast_instruction.src_2, asm_ast_instruction.dst);
 
                 asm_ast_instruction.src_2 = self.replace_pseudo_operand(&mut asm_ast_instruction.src_2);
                 asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
-                // add dword ptr [ebp-8], dword ptr [ebp-4]
+                // add dword ptr [ebp-8], dword ptr [rbp-4]
                 // new_body.push(Box::new(asm_ast_instruction));
 
                 match asm_ast_instruction.binary_operator {
@@ -164,8 +166,8 @@ impl AsmAstFixupVisitor {
                             let mut fix: bool = false;
 
                             // x86 mov cannot move from memory (stack or other memory) to memory directly!
-                            if matches!(asm_ast_instruction.src_2.operand_type, AsmAstOperandType::Stack(_)) {
-                                if matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::Stack(_)) {
+                            if matches!(asm_ast_instruction.src_2.operand_type, AsmAstOperandType::Memory(_, _)) {
+                                if matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::Memory(_, _)) {
                                     fix = true;
                                 }
                             }
@@ -185,6 +187,7 @@ impl AsmAstFixupVisitor {
                                 // and then stores the result in the destination operand.
                                 asm_ast_instruction.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
 
+                                // DEBUG
                                 println!("{}", asm_ast_instruction.clone());
 
                                 new_body.push(Box::new(asm_ast_instruction));
@@ -263,9 +266,41 @@ impl AsmAstFixupVisitor {
 
             AsmAstInstructionType::SetCC => {
                 println!("SetCC {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                new_body.push(Box::new(asm_ast_instruction));
+            }
 
+            AsmAstInstructionType::Lea => {
+
+                asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
                 asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
+                println!("Lea {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
+                // asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                new_body.push(Box::new(asm_ast_instruction));
+            }
+
+            AsmAstInstructionType::AllocateStack => {
+                println!("AllocateStack({:?})", asm_ast_instruction.src);
+                // println!("{:?}", asm_ast_instruction);
+                new_body.push(Box::new(asm_ast_instruction));
+            }
+
+            AsmAstInstructionType::DeallocateStack => {
+                println!("DeallocateStack({:?})", asm_ast_instruction.src);
+                // println!("{:?}", asm_ast_instruction);
+                new_body.push(Box::new(asm_ast_instruction));
+            }
+
+            AsmAstInstructionType::Push => {
+                println!("{:?}", asm_ast_instruction);
+                println!("Push {:?}", asm_ast_instruction.dst);
+                new_body.push(Box::new(asm_ast_instruction));
+            }
+
+            AsmAstInstructionType::FunctionCall => {
+                println!("{:?}", asm_ast_instruction);
+                println!("FunctionCall {:?}", asm_ast_instruction.dst);
                 new_body.push(Box::new(asm_ast_instruction));
             }
         }
@@ -279,7 +314,7 @@ impl AsmAstFixupVisitor {
 
         match &asm_ast_operand.operand_type {
 
-            AsmAstOperandType::Stack(stack_offset) => {
+            AsmAstOperandType::Memory(register, stack_offset) => {
                 // println!("Stack, offset:{}", stack_offset);
                 return asm_ast_operand.clone();
             }
@@ -302,7 +337,7 @@ impl AsmAstFixupVisitor {
                     }
                 }
 
-                return AsmAstOperand { operand_type: AsmAstOperandType::Stack(stack_offset_value) };
+                return AsmAstOperand { operand_type: AsmAstOperandType::Memory(AsmAstReg::RBP, stack_offset_value) };
             }
 
             AsmAstOperandType::Imm(immediate_value) => {

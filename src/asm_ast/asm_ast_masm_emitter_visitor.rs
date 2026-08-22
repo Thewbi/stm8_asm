@@ -31,7 +31,6 @@ use crate::asm_ast::asm_ast_masm_emitter_visitor::AsmAstOperandType::ComparisonT
 //
 
 pub struct AsmAstMasmEmitterVisitor {
-    // pub asm_ast_program: AsmAstProgram,
     pub stack_size: usize,
     pub string_buffer: String,
 }
@@ -69,33 +68,9 @@ impl AsmAstMasmEmitterVisitor {
             }
 
             AsmAstOperandType::Reg(asm_ast_reg_val) => {
-                match asm_ast_reg_val {
-
-                    AsmAstReg::AX => {
-                        print!("eax");
-                        self.string_buffer.push_str("eax");
-                    }
-
-                    AsmAstReg::BX => {
-                        print!("ebx");
-                        self.string_buffer.push_str("ebx");
-                    }
-
-                    AsmAstReg::DX => {
-                        print!("edx");
-                        self.string_buffer.push_str("edx");
-                    }
-
-                    AsmAstReg::R10 => {
-                        //print!("r10d");
-                        print!("edx");
-                        self.string_buffer.push_str("edx");
-                    }
-
-                    _ => {
-                        todo!();
-                    }
-                }
+                // registers defined in asm_ast.rs
+                print!("{}", asm_ast_reg_val);
+                self.string_buffer.push_str(&asm_ast_reg_val.to_string());
             }
 
             AsmAstOperandType::Pseudo(pseudo_val) => {
@@ -104,25 +79,45 @@ impl AsmAstMasmEmitterVisitor {
                 self.string_buffer.push_str(format!("{}", pseudo_val).as_str());
             }
 
-            AsmAstOperandType::Stack(stack_val) => {
+            AsmAstOperandType::Memory(register, stack_val) => {
                 //print!("{}(ebp)", stack_val);
 
                 match data_type_size {
                     DataTypeSize::Byte => {
-                        print!("byte ptr [ebp{}]", stack_val);
-                        self.string_buffer.push_str(format!("byte ptr [ebp{}]", stack_val).as_str());
+                        if *stack_val == 0 {
+                            print!("byte ptr [rbp+{}]", stack_val);
+                            self.string_buffer.push_str(format!("byte ptr [{}+{}]", register.to_string(), stack_val).as_str());
+                        } else {
+                            print!("byte ptr [rbp{}]", stack_val);
+                            self.string_buffer.push_str(format!("byte ptr [{}{}]", register.to_string(), stack_val).as_str());
+                        }
                     }
                     DataTypeSize::Word => {
-                        print!("word ptr [ebp{}]", stack_val);
-                        self.string_buffer.push_str(format!("word ptr [ebp{}]", stack_val).as_str());
+                        if *stack_val == 0 {
+                            print!("word ptr [rbp+{}]", stack_val);
+                            self.string_buffer.push_str(format!("word ptr [{}+{}]", register.to_string(), stack_val).as_str());
+                        } else {
+                            print!("word ptr [rbp{}]", stack_val);
+                            self.string_buffer.push_str(format!("word ptr [{}{}]", register.to_string(), stack_val).as_str());
+                        }
                     }
                     DataTypeSize::DWord => {
-                        print!("dword ptr [ebp{}]", stack_val);
-                        self.string_buffer.push_str(format!("dword ptr [ebp{}]", stack_val).as_str());
+                        if *stack_val == 0 {
+                            print!("dword ptr [rbp+{}]", stack_val);
+                            self.string_buffer.push_str(format!("dword ptr [{}+{}]", register.to_string(), stack_val).as_str());
+                        } else {
+                            print!("dword ptr [rbp{}]", stack_val);
+                            self.string_buffer.push_str(format!("dword ptr [{}{}]", register.to_string(), stack_val).as_str());
+                        }
                     }
                     DataTypeSize::QWord => {
-                        print!("qword ptr [ebp{}]", stack_val);
-                        self.string_buffer.push_str(format!("qword ptr [ebp{}]", stack_val).as_str());
+                        if *stack_val == 0 {
+                            print!("qword ptr [rbp+{}]", stack_val);
+                            self.string_buffer.push_str(format!("qword ptr [{}+{}]", register.to_string(), stack_val).as_str());
+                        } else {
+                            print!("qword ptr [rbp{}]", stack_val);
+                            self.string_buffer.push_str(format!("qword ptr [{}{}]", register.to_string(), stack_val).as_str());
+                        }
                     }
                 }
                 
@@ -148,56 +143,83 @@ impl AsmAstMasmEmitterVisitor {
     // non-util
     //
 
-    pub fn visit_asm_ast_program(&mut self, asm_ast_program: &AsmAstProgram) {
+    pub fn visit_asm_ast_program(&mut self, asm_ast_program: &mut AsmAstProgram) {
         // println!("[AsmAstMasmEmitterVisitor::visit_asm_ast_program()]");
 
         // page 43
         //println!(".section .note.GNU-stack,\"\",@progbits");
 
-        println!("    .386");
-        self.string_buffer.push_str("    .386\n");
-        println!("    .model flat, stdcall");
-        self.string_buffer.push_str("    .model flat, stdcall\n");
-        println!("    .stack 4096");
-        self.string_buffer.push_str("    .stack 4096\n");
+        // 32_BIT 32-BIT
+        // 32-bit assembly
+        let use_32_bit = false;
+        if use_32_bit {
+
+            // 32_BIT
+            println!("    .386");
+            self.string_buffer.push_str("    .386\n");
+            println!("    .model flat, stdcall");
+            self.string_buffer.push_str("    .model flat, stdcall\n");
+            println!("    .stack 4096");
+            self.string_buffer.push_str("    .stack 4096\n");
+        }
 
         //
         // extern functions to call
         //
-
-        println!("ExitProcess PROTO, dwExitCode:DWORD");
+            
+        // insert empty line
+        println!("");
         self.string_buffer.push_str("\n");
-        self.string_buffer.push_str("ExitProcess PROTO, dwExitCode:DWORD\n");
+
+        // 32_BIT
+        // println!("ExitProcess PROTO, dwExitCode:DWORD");
+        // self.string_buffer.push_str("\n");
+        // self.string_buffer.push_str("ExitProcess PROTO, dwExitCode:DWORD\n");
 
         //
-        // code segment
+        // code segment 64_BIT 64-BIT 
         //
-
+        
         println!("    .code");
         self.string_buffer.push_str("\n");
         self.string_buffer.push_str("    .code\n");
 
-        self.visit_asm_ast_function(&asm_ast_program.function);
+        // iterate over all functions
+        for i in 0..asm_ast_program.functions.len() {
 
+            // insert empty line to separate functions
+            println!("");
+            self.string_buffer.push_str("\n");
+
+            self.visit_asm_ast_function(&mut asm_ast_program.functions[i]);
+        }
+
+        // //
+        // // terminate the process after main()
+        // //
+
+        // println!("    INVOKE ExitProcess, eax");
+        // self.string_buffer.push_str("    INVOKE ExitProcess, eax\n");
+
+        // println!("{} ENDP", "main");
+        // self.string_buffer.push_str(format!("{} ENDP\n", "main").as_str());
+        
         //
-        // terminate the process after main()
+        // declare END (of application) along with declare start symbol (??? is that true?)
         //
 
-        println!("    INVOKE ExitProcess, eax");
-        self.string_buffer.push_str("    INVOKE ExitProcess, eax\n");
-        println!("{} ENDP", "main");
-        self.string_buffer.push_str(format!("{} ENDP\n", "main").as_str());
+        // 32_BIT
+        // println!("END main ; specify the program's entry point");
+        // self.string_buffer.push_str("\n");
+        // self.string_buffer.push_str("END main ; specify the program's entry point\n");
 
-        //
-        // declare start symbol
-        //
-
-        println!("END main ; specify the program's entry point");
+        // 64_BIT 64-BIT (END of application without specifying any main entry point)
+        println!("END");
         self.string_buffer.push_str("\n");
-        self.string_buffer.push_str("END main ; specify the program's entry point\n");
+        self.string_buffer.push_str("END\n");
     }
 
-    pub fn visit_asm_ast_function(&mut self, asm_ast_function: &AsmAstFunction) {
+    pub fn visit_asm_ast_function(&mut self, asm_ast_function: &mut AsmAstFunction) {
         // println!("[AsmAstMasmEmitterVisitor::visit_asm_ast_function()] name={}", asm_ast_function.name);
 
         self.stack_size = self.stack_size + 1;
@@ -213,26 +235,60 @@ impl AsmAstMasmEmitterVisitor {
         // Irvine, page 323
         println!("{} PROC", asm_ast_function.name);
         self.string_buffer.push_str(format!("{} PROC\n", asm_ast_function.name).as_str());
-        println!("    push ebp ; save base of current stack frame to restore it later"); // save base of current stack frame to restore it later
-        self.string_buffer.push_str("    push ebp ; save base of current stack frame to restore it later\n"); // save base of current stack frame to restore it later
-        println!("    mov ebp, esp ; set new base of new stack frame (to current stack pointer)"); // set new base of new stack frame (to current stack pointer)
-        self.string_buffer.push_str("    mov ebp, esp ; set new base of new stack frame (to current stack pointer)\n"); // set new base of new stack frame (to current stack pointer)
+
+        //
+        // Prelude
+        //
+
+        println!("\n    ; prelude - create stack frame and shadow area");
+        self.string_buffer.push_str("\n    ; prelude - create stack frame and shadow area\n");
+
+        // 32_BIT
+        // println!("    push ebp ; save base of current stack frame to restore it later"); // save base of current stack frame to restore it later
+        // self.string_buffer.push_str("    push ebp ; save base of current stack frame to restore it later\n"); // save base of current stack frame to restore it later
+
+        // 64_BIT 
+        println!("    push rbp ; save base of current stack frame to restore it later"); // save base of current stack frame to restore it later
+        self.string_buffer.push_str("    push rbp ; save base of current stack frame to restore it later\n"); // save base of current stack frame to restore it later
+        println!("    mov rbp, rsp ; set new base of new stack frame (to current stack pointer)"); // set new base of new stack frame (to current stack pointer)
+        self.string_buffer.push_str("    mov rbp, rsp ; set new base of new stack frame (to current stack pointer)\n"); // set new base of new stack frame (to current stack pointer)
         
+        // 64_BIT shadow register area so that Win32, Win64 functions can be called
+        println!("    sub rsp, 8 * (4 + 2) ; allocate shadow register area + 2 QWORDs for stack alignment");
+        self.string_buffer.push_str("    sub rsp, 8 * (4 + 2) ; allocate shadow register area + 2 QWORDs for stack alignment");
+        // println!("    sub rsp, 8 * 7 ; allocate shadow register area + 2 QWORDs for stack alignment");
+        // self.string_buffer.push_str("    sub rsp, 8 * 7 ; allocate shadow register area + 2 QWORDs for stack alignment");
+
         for i in 0..asm_ast_function.body.len() {
             self.visit_asm_ast_instruction(asm_ast_function.body[i].as_ref(), asm_ast_function.stack_frame_size);
         }
 
-        /*
-        //
-        // Add automatic ret in case the user forgot to add a return statement
-        //
+        // look at the last instruction, if it is not RET, add a RET
+        let last_instruction = asm_ast_function.body[asm_ast_function.body.len()-1].as_ref();
+        if last_instruction.instruction_type != AsmAstInstructionType::Ret {
+            
+            // // Irvine, page 323
+            // println!("    pop ebp");
+            // println!("    add esp, {:?}", asm_ast_function.stack_frame_size);
 
-        // Irvine, page 323
-        println!("    pop ebp");
-        println!("    add esp, {:?}", asm_ast_function.stack_frame_size);
+            // // ; epilog - restore stack pointer
+            // println!("\n    ; epilog - restore stack pointer");
+            // self.string_buffer.push_str("\n    ; epilog - restore stack pointer\n");
+            // println!("    mov rsp, rbp");
+            // self.string_buffer.push_str("    mov rsp, rbp\n");
+            // println!("    pop rbp");
+            // self.string_buffer.push_str("    pop rbp\n");
 
-        println!("    ret");
-        */
+            //
+            // Add automatic ret in case the user forgot to add a return statement
+            //
+
+            // println!("    ret");
+            // self.string_buffer.push_str("    ret\n");
+        }
+
+        println!("{} ENDP", asm_ast_function.name);
+        self.string_buffer.push_str(format!("{} ENDP\n", asm_ast_function.name).as_str());
 
         self.stack_size = self.stack_size - 1;
     }
@@ -244,35 +300,35 @@ impl AsmAstMasmEmitterVisitor {
 
         match asm_ast_instruction.instruction_type {
 
-            AsmAstInstructionType::AllocateStack => {
-                //self.visit_tacky_unary(&mut asm_ast_function, asm_ast_instruction);
-                match asm_ast_instruction.src.operand_type {
-                    AsmAstOperandType::Imm(imm_value) => {
-                        println!("    sub esp, {:?} ; save space on stack for all local variables", imm_value); // save space on stack for all local variables
-                        // self.string_buffer.push_str("    sub esp, {:?} ; save space on stack for all local variables", imm_value); // save space on stack for all local variables
-                        self.string_buffer.push_str(format!("    sub esp, {:?} ; save space on stack for all local variables\n", imm_value).as_str()); // save space on stack for all local variables
-                    }
-                    _ => {
-
-                    }
-                }
-            }
-
             AsmAstInstructionType::Mov => {
-                //self.visit_tacky_unary(&mut asm_ast_function, asm_ast_instruction);
-
                 // println!("movl {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
 
                 print!("    mov ");
                 self.string_buffer.push_str("    mov ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::DWord);
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::QWord);
                 print!(", ");
                 self.string_buffer.push_str(", ");
+                self.emit_asm_ast_operand(&asm_ast_instruction.src, DataTypeSize::QWord);
+
+                // comment
+                print!("{}", asm_ast_instruction.comment);
+                self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
+
+                // newline
+                println!("");
+                self.string_buffer.push_str("\n");
+            }
+
+            AsmAstInstructionType::Push => {
+                print!("    push ");
+                self.string_buffer.push_str("    push ");                
                 self.emit_asm_ast_operand(&asm_ast_instruction.src, DataTypeSize::DWord);
 
-                // print!(" ; 100");
-                // self.string_buffer.push_str(" ; 100");
+                // comment
+                print!("{}", asm_ast_instruction.comment);
+                self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
 
+                // newline
                 println!("");
                 self.string_buffer.push_str("\n");
             }
@@ -308,6 +364,8 @@ impl AsmAstMasmEmitterVisitor {
             }
 
             // https://www.felixcloutier.com/x86/mul
+            //
+            // This binary was generated inside: asm_ast_conversion_visitor
             AsmAstInstructionType::Binary => {
                 print!("    {} ", asm_ast_instruction.binary_operator.to_string());
                 self.string_buffer.push_str(format!("    {} ", asm_ast_instruction.binary_operator.to_string()).as_str());
@@ -343,17 +401,34 @@ impl AsmAstMasmEmitterVisitor {
 
                 //println!("    add, rsp, {:?}", stack_frame_size);
 
-                // Irvine, page 323
-                println!("    add esp, {:?} ; restore stack pointer to old stack frame top", stack_frame_size);
-                self.string_buffer.push_str(format!("    add esp, {:?} ; restore stack pointer to old stack frame top\n", stack_frame_size).as_str());
-                println!("    pop ebp ; restore old base pointer of old stack frame");
-                self.string_buffer.push_str("    pop ebp ; restore old base pointer of old stack frame\n");
+                // // Irvine, page 323
+                // println!("    add esp, {:?} ; restore stack pointer to old stack frame top", stack_frame_size);
+                // self.string_buffer.push_str(format!("    add esp, {:?} ; restore stack pointer to old stack frame top\n", stack_frame_size).as_str());
+                
+                // // 32_bit
+                // println!("    pop ebp ; restore old base pointer of old stack frame");
+                // self.string_buffer.push_str("    pop ebp ; restore old base pointer of old stack frame\n");
+
+                // // 64_bit
+                // println!("    pop rbp ; restore old base pointer of old stack frame");
+                // self.string_buffer.push_str("    pop rbp ; restore old base pointer of old stack frame\n");
+
+                // ; epilog - restore stack pointer
+                println!("\n    ; epilog - restore stack pointer\n");
+                self.string_buffer.push_str("\n    ; epilog - restore stack pointer\n");
+                println!("    mov rsp, rbp\n");
+                self.string_buffer.push_str("    mov rsp, rbp\n");
+                println!("    pop rbp\n");
+                self.string_buffer.push_str("    pop rbp\n");
 
                 // from the main function (where self.stack_size is 0), do not execute a ret instruction
                 // so that the generated line "INVOKE ExitProcess, eax" will execute for save process termination 
                 if self.stack_size != 0 {
-                    println!("    ret ; pops the return address from the top of the stack into the instruction pointer (EIP/RIP)");
-                    self.string_buffer.push_str("    ret ; pops the return address from the top of the stack into the instruction pointer (EIP/RIP)\n");
+                    println!("\n    ; pops the return address from the top of the stack into the instruction pointer (EIP/RIP)\n");
+                    println!("    ret");
+
+                    self.string_buffer.push_str("\n    ; pops the return address from the top of the stack into the instruction pointer (EIP/RIP)\n");
+                    self.string_buffer.push_str("    ret\n");
                 }
             }
 
@@ -435,6 +510,82 @@ impl AsmAstMasmEmitterVisitor {
                 self.string_buffer.push_str("\n");
             }
 
+            AsmAstInstructionType::AllocateStack => {
+                match asm_ast_instruction.src.operand_type {
+                    AsmAstOperandType::Imm(imm_value) => {
+
+                        // comment
+                        println!("{}", asm_ast_instruction.comment);
+                        self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
+
+                        // instruction
+                        println!("    sub rsp, {:?}", imm_value); // save space on stack for all local variables
+                        self.string_buffer.push_str(format!("    sub rsp, {:?}\n", imm_value).as_str()); // save space on stack for all local variables
+
+                        // println!("\n    ; prelude - create stack frame and shadow area");
+                        // self.string_buffer.push_str("\n    ; prelude - create stack frame and shadow area\n");
+                        // // 64_BIT 
+                        // println!("    push rbp ; save base of current stack frame to restore it later"); // save base of current stack frame to restore it later
+                        // self.string_buffer.push_str("    push rbp ; save base of current stack frame to restore it later\n"); // save base of current stack frame to restore it later
+                        // println!("    mov rbp, rsp ; set new base of new stack frame (to current stack pointer)"); // set new base of new stack frame (to current stack pointer)
+                        // self.string_buffer.push_str("    mov rbp, rsp ; set new base of new stack frame (to current stack pointer)\n"); // set new base of new stack frame (to current stack pointer)
+                    
+                        // // 64_BIT shadow register area so that Win32, Win64 functions can be called
+                        // println!("    sub rsp, 8 * (4 + 2) ; allocate shadow register area + 2 QWORDs for stack alignment");
+                        // self.string_buffer.push_str("    sub rsp, 8 * (4 + 2) ; allocate shadow register area + 2 QWORDs for stack alignment\n");
+                    }
+                    _ => {
+
+                    }
+                }
+            }
+
+            // Nora Sandler, page 202
+            AsmAstInstructionType::DeallocateStack => {
+                match asm_ast_instruction.src.operand_type {
+                    AsmAstOperandType::Imm(imm_value) => {
+                        // remove stack frame
+                        //println!("    addq {:?}, esp  ; remove stack frame", imm_value);
+                        println!("    add rsp, {:?}   ; remove stack frame", imm_value);
+                        //self.string_buffer.push_str(format!("    addq {:?}, esp  ; remove stack frame\n", imm_value).as_str());
+                        self.string_buffer.push_str(format!("    add rsp, {:?}  ; remove stack frame\n", imm_value).as_str());
+                    
+                        // // ; epilog - restore stack pointer
+                        // println!("\n    ; epilog - restore stack pointer\n");
+                        // self.string_buffer.push_str("\n    ; epilog - restore stack pointer\n");
+                        // println!("    mov rsp, rbp\n");
+                        // self.string_buffer.push_str("    mov rsp, rbp\n");
+                        // println!("    pop rbp\n");
+                        // self.string_buffer.push_str("    pop rbp\n");
+                    }
+                    _ => {
+                        todo!();
+                    }
+                }
+            }
+
+            AsmAstInstructionType::FunctionCall => {
+                println!("    call {}", asm_ast_instruction.identifier);
+                self.string_buffer.push_str(format!("    call {}\n", asm_ast_instruction.identifier).as_str());
+            }
+
+            AsmAstInstructionType::Lea => {
+                println!("{:?}", asm_ast_instruction);
+
+                print!("    lea ");
+                self.string_buffer.push_str("    lea ");
+
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::QWord);
+
+                print!(", ");
+                self.string_buffer.push_str(", ");
+
+                self.emit_asm_ast_operand(&asm_ast_instruction.src, DataTypeSize::QWord);
+
+                println!("");
+                self.string_buffer.push_str("\n");
+            }
+
             _ => {
                 panic!("{}", format!("Unhandled AsmAstInstructionType {:?}!\n", asm_ast_instruction.instruction_type).as_str());
             }
@@ -442,3 +593,57 @@ impl AsmAstMasmEmitterVisitor {
     }
     
 }
+
+/*
+                match asm_ast_reg_val {
+
+                    AsmAstReg::AX => {
+                        print!("eax");
+                        self.string_buffer.push_str("eax");
+                    }
+
+                    AsmAstReg::BX => {
+                        print!("ebx");
+                        self.string_buffer.push_str("ebx");
+                    }
+
+                    AsmAstReg::CX => {
+                        print!("ecx");
+                        self.string_buffer.push_str("ecx");
+                    }
+
+                    AsmAstReg::DX => {
+                        print!("edx");
+                        self.string_buffer.push_str("edx");
+                    }
+
+                    AsmAstReg::DI => {
+                        print!("edi");
+                        self.string_buffer.push_str("edi");
+                    }
+
+                    AsmAstReg::SI => {
+                        print!("esi");
+                        self.string_buffer.push_str("esi");
+                    }
+
+                    AsmAstReg::R8 => {
+                        print!("r8d");
+                        self.string_buffer.push_str("r8d");
+                    }
+
+                    AsmAstReg::R9 => {
+                        print!("r9d");
+                        self.string_buffer.push_str("r9d");
+                    }
+
+                    AsmAstReg::R10 => {
+                        print!("r10d");
+                        self.string_buffer.push_str("r10d");
+                    }
+
+                    _ => {
+                        todo!();
+                    }
+                }
+*/

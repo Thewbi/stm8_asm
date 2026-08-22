@@ -4,11 +4,205 @@ This is a C compiler written in Rust for the C programming language.
 
 ## Assembler
 
-Good Overview of x86 and also x86-64 bit: https://en.wikibooks.org/wiki/X86_Assembly/Print_Version
+Good Overview of x86 and also x86-64 bit: 
+[1] https://en.wikibooks.org/wiki/X86_Assembly/Print_Version
+[2] https://lallouslab.net/2016/01/11/introduction-to-writing-x64-assembly-in-visual-studio/
+
+### MASM
 
 To assemble the output, you may use MASM from within Visual Studio.
 
 [MASM](MASM.md)
+
+
+### FASM
+
+https://gpfault.net/posts/asm-tut-0.txt.html
+
+[FASM](FASM.md)
+
+
+
+## Calling Conventions
+
+[3] https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention?view=msvc-170
+[4] https://stackoverflow.com/questions/79519237/windows-masm-x64-calling-convention-and-stack-setup
+[5] https://www.bigmessowires.com/2015/10/06/assembly-language-windows-programming/
+
+From [5] "All of the Win32 API functions use the __stdcall convention, while C functions and the C library use the __cdecl (or just plain “C”) convention. You may also rarely see the __fastcall convention; look it up for more details. stdcall and cdecl conventions are similar: both pass arguments on the stack, and the arguments are pushed in right to left order."
+
+### System-V ABI
+
+System-V ABI, the first six registers ("DI", "SI", "DX", "CX", "R8", "R9") store the first six parameters.
+the rest of the parameters go onto the stack in reverese order.
+
+
+### Fast Calling Convention - Windows, x64
+
+Is the only allowed calling convention for x64 on windows accoring to [2].
+
+* Registers RCX, RDX, R8 and R9 are used to pass the first four arguments
+* The remainder of the arguments must be pushed/passed on the stack
+* Even though that the first four registers are passed via the RCX, RDX, R8 and R9 registers, the stack pointer should still be decreased by 8 * 4 = 32 bytes prior to a function call. That is called registers shadow area.
+* The caller is responsible for allocating a shadow area for the 4 registers prior to calling a function, even if the callee takes no arguments.
+
+## Troubleshooting
+
+### Error: LNK 2001 unresolved external symbol _mainCRTStartup MASM
+
+When compiling with a x64 configuration:
+
+```
+LNK 2001 unresolved external symbol _mainCRTStartup MASM
+```
+SOLUTION:
+
+https://stackoverflow.com/questions/12379794/lnk-2001-unresolved-external-symbol-maincrtstartup-masm
+
+The other answers were confusing to me so I'll add my solution. In the properties of the project go to
+
+```
+Configuration Properties >> Linker >> Advanced
+```
+
+In Advanced at the top should be Entry Point. Type in main.
+
+### Error: Single Stepping in MASM 64 bit project in Visual Studio Code debugger does not single step
+
+https://stackoverflow.com/questions/14905769/step-through-an-assembly-language-program-one-statement-at-a-time
+
+https://developercommunity.azure.com/t/11056696
+
+https://developercommunity.visualstudio.com/t/11120915
+
+F10/F11 (Step Over/Step Into) do not single-step in a pure MASM (x64) native project — execution runs to completion or next breakpoint instead.
+
+Pure vs2026 x64 MASM assembly project (no CRT, no C/C++ files, entry point set via /ENTRY linker option), 
+
+1. File > New > Project/Solution (Datei > Neu > Projekt/Solution)
+1. Empty Project (Leeres Projekt) > OK (Weiter)
+1. Enter a project name and check "Place solution and project in the same directory ..." > Create (Erstellen)
+
+Enable MASM for the project
+
+1. Open Context Menu on the project (not the solution) > Build Customizations... (Buildanpassungen ...)
+1. Check the box "masm(.targets, .props) > OK
+
+Add a source file and set correct type (Microsoft Macro Assembler)
+
+1. Open Contextmenu on src (Quelldateien) > Add > New Element > main.asm > OK (Hinzufügen)
+1. On the newly added .asm file, open the context menu and select > Properties (Eigenschaften) > Item Type (Elementtyp): Microsoft Macro Assembler > OK
+1. Add code:
+
+```
+; ---------------------------------------------
+; Hello World for Win64 Intel x64 Assembly
+;
+; by fruel (https://github.com/fruel)
+; 13 June 2016
+; ---------------------------------------------
+
+GetStdHandle PROTO
+ExitProcess PROTO
+WriteConsoleA PROTO
+
+.data
+msg BYTE "Hello World",0
+bytesWritten DWORD ?
+
+.code
+main PROC
+    sub rsp, 5 * 8  
+
+    mov rcx, -11           
+    call GetStdHandle
+
+    mov  rcx, rax       
+    lea  rdx, msg    
+    mov  r8, LENGTHOF msg - 1
+    lea  r9, bytesWritten  
+    mov  QWORD PTR [rsp + 4 * SIZEOF QWORD], 0
+    call WriteConsoleA
+
+    mov rcx, 0      
+    call ExitProcess
+main ENDP
+
+END
+```
+
+```
+EXTERN ExitProcess: PROC
+
+PUBLIC main
+
+_TEXT SEGMENT
+main PROC
+	mov rax, 42h
+	call ExitProcess
+
+    ret
+main ENDP
+_TEXT ENDS
+
+END
+```
+
+or
+
+```
+EXTERN MessageBoxA: PROC
+EXTERN GetForegroundWindow: PROC
+
+PUBLIC main
+
+_DATA SEGMENT
+hello_msg db "Hello world", 0
+info_msg  db "Info", 0
+_DATA ENDS
+
+
+_TEXT SEGMENT
+
+main PROC
+
+	push rbp ; save frame pointer
+	mov rbp, rsp ; fix stack pointer
+	sub rsp, 8 * (4 + 2) ; allocate shadow register area + 2 QWORDs for stack alignment
+
+	; Get a window handle
+	call GetForegroundWindow
+	mov rcx, rax
+
+	; WINUSERAPI int WINAPI MessageBoxA(
+	;  RCX =>  _In_opt_ HWND hWnd,
+	;  RDX =>  _In_opt_ LPCSTR lpText,
+	;  R8  =>  _In_opt_ LPCSTR lpCaption,
+	;  R9  =>  _In_ UINT uType);
+
+	mov rdx, offset hello_msg
+	mov r8, offset info_msg
+	mov r9, 0 ; MB_OK
+
+	and rsp, not 8 ; align stack to 16 bytes prior to API call
+	call MessageBoxA
+
+	; epilog. restore stack pointer
+	mov rsp, rbp
+	pop rbp
+
+	ret
+main ENDP
+
+_TEXT ENDS
+
+END
+```
+
+Set the Entry Point value to main
+
+1. Open ContextMenu on project > Properties (Eigenschaften) > Linker > Advanced (Erweitert) > Entry Point (Einstiegspunkt) > main > ok
+
 
 # Disclaimer
 
@@ -234,23 +428,42 @@ In order to test, what token the lexer will create using a given test input, use
 
 **Motivation:** I need a component that consumes the source code, allows for reactions to detected language constructs such as if, function declarations, structs, ... and also the component needs to be able to detect syntax errors as precisely as possible.
 
-**Warning:** If you want to hand-craft a parser, skip this section. This section is about generating a parser from a grammar using an algorithm! This section explains how the parser is generated using the algorithm from the dragon book! If you think this is not what you want, skip this section! The reason for the dragon book LALR(1) parser is that I got burned in the past pretty hard by investing days into a grammar just to eventually realize that I am not smart enough to come up with a working grammar for C! That is why I assume that I am not smart enough to create a hand-written compiler for the language which is even harder than formulating a grammar! If you want to hand-write a parser, be warned. My advice is it to find a way to perform rapid prototyping so failure is not too expensive! You will probably not get it right the first time around.
+**Warning:** If you want to hand-craft a parser, skip this section. This section is about generating a parser from a grammar using an algorithm! This section explains how the parser is generated using the algorithm from the dragon book! If you think this is not what you want, skip this section! 
+
+The reason for the dragon book LALR(1) parser is twofold.
+1. I got burned in the past pretty hard by investing days into writing my own C grammar just to eventually realize that I am not smart enough to come up with a working grammar for C! That is why I assume that I am not smart enough to create a hand-written compiler for the language which is even harder than formulating a grammar! If you want to hand-write a parser, be warned. My advice is it to find a way to perform rapid prototyping so failure is not too expensive! You will probably not get it right the first time around.
+2. I invested days in learning and using compiler generator crates for rust just to realize that even the ones with highest praise have major flaws. Some are so hard to understand and use that even after being advised by the author themselves you still do not understand how to write a working parser or some suffer from major performance issues when the grammar exhibits special characteristics that the parser generator is not able to handle well. In the end, i decided to just use the tried and tested methods from earlier.
 
 Here is what AI has to say about the Dragon Book's LALR(1) algorithm:
 
 ```
-The LALR(1) parsing theory from the Dragon Book (Aho, Sethi, Ullman, and Lam) is theoretically sound but practically outdated for most modern language development.
+The LALR(1) parsing theory from the Dragon Book (Aho, Sethi, Ullman, and Lam) is 
+theoretically sound but practically outdated for most modern language development.
 
 Why it's outdated in practice
 
-* Shift to Recursive Descent: Most modern production compilers (e.g., Clang, Rustc, Go) abandon LALR(1) generators in favor of hand-written recursive descent parsers. Hand-written parsers allow for better error recovery, context-sensitive parsing hacks (essential for C++), and tighter integration with Abstract Syntax Tree (AST) construction.
+* Shift to Recursive Descent: Most modern production compilers (e.g., Clang, Rustc, Go) 
+abandon LALR(1) generators in favor of hand-written recursive descent parsers. 
+Hand-written parsers allow for better error recovery, context-sensitive parsing hacks 
+(essential for C++), and tighter integration with Abstract Syntax Tree (AST) construction.
 
-* The LALR(1) Bias: The Dragon Book championed LALR(1) because, historically, full LR(1) required exponential memory. Today, computers have plenty of memory, and modern tools (such as Bison) use optimizations like IELR(1) to generate smaller tables without sacrificing parsing power.
+* The LALR(1) Bias: The Dragon Book championed LALR(1) because, historically, 
+full LR(1) required exponential memory. Today, computers have plenty of memory, 
+and modern tools (such as Bison) use optimizations like IELR(1) to generate smaller 
+tables without sacrificing parsing power.
 
-* Ambiguity and Conflicts: As syntax grows complex, LALR(1) often struggles with reduce-reduce conflicts. Modern developers frequently prefer generalized parsing strategies like GLR or Earley to handle ambiguous grammars, or use Pratt parsing for mathematical expressions.
+* Ambiguity and Conflicts: As syntax grows complex, LALR(1) often struggles with 
+reduce-reduce conflicts. Modern developers frequently prefer generalized parsing 
+strategies like GLR or Earley to handle ambiguous grammars, or use Pratt parsing 
+for mathematical expressions.
 
-* Alternatives: Modern texts like Engineering a Compiler (by Cooper and Torczon) or Modern Compiler Implementation (by Appel) are often recommended over the Dragon Book because they better emphasize modern software architecture, static single assignment (SSA), and runtime systems.
+* Alternatives: Modern texts like Engineering a Compiler (by Cooper and Torczon) 
+or Modern Compiler Implementation (by Appel) are often recommended over the Dragon Book 
+because they better emphasize modern software architecture, static single assignment (SSA), 
+and runtime systems.
 ```
+
+## LALR(1)
 
 The dragon book (Compilers: Principles, Techniques, and Tools, by Alfred Aho (Author), Jeffrey Ullman (Author), Ravi Sethi (Author), Monica Lam (Author)) contains an algorithm which constructs a LALR(1) parser.
 
@@ -342,7 +555,7 @@ Once the graph of nodes is constructed and the transitions between nodes are ava
 
 Empty beta means that the dot-marker in the rule points to a nonterminal followed by nothing! The following part is called beta. If there is no beta, then we say empty-beta! lookaheads inter-state are only pushed into rules that are empty-beta and **ALL ALL ALL** rules in the kernel need to be empty-beta at the same time! I cannot repeat this enough. **This is the secret sauce of the algorithm!** It is not mentioned in the dragon book (at least I missed it) and there is not a single youtube video on the internet that contains this bit of information! I took me days to figure this out! I hope you will not fail as hard as I did!
 
-# Building the Closure
+## Building the Closure
 
 Pick the start state and make it the current state.
 
@@ -455,7 +668,7 @@ rules in the destination kernel are empty-beta at the same time! I cannot stress
 inter-channel lookaheads if ALL target kernel rules are ALL empty-beta at at the same time! If one or more of
 them are not empty beta, then no propagation takes place at all!**
 
-# Creating the Parse Table
+## Creating the Parse Table
 
 The only reason why the LALR(1) Channel Algorithm performs LR(0) graph construction, closure, channel management
 and lookahead propagation is that from the final information, a parse table can be determined! The parse table
@@ -688,7 +901,7 @@ if debug {
 
 
 
-# Phase 3 - AST and Semantic Analysis
+# AST, Identifier Resolution and Semantic Analysis
 
 ## Difference between Parse Tree and AST
 
@@ -1749,16 +1962,126 @@ instruction =
 PlainOperand is defined on page 372.
 
 ```
-exp_result = PlainOperand(val) | DereferencedPointer(val)
+exp_result = PlainOperand(val) | DereferencedPointer(ptr)
 ```
+
+Used on page 373 in listing 14-23
 
 QUESTION: The symbol exp_result, PlainOperand, DereferencedPointer 
 never appear in any overview of the TACKY definitions in the book!
 It is as if they are defined but never really displayed in full context!
+I do not know what is going on.
 
-The AST -> TACKY conversion table is contained on page ?.
-The TACKY -> ASM_AST converstion table is contained on page ?.
-The ASM_AST -> ASM conversion table is contained on page ?.
+They might be part of the implementation code and not part of TACKY.
+PlainOperand(val) is returned by emit_tacky() for non-pointers.
+DereferencedPointer(ptr) is returned by emit_tacky() for pointers.
+Based on the type that emit_tacky() returns, the pointer is either assign to, lvalue converted or it's address is retrieved
+which are the three cases that Nora Sandler lists on page 371 "It's tricky to convert ..."
+
+page 372:
+emit_tacky() will return exp_result which represents an expression result that has not been lvalue converted.
+emit_tacky_and_convert() will [internally] call emit_tacky(), lvalue convert the result (if it is an lvalue rather than a constant)
+and return the converted result as TACKY.
+
+The problem here is basically how the TACKY generator will handle 
+- unary expressions
+- dereference expressions
+- assignments
+
+Because with pointers introduced, unary expression now comprise AddressOf() and Dereference().
+Assignments now contain the case where the LHS is a dereferenced pointer.
+
+### The AST -> TACKY conversion table/ruleset is contained on page 370.
+
+The AddrOf AstNode is mapped to the GetAddress() Tacky element.
+
+Page 384 - Objects and Values
+
+values - are sequences of bits with a type.
+
+objects - have an address and a value. Stored in a memory cell. If lvalue conversion is applied, the object's value is returned. (pointer variables are objects too with a type of pointer to xyz).
+The & operator returns the object's address. The & operator does not produce objects but turns objects into values of pointer type. The value of pointer type being the object's address. So the & operator turns objects into values.
+Similarly to the & operator, lvalue-conversion converts a object to it's value. lvalue-conversion has no explicit operator in C! lvalue-conversion is applied implicitly.
+The dereference operator * turns an address into a value???
+
+lvalue - is an expression. Can evaluate to an object or to a ???
+
+lvalues conversion - turns an lvalue into it's value.
+(Page 348) "If an lvalue appears as the left operand of an assignment expression or as the operand of the & operator, it doesn`t undergo lvalue conversion. If it appears anywhere else in an expression, it does."
+
+x is an lvalue here (since assignment or & operator)
+
+```
+x = 3;
+y = &x;
+```
+
+x is not an lvalue here but it's value is used through lvalue-conversion. (1. x's value is used as a param, 2. equality comparison, 3. x's value is used as an RHS value of an assignment)
+
+```
+foo(x);
+x == y;
+a = x;
+```
+
+An expression can evaluate to an object and then either the value can be used or the object can be assigned a new value.
+
+- in which case it's value can be used
+
+```
+... x + 1; // x being the expression. Here the value is used. This is called lvalue conversion. An object is converted to a value.
+```
+
+In TACKY, this turns into a Binary() instruction. In assembly, this turns into an ADD instruction.
+
+- in which case a value can be assigned to the object.
+
+```
+x = 1; // x being the expression. Here a value is assigned to the object x. No lvalue conversion.
+```
+
+In TACKY, this turns into a Copy() instruction. In assembly this turns into a MOV instruction.
+
+#### Converting the & addressof operator to TACKY
+
+```
+y = &x;
+GetAddress(src:Variable(x), dst:Variable(y))
+```
+
+#### RHS Dereference - Converting Dereference operator to TACKY
+
+The Dereference Expression is lvalue converted, meaning it is turned into a value.
+
+```
+y = *x;
+Load(src_ptr:Variable(x_ptr), dst:Variable(y))
+```
+
+#### LHS Dereference - Converting value assignments to pointer to TACKY
+
+The Dereference Expression is NOT lvalue converted but it evaluates to an object and a value is assigned to the object.
+
+```
+x_ptr = &x;
+*x_ptr = 5;
+
+Store(src:Constant(5), dst_ptr(x_ptr))
+```
+
+#### AddressOf on a Dereference of a pointer
+
+```
+*(&x) is the same as just using x. Here the value of x is returned in both cases. 
+
+&(*x_ptr) is the same as x_ptr. Here the lvalue-conversion of x_ptr which is an address of an object is returned in both cases.
+```
+
+The C standard says that in the case of the combining inverse operations, neither is evaluated but they are just dropped.
+
+
+### The TACKY -> ASM_AST converstion table is contained on page ?.
+### The ASM_AST -> ASM conversion table is contained on page ?.
 
 
 
@@ -1777,6 +2100,9 @@ instruction =
 The AST -> TACKY conversion table is contained on page ?.
 The TACKY -> ASM_AST converstion table is contained on page 416.
 The ASM_AST -> ASM conversion table is contained on page ?.
+
+
+
 
 
 
@@ -1956,9 +2282,9 @@ instruction =
     | JumpIfZero(val condition, identifier target)
     | JumpIfNotZero(val condition, identifier target)
     | Copy(val src, val dst)    
+    | GetAddress(val src, val dst)
     | Load(val src_ptr, val dst)
     | Store(val src, val dst_ptr)
-    | GetAddress(val src, val dst)
     | AddPtr(val ptr, val index, int scale, val dst)
     | CopyToOffset(val src, identifier dst, int offset)
     | CopyFromOffset(identifier src, int offset, val dst)
@@ -1996,6 +2322,14 @@ binary_operator =
 
 
 
+# TACKY Part II
+
+## Page 371
+
+
+
+
+
 
 # Assembly AST (!= Normal AST)
 
@@ -2020,8 +2354,7 @@ Page 40
 I assume instruction is the same as statement
 
 ```
-program = 
-    | Program(function_definition)
+program = Program(function_definition)
 
 function_definition = Function(identifier name, instruction* instructions)
 
@@ -2048,20 +2381,84 @@ page 62
 
 page 85
 
+Page 194
+
+```
+program = Program(function_definition*)
+function_definition = Function(identifier name, instruction* instructions)
+instruction = 
+    Mov(operand src, operand dst)
+    | Unary(unary_operator, operand)
+    | Binary(binary_operator, operand, operand)
+    | Cmp(operand, operand)
+    | Idiv(operand)
+    | Cdq
+    | Jmp(identifier)
+    | JmpCC(cond_code, identifier)
+    | SetCC(cond_code, operand)
+    | Label(identifier)
+    | AllocateStack(int)
+    | DeallocateStack(int)
+    | Push(operand)
+    | Call(identifier)
+    | Return(exp)
+unary_operator = Neg | Not
+binary_operator = Add | Sub | Mult
+operand = Imm(int) | Reg(reg) | Pseudo(Identifier) | Stack(int)
+cond_code = E | NE | G | GE | L | LE
+reg = AX | CX | DX | DI | SI | R8 | R9 | R10 | R11
+```
+
+
+Page 377
+
+```
+program = Program(top_level*)
+assembly_type = Longword | Quadword | Double
+top_level = Function(identifier name, instruction* instructions)
+    | StaticVariable(identifier name, bool global, int alignment, static_init init)
+    | StaticConstant(identifier name, int alignment, static_init init)
+instruction = 
+    Mov(assembly_type, operand src, operand dst)
+    | Movsx(operand src, operand dst)
+    | MovZeroExtend(operand src, operand dst)
+    | Lea(operand src, operand dst)
+    | cvttsd2si(assembly_type dst_type, operand src, operand dst)
+    | cvtsi2sd(assembly_type src_type, operand src, operand dst)
+    | Unary(unary_operator, operand)
+    | Binary(binary_operator, operand, operand)
+    | Cmp(assembly_type, operand, operand)
+    | Idiv(assembly_type, operand)
+    | Div(assembly_type, operand)
+    | Cdq(assembly_type)
+    | Jmp(identifier)
+    | JmpCC(cond_code, identifier)
+    | SetCC(cond_code, operand)
+    | Label(identifier)
+    | AllocateStack(int)
+    | DeallocateStack(int)
+    | Push(operand)
+    | Call(identifier)
+    | Ret
+unary_operator = Neg | Not | Shr
+binary_operator = Add | Sub | Mult | DivDouble | And | Or | Xor
+operand = Imm(int) | Reg(reg) | Pseudo(Identifier) | Memory(reg, int) | Data(identifier)
+cond_code = E | NE | G | GE | L | LE | A | AE | B | BE
+reg = AX | CX | DX | DI | SI | R8 | R9 | R10 | R11 | SP | SB | XMM0 | XMM1 | XMM2 | XMM3 | XMM4 | XMM5 | XMM6 | XMM7 | XMM14 | XMM15
+```
 
 
 
 
-
-# SemanticAnalysis and Building the Identifier Map
+# Identifier Resolution and Building the Identifier Map
 
 ## Identifier Resolution Phase Pass (see page 174ff)
 
 Objects without linkage (such as local variables) get a new, unique name assigned. Objects with external linkage however, such as functions, are inserted into the identifier map using their original name because the linker will refer to objects with external linkage with that name so they can be correlated accross compilation units, libraries and object files.
 
-Variables are inserted into the Naming Source (Identifier Map) by the SemanticAnalysisVisitor in main.rs. The SemanticAnalysisVisitor visits all nodes in the AST. When it encounters a AstNodeType::VariableDeclaration it will turn the user-choosen variable name into a unique variable name as it expects that variable have no linkage (No external linkage).
+Variables are inserted into the Naming Source (Identifier Map) by the IdentifierResolutionVisitor in main.rs. The IdentifierResolutionVisitor visits all nodes in the AST. When it encounters a AstNodeType::VariableDeclaration it will turn the user-choosen variable name into a unique variable name as it expects that variable have no linkage (No external linkage).
 
-When a function declaration is encountered, the SemanticAnalysisVisitor will process a AstNodeType::FunctionDeclaration node.
+When a function declaration is encountered, the IdentifierResolutionVisitor will process a AstNodeType::FunctionDeclaration node.
 
 ## Type Checking Pass (see page 174, 178ff)
 

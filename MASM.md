@@ -16,13 +16,219 @@
 
 
 
+
 ## Show Memory
 
 Debuggen > Fenster > Arbeitsspeicher > Arbeitsspeicher 1 (Strg + Alt + M, 1)
 
 
 
-## Console Output on Windows with MASM
+
+# x64 Assembly
+
+
+## .code vs. SEGMENT text
+
+In Microsoft Macro Assembler (MASM), the core difference is that .code is a simplified segment directive that automatically manages segment properties, while SEGMENT is a full-segment directive that requires you to manually define all segment attributes, alignments, and pairings
+
+## extrn ExitProcess: PROC vs. EXTERN GetForegroundWindow: PROC vs. ExitProcess PROTO vs externdef
+
+https://stackoverflow.com/questions/74738084/when-to-use-externdef-with-abs-in-masm
+
+```
+extrn ExitProcess: PROC
+EXTERN ExitProcess: PROC
+ExitProcess PROTO, dwExitCode:DWORD
+externdef symbol:type {optional_list_of_symbol:type_pairs}
+```
+
+How should you include windows functions into assembly code?
+Should you use extrn+PROC or EXTERN+PROC or PROTO or externdef?
+What is the difference?
+
+The Art of 64-Bit Assembly (Randall Hyde) page 24: "MASM has two other directives (next to externdef) extrn and extern, that could also be used. This book uses the externdef directive because it is the most general directive."
+
+I tested these two options:
+
+```
+ExitProcess PROTO
+EXTERN ExitProcess: PROC
+```
+
+both worked.
+
+## Specify the entry point after the END keyword or not? END vs. END main
+
+Is it true that the main entry point to the application can be inserted after the END keyword?
+This seems to be optional.
+
+```
+END
+```
+
+vs.
+
+```
+END main
+```
+
+
+
+### Write "Hello World" to the console (x64)
+
+This example uses .code (instead of SEGMENT).
+This code calls ExitProcess without crashing.
+
+```
+; ---------------------------------------------
+; Hello World for Win64 Intel x64 Assembly
+;
+; by fruel (https://github.com/fruel)
+; 13 June 2016
+; ---------------------------------------------
+
+GetStdHandle PROTO
+ExitProcess PROTO
+WriteConsoleA PROTO
+
+.data
+msg BYTE "Hello World",0
+bytesWritten DWORD ?
+
+.code
+main PROC
+    sub rsp, 5 * 8
+
+    mov rcx, -11
+    call GetStdHandle
+
+    mov  rcx, rax
+    lea  rdx, msg
+    mov  r8, LENGTHOF msg - 1
+    lea  r9, bytesWritten  
+    mov  QWORD PTR [rsp + 4 * SIZEOF QWORD], 0
+    call WriteConsoleA
+
+    mov rcx, 0      
+    call ExitProcess
+main ENDP
+
+END
+```
+
+### ExitProcess (x64)
+
+Uses segments.
+Just calls ExitProcess()
+
+```
+ExitProcess PROTO
+;EXTERN ExitProcess: PROC
+
+PUBLIC main
+
+_TEXT SEGMENT
+
+main PROC
+
+    ; prelude - build stack frame
+	push rbp ; save frame pointer
+	mov rbp, rsp ; fix stack pointer
+	sub rsp, 8 * (4 + 2) ; allocate shadow register area + 2 QWORDs for stack alignment
+	
+    ; call to ExitProcess
+	mov eax, 0  
+	call ExitProcess
+
+	; epilog - restore stack pointer
+	mov rsp, rbp
+	pop rbp
+
+	ret
+main ENDP
+
+_TEXT ENDS
+
+END
+```
+
+### MessageBox (x64)
+
+Using SEGMENT instead of .text
+Calls ExitProcess before removing the stack pointer.
+
+```
+GetForegroundWindow PROTO
+;EXTERN GetForegroundWindow: PROC
+
+MessageBoxA PROTO
+;EXTERN MessageBoxA: PROC
+
+ExitProcess PROTO
+;EXTERN ExitProcess: PROC
+
+PUBLIC main
+
+
+_DATA SEGMENT
+hello_msg db "Hello world", 0
+info_msg  db "Info", 0
+_DATA ENDS
+
+
+_TEXT SEGMENT
+
+main PROC
+
+	push rbp ; save frame pointer
+	mov rbp, rsp ; fix stack pointer
+	sub rsp, 8 * (4 + 2) ; allocate shadow register area + 2 QWORDs for stack alignment
+
+	; Get a window handle
+	call GetForegroundWindow
+	mov rcx, rax
+
+	; WINUSERAPI int WINAPI MessageBoxA(
+	;  RCX =>  _In_opt_ HWND hWnd,
+	;  RDX =>  _In_opt_ LPCSTR lpText,
+	;  R8  =>  _In_opt_ LPCSTR lpCaption,
+	;  R9  =>  _In_ UINT uType);
+
+	mov rdx, offset hello_msg
+	mov r8, offset info_msg
+	mov r9, 0 ; MB_OK
+
+	and rsp, not 8 ; align stack to 16 bytes prior to API call
+	call MessageBoxA
+
+    ; Exit Process
+	mov eax, 0  
+	call ExitProcess
+
+	; epilog. restore stack pointer
+	mov rsp, rbp
+	pop rbp	
+
+	ret
+main ENDP
+
+_TEXT ENDS
+
+END
+```
+
+
+
+
+
+
+# x32 Assembly
+
+
+
+
+
+## Console Output on Windows with MASM (32 bit)
 
 https://en.wikibooks.org/wiki/X86_Assembly/Print_Version
 

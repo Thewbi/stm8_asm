@@ -15,8 +15,10 @@ use crate::common::variable_naming_source::VariableNamingSource;
 // Nora Sandler, page 104, maps user-defined variable names to unique variable names
 //
 // * checks for undefined variables
-// * checks for  duplicate variable names
+// * checks for duplicate variable names
 // * tells the VariableNamingSource that a new scope has been entered or exited
+// * ??? replaces parameter names by "pseudo_{}" which is then later used to move arguments to
+//   function calls from ABI registers onto the stack in the AsmAstConversionVisitor
 //
 // 1. c_ast/IdentifierResolutionVisitor - checks for duplicate or undeclared variable names
 // 2. tacky/TackyVisitor - Generate TACKY (from AST)
@@ -156,7 +158,9 @@ impl IdentifierResolutionVisitor {
 
                 // RHS
                 if let Some(right_node) = ast_node.rhs.as_mut() {
-                    self.visit(right_node);
+                    let replaced_var_name_node: IdentifierResolutionNode = self.visit(right_node);
+                    let replaced_var_name = replaced_var_name_node.string_val;
+                    right_node.string_val = replaced_var_name;
                 }
             }
 
@@ -169,8 +173,10 @@ impl IdentifierResolutionVisitor {
                 node.node_type = ast_node.node_type.clone();
 
                 let user_choosen_variable_name = ast_node.string_val.clone();
+
                 // DEBUG
                 println!("user_choosen_variable_name: {:?}", user_choosen_variable_name);
+                
                 node.string_val = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
                     Ok(var_name) => var_name,
                     Err(e) => {
@@ -186,6 +192,52 @@ impl IdentifierResolutionVisitor {
                     // println!("AstNodeType.RETURN: {:?}", ast_node.node_type);
                     println!("AstNodeType.RETURN: {:?}", ast_node);
                 }
+
+                if let Some(left_node) = ast_node.lhs.as_mut() {
+                    let user_choosen_variable_name = left_node.string_val.clone();
+                    match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
+                        Ok(var_name) => {
+                            // DEBUG
+                            println!("user_choosen_variable_name: {:?} resolved into {:?}", user_choosen_variable_name, var_name);
+                        
+                            left_node.string_val = var_name.clone();
+
+                            var_name
+                        }
+                        Err(e) => {
+                            //panic!("{}", e);
+                            e
+                            // println!("test");
+                        }
+                    };
+                }
+
+                // let mut node = IdentifierResolutionNode::new();
+                // node.node_type = ast_node.node_type.clone();
+
+                // if let Some(mut left_node) = ast_node.lhs.as_mut() {
+                //     print!("{:?}", left_node);
+
+                //     let user_choosen_variable_name = left_node.string_val.clone();
+                    
+                //     node.string_val = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
+                //         Ok(var_name) => {
+                //             // DEBUG
+                //             println!("user_choosen_variable_name: {:?} resolved into {:?}", user_choosen_variable_name, node.string_val);
+                        
+                //             left_node.string_val = node.string_val;
+
+                //             var_name
+                //         }
+                //         Err(e) => {
+                //             //panic!("{}", e);
+                //         }
+                //     };
+
+                    
+                // }
+
+                // return node;
 
                 // // LHS
                 // if let Some(left_node) = ast_node.lhs.as_mut() {
@@ -263,6 +315,11 @@ impl IdentifierResolutionVisitor {
                 // LHS
                 if let Some(left_node) = ast_node.lhs.as_mut() {
 
+                    if self.debug {
+                        println!("{:?}", left_node);
+                        println!("{:?}", left_node.string_val);
+                    }
+
                     let lhs_result = self.visit(left_node);
 
                     if self.debug {
@@ -272,12 +329,15 @@ impl IdentifierResolutionVisitor {
                     match lhs_result.node_type {
 
                         AstNodeType::Identifier => {
-                            let is_defined = self.variable_naming_source.borrow_mut().is_variable_name_defined(&lhs_result.string_val);
+                            //let is_defined = self.variable_naming_source.borrow_mut().is_variable_name_defined(&lhs_result.string_val);
+
+                            // check the original user-choosen variable name
+                            let is_defined = self.variable_naming_source.borrow_mut().is_variable_name_defined(&left_node.string_val);
                             if !is_defined {
                                 panic!("Variable \"{}\" is not defined!", &lhs_result.string_val);
                             }
-
-                            let new_name = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&lhs_result.string_val) {
+                            //let new_name = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&lhs_result.string_val) {
+                            let new_name = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&left_node.string_val) {
                                 Ok(var_name) => var_name,
                                 Err(e) => {
                                     panic!("{}", e);
@@ -647,11 +707,11 @@ impl IdentifierResolutionVisitor {
                 }
             }
 
-            AstNodeType::While => {
-                if self.debug {
-                    println!("AstNodeType: {:?}", ast_node.node_type);
-                }
-            }
+            // AstNodeType::While => {
+            //     if self.debug {
+            //         println!("AstNodeType: {:?}", ast_node.node_type);
+            //     }
+            // }
 
             AstNodeType::DoWhile => {
                 if self.debug {
@@ -659,7 +719,7 @@ impl IdentifierResolutionVisitor {
                 }
             }
 
-            AstNodeType::For => {
+            AstNodeType::While | AstNodeType::For => {
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }

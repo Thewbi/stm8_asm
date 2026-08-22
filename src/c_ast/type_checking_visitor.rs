@@ -334,7 +334,7 @@ impl TypeCheckingVisitor {
                 // println!("{:?}", ast_node);
                 let function_name = ast_node.string_val.clone();
                 // DEBUG
-                println!("FunctionCall to function usinsg identifier: {:?}", function_name);
+                println!("FunctionCall to function using identifier: {:?}", function_name);
                 // make sure, the identifier is a function call and not a variable
                 if self.symbol_table.borrow_mut().contains(&function_name) {
                     let existing_symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&function_name);
@@ -360,7 +360,7 @@ impl TypeCheckingVisitor {
                         }
                     }
                 } else {
-                    panic!("[ERR] Symbol {} is not conatined in the symbol table! Cannot call undefined symbol!", &function_name);
+                    panic!("[ERR] Symbol {} is not contained in the symbol table! Cannot call undefined symbol!", &function_name);
                 }
             }
 

@@ -1,8 +1,11 @@
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::str::FromStr;
 
 use std::sync::atomic::AtomicUsize;
 use crate::Ordering;
+
+use crate::common::data_type::DataType;
 
 use crate::c_ast::ast_node::AstNode;
 use crate::c_ast::ast_node::AstNodeType;
@@ -20,6 +23,7 @@ use crate::tacky::tacky::ValueElement;
 use crate::tacky::tacky::InstructionType;
 use crate::tacky::tacky::UnaryOperator;
 use crate::tacky::tacky::BinaryOperator;
+use crate::tacky::tacky::Argument;
 
 use crate::VariableNamingSource;
 
@@ -105,20 +109,141 @@ impl TackyVisitor {
 
             AstNodeType::FunctionDeclaration => {
 
-                // TACKY
+                // DEBUG
+                println!("{:?}", ast_node);
+
+                let mut function_name = String::new();
+                if let Some(function_name_ast_node) = ast_node.function_name_ast_node.as_ref() {
+                    function_name = function_name_ast_node.string_val.clone();
+                }
+
+                // there should be a non-empty name for the function to call
+                assert!(function_name.len() > 0);
+
+                // TACKY top level unit (StaticVariable, StaticConstant or Function)
                 let mut top_level_function: TopLevel = TopLevel::new();
-                top_level_function.name = String::from(ast_node.string_val.clone());
+                top_level_function.name = String::from(function_name.clone());
                 top_level_function.top_level_type = TopLevelType::Function;
                 top_level_function.global = true;
+
+                // return type
+                if let Some(data_type) = ast_node.rhs.as_ref() {
+
+                    // DEBUG
+                    // println!("{:?}", data_type);
+
+                    // DataType {
+                    // DataTypeByte,
+                    // DataTypeChar,
+                    // DataTypeInt,
+                    // DataTypeShort,
+                    // DataTypeLong,
+                    // DataTypeFloat,
+                    // DataTypeDouble,
+
+                    // DataTypeVoid, // is it beneficial to treat void as a data type? (void-pointer?)
+
+                    // DataTypeUnknown,
+
+                    match data_type.node_type {
+                        AstNodeType::DataType => {
+
+                            top_level_function.return_type = Some(DataType::from_str(&data_type.string_val).expect("REASON"));
+
+                            // match data_type.string_val.as_str() {
+                            //     "int" => {
+                            //         top_level_function.return_type = Some(DataType::DataTypeInt);
+                            //     }
+                            //     _ => {
+                            //         todo!();
+                            //     }
+                            // }
+                            //top_level_function.return_type = Some(data_type.as_ref().clone());
+                            //top_level_function.return_type = data_type.clone();
+                        },
+                        _ => {
+    
+                        }
+                    }
+                    
+                }
+                // match ast_node.rhs {
+                //     _ => {
+                //         println!("{:?}", ast_node.rhs);
+                //         top_level_function.return_type = ast_node.rhs;
+                //         panic!("test");
+                //     }
+                // }
+                // top_level_function.return_type = Some(ast_node.rhs);
+
+                // arguments
+                for param in &ast_node.parameters {
+                    // // DEBUG
+                    // println!("{:?}", param);
+
+                    let mut argument = Argument::new();
+
+                    // name
+                    if let Some(left_node) = param.lhs.as_ref() {
+                        // DEBUG
+                        // print!("{:?}", left_node);
+
+                        argument.name = left_node.string_val.clone();
+                    }
+                    // data type
+                    if let Some(right_node) = param.rhs.as_ref() {
+                        // DEBUG
+                        // print!("{:?}", right_node);
+
+                        argument.data_type = DataType::from_str(&right_node.string_val).expect(format!("Type is not known: {}\n", &right_node.string_val).as_str());
+                    }
+
+                    top_level_function.arguments.push(Box::new(argument));
+                }
 
                 // insert function into program
                 self.program.top_level.push(Box::new(top_level_function));
 
                 // add instructions and declarations into body/block
                 if let Some(block) = ast_node.lhs.as_ref() {
+
                     for i in 0..block.block_items.len() {
+
+                        let destination_var_name = String::from("");
                         let mut br_cnt = 0;
-                        self.visit(&block.block_items[block.block_items.len()-1-i], &String::from(""), &mut br_cnt);
+                        let last_block_item = &block.block_items[block.block_items.len()-1-i];
+
+                        self.visit(&last_block_item, &destination_var_name, &mut br_cnt);
+                    }
+
+                    // add return
+
+                    // let last_block_item = &block.block_items[block.block_items.len()-1];
+                    let last_block_item = &block.block_items[0];
+
+                    //println!("block.block_items.len(): {}, last_block_item: {:?}", block.block_items.len(), last_block_item);
+
+                    if let Some(block_item) = last_block_item.lhs.as_ref() {
+                        if let Some(statement) = block_item.lhs.as_ref() {
+
+                            println!("test: {:?}", statement.node_type);
+
+                            if statement.node_type != AstNodeType::Return {
+                                // panic!("Cannot compile function without ret!");
+
+                                let return_value: ValueElement = ValueElement::Constant(String::from("0"));
+
+                                let mut return_instruction: Instruction = Instruction::new();
+                                return_instruction.instruction_type = InstructionType::Return;
+                                return_instruction.src = return_value;
+
+                                // block.block_items.push(Box::new(return_instruction));
+
+                                // append instruction to latest top-level element of the program
+                                let last = self.program.top_level.len() - 1;
+                                self.program.top_level[last].body.push(Box::new(return_instruction));
+                            }
+                        }
                     }
                 }
             }
@@ -159,64 +284,159 @@ impl TackyVisitor {
 
                 match ast_node.operator_type {
 
-                    AstNodeOperatorType::LessThan => {
-                        // println!("LessThan");
-                    }
-
                     AstNodeOperatorType::Assignment => {
-                        // println!("Assignment");
+                        println!("");
+                        println!("Assignment +++++++++++++++++++++++++++");
+                        println!("Assignment: {:?}", ast_node);
+                        println!("Assignment ---------------------------");
+                        println!("");
 
-                        // if a binary instruction is executed, a value is correctly assigned
-                        // to the target variable by the binary instruction itself.
-                        //
-                        // During assignments, binary executions are wrapped in assignment AstNodes.
-                        // As the TACKY visitor will generate a copy for the assignment AstNode, 
-                        // this assignment has no added value when there is a binary instruction prior
-                        // (which already assigns, as stated above).
-                        //
-                        // Therefore if an assignment wraps a binary instruction, the copy instruction
-                        // is not emitted. If a assignment does not wrap a binary instruction, the 
-                        // copy is emitted
-                        let mut output_copy_instruction = true;
+                        if let Some(lhs_subnode) = ast_node.lhs.as_ref() {
+                            println!("LHS: {:?}", lhs_subnode);
 
-                        // Copy - this is new for the init part of for loops!
-                        let mut copy_instruction: Instruction = Instruction::new();
-                        copy_instruction.instruction_type = InstructionType::Copy;
+                            match lhs_subnode.operator_type {
 
-                        let mut dst_name = String::from("");
+                                // Pointers: LHS is a dereference pointer.
+                                // This means the pointer is not lvalue converted to a value but it is
+                                // converted to an object and the object gets a value assigned.
+                                // This is implemented using TACKY Store()
+                                AstNodeOperatorType::Dereference => {
+                                    // panic!("Dereference");
 
-                        if let Some(lhs_sub) = ast_node.lhs.as_ref() {
-                            // println!("LHS: {:?}", lhs_sub);
-                            dst_name = lhs_sub.string_val.clone();
-                            copy_instruction.dst = ValueElement::Variable(dst_name.clone());
-                        }
+                                    // TACKY Store
+                                    let mut store_instruction: Instruction = Instruction::new();
+                                    store_instruction.instruction_type = InstructionType::Store;
 
-                        if let Some(rhs_sub) = ast_node.rhs.as_ref() {
-                            // println!("RHS: {:?}", rhs_sub);
+                                    // dst
+                                    //let mut br_cnt = 0;
+                                    //store_instruction.dst = self.visit(&lhs_subnode, &dst_name, &mut br_cnt);
+                                    store_instruction.dst = ValueElement::Variable(String::from(lhs_subnode.string_val.clone()));
 
-                            // let dst_name = self.new_temp_var();
-                            let mut br_cnt = 0;
-                            copy_instruction.src = self.visit(&rhs_sub, &dst_name, &mut br_cnt);
+                                    // src
+                                    if let Some(rhs_sub) = ast_node.rhs.as_ref() {
+                                        println!("RHS: {:?}", rhs_sub);
+                                        let mut br_cnt = 0;
+                                        store_instruction.src = self.visit(&rhs_sub, &dst_name, &mut br_cnt);
+                                    }
 
-                            match rhs_sub.node_type {
-
-                                AstNodeType::Binary => {
-                                    println!("binary");
-                                    output_copy_instruction = false;
+                                    // append instruction to latest top-level element of the program
+                                    let last = self.program.top_level.len() - 1;
+                                    self.program.top_level[last].body.push(Box::new(store_instruction));
                                 }
 
                                 _ => {
-                                    // todo!();
+
+                                    // if a binary instruction is executed, a value is correctly assigned
+                                    // to the target variable by the binary instruction itself.
+                                    //
+                                    // During assignments, binary executions are wrapped in assignment AstNodes.
+                                    // As the TACKY visitor will generate a copy for the assignment AstNode, 
+                                    // this assignment has no added value when there is a binary instruction prior
+                                    // (which already assigns, as stated above).
+                                    //
+                                    // Therefore if an assignment wraps a binary instruction, the copy instruction
+                                    // is not emitted. If a assignment does not wrap a binary instruction, the 
+                                    // copy is emitted
+                                    let mut output_copy_instruction = true;
+
+                                    // Copy - this is new for the init part of for loops!
+                                    let mut copy_instruction: Instruction = Instruction::new();
+                                    copy_instruction.instruction_type = InstructionType::Copy;
+
+                                    let mut dst_name = String::from("");
+
+                                    if let Some(lhs_sub) = ast_node.lhs.as_ref() {
+                                        println!("LHS: {:?}", lhs_sub);
+
+                                        dst_name = lhs_sub.string_val.clone();
+                                        copy_instruction.dst = ValueElement::Variable(dst_name.clone());
+
+                                        // match lhs_sub.node_type {
+                                        // }
+                                    }
+
+                                    if let Some(rhs_sub) = ast_node.rhs.as_ref() {
+                                        println!("RHS: {:?}", rhs_sub);
+
+                                        let mut br_cnt = 0;
+                                        copy_instruction.src = self.visit(&rhs_sub, &dst_name, &mut br_cnt);
+
+                                        // determine if the copy instruction is output or not
+                                        match rhs_sub.node_type {
+
+                                            AstNodeType::Binary => {
+                                                // DEBUG
+                                                // println!("binary");
+                                                output_copy_instruction = false;
+                                            }
+
+                                            AstNodeType::Expression => {
+                                                // DEBUG
+                                                // println!("binary");
+                                                output_copy_instruction = false;
+                                            }
+
+                                            _ => {
+                                                println!("NodeType: {:?}", rhs_sub.node_type);
+                                                // todo!();
+                                            }
+                                        }
+                                    }
+
+                                    // to understand this check, read large comment above
+                                    if output_copy_instruction {
+                                        // append instruction to latest top-level element of the program
+                                        let last = self.program.top_level.len() - 1;
+                                        self.program.top_level[last].body.push(Box::new(copy_instruction));
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    AstNodeOperatorType::FunctionCall => {
+
+                        // println!("{:?}", ast_node);
+
+                        // FunCall
+                        let mut function_call_instruction: Instruction = Instruction::new();
+                        function_call_instruction.instruction_type = InstructionType::FunCall;
+
+                        if let Some(lhs_ast_node) = ast_node.lhs.as_ref() {
+
+                            function_call_instruction.function_name = lhs_ast_node.string_val.clone();
+
+                            // PARAMETERS / ARGUMENTS
+                            for i in 0..lhs_ast_node.parameters.len() {
+
+                                let parameter_ast_node = &lhs_ast_node.parameters[lhs_ast_node.parameters.len()-1-i];
+
+                                // DEBUG
+                                println!("ARGUMENT_{}: {:?}", i, parameter_ast_node);
+
+                                match parameter_ast_node.node_type {
+
+                                    AstNodeType::ConstInt | AstNodeType::ConstLong => {
+                                        function_call_instruction.parameters.push(Box::new(ValueElement::Constant(String::from(parameter_ast_node.string_val.clone()))));
+                                    }
+
+                                    _ => {
+                                        panic!("Please add node_type!");
+                                    }
+
                                 }
                             }
                         }
 
-                        // to understand this check, read large comment above
-                        if output_copy_instruction {
-                            // append instruction to latest top-level element of the program
-                            let last = self.program.top_level.len() - 1;
-                            self.program.top_level[last].body.push(Box::new(copy_instruction));
-                        }
+                        function_call_instruction.dst = ValueElement::Variable(dst_name.clone());
+
+                        // append instruction to latest top-level element of the program
+                        let last = self.program.top_level.len() - 1;
+                        self.program.top_level[last].body.push(Box::new(function_call_instruction));
+
+                        let result = ValueElement::Variable(dst_name.clone());
+
+                        return result;
                     }
 
                     AstNodeOperatorType::NotApplicable => {
@@ -240,6 +460,9 @@ impl TackyVisitor {
 
                     let dst_name = self.variable_naming_source.borrow_mut().new_temp_var();
 
+                    // DEBUG
+                    println!("{}", dst_name);
+
                     let mut br_cnt = 0;
                     let return_value: ValueElement = self.visit(&expression, &dst_name, &mut br_cnt);
 
@@ -255,7 +478,6 @@ impl TackyVisitor {
                     // into EAX from the temporary stack variable!
                     let mut return_instruction: Instruction = Instruction::new();
                     return_instruction.instruction_type = InstructionType::Return;
-                    
                     return_instruction.src = return_value;
 
                     // append instruction to latest top-level element of the program
@@ -276,71 +498,137 @@ impl TackyVisitor {
 
             AstNodeType::Unary => {
 
-                let mut unary_instruction: Instruction = Instruction::new();
-                unary_instruction.instruction_type = InstructionType::Unary;
-
-                // // DEBUG
-                // println!("{:?}", ast_node.lhs);
-                // println!("{:?}", ast_node.rhs);
-
-                //
-                // src
-                //
-
-                //
-                // dst
-                //
-
-                // RHS contains the source
-                if let Some(rhs) = ast_node.rhs.as_ref() {
-
-                    let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-
-                    let mut br_cnt = 0;
-                    let rhs_value_element = self.visit(&rhs, &temp_var_name, &mut br_cnt);
-                    
-                    // source and destination are the same thing
-                    unary_instruction.src = rhs_value_element.clone();
-                    unary_instruction.dst = rhs_value_element.clone();
-                }
-
-                //
-                // operator
-                //
-
                 if let Some(operator) = ast_node.lhs.as_ref() {
 
                     match operator.operator_type {
 
-                        AstNodeOperatorType::Complement => {
-                            unary_instruction.unary_operator = UnaryOperator::Complement;
+                        AstNodeOperatorType::AddrOf => {
+
+                            println!("{:?}", ast_node);
+
+                            // DEBUG
+                            println!("{:?}", ast_node.lhs);
+                            println!("{:?}", ast_node.rhs);
+
+                            let mut get_address_instruction: Instruction = Instruction::new();
+                            get_address_instruction.instruction_type = InstructionType::GetAddress;
+                            if let Some(rhs_node) = ast_node.rhs.as_ref() {
+                                get_address_instruction.src = ValueElement::Variable(rhs_node.string_val.clone());
+                            }
+                            get_address_instruction.dst = ValueElement::Variable(dst_name.to_string());
+
+                            // append instruction to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(get_address_instruction));
+
+                            return ValueElement::Variable(String::from(dst_name.to_string()));
                         }
 
-                        AstNodeOperatorType::Negate => {
-                            unary_instruction.unary_operator = UnaryOperator::Negate;
-                        }
+                        AstNodeOperatorType::Dereference => {
 
-                        AstNodeOperatorType::Not => {
-                            unary_instruction.unary_operator = UnaryOperator::Not;
-                        }
+                            // Nora Sandler, page 371, Listing 14-19
 
-                        AstNodeOperatorType::Increment => {
-                            unary_instruction.unary_operator = UnaryOperator::Increment;
+                            println!("{:?}", ast_node);
+
+                            // DEBUG
+                            println!("{:?}", ast_node.lhs);
+                            println!("{:?}", ast_node.rhs);
+
+                            let mut load_instruction: Instruction = Instruction::new();
+                            load_instruction.instruction_type = InstructionType::Load;
+
+                            if let Some(rhs_node) = ast_node.rhs.as_ref() {
+                                load_instruction.src = ValueElement::Variable(rhs_node.string_val.clone());
+                            }
+                            load_instruction.dst = ValueElement::Variable(dst_name.to_string());
+
+                            // append instruction to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(load_instruction));
+
+                            return ValueElement::Variable(String::from(dst_name.to_string()));
                         }
 
                         _ => {
-                            panic!("{}", format!("Unhandled OperatorType {:?}!\n", operator.operator_type).as_str());
+
+                            let mut unary_instruction: Instruction = Instruction::new();
+                            unary_instruction.instruction_type = InstructionType::Unary;
+
+                            // // DEBUG
+                            // println!("{:?}", ast_node.lhs);
+                            // println!("{:?}", ast_node.rhs);
+
+                            //
+                            // src
+                            //
+
+                            //
+                            // dst
+                            //
+
+                            // RHS contains the source
+                            if let Some(rhs) = ast_node.rhs.as_ref() {
+
+                                let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+
+                                let mut br_cnt = 0;
+                                let rhs_value_element = self.visit(&rhs, &temp_var_name, &mut br_cnt);
+                                
+                                // source and destination are the same thing
+                                unary_instruction.src = rhs_value_element.clone();
+                                unary_instruction.dst = rhs_value_element.clone();
+                            }
+
+                            //
+                            // operator
+                            //
+
+                            if let Some(operator) = ast_node.lhs.as_ref() {
+
+                                match operator.operator_type {
+
+                                    AstNodeOperatorType::Complement => {
+                                        unary_instruction.unary_operator = UnaryOperator::Complement;
+                                    }
+
+                                    AstNodeOperatorType::Negate => {
+                                        unary_instruction.unary_operator = UnaryOperator::Negate;
+                                    }
+
+                                    AstNodeOperatorType::Not => {
+                                        unary_instruction.unary_operator = UnaryOperator::Not;
+                                    }
+
+                                    AstNodeOperatorType::Increment => {
+                                        unary_instruction.unary_operator = UnaryOperator::Increment;
+                                    }
+
+                                    AstNodeOperatorType::Dereference => {
+                                        println!("Dereference {:?}", ast_node);
+                                        unary_instruction.unary_operator = UnaryOperator::Dereference;
+                                        unary_instruction.dst = ValueElement::Variable(dst_name.to_string());
+                                    }
+
+                                    AstNodeOperatorType::AddrOf => {
+                                        // println!("AddrOf {:?}", ast_node);
+                                        // unary_instruction.unary_operator = UnaryOperator::AddrOf;
+                                        panic!("The addrof operator is turned into TACKY: GetAddress()");
+                                    }
+
+                                    _ => {
+                                        panic!("{}", format!("Unhandled OperatorType '{:?}'!\n", operator.operator_type).as_str());
+                                    }
+                                }
+                            }
+
+                            // append instruction to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(unary_instruction));
+
+                            return ValueElement::Variable(String::from(dst_name.to_string()));
                         }
                     }
-                }
-
-                
-
-                // append instruction to latest top-level element of the program
-                let last = self.program.top_level.len() - 1;
-                self.program.top_level[last].body.push(Box::new(unary_instruction));
-
-                return ValueElement::Variable(String::from(dst_name.to_string()))
+                } 
             }
 
             AstNodeType::Binary => {
@@ -784,16 +1072,28 @@ impl TackyVisitor {
                 // original
                 // return ValueElement::Variable(ast_node.string_val.clone());
 
-                //let variable_identifier = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&ast_node.string_val);
+                // let variable_identifier = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&ast_node.string_val);
+                // return ValueElement::Variable(variable_identifier.expect("REASON"));
+
                 let variable_identifier = ast_node.string_val.clone();
+                return ValueElement::Variable(variable_identifier);
 
                 // // DEBUG
                 // println!("{:?}", variable_identifier);
-                
-                return ValueElement::Variable(variable_identifier);
             }
             
             AstNodeType::VariableDeclaration => {
+
+                let node_as_string = ast_node.serialize();
+
+                let mut comment_declaration: Instruction = Instruction::new();
+                comment_declaration.instruction_type = InstructionType::Comment;
+                // comment_declaration.label = "This is a comment".to_string();
+                comment_declaration.label = node_as_string;
+
+                // append instruction to latest top-level element of the program
+                let last = self.program.top_level.len() - 1;
+                self.program.top_level[last].body.push(Box::new(comment_declaration));
 
                 // In TACKY, variables are not declared. It is allowed to use variables without declaring them.
                 // Only if a variable is initialized, this is output into TACKY as a variable assignment.
@@ -911,16 +1211,13 @@ impl TackyVisitor {
             }
 
             _ => {
-                panic!("{}", format!("Unhandled NodeType {:?}!\n", ast_node.node_type).as_str());
+                panic!("{}", format!("Unhandled NodeType '{:?}'!\n", ast_node.node_type).as_str());
             }
         }
 
-        //ValueElement::Constant(String::from("unhandled"))
         ValueElement::None
     }
 }
-
-
 
 // #[derive(Debug, PartialEq)]
 // pub enum AstNodeType {

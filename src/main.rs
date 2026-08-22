@@ -107,6 +107,7 @@ use crate::asm_ast::asm_ast_conversion_visitor::AsmAstConversionVisitor;
 use crate::asm_ast::asm_ast_fixup_visitor::AsmAstFixupVisitor;
 use crate::asm_ast::asm_ast_emitter_visitor::AsmAstASEmitterVisitor;
 use crate::asm_ast::asm_ast_masm_emitter_visitor::AsmAstMasmEmitterVisitor;
+use crate::asm_ast::asm_ast::print_asm_ast_program;
 
 // https://stackoverflow.com/questions/32935808/generate-sequential-ids-for-each-instance-of-a-struct
 static RULE_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -775,7 +776,7 @@ fn main() {
                 println!("{}", ast_string_buffer);
             }
 
-            // DEBUG - print AST dot to dot file
+            // DEBUG - print AST dot to dot file (before variable replacement)
             let output_abstract_syntax_tree_as_dot_to_file: bool = true;
             // let output_abstract_syntax_tree_as_dot_to_file: bool = false;
             if output_abstract_syntax_tree_as_dot_to_file {
@@ -806,7 +807,8 @@ fn main() {
 
         if let Some(mut program_ast_node) = ast_stack_root_option {
 
-            // rc - refcell VariableNamingSource so that the IdentifierResolutionVisitor and the TackyVisitor can both use the same object
+            // rc - refcell VariableNamingSource so that the IdentifierResolutionVisitor 
+            // and the TackyVisitor can both use the same object
             let variable_naming_source = VariableNamingSource::new();
 
             let variable_naming_source_rc_1 = Rc::new(RefCell::new(variable_naming_source));
@@ -902,9 +904,13 @@ fn main() {
 
             let mut tacky_visitor = TackyVisitor::new(variable_naming_source_rc_2);
 
-            tacky_visitor.program.name = String::from("binary_0.c");
+            tacky_visitor.program.name = String::from(input_tuple.1);
             let mut br_cnt = 0;
             tacky_visitor.visit(&mut program_ast_node, &String::from(""), &mut br_cnt);
+
+            //
+            // DEBUG print TACKY statements to file
+            //
 
             let mut string_buffer = String::from("");
             let indent = 0usize;
@@ -929,6 +935,28 @@ fn main() {
             
             let mut asm_ast_conversion_visitor = AsmAstConversionVisitor::new();
             asm_ast_conversion_visitor.visit_tacky_program(&tacky_visitor.program);
+
+            //
+            // DEBUG: output intermedate assembler code to file
+            //
+
+            let mut string_buffer = String::from("");
+            let indent = 0usize;
+
+            print_asm_ast_program(&asm_ast_conversion_visitor.asm_ast_program, &mut string_buffer, indent);
+
+            // 1. Create or overwrite the file
+            // extension intasm == intermediate assembler code 
+            let file = File::create("asm_ast.intasm").expect("Create file failed!");
+            
+            // 2. Wrap the file in a BufWriter
+            let mut writer = BufWriter::new(file);
+
+            // 3. Write data
+            write!(writer, "{}", string_buffer);
+
+            // 4. Explicitly flush the remaining data to disk
+            writer.flush().expect("flush failed!");
 
             //
             // Fixup
@@ -976,7 +1004,8 @@ fn main() {
 
                 // 1. Create or overwrite the file
                 // let file = File::create("main.asm").expect("Create file failed!");
-                let file = File::create("C:\\Users\\U5353\\source\\repos\\test_1\\test_1\\main.asm").expect("Create file failed!");
+                //let file = File::create("C:\\Users\\U5353\\source\\repos\\test_1\\test_1\\main.asm").expect("Create file failed!");
+                let file = File::create("C:\\Users\\U5353\\source\\repos\\x64_test\\main.asm").expect("Create file failed!");
                 
                 // 2. Wrap the file in a BufWriter
                 let mut writer = BufWriter::new(file);
