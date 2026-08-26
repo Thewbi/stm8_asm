@@ -7,6 +7,7 @@ use crate::AstNode;
 use crate::AstNodeType;
 
 use crate::SymbolTable;
+use crate::c_ast::ast_node::AstNodeOperatorType;
 use crate::common::data_type::DataType;
 use crate::common::data_type::DataType::DataTypeInt;
 use crate::common::symbol_table::SymbolTableEntry;
@@ -16,12 +17,12 @@ use crate::common::symbol_table::SymbolTableEntryType;
 // Nora Sandler, page 178
 //
 // Every variable identifier has a type (int, long, double, float, char, byte, ...)
-// 
+//
 // Every function identifier has a return type and a fixed number of arguments (exception: variadic functions)
 // A function cannot be declared with a function body more than once!
 //
 // It is not possible to call a variable like a function (function pointers???)
-// 
+//
 // The purpose of Type Checking is that all declarations of identifiers and all usages have compatible types!
 //
 
@@ -37,6 +38,10 @@ impl TypeCheckingVisitor {
             symbol_table: symbol_table_param,
             debug: false,
         }
+    }
+
+    pub fn print_symbol_table(&self) {
+        self.symbol_table.borrow_mut().print_symbol_table();
     }
 
     pub fn visit(&mut self, ast_node: &mut AstNode) {
@@ -78,6 +83,10 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Expression => {
+
+                // // DEBUG
+                // println!("{:?}", ast_node);
+
                 // LHS
                 if let Some(left_node) = ast_node.lhs.as_mut() {
                     self.visit(left_node);
@@ -89,9 +98,17 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Identifier => {
+                // // DEBUG
+                if self.debug {
+                    println!("{:?}", ast_node);
+                }
             }
 
             AstNodeType::Return => {
+                // LHS
+                if let Some(left_node) = ast_node.lhs.as_mut() {
+                    self.visit(left_node);
+                }
             }
 
             AstNodeType::If => {
@@ -112,12 +129,54 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Unary => {
+                // println!("Unary: {:?}", ast_node);
+
+                // RHS
+                if let Some(right_node) = ast_node.rhs.as_mut() {
+                    self.visit(right_node);
+
+                    // Nora Sandler, page 254. Not is always creating integer values 1 (= true), (0 = false)
+                    match ast_node.operator_type {
+                        AstNodeOperatorType::Not => {
+                            ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
+                        }
+                        _ => {
+                            //ast_node.analyzed_data_type = right_node.analyzed_data_type.clone();
+                            if !self.symbol_table.borrow_mut().contains(&right_node.string_val) {
+                                panic!("Variable '{}' not contained!", &right_node.string_val);
+                            }
+                            let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&right_node.string_val);
+                            ast_node.analyzed_data_type = symbol_table_entry.data_type;
+                        }
+                    }
+
+                    println!("Unary: {:?}", ast_node);
+                }
             }
 
             AstNodeType::Binary => {
+
+                // DEBUG
+                if self.debug {
+                    println!("{:?}", ast_node);
+                }
+
                 // LHS
                 if let Some(left_node) = ast_node.lhs.as_mut() {
                     self.visit(left_node);
+
+                    // check if a variable name is used where a variable name should be used (e.g. b = a + foo)
+                    if self.symbol_table.borrow_mut().contains(&left_node.string_val) {
+                        let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&left_node.string_val);
+                        match symbol_table_entry.symbol_table_entry_type {
+                            SymbolTableEntryType::Function => {
+                                panic!("Function name used as a variable in an expression!");
+                            }
+                            _ => {
+
+                            }
+                        }
+                    }
                 }
                 // RHS
                 if let Some(right_node) = ast_node.rhs.as_mut() {
@@ -139,7 +198,7 @@ impl TypeCheckingVisitor {
                     self.visit(left_node);
                 }
             }
- 
+
             // Structure:
             // RHS - return type
             // string_val - function name
@@ -172,7 +231,7 @@ impl TypeCheckingVisitor {
                 // RHS - Return type
                 let mut temp_data_type_as_string = String::new();
                 if let Some(right_node) = ast_node.rhs.as_mut() {
-                    println!("{:?}", right_node);
+                    // println!("{:?}", right_node);
 
                     assert!(right_node.node_type == AstNodeType::DataType);
                     temp_data_type_as_string = right_node.string_val.clone();
@@ -184,7 +243,7 @@ impl TypeCheckingVisitor {
                     Ok(data_type_result) => data_type_result,
                     Err(e) => panic!("should be valid DataType: {e}"),
                 };
-                
+
                 symbol_table_entry.data_type = data_type_as_enum;
                 symbol_table_entry.parameter_count = temp_parameter_count;
 
@@ -246,7 +305,7 @@ impl TypeCheckingVisitor {
                 // initialization expression
                 //
                 // perform semantic analysis of the initialization expression
-                // replace variable names with the unique variable names from 
+                // replace variable names with the unique variable names from
                 // the map stored inside the variable_naming_source
                 if let Some(expression_node) = ast_node.expression.as_mut() {
                     // DEBUG
@@ -291,7 +350,7 @@ impl TypeCheckingVisitor {
 
             AstNodeType::Conditional => {
             }
- 
+
             AstNodeType::Compound => {
                 // LHS
                 if let Some(left_node) = ast_node.lhs.as_mut() {
@@ -333,8 +392,10 @@ impl TypeCheckingVisitor {
             AstNodeType::FunctionCall => {
                 // println!("{:?}", ast_node);
                 let function_name = ast_node.string_val.clone();
+
                 // DEBUG
                 println!("FunctionCall to function using identifier: {:?}", function_name);
+
                 // make sure, the identifier is a function call and not a variable
                 if self.symbol_table.borrow_mut().contains(&function_name) {
                     let existing_symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&function_name);
@@ -354,7 +415,6 @@ impl TypeCheckingVisitor {
                         } else {
                             // DEBUG
                             println!("[OK] Arguments to {} match! Arguments expected: {}. Found: {}.", &function_name, existing_symbol_table_entry.parameter_count, ast_node.parameters.len());
-                        
                             // TODO: type check each individual argument.
                             // the type of the actual argument has to match or be convertible to the formal parameter's data type!
                         }
@@ -413,9 +473,11 @@ impl TypeCheckingVisitor {
             AstNodeType::AssignmentOperator => {
             }
 
-            AstNodeType::Unknown => {
+            AstNodeType::Cast => {
             }
 
+            AstNodeType::Unknown => {
+            }
         }
     }
 }

@@ -1,3 +1,10 @@
+use std::collections::{HashMap, HashSet, BTreeSet, BTreeMap};
+
+use std::fs::File;
+
+use std::io::BufReader;
+use std::io::BufRead;
+
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Debug;
@@ -17,7 +24,7 @@ pub enum RuleElement<T> {
 impl<T: Ord> Ord for RuleElement<T> {
 
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        
+
         match &self {
             RuleElement::<T>::NonTerminal(lhs_val) => {
                 match &other {
@@ -179,8 +186,8 @@ impl<T: Debug + std::fmt::Display> Rule<T> {
 
 impl<T: std::cmp::PartialEq> PartialEq<Rule<T>> for Rule<T> {
 
-    // Rule equality is defined over 
-    // - LHS 
+    // Rule equality is defined over
+    // - LHS
     // - RHS, same amount, same order of elements
     // - dot marker, located at same index
     //
@@ -384,5 +391,80 @@ impl<T: Display> fmt::Display for Rule<T> {
         }
 
         Ok(())
+    }
+}
+
+pub fn read_rule_map(filename: &str, rule_map: &mut BTreeMap::<usize, Rule<String>>) {
+
+    let file = File::open(filename).expect("Reading file failed!");
+    let reader = BufReader::new(file);
+
+    // read the lines from the parse table file
+    for line in reader.lines() {
+
+        if let Ok(line) = line {
+
+            // DEBUG
+            // println!("{:?}", line);
+
+            // Example:
+            // 79;declaration_specifiers;storage_class_specifier;declaration_specifiers
+
+            let row_split: Vec<_> = line.split(';').collect();
+
+            // DEBUG
+            // println!("{:?}", row_split);
+
+            let rule_id_as_tring = row_split[0];
+            let lhs_as_tring = row_split[1];
+
+            let mut rule = Rule::<String>::new(rule_id_as_tring.parse().unwrap());
+            rule.lhs = RuleElement::<String>::NonTerminal(String::from(lhs_as_tring));
+
+            for i in 2..row_split.len() {
+
+                let split_element = row_split[i];
+
+                let mut temp_rule_element = RuleElement::<String>::Terminal(String::from(""));
+
+                if split_element == "#" {
+                    temp_rule_element = RuleElement::<String>::Closure;
+                } else {
+                    let is_uppercase = split_element.chars().all( |c| c.is_uppercase() || c == '_' || c == '#' );
+                    if is_uppercase {
+                        temp_rule_element = RuleElement::<String>::Terminal(String::from(split_element));
+                    } else {
+                        temp_rule_element = RuleElement::<String>::NonTerminal(String::from(split_element));
+                    }
+                }
+
+                rule.rhs.push(temp_rule_element);
+            }
+
+            rule_map.insert(rule.id, rule);
+        }
+    }
+}
+
+pub fn serialize_rules(rules: &Vec::<Rule::<String>>, string_buffer: &mut String) {
+
+    for i in 0..rules.len() {
+
+        let temp_rule = &rules[i];
+
+        // rule original_id
+        string_buffer.push_str(format!("{}", temp_rule.original_id).as_str());
+
+        // rule LHS
+        string_buffer.push_str(";");
+        string_buffer.push_str(format!("{:?}", temp_rule.lhs).as_str());
+
+        // rule RHS
+        for j in 0..temp_rule.rhs.len() {
+            string_buffer.push_str(";");
+            string_buffer.push_str(format!("{:?}", temp_rule.rhs[j]).as_str());
+        }
+
+        string_buffer.push_str("\n");
     }
 }

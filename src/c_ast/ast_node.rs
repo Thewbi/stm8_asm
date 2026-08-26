@@ -1,9 +1,11 @@
 use std::fmt;
 use std::fmt::Display;
 
-use std::{
-    sync::atomic::{AtomicUsize, Ordering}
-};
+use std::str::FromStr;
+
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use crate::common::data_type::DataType;
 
 // static DOT_NODE_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -65,6 +67,7 @@ pub enum AstNodeType {
     Dot,
     Arrow,
     AssignmentOperator,
+    Cast,
     Unknown,
 }
 
@@ -116,6 +119,7 @@ pub enum AstNodeOperatorType {
 }
 
 impl fmt::Display for AstNodeOperatorType {
+
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
 
@@ -141,6 +145,7 @@ pub struct AstNode {
     pub lhs: Option<Box<AstNode>>,
     pub rhs: Option<Box<AstNode>>,
     pub data_type: Option<Box<AstNode>>,
+    pub analyzed_data_type: DataType,
     pub expression: Option<Box<AstNode>>,
     pub operator: Option<Box<AstNode>>,
     pub operator_type: AstNodeOperatorType,
@@ -152,7 +157,7 @@ pub struct AstNode {
     pub is_static: bool,
     pub indent: usize,
 
-    pub function_name_ast_node: Option<Box<AstNode>>, 
+    pub function_name_ast_node: Option<Box<AstNode>>,
 }
 
 impl fmt::Debug for AstNode {
@@ -196,9 +201,14 @@ impl fmt::Debug for AstNode {
                 }
             }
 
-            AstNodeType::ConstInt | AstNodeType::ConstLong => {
-                print!("Constant ");
-                println!("{:?}", self.string_val);
+            AstNodeType::ConstInt |
+            AstNodeType::ConstLong |
+            AstNodeType::ConstUInt |
+            AstNodeType::ConstULong |
+            AstNodeType::ConstDouble => {
+                print!("Constant");
+                print!(" {:?}", self.string_val);
+                println!(" [{:?}]", self.analyzed_data_type);
             }
 
             AstNodeType::Declaration => {
@@ -218,10 +228,10 @@ impl fmt::Debug for AstNode {
                 if let Some(right_node) = self.rhs.as_ref() {
                     print!("{:?}", right_node);
                 }
-            }            
+            }
 
             AstNodeType::VariableDeclaration => {
-                // println!("VariableDeclaration");
+                println!("VariableDeclaration");
                 // println!("{:?}", self.string_val);
 
                 // data type
@@ -295,7 +305,7 @@ impl fmt::Debug for AstNode {
             }
 
             AstNodeType::Unary => {
-                println!("Unary: node_id:{}", self.id);
+                println!("Unary: node_id:{} [{}]", self.id, self.analyzed_data_type);
                 println!("  Unary.OperatorType: {:?}", self.operator_type);
                 if let Some(left_node) = self.lhs.as_ref() {
                     print!("LHS: {:?}", left_node);
@@ -438,7 +448,7 @@ impl fmt::Debug for AstNode {
                 //     println!("{:?}", left_node.string_val);
                 // }
 
-                // // RHS - 
+                // // RHS -
                 // if let Some(right_node) = self.rhs.as_ref() {
                 //     println!("{:?}", right_node.string_val);
                 // }
@@ -462,7 +472,7 @@ impl fmt::Debug for AstNode {
                 if let Some(left_node) = self.lhs.as_ref() {
                     print!("TRUE-Branch: {:?}", left_node);
                 }
-                
+
                 // RHS - false-case
                 if let Some(right_node) = self.rhs.as_ref() {
                     print!("FALSE-Branch: {:?}", right_node);
@@ -504,6 +514,7 @@ impl AstNode {
             lhs: None,
             rhs: None,
             data_type: None,
+            analyzed_data_type: DataType::DataTypeUnknown,
             expression: None,
             operator: None,
             operator_type: AstNodeOperatorType::NotApplicable,
@@ -517,7 +528,7 @@ impl AstNode {
 
             function_name_ast_node: None,
         };
-        
+
         ast_node
     }
 
@@ -584,10 +595,10 @@ impl AstNode {
             AstNodeType::Return => {
                 self.pretty_print_ast_return_dot(string_buffer)
             }
-            AstNodeType::ConstInt 
-            | AstNodeType::ConstLong 
-            | AstNodeType::ConstUInt 
-            | AstNodeType::ConstULong 
+            AstNodeType::ConstInt
+            | AstNodeType::ConstLong
+            | AstNodeType::ConstUInt
+            | AstNodeType::ConstULong
             | AstNodeType::ConstDouble => {
                 self.pretty_print_ast_constant_dot_ex(string_buffer, extended_string)
             }
@@ -726,13 +737,13 @@ impl AstNode {
     }
 
     fn pretty_print_ast_function_declaration_dot(&self, string_buffer: &mut String) -> usize {
-        
+
         // create node for this AstNode and also output the name into the label
         // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} FunctionDeclaration: {}\"]", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} FunctionDeclaration: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        string_buffer.push_str(format!("{} [label=\"{} FunctionDeclaration: {} [{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.analyzed_data_type).as_str());
 
         // return type
         let mut rhs_ast_node_id = 0;
@@ -838,27 +849,27 @@ impl AstNode {
 
             AstNodeType::ConstULong => {
                 // println!("{} [label=\"{} Constant({})\"]", ast_node_id, ast_node_id, self.string_val);
-                string_buffer.push_str(format!("{} [label=\"{} {} ConstULong({})\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val).as_str());
+                string_buffer.push_str(format!("{} [label=\"{} {} ConstULong({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
             }
 
             AstNodeType::ConstUInt => {
-                string_buffer.push_str(format!("{} [label=\"{} {} ConstUInt({})\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val).as_str());
+                string_buffer.push_str(format!("{} [label=\"{} {} ConstUInt({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
             }
 
             AstNodeType::ConstLong => {
-                string_buffer.push_str(format!("{} [label=\"{} {} ConstLong({})\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val).as_str());
+                string_buffer.push_str(format!("{} [label=\"{} {} ConstLong({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
             }
 
             AstNodeType::ConstInt => {
-                string_buffer.push_str(format!("{} [label=\"{} {} ConstInt({})\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val).as_str());
+                string_buffer.push_str(format!("{} [label=\"{} {} ConstInt({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
             }
 
             AstNodeType::ConstDouble => {
-                string_buffer.push_str(format!("{} [label=\"{} {} ConstDouble({})\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val).as_str());
+                string_buffer.push_str(format!("{} [label=\"{} {} ConstDouble({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
             }
 
             _ => {
-                panic!("Unhandeled case!");
+                panic!("Unhandled case!");
             }
         }
 
@@ -879,7 +890,7 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Exp ({:?})\"]", ast_node_id, ast_node_id, self.operator_type);
-        string_buffer.push_str(format!("{} [label=\"{} Exp ({:?})\"]\n", ast_node_id, ast_node_id, self.operator_type).as_str());
+        string_buffer.push_str(format!("{} [label=\"{} Exp ({:?}) [{}]\"]\n", ast_node_id, ast_node_id, self.operator_type, self.analyzed_data_type).as_str());
 
         // print the child tree
         let mut lhs_ast_node_id = 0;
@@ -897,7 +908,7 @@ impl AstNode {
                     lhs_ast_node_id = left_node.pretty_print_ast_dot(string_buffer);
                 }
             }
-            
+
             // connect parent and child
             // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
             string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
@@ -949,7 +960,7 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Unary\"]", ast_node_id, ast_node_id);
-        string_buffer.push_str(format!("{} [label=\"{} Unary\"]\n", ast_node_id, ast_node_id).as_str());
+        string_buffer.push_str(format!("{} [label=\"{} Unary [{}]\"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
 
         // connect parent and child
 
@@ -1098,7 +1109,6 @@ impl AstNode {
         let mut lhs_ast_node_id = 0;
         if let Some(left_node) = self.lhs.as_ref() {
             lhs_ast_node_id = left_node.pretty_print_ast_dot(string_buffer);
-            // println!("left_node: {:?}", left_node);
         }
         // name
         let mut rhs_ast_node_id = 0;
@@ -1117,24 +1127,19 @@ impl AstNode {
         }
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
-        // println!("{} [label=\"{} VariableDeclaration\"]", ast_node_id, ast_node_id);
-
-        // either print Parameter or Variable to the dot output
+        // either print parameter or variable to the dot output
         if is_parameter {
-            string_buffer.push_str(format!("{} [label=\"{} ParameterDeclaration\"]\n", ast_node_id, ast_node_id).as_str());
+            string_buffer.push_str(format!("{} [label=\"{} ParameterDeclaration [{}] \"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
         } else {
-            string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration\"]\n", ast_node_id, ast_node_id).as_str());
+            string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration [{}] \"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
         }
 
         // connect parent and child
-        // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
         string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
 
         if rhs_ast_node_id != 0 {
-            // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
             string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
         }
 
@@ -1150,7 +1155,7 @@ impl AstNode {
 
         ast_node_id
     }
-    
+
     fn pretty_print_ast_statement_dot(&self, string_buffer: &mut String, extended_string: &str) -> usize {
 
         let mut lhs_ast_node_id = 0;
@@ -1296,7 +1301,7 @@ impl AstNode {
 
         ast_node_id
     }
-    
+
     fn pretty_print_ast_while_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
@@ -1581,7 +1586,7 @@ impl AstNode {
 
         ast_node_id
     }
-    
+
     fn pretty_print_ast_break_dot(&self, string_buffer: &mut String) -> usize {
 
         // create node for this AstNode
@@ -1655,7 +1660,7 @@ impl AstNode {
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} Subscript: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
 
-        // lhs - pointer 
+        // lhs - pointer
         let mut lhs_ast_node_id = 0;
         if let Some(left_node) = self.lhs.as_ref() {
             lhs_ast_node_id = left_node.pretty_print_ast_dot_ex(string_buffer, "pointer:");
@@ -1826,7 +1831,7 @@ impl AstNode {
     }
 
     fn pretty_print_ast_arrow_dot(&self, string_buffer: &mut String) -> usize {
-        
+
         // create node for this AstNode
         // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
@@ -1856,7 +1861,7 @@ impl AstNode {
 
         ast_node_id
     }
-    
+
 }
 
 
@@ -1937,9 +1942,9 @@ impl AstNode {
             //     // println!("{} -> {}", block_ast_node_id, block_item_ast_node_id);
             //     string_buffer.push_str(format!("{} -> {}\n", block_ast_node_id, block_item_ast_node_id).as_str());
             // }
-    
 
-            
+
+
 
 //std::fmt::Display
 // impl fmt::Debug for AstNodeOperatorType {

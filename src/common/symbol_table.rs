@@ -28,7 +28,6 @@ impl SymbolTableEntry {
             parameter_count: 0,
             has_body: false,
         };
-
         instance
     }
 }
@@ -46,17 +45,15 @@ pub struct SymbolTable {
 impl SymbolTable {
 
     pub fn new() -> SymbolTable {
-
         let instance = SymbolTable {
             identifier_type_map: HashMap::<String, SymbolTableEntry>::new(),
         };
-
         instance
     }
-    
+
     pub fn insert(&mut self, varname: String, symbol_table_entry: SymbolTableEntry) {
-        // // DEBUG
-        // println!("Inserting '{}' with type {:?}", varname, symbol_table_entry);
+        // DEBUG
+        println!("Inserting '{}' with type {:?}", varname, symbol_table_entry);
         self.identifier_type_map.insert(varname, symbol_table_entry);
     }
 
@@ -68,4 +65,10 @@ impl SymbolTable {
         self.identifier_type_map.get(varname).unwrap().clone()
     }
 
+    pub fn print_symbol_table(&self) {
+        for (key, value) in self.identifier_type_map.clone().into_iter() {
+            println!("{} / {:?}", key, value);
+            // println!("{} / {:?}", key, value.data_type);
+        }
+    }
 }

@@ -1,11 +1,7 @@
-Program("res/C/samples/nora_sandler/pointers_5.c")
-  Function("main", true, Arg("Unnamed!", DataTypeVoid))
-    //  int     userdef_var.0    1        
-    VariableDeclaration(label:"userdef_var.0", data_type:"int")
-    Copy(src:Constant(1), dst:Variable(userdef_var.0))
-    //  int     userdef_var.1  a_ptr     = &    = & userdef_var.0  userdef_var.0         
-    VariableDeclaration(label:"userdef_var.1", data_type:"int")
-    GetAddress(src:Variable(userdef_var.0), dst:Variable(userdef_var.1))
-    Copy(src:Variable(userdef_var.1), dst:Variable(userdef_var.1))
-    Store(src:Constant(122), dst_ptr:Variable(userdef_var.1))
-    Return(Variable(userdef_var.0))
+Program("res/C/samples/nora_sandler/unary_5.c")
+  Function("main", true)
+    //  long     userdef_var.0    10        
+    VariableDeclaration(label:"userdef_var.0", data_type:"long")
+    Copy(src:Constant(10), dst:Variable(userdef_var.0))
+    Unary(Complement, src:Variable(userdef_var.0), dst:Variable(userdef_var.0))
+    Return(Variable(tmp.1))

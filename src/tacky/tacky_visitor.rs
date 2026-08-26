@@ -83,7 +83,7 @@ impl TackyVisitor {
 
         t
     }
-    
+
     pub fn start_label(&mut self, ast_node: &AstNode, prefix: &str) -> String {
 
         let mut t = String::from(prefix);
@@ -110,7 +110,7 @@ impl TackyVisitor {
             AstNodeType::FunctionDeclaration => {
 
                 // DEBUG
-                println!("{:?}", ast_node);
+                // println!("{:?}", ast_node);
 
                 let mut function_name = String::new();
                 if let Some(function_name_ast_node) = ast_node.function_name_ast_node.as_ref() {
@@ -162,10 +162,10 @@ impl TackyVisitor {
                             //top_level_function.return_type = data_type.clone();
                         },
                         _ => {
-    
+
                         }
                     }
-                    
+
                 }
                 // match ast_node.rhs {
                 //     _ => {
@@ -226,7 +226,8 @@ impl TackyVisitor {
                     if let Some(block_item) = last_block_item.lhs.as_ref() {
                         if let Some(statement) = block_item.lhs.as_ref() {
 
-                            println!("test: {:?}", statement.node_type);
+                            // DEBUG
+                            // println!("test: {:?}", statement.node_type);
 
                             if statement.node_type != AstNodeType::Return {
                                 // panic!("Cannot compile function without ret!");
@@ -285,14 +286,14 @@ impl TackyVisitor {
                 match ast_node.operator_type {
 
                     AstNodeOperatorType::Assignment => {
-                        println!("");
-                        println!("Assignment +++++++++++++++++++++++++++");
-                        println!("Assignment: {:?}", ast_node);
-                        println!("Assignment ---------------------------");
-                        println!("");
+                        // println!("");
+                        // println!("Assignment +++++++++++++++++++++++++++");
+                        // println!("Assignment: {:?}", ast_node);
+                        // println!("Assignment ---------------------------");
+                        // println!("");
 
                         if let Some(lhs_subnode) = ast_node.lhs.as_ref() {
-                            println!("LHS: {:?}", lhs_subnode);
+                            // println!("LHS: {:?}", lhs_subnode);
 
                             match lhs_subnode.operator_type {
 
@@ -314,7 +315,7 @@ impl TackyVisitor {
 
                                     // src
                                     if let Some(rhs_sub) = ast_node.rhs.as_ref() {
-                                        println!("RHS: {:?}", rhs_sub);
+                                        // println!("RHS: {:?}", rhs_sub);
                                         let mut br_cnt = 0;
                                         store_instruction.src = self.visit(&rhs_sub, &dst_name, &mut br_cnt);
                                     }
@@ -330,12 +331,12 @@ impl TackyVisitor {
                                     // to the target variable by the binary instruction itself.
                                     //
                                     // During assignments, binary executions are wrapped in assignment AstNodes.
-                                    // As the TACKY visitor will generate a copy for the assignment AstNode, 
+                                    // As the TACKY visitor will generate a copy for the assignment AstNode,
                                     // this assignment has no added value when there is a binary instruction prior
                                     // (which already assigns, as stated above).
                                     //
                                     // Therefore if an assignment wraps a binary instruction, the copy instruction
-                                    // is not emitted. If a assignment does not wrap a binary instruction, the 
+                                    // is not emitted. If a assignment does not wrap a binary instruction, the
                                     // copy is emitted
                                     let mut output_copy_instruction = true;
 
@@ -346,17 +347,14 @@ impl TackyVisitor {
                                     let mut dst_name = String::from("");
 
                                     if let Some(lhs_sub) = ast_node.lhs.as_ref() {
-                                        println!("LHS: {:?}", lhs_sub);
+                                        // println!("LHS: {:?}", lhs_sub);
 
                                         dst_name = lhs_sub.string_val.clone();
                                         copy_instruction.dst = ValueElement::Variable(dst_name.clone());
-
-                                        // match lhs_sub.node_type {
-                                        // }
                                     }
 
                                     if let Some(rhs_sub) = ast_node.rhs.as_ref() {
-                                        println!("RHS: {:?}", rhs_sub);
+                                        // println!("RHS: {:?}", rhs_sub);
 
                                         let mut br_cnt = 0;
                                         copy_instruction.src = self.visit(&rhs_sub, &dst_name, &mut br_cnt);
@@ -378,7 +376,6 @@ impl TackyVisitor {
 
                                             _ => {
                                                 println!("NodeType: {:?}", rhs_sub.node_type);
-                                                // todo!();
                                             }
                                         }
                                     }
@@ -412,7 +409,7 @@ impl TackyVisitor {
                                 let parameter_ast_node = &lhs_ast_node.parameters[lhs_ast_node.parameters.len()-1-i];
 
                                 // DEBUG
-                                println!("ARGUMENT_{}: {:?}", i, parameter_ast_node);
+                                // println!("ARGUMENT_{}: {:?}", i, parameter_ast_node);
 
                                 match parameter_ast_node.node_type {
 
@@ -448,6 +445,11 @@ impl TackyVisitor {
                         }
                     }
 
+                    AstNodeOperatorType::Cast => {
+                        // DEBUG
+                        println!("{:?}", ast_node);
+                    }
+
                     _ => {
                         panic!("{}", format!("Unhandled AstNodeOperatorType {:?}!\n", ast_node.operator_type).as_str());
                     }
@@ -461,7 +463,7 @@ impl TackyVisitor {
                     let dst_name = self.variable_naming_source.borrow_mut().new_temp_var();
 
                     // DEBUG
-                    println!("{}", dst_name);
+                    // println!("{}", dst_name);
 
                     let mut br_cnt = 0;
                     let return_value: ValueElement = self.visit(&expression, &dst_name, &mut br_cnt);
@@ -469,7 +471,7 @@ impl TackyVisitor {
                     // OPTIMIZATION: potential for optimization
                     // Currently, return will always return a local temporary variable e.g. tmp.0
                     // which lives in memory on the stack. As such it moves that stack address to EAX
-                    // before emitting the ret mnemonic. 
+                    // before emitting the ret mnemonic.
                     //
                     // In some cases, the result is already available in EAX and not in memory.
                     // one such example is return 10 * 3 where the mul mneomic moves the result into
@@ -573,7 +575,7 @@ impl TackyVisitor {
 
                                 let mut br_cnt = 0;
                                 let rhs_value_element = self.visit(&rhs, &temp_var_name, &mut br_cnt);
-                                
+
                                 // source and destination are the same thing
                                 unary_instruction.src = rhs_value_element.clone();
                                 unary_instruction.dst = rhs_value_element.clone();
@@ -628,11 +630,11 @@ impl TackyVisitor {
                             return ValueElement::Variable(String::from(dst_name.to_string()));
                         }
                     }
-                } 
+                }
             }
 
             AstNodeType::Binary => {
-                
+
                 let mut binary_instruction: Instruction = Instruction::new();
                 binary_instruction.instruction_type = InstructionType::Binary;
                 binary_instruction.dst = ValueElement::Variable(dst_name.to_string());
@@ -706,6 +708,26 @@ impl TackyVisitor {
                             binary_instruction.binary_operator = BinaryOperator::GreaterThanOrEqual;
                         }
 
+                        AstNodeOperatorType::And => {
+                            binary_instruction.binary_operator = BinaryOperator::And;
+                        }
+
+                        AstNodeOperatorType::Or => {
+                            binary_instruction.binary_operator = BinaryOperator::Or;
+                        }
+
+                        AstNodeOperatorType::Xor => {
+                            binary_instruction.binary_operator = BinaryOperator::Xor;
+                        }
+
+                        AstNodeOperatorType::LeftShift => {
+                            binary_instruction.binary_operator = BinaryOperator::LeftShift;
+                        }
+
+                        AstNodeOperatorType::RightShift => {
+                            binary_instruction.binary_operator = BinaryOperator::RightShift;
+                        }
+
                         _ => {
                             panic!("{}", format!("Unhandled OperatorType {:?}!\n", operator.operator_type).as_str());
                         }
@@ -719,7 +741,11 @@ impl TackyVisitor {
                 return ValueElement::Variable(String::from(dst_name.to_string()))
             }
 
-            AstNodeType::ConstInt => {
+            AstNodeType::ConstInt |
+            AstNodeType::ConstLong |
+            AstNodeType::ConstUInt |
+            AstNodeType::ConstULong |
+            AstNodeType::ConstDouble => {
                 return ValueElement::Constant(ast_node.string_val.clone());
             }
 
@@ -845,7 +871,7 @@ impl TackyVisitor {
 
                 return ValueElement::Constant(ast_node.string_val.clone());
             }
-            
+
             AstNodeType::While => {
 
                 // Label<continue_label>
@@ -926,7 +952,7 @@ impl TackyVisitor {
                 jump_instruction.label = continue_label_name.clone();
                 // append instruction to latest top-level element of the program
                 let last = self.program.top_level.len() - 1;
-                self.program.top_level[last].body.push(Box::new(jump_instruction));                
+                self.program.top_level[last].body.push(Box::new(jump_instruction));
 
                 // end label
                 let mut label_instruction: Instruction = Instruction::new();
@@ -936,7 +962,7 @@ impl TackyVisitor {
                 let last = self.program.top_level.len() - 1;
                 self.program.top_level[last].body.push(Box::new(label_instruction));
             }
-            
+
             AstNodeType::For => {
 
                 //     -- init
@@ -1081,7 +1107,7 @@ impl TackyVisitor {
                 // // DEBUG
                 // println!("{:?}", variable_identifier);
             }
-            
+
             AstNodeType::VariableDeclaration => {
 
                 let node_as_string = ast_node.serialize();
@@ -1101,9 +1127,9 @@ impl TackyVisitor {
                 // This implementation will output a variable declaration although it is not strictly required!
                 //
                 // Nora Sandler, page 110: "[..] we can discard variable declarations at this stage;
-                // in TACKY, you don't need to declare variables before using them. 
+                // in TACKY, you don't need to declare variables before using them.
                 // But we do need to emit TACKY to initialize varibles.
-                // If a declaration includes an initializer, we'll handle it like a normal variable assignment. 
+                // If a declaration includes an initializer, we'll handle it like a normal variable assignment.
                 // If a declaration doesn't have an initializer, we won't amit any TACKY at all."
 
                 // println!("{:?}", ast_node);
@@ -1132,7 +1158,7 @@ impl TackyVisitor {
                     // // DEBUG
                     // println!("{:?}", variable_identifier);
 
-                    var_declaration.label = variable_identifier.clone();                    
+                    var_declaration.label = variable_identifier.clone();
                 }
 
                 // append instruction to latest top-level element of the program
@@ -1191,7 +1217,7 @@ impl TackyVisitor {
                         _ => {
                             panic!("test");
                         }
-                        
+
                     }
 
                     // Copy
@@ -1203,6 +1229,10 @@ impl TackyVisitor {
             }
 
             AstNodeType::StructureDeclaration => {
+                // println!("{:?}", ast_node);
+            }
+
+            AstNodeType::Cast => {
                 // println!("{:?}", ast_node);
             }
 
@@ -1279,7 +1309,7 @@ impl TackyVisitor {
                 // }
 
 
-                
+
                     // match return_value {
 
                     //     Constant(string_value) => {
@@ -1298,7 +1328,7 @@ impl TackyVisitor {
 
 
 
-                    
+
 
                 // if let Some(sub) = ast_node.lhs.as_ref() {
 
@@ -1340,7 +1370,7 @@ impl TackyVisitor {
                 // binary_instruction.dst = ValueElement::Variable(dst_name.to_string());
 
 
-                
+
 
     // pub fn new_temp_var(&mut self) -> String {
 

@@ -1,24 +1,24 @@
 // program = Program(top_level*)
 
-// top_level = 
+// top_level =
 //     Function(identifier name, bool global, identifier* params, instruction* body)
 //     | StaticVariable(identifier name, bool global, type t, static_init init)
 //     | StaticConstant(identifier name, type t, static_init init)
 
-// static_init = 
+// static_init =
 //     | Constant(const)
 
-// type = 
+// type =
 //     <take this value from the type information data structure> (char, bool, int, short, float, double, ...)
 
-// instruction = 
+// instruction =
 //     Return(val?)
 //     | Unary(unary_operator op, val src, val dst)
 //     | Binary(binary_operator op, val src1, val src2, val dst)
 //     | Jump(identifier target)
 //     | JumpIfZero(val condition, identifier target)
 //     | JumpIfNotZero(val condition, identifier target)
-//     | Copy(val src, val dst)    
+//     | Copy(val src, val dst)
 //     | Load(val src_ptr, val dst)
 //     | Store(val src, val dst_ptr)
 //     | GetAddress(val src, val dst)
@@ -38,12 +38,12 @@
 // val = Constant(const value)
 //     | Var(identifier name)
 
-// unary_operator = 
+// unary_operator =
 //     Complement
 //     | Negate
 //     | Not
 
-// binary_operator = 
+// binary_operator =
 //     Add
 //     | Subtract
 //     | Multiply
@@ -218,6 +218,12 @@ pub enum BinaryOperator {
     LessThanOrEqual,
     GreaterThan,
     GreaterThanOrEqual,
+
+    And,
+    Or,
+    Xor,
+    LeftShift,
+    RightShift,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -239,18 +245,18 @@ impl fmt::Debug for ValueElement {
             ValueElement::Variable(value) => {
                 write!(f, "Variable({})", &value).expect("Write failed!");
             }
-            
+
             _ => {
                 write!(f, "None").expect("Write failed!");
             }
         }
-        
+
         Ok(())
     }
 }
 
 pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut String, indent: usize) {
-    
+
     // indent
     let indent_string = std::iter::repeat(" ").take(indent * 2).collect::<String>();
     string_buffer.push_str(&indent_string);
@@ -331,7 +337,7 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
 
             string_buffer.push_str(format!(")\n").as_str());
         }
-        
+
         InstructionType::ZeroExtend => {
             string_buffer.push_str(format!("ZeroExtend(src:{:?}, dst:{:?})\n", instruction.src, instruction.dst).as_str());
         }
@@ -405,12 +411,12 @@ pub fn print_tacky_top_level(top_level: &TopLevel, string_buffer: &mut String, i
         TopLevelType::Function => {
             print_tacky_function(top_level, string_buffer, indent);
         }
-        
+
         TopLevelType::StaticVariable => {
             string_buffer.push_str(&indent_string);
             string_buffer.push_str(format!("StaticVariable(\"{}\", {}, {})\n", top_level.name, top_level.global, top_level.init).as_str());
         }
-    
+
         TopLevelType::StaticConstant => {
             string_buffer.push_str(&indent_string);
             string_buffer.push_str(format!("StaticConstant(\"{}\", {}, {})\n", top_level.name, top_level.type_id, top_level.init).as_str());
@@ -498,7 +504,7 @@ mod tests {
         double_to_uint_instruction.instruction_type = InstructionType::DoubleToUInt;
         double_to_uint_instruction.src = ValueElement::Variable(String::from("var.0"));
         double_to_uint_instruction.dst = ValueElement::Variable(String::from("var.1"));
-        
+
         // CopyToOffset
         let mut copy_to_offset_instruction: Instruction = Instruction::new();
         copy_to_offset_instruction.instruction_type = InstructionType::CopyToOffset;
@@ -595,7 +601,7 @@ mod tests {
         return_instruction.instruction_type = InstructionType::Return;
         return_instruction.src = ValueElement::Variable(String::from("var.1"));
 
-        // Function Declaration (!= Function Call) - TopLevel Element 
+        // Function Declaration (!= Function Call) - TopLevel Element
         let mut top_level_function: TopLevel = TopLevel::new();
         top_level_function.name = String::from("function_1");
         top_level_function.top_level_type = TopLevelType::Function;
@@ -607,7 +613,7 @@ mod tests {
         var_declaration.label = String::from("var_name");
         var_declaration.data_type = String::from("int");
 
-        
+
 
 
 
@@ -647,7 +653,7 @@ mod tests {
 
         // 1. Create or overwrite the file
         let file = File::create("tacky.tky").expect("Create file failed!");
-        
+
         // 2. Wrap the file in a BufWriter
         let mut writer = BufWriter::new(file);
 

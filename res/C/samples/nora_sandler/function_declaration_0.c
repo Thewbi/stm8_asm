@@ -1,5 +1,5 @@
-int foo(int a);
+int foo(int a, long b);
 
-int main() {
+long main() {
     return 0;
 }

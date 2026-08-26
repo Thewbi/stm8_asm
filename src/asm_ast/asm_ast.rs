@@ -126,7 +126,7 @@ impl fmt::Display for AsmAstInstruction {
                         todo!();
                     }
                 }
-                
+
             }
 
             AsmAstInstructionType::Cdq => {
@@ -262,7 +262,7 @@ pub enum AsmAstOperandType {
     Reg(AsmAstReg),
     Pseudo(String),
     // Stack(i32), // implicitly uses the RBP register as a base plus an i32 offset
-    Memory(AsmAstReg, i32), // on page 375, the Stack Operand is replaced by a more 
+    Memory(AsmAstReg, i32), // on page 375, the Stack Operand is replaced by a more
     // general Memory Operand that uses an explicit register instead of implicit RBP like Stack(i32) did.
     // The format is now BaseRegister (AsmAstReg) + offset (i32)
     ComparisonType(String), // (E)qual, (N)ot (E)qual, (L)essThan, (L)essThan or (E)qual, (G)reaterThan, (G)reaterThan or (E)qual
@@ -356,6 +356,12 @@ pub enum AsmAstBinaryOperator {
     LessThanOrEqual,
     GreaterThan,
     GreaterThanOrEqual,
+
+    And,
+    Or,
+    Xor,
+    LeftShift,
+    RightShift,
 }
 
 #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
@@ -408,6 +414,26 @@ impl fmt::Display for AsmAstBinaryOperator {
 
             AsmAstBinaryOperator::GreaterThanOrEqual => {
                 write!(f, "GreaterThanOrEqual").expect("Write failed!");
+            }
+
+            AsmAstBinaryOperator::And => {
+                write!(f, "And").expect("Write failed!");
+            }
+
+            AsmAstBinaryOperator::Or => {
+                write!(f, "Or").expect("Write failed!");
+            }
+
+            AsmAstBinaryOperator::Xor => {
+                write!(f, "Xor").expect("Write failed!");
+            }
+
+            AsmAstBinaryOperator::LeftShift => {
+                write!(f, "LeftShift").expect("Write failed!");
+            }
+
+            AsmAstBinaryOperator::RightShift => {
+                write!(f, "LeftShift").expect("Write failed!");
             }
         }
 
@@ -516,6 +542,31 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction, string
                 AsmAstBinaryOperator::Multiply => {
                     // write!(f, "{}", format!("Binary(MUL, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
                     string_buffer.push_str(format!("Binary(MUL,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::And => {
+                    // write!(f, "{}", format!("Binary(AND, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("Binary(AND,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::Or => {
+                    // write!(f, "{}", format!("Binary(Or, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("Binary(Or,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::Xor => {
+                    // write!(f, "{}", format!("Binary(Xor, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("Binary(Xor,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::LeftShift => {
+                    // write!(f, "{}", format!("LeftShift(Xor, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("LeftShift(Xor,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::RightShift => {
+                    // write!(f, "{}", format!("RightShift(Xor, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("RightShift(Xor,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
                 }
 
                 _ => {

@@ -26,10 +26,13 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 use crate::parser::parser::AST_NODE_ID_COUNTER;
+use crate::parser::rule::read_rule_map;
+use crate::parser::rule::serialize_rules;
 
 mod common;
 use crate::common::variable_naming_source::VariableNamingSource;
 use crate::common::symbol_table::SymbolTable;
+use crate::common::file_handling::write_string_to_file;
 
 mod regex;
 use crate::regex::infix_postfix_converter::InfixPostfixConverter;
@@ -55,6 +58,7 @@ use crate::parser::propagation::perform_propagation;
 use crate::parser::first::compute_first_original;
 use crate::parser::build_parse_table::build_parse_table;
 use crate::parser::parser::output_parse_table_to_csv;
+use crate::parser::parser::read_parse_table_from_csv;
 use crate::parser::perform_lalr_1::perform_lalr_1;
 use crate::parser::nullable_sets::compute_nullable_sets;
 use crate::parser::validate_grammar::validate_grammar;
@@ -109,6 +113,9 @@ use crate::asm_ast::asm_ast_emitter_visitor::AsmAstASEmitterVisitor;
 use crate::asm_ast::asm_ast_masm_emitter_visitor::AsmAstMasmEmitterVisitor;
 use crate::asm_ast::asm_ast::print_asm_ast_program;
 
+// const BASE_PATH: &'static str = "C:\\Users\\U5353\\source\\repos\\x64_test\\";
+const BASE_PATH: &'static str = "";
+
 // https://stackoverflow.com/questions/32935808/generate-sequential-ids-for-each-instance-of-a-struct
 static RULE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static STATE_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -138,7 +145,7 @@ fn main() {
         //
         // Select one of the Grammars
         //
-        
+
         // let g_result = produce_grammar_1(&mut grammar_rules); // has epsilon rules (wont work)
         // let g_result = produce_grammar_2(&mut grammar_rules);
         // let g_result = produce_grammar_3(&mut grammar_rules); // shows # is not propagated
@@ -192,12 +199,12 @@ fn main() {
         let mut rule_id_to_state_id_map = HashMap::<usize, usize>::new();
         let mut rule_channel_map = HashMap::<usize, Vec::<Transition<String>>>::new();
 
-        let mut grammar_state_hashmap = perform_lalr_1(&rule_1, 
-            &mut rule_ids, 
-            &mut rule_id_to_state_id_map, 
-            &mut rule_channel_map, 
-            &grammar_rules, 
-            &first, 
+        let mut grammar_state_hashmap = perform_lalr_1(&rule_1,
+            &mut rule_ids,
+            &mut rule_id_to_state_id_map,
+            &mut rule_channel_map,
+            &grammar_rules,
+            &first,
             &nullable);
 
         if debug {
@@ -249,94 +256,30 @@ fn main() {
             println!("*********************************************************************************");
         }
 
-        build_parse_table(&mut parse_table, &mut grammar_state_hashmap, &rule_channel_map, &augmented_start_symbol, &rule_id_to_state_id_map);    
-        
+        build_parse_table(&mut parse_table, &mut grammar_state_hashmap, &rule_channel_map, &augmented_start_symbol, &rule_id_to_state_id_map);
+
         if debug {
             println!("*********************************************************************************");
         }
-
-        // //
-        // // Output Parse Table into grammar_state_hashmap file
-        // //
-
-        // // write grammar_state_hashmap to file because to pop RHS from the stack, the parser
-        // // needs to know all states and rules in that state!
-
-        // // BTreeMap<usize, GrammarState<String>>
-        // // maps from state_id to GrammarState
-
-        // for (grammar_state_id, grammar_state) in &grammar_state_hashmap {
-
-        //     println!("");
-        //     println!("{} / {:?}", grammar_state_id, grammar_state);
-        //     println!("");
-        // }
-
-        let mut rule_map = BTreeMap::<usize, Rule<String>>::new();
 
         //
         // Output Parse Table into CSV file
         //
 
+        let mut rule_map = BTreeMap::<usize, Rule<String>>::new();
         let mut parse_table_string_buffer = String::new();
         let mut rules = Vec::<Rule::<String>>::new();
         let mut rule_ids = Vec::<usize>::new();
         output_parse_table_to_csv(&mut parse_table_string_buffer, &parse_table, &grammar_state_hashmap, &mut rules, &mut rule_ids, &mut rule_map);
-
-        // 1. Create or overwrite the file
-        let file = File::create("parse_table.txt").expect("Creating file parse_table.txt failed!");
-        
-        // 2. Wrap the file in a BufWriter
-        let mut writer = BufWriter::new(file);
-
-        // 3. Write data
-        write!(writer, "{}", parse_table_string_buffer);
-
-        // 4. Explicitly flush the remaining data to disk
-        writer.flush().expect("flush failed!");
+        write_string_to_file("parse_table.txt", &parse_table_string_buffer);
 
         //
         // Output Rule Table into file
         //
 
         let mut rules_string_buffer = String::new();
-
-        for i in 0..rules.len() {
-
-            let temp_rule = &rules[i];
-
-            // // rule id
-            // rules_string_buffer.push_str(format!("{}", temp_rule.id).as_str());
-            // rules_string_buffer.push_str(";");
-
-            // rule original_id
-            rules_string_buffer.push_str(format!("{}", temp_rule.original_id).as_str());
-            // rules_string_buffer.push_str(";");
-
-            // rule LHS
-            rules_string_buffer.push_str(";");
-            rules_string_buffer.push_str(format!("{:?}", temp_rule.lhs).as_str());
-
-            // rule RHS
-            for j in 0..temp_rule.rhs.len() {
-                rules_string_buffer.push_str(";");
-                rules_string_buffer.push_str(format!("{:?}", temp_rule.rhs[j]).as_str());
-            }
-
-            rules_string_buffer.push_str("\n");
-        }
-
-        // 1. Create or overwrite the file
-        let file = File::create("rule_table.txt").expect("Create file rule_table.txt failed!");
-        
-        // 2. Wrap the file in a BufWriter
-        let mut writer = BufWriter::new(file);
-
-        // 3. Write data
-        write!(writer, "{}", rules_string_buffer);
-
-        // 4. Explicitly flush the remaining data to disk
-        writer.flush().expect("flush failed!");
+        serialize_rules(&rules, &mut rules_string_buffer);
+        write_string_to_file("rule_table.txt", &rules_string_buffer);
     }
 
     //
@@ -346,7 +289,7 @@ fn main() {
     // The rule map is generated by the LALR(1) generator from the original grammar definition.
     //
     // If the user decides to not run the LALR(1) generator but if they load
-    // a pre-generated parse-table from a earlier LALR(1) generator-run, which 
+    // a pre-generated parse-table from a earlier LALR(1) generator-run, which
     // has been persisted to a file, then there is no parse table!
     //
     // This is the reason why in addition to the parse-table itself, the rule-map
@@ -361,62 +304,15 @@ fn main() {
     }
 
     let mut rule_map = BTreeMap::<usize, Rule<String>>::new();
-
-    let file = File::open("rule_table.txt").expect("Reading file failed!");
-    let reader = BufReader::new(file);
-
-    // read the lines from the parse table file
-    for line in reader.lines() {
-
-        if let Ok(line) = line {
-            
-            // DEBUG
-            // println!("{:?}", line);
-
-            // Example:
-            // 79;declaration_specifiers;storage_class_specifier;declaration_specifiers
-
-            let row_split: Vec<_> = line.split(';').collect();
-
-            // DEBUG
-            // println!("{:?}", row_split);
-
-            let rule_id_as_tring = row_split[0];
-            let lhs_as_tring = row_split[1];
-
-            let mut rule = Rule::<String>::new(rule_id_as_tring.parse().unwrap());
-            rule.lhs = RuleElement::<String>::NonTerminal(String::from(lhs_as_tring));
-
-            for i in 2..row_split.len() {
-
-                let split_element = row_split[i];
-
-                let mut temp_rule_element = RuleElement::<String>::Terminal(String::from(""));
-
-                if split_element == "#" {
-                    temp_rule_element = RuleElement::<String>::Closure;
-                } else {
-                    let is_uppercase = split_element.chars().all( |c| c.is_uppercase() || c == '_' || c == '#' );
-                    if is_uppercase {
-                        temp_rule_element = RuleElement::<String>::Terminal(String::from(split_element));
-                    } else {
-                        temp_rule_element = RuleElement::<String>::NonTerminal(String::from(split_element));
-                    }
-                }
-
-                rule.rhs.push(temp_rule_element);
-            }
-
-            rule_map.insert(rule.id, rule);
-        }
-    }
+    let rule_map_filename = "rule_table.txt";
+    read_rule_map(rule_map_filename, &mut rule_map);
 
     if debug {
         println!("*********************************************************************************");
     }
 
     //
-    // reading back the parse table from file
+    // reading back pregenerated the parse table from file
     //
 
     if debug {
@@ -427,82 +323,7 @@ fn main() {
     }
 
     parse_table.clear();
-
-    let file = File::open("parse_table.txt").expect("Reading file failed!");
-    let reader = BufReader::new(file);
-
-    // DEBUG - output the lines read from the parse table file
-    for line_result in reader.lines() {
-
-        if let Ok(line) = line_result {
-
-            // DEBUG
-            // println!("{:?}", line);
-
-            // File Format:
-            // 
-            // <State_id>;
-            // 247;COLON.R61;CLOSING_ANGULAR_BRACKET.R61;ELSE.R61;unary_operator.G79;relational_expression.G100
-
-            let row_split: Vec<_> = line.split(';').collect();
-
-            // DEBUG
-            // println!("{:?}", row_split);
-
-            let state_id_as_tring = row_split[0];
-            let mut operations = HashMap::<RuleElement<String>, ParseTableCell<usize>>::new();
-
-            for i in 1..row_split.len() {
-
-                let entry_split: Vec<_> = row_split[i].split('.').collect();
-                let rule_element_as_string = entry_split[0];
-                let parse_table_cell_as_string = entry_split[1];
-
-                let mut temp_rule_element = RuleElement::<String>::Terminal(String::from(""));
-
-                // DEBUG
-                // println!("{:?}", entry_split);
-                // println!("{:?}", rule_element_as_string);
-                // println!("{:?}", parse_table_cell_as_string);
-
-                if rule_element_as_string == "#" {
-                    temp_rule_element = RuleElement::<String>::Closure;
-                } else {
-                    let is_uppercase = rule_element_as_string.chars().all( |c| c.is_uppercase() || c == '_' || c == '#' );
-                    if is_uppercase {
-                        temp_rule_element = RuleElement::<String>::Terminal(String::from(rule_element_as_string));
-                    } else {
-                        temp_rule_element = RuleElement::<String>::NonTerminal(String::from(rule_element_as_string));
-                    }
-                }
-
-                let mut parse_table_rule = ParseTableCell::<usize>::Accept;
-
-                if parse_table_cell_as_string.starts_with("R") {
-
-                    let temp = parse_table_cell_as_string[1..].parse().unwrap();
-                    parse_table_rule = ParseTableCell::<usize>::Reduce(temp);
-
-                } else if parse_table_cell_as_string.starts_with("S") {
-
-                    let temp = parse_table_cell_as_string[1..].parse().unwrap();
-                    parse_table_rule = ParseTableCell::<usize>::Shift(temp);
-
-                } else if parse_table_cell_as_string.starts_with("G") {
-
-                    let temp = parse_table_cell_as_string[1..].parse().unwrap();
-                    parse_table_rule = ParseTableCell::<usize>::Goto(temp);
-
-                } else {
-                    parse_table_rule = ParseTableCell::<usize>::Accept;
-                }
-
-                operations.insert(temp_rule_element, parse_table_rule);
-            }
-
-            parse_table.insert(state_id_as_tring.parse().unwrap(), operations);
-        }        
-    }
+    read_parse_table_from_csv("parse_table.txt", &mut parse_table);
 
     if debug {
         println!("*********************************************************************************");
@@ -571,8 +392,8 @@ fn main() {
     // The parser starts in the start state S' (= state-id 0)
     // When the parser sees a nonterminal in a state, it will consult the parse table.
     // If the ACTION is shift(x), the nonterminal is placed on to the stack and the parser enters state-id x
-    // If the ACTION is a reduce(x), 
-    //      - the rule is retrieved, 
+    // If the ACTION is a reduce(x),
+    //      - the rule is retrieved,
     //      - the symbols on the RHS of the rule are popped from the stack
     //      - the rule's LHS is pushed onto the stack
     //      - the parser enters state-id x
@@ -624,12 +445,12 @@ fn main() {
 
         // TODO: the lookahead character is not used at all!
         // Remove it! It makes the parser loop more complicated
-        lexer.consume_character(current_character, 
-            lookahead_character, 
-            &mut step, 
-            &mut parser, 
+        lexer.consume_character(current_character,
+            lookahead_character,
+            &mut step,
+            &mut parser,
             &rule_map,
-            &mut debug_node_string_buffer, 
+            &mut debug_node_string_buffer,
             &mut debug_node_stack,
             &input_tuple.1,
             line_number);
@@ -640,12 +461,12 @@ fn main() {
     }
 
     // consume the lookahead from the very last cycle as a normal input. Specify dummy lookahead character.
-    lexer.consume_character(lookahead_character, 
-        'x', 
-        &mut step, 
-        &mut parser, 
+    lexer.consume_character(lookahead_character,
+        'x',
+        &mut step,
+        &mut parser,
         &mut rule_map,
-        &mut debug_node_string_buffer, 
+        &mut debug_node_string_buffer,
         &mut debug_node_stack,
         &input_tuple.1,
         line_number);
@@ -670,19 +491,19 @@ fn main() {
     }
 
     // provide the last token to the parser
-    lexer.parser_provide_input(&mut parser, 
-        &mut step, 
+    lexer.parser_provide_input(&mut parser,
+        &mut step,
         &rule_map,
-        &RuleElement::Terminal(lexer.dfa.states[&lexer.current_state_id].token_name.clone()), 
-        &mut debug_node_string_buffer, 
+        &RuleElement::Terminal(lexer.dfa.states[&lexer.current_state_id].token_name.clone()),
+        &mut debug_node_string_buffer,
         &mut debug_node_stack);
 
     // provide EOI (End of Input) to the parser
-    lexer.parser_provide_input(&mut parser, 
-        &mut step, 
+    lexer.parser_provide_input(&mut parser,
+        &mut step,
         &rule_map,
-        &RuleElement::Closure, 
-        &mut debug_node_string_buffer, 
+        &RuleElement::Closure,
+        &mut debug_node_string_buffer,
         &mut debug_node_stack);
 
     // print the parse tree to a dot file for online debugging (https://dreampuf.github.io/GraphvizOnline)
@@ -704,7 +525,7 @@ fn main() {
 
         // 1. Create or overwrite the file
         let file = File::create("parse_tree.dot").expect("Create file failed!");
-        
+
         // 2. Wrap the file in a BufWriter
         let mut writer = BufWriter::new(file);
 
@@ -761,7 +582,7 @@ fn main() {
                 println!("");
                 println!("---------------------------------------------------------------------------------");
             }
-            
+
             let mut ast_string_buffer = String::from("");
 
             // serialize the AST into .dot graphviz format
@@ -785,7 +606,7 @@ fn main() {
 
                 // 1. Create or overwrite the file
                 let file = File::create("abstract_syntax_tree.dot").expect("Create file failed!");
-                
+
                 // 2. Wrap the file in a BufWriter
                 let mut writer = BufWriter::new(file);
 
@@ -807,10 +628,11 @@ fn main() {
 
         if let Some(mut program_ast_node) = ast_stack_root_option {
 
-            // rc - refcell VariableNamingSource so that the IdentifierResolutionVisitor 
+            // rc - refcell VariableNamingSource so that the IdentifierResolutionVisitor
             // and the TackyVisitor can both use the same object
             let variable_naming_source = VariableNamingSource::new();
 
+            // duplicate the reference counting smart pointer so it can distributed to all users
             let variable_naming_source_rc_1 = Rc::new(RefCell::new(variable_naming_source));
             let variable_naming_source_rc_2 = variable_naming_source_rc_1.clone();
             let variable_naming_source_rc_3 = variable_naming_source_rc_1.clone();
@@ -828,9 +650,9 @@ fn main() {
             // IdentifierResolutionVisitor
             //
             // has a reference to the VariableNamingSource which is used to
-            // output unique variable names and maintains a map from user choosen 
-            // varible name to unique variable name. 
-            // 
+            // output unique variable names and maintains a map from user choosen
+            // varible name to unique variable name.
+            //
             // The VariableNamingSource also maintains a STACK of mappings
             // between user choosen varible name to unique variable name.
             // This stack of mappings is used to implement block scopes in which
@@ -851,6 +673,8 @@ fn main() {
             let mut type_checking_visitor = TypeCheckingVisitor::new(symbol_table_rc_1);
             type_checking_visitor.visit(&mut program_ast_node);
 
+            type_checking_visitor.print_symbol_table();
+
             //
             // 3. Loop Labeling Phase
             //
@@ -864,7 +688,7 @@ fn main() {
             //
             // Output AST post IdentifierResolutionVisitor (replaces variables)
             //
-            
+
             let mut ast_string_buffer = String::from("");
 
             ast_string_buffer.push_str("digraph {\n");
@@ -887,7 +711,7 @@ fn main() {
 
                 // 1. Create or overwrite the file
                 let file = File::create("abstract_syntax_tree_post_semantic.dot").expect("Create file failed!");
-                
+
                 // 2. Wrap the file in a BufWriter
                 let mut writer = BufWriter::new(file);
 
@@ -919,7 +743,7 @@ fn main() {
 
             // 1. Create or overwrite the file
             let file = File::create("tacky.tky").expect("Create file failed!");
-            
+
             // 2. Wrap the file in a BufWriter
             let mut writer = BufWriter::new(file);
 
@@ -928,11 +752,11 @@ fn main() {
 
             // 4. Explicitly flush the remaining data to disk
             writer.flush().expect("flush failed!");
-            
+
             //
             // Generate Assembler AST (from TACKY)
             //
-            
+
             let mut asm_ast_conversion_visitor = AsmAstConversionVisitor::new();
             asm_ast_conversion_visitor.visit_tacky_program(&tacky_visitor.program);
 
@@ -946,9 +770,9 @@ fn main() {
             print_asm_ast_program(&asm_ast_conversion_visitor.asm_ast_program, &mut string_buffer, indent);
 
             // 1. Create or overwrite the file
-            // extension intasm == intermediate assembler code 
+            // extension intasm == intermediate assembler code
             let file = File::create("asm_ast.intasm").expect("Create file failed!");
-            
+
             // 2. Wrap the file in a BufWriter
             let mut writer = BufWriter::new(file);
 
@@ -962,7 +786,8 @@ fn main() {
             // Fixup
             //
 
-            println!("------------------------- Fix up Pseudo Variable -------------------------------");
+            // DEBUG
+            // println!("------------------------- Fix up Pseudo Variable -------------------------------");
 
             let mut asm_ast_fixup_visitor = AsmAstFixupVisitor::new();
 
@@ -971,11 +796,12 @@ fn main() {
             asm_ast_fixup_visitor.replace_pseudo = true;
             asm_ast_fixup_visitor.visit_asm_ast_program(&mut asm_ast_conversion_visitor.asm_ast_program);
 
-            // DEBUG - output all statements
+            // output all statements
             asm_ast_fixup_visitor.replace_pseudo = false;
             asm_ast_fixup_visitor.visit_asm_ast_program(&mut asm_ast_conversion_visitor.asm_ast_program);
 
-            println!("---------------------------------------------------------------------------------");
+            // DEBUG
+            // println!("---------------------------------------------------------------------------------");
 
             //
             // emit assembler instructions
@@ -995,18 +821,19 @@ fn main() {
             // let emit_masm_visual_studio = false;
             if emit_masm_visual_studio {
 
-                println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                // println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                 let mut asm_ast_emitter_visitor = AsmAstMasmEmitterVisitor::new();
                 asm_ast_emitter_visitor.visit_asm_ast_program(&mut asm_ast_conversion_visitor.asm_ast_program);
-                println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                println!("Use MASM from within Visual Studio (Community Edition)");
-                println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                // println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                // println!("Use MASM from within Visual Studio (Community Edition)");
+                // println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
                 // 1. Create or overwrite the file
                 // let file = File::create("main.asm").expect("Create file failed!");
                 //let file = File::create("C:\\Users\\U5353\\source\\repos\\test_1\\test_1\\main.asm").expect("Create file failed!");
-                let file = File::create("C:\\Users\\U5353\\source\\repos\\x64_test\\main.asm").expect("Create file failed!");
-                
+                //let file = File::create("C:\\Users\\U5353\\source\\repos\\x64_test\\main.asm").expect("Create file failed!");
+                let file = File::create(BASE_PATH.to_owned() + "main.asm").expect("Create file failed!");
+
                 // 2. Wrap the file in a BufWriter
                 let mut writer = BufWriter::new(file);
 
@@ -1021,7 +848,7 @@ fn main() {
     } else {
         println!("AST is empty!");
     }
-    
+
     println!("end");
 }
 
@@ -1060,7 +887,7 @@ fn main() {
 
             // // 1. Create or overwrite the file
             // let file = File::create("abstract_syntax_tree_2.dot").expect("Create file failed!");
-            
+
             // // 2. Wrap the file in a BufWriter
             // let mut writer = BufWriter::new(file);
 
@@ -1069,3 +896,20 @@ fn main() {
 
             // // 4. Explicitly flush the remaining data to disk
             // writer.flush().expect("flush failed!");
+
+        // //
+        // // Output Parse Table into grammar_state_hashmap file
+        // //
+
+        // // write grammar_state_hashmap to file because to pop RHS from the stack, the parser
+        // // needs to know all states and rules in that state!
+
+        // // BTreeMap<usize, GrammarState<String>>
+        // // maps from state_id to GrammarState
+
+        // for (grammar_state_id, grammar_state) in &grammar_state_hashmap {
+
+        //     println!("");
+        //     println!("{} / {:?}", grammar_state_id, grammar_state);
+        //     println!("");
+        // }

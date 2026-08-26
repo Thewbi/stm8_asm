@@ -1,9 +1,17 @@
-use std::collections::HashMap;
-use std::collections::BTreeMap;
+use std::collections::{HashMap, HashSet, BTreeSet, BTreeMap};
+
+use std::fs::File;
+
+use std::io::BufReader;
+use std::io::BufRead;
 
 use std::fmt;
 use std::fmt::Display;
 use std::fmt::Debug;
+
+use std::str::FromStr;
+
+use crate::common::data_type::DataType;
 
 use crate::parser::rule::Rule;
 use crate::parser::rule::RuleElement;
@@ -105,7 +113,7 @@ impl<T: Display + std::fmt::Debug> fmt::Debug for ParseStackElement<T> {
             }
 
         }
-        
+
         Ok(())
     }
 }
@@ -150,7 +158,7 @@ impl Parser<String> {
             parse_table: parse_table_param,
             stack: Vec::<ParseStackElement<String>>::new(),
             collapse_nodes: false, // if true, nodes that point to a single node only are not output to the dot graph
-            
+
             // print_rule_reduction: true,
             print_rule_reduction: false, // outputs all rules as they are reduced!
 
@@ -215,16 +223,16 @@ impl Parser<String> {
         0usize
     }
 
-    // Given some input symbol, the current stack of parse elements looks at the topmost stack element. 
+    // Given some input symbol, the current stack of parse elements looks at the topmost stack element.
     // A stack element can either can either be a rule or a state id.
-    // 
+    //
     // If the topmost stack element is a state_id, retrieves the parse table row for that state from the parse table.
     // Retrieve the entry that the parse table row stores for the current input.
     // The entry can either be GOTO, SHIFT, REDUCE or no entry is available in the parse table row!
-    // SHIFT:   the old stack elements remain unchanged but the input is pushed. 
+    // SHIFT:   the old stack elements remain unchanged but the input is pushed.
     //          Afterwards the new state id is pushed. The SHIFT stack element internally stores that next state id.
     // REDUCE:  the stack entry of type reduce contains the id of the production rule to reduce.
-    //          For each element on the RHS of the production rule a pair of { state id and terminal } is removed from the 
+    //          For each element on the RHS of the production rule a pair of { state id and terminal } is removed from the
     //          parse stack and the LHS of the reduced rule is pushed. (no state id is pushed!)
     //
     // If the topmost stack element is a production rule, then the state id stored below that production rule on the stack
@@ -232,9 +240,9 @@ impl Parser<String> {
     // from the top of the stack, is resolved from within the parse table row. This means the new input is not consumed at all!
     //
     // If the parse table row contains no entry for the current input, ???
-    // 
+    //
     // ...
-    pub fn consume(&mut self, 
+    pub fn consume(&mut self,
         input: RuleElement<String>,
         terminal_value: &String,
         rule_map: &BTreeMap<usize, Rule<String>>,
@@ -327,7 +335,7 @@ impl Parser<String> {
             }
 
             ParseStackElementType::StateId(current_state_id) => {
-                
+
                 if debug {
                     println!("[Parser::consume] StateId: {}", current_state_id);
                 }
@@ -358,7 +366,7 @@ impl Parser<String> {
                     println!("[Parser::consume] Contains Key: {:?}", contains_key);
                 }
 
-                // // DEBUG 
+                // // DEBUG
                 // println!("*******************************************");
                 // for (key, value) in parse_table_row.into_iter() {
                 //     println!("{:?} / {:?}", key, value);
@@ -367,7 +375,7 @@ impl Parser<String> {
                 // println!("*******************************************");
 
                 // decide between ACTION (shift / reduce) and GOTO
-                // if the parser row has no cell for the input, execute GOTO using the stack 
+                // if the parser row has no cell for the input, execute GOTO using the stack
                 if !parse_table_row.contains_key(&input) {
 
                     // peek top element
@@ -445,7 +453,7 @@ impl Parser<String> {
                     }
 
                 } else {
-                    
+
                     // retrieve the entry from the parse table for for the current input
                     let parser_step = parse_table_row.get(&input).expect("Parse Table is broken!");
                     match parser_step {
@@ -495,7 +503,7 @@ impl Parser<String> {
                                     println!("");
                                 }
                                 //}
-                                
+
                                 //
                                 // pop elements from the stack and transfer them into another array for inspection later
                                 //
@@ -615,16 +623,18 @@ impl Parser<String> {
                                                         if result > (2u64.pow(32)-1) {
                                                             ast_node.node_type = AstNodeType::ConstULong;
                                                             data_type_ast_node.string_val = String::from("ULong");
+                                                            data_type_ast_node.analyzed_data_type = DataType::DataTypeUnsignedLong;
                                                         } else {
                                                             ast_node.node_type = AstNodeType::ConstUInt;
                                                             data_type_ast_node.string_val = String::from("UInt");
-                                                        } 
+                                                            data_type_ast_node.analyzed_data_type = DataType::DataTypeUnsignedInt;
+                                                        }
                                                     }
                                                     Err(e) => {
                                                         println!("Error: {:?}", e);
                                                     }
                                                 };
-                                                
+
                                                 ast_node.string_val = value;
                                                 ast_node.data_type = Some(Box::new(data_type_ast_node));
 
@@ -680,19 +690,22 @@ impl Parser<String> {
                                                         if result > (2u64.pow(32)-1) {
                                                             ast_node.node_type = AstNodeType::ConstULong;
                                                             data_type_ast_node.string_val = String::from("ULong");
+                                                            data_type_ast_node.analyzed_data_type = DataType::from_str("ulong").unwrap();
                                                         } else {
                                                             ast_node.node_type = AstNodeType::ConstUInt;
                                                             data_type_ast_node.string_val = String::from("UInt");
+                                                            data_type_ast_node.analyzed_data_type = DataType::from_str("uint").unwrap();
                                                         }
 
-                                                        ast_node.node_type = AstNodeType::ConstInt;
+                                                        // ast_node.node_type = AstNodeType::ConstInt;
                                                     }
                                                     Err(e) => {
                                                         println!("Error");
                                                     }
                                                 };
-                                                
+
                                                 ast_node.string_val = value;
+                                                ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
                                                 ast_node.data_type = Some(Box::new(data_type_ast_node));
 
                                                 self.ast_stack.push(ast_node);
@@ -814,7 +827,7 @@ impl Parser<String> {
                                             let comma_node = DebugNode::new(comma_node_id, String::from("["));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("[")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
-                                            
+
                                             // take old node from stack - expression
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
@@ -827,7 +840,7 @@ impl Parser<String> {
                                             let comma_node = DebugNode::new(comma_node_id, String::from("]"));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("]")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
-                                        
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
@@ -1228,7 +1241,7 @@ impl Parser<String> {
                                         // argument_expression_list -> assignment_expression
                                         15 => {
                                             self.node_to_node("argument_expression_list", found_rule.original_id, string_buffer, debug_node_stack);
-                                        
+
                                             //
                                             // AST - argument_expression_list -> assignment_expression
                                             //
@@ -1277,7 +1290,7 @@ impl Parser<String> {
                                                 self.parameter_counter = self.parameter_counter + 1;
                                             }
                                         }
-                                        
+
                                         // unary_expression -> postfix_expression
                                         17 => {
                                             self.node_to_node("unary_expression", found_rule.original_id, string_buffer, debug_node_stack);
@@ -1299,11 +1312,11 @@ impl Parser<String> {
                                             let equals_node = DebugNode::new(equals_node_id, String::from("INC_OP"));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from("INC_OP")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
-                                            
+
                                             // take old node from stack - unary_expression
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                         
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
@@ -1352,11 +1365,11 @@ impl Parser<String> {
                                             let equals_node = DebugNode::new(equals_node_id, String::from("DEC_OP"));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from("DEC_OP")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
-                                            
+
                                             // take old node from stack - unary_expression
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                         
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
@@ -1400,12 +1413,12 @@ impl Parser<String> {
 
                                             // RHS (value that the operator is applied to) - take old node from stack
                                             let rhs_debug_node = debug_node_stack.pop().unwrap();
-                                            println!("{:?}", rhs_debug_node);
+                                            // println!("{:?}", rhs_debug_node);
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, rhs_debug_node.id).as_str());
 
                                             // unary operator - take old node from stack
                                             let unary_operator_debug_node = debug_node_stack.pop().unwrap();
-                                            println!("{:?}", unary_operator_debug_node);
+                                            // println!("{:?}", unary_operator_debug_node);
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, unary_operator_debug_node.id).as_str());
 
                                             // push new node to stack
@@ -1418,6 +1431,7 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 let expression_ast_node = self.ast_stack.pop().unwrap();
+                                                let data_type = expression_ast_node.analyzed_data_type.clone();
                                                 // println!("{:?}", expression_ast_node);
                                                 let operator_ast_node = self.ast_stack.pop().unwrap();
                                                 // println!("{:?}", operator_ast_node);
@@ -1433,6 +1447,10 @@ impl Parser<String> {
                                                 ast_node.lhs = Some(Box::new(operator_ast_node)); // operator
                                                 ast_node.rhs = Some(Box::new(expression_ast_node)); // operand
                                                 ast_node.data_type = Some(Box::new(data_type_ast_node));
+
+                                                // Nora Sandler, page 254, as a type take the type of the inner node
+                                                // ast_node.analyzed_data_type = DataType::from_str("ulong").unwrap();
+                                                ast_node.analyzed_data_type = data_type;
 
                                                 self.ast_stack.push(ast_node);
                                             }
@@ -1454,11 +1472,11 @@ impl Parser<String> {
                                             let equals_node = DebugNode::new(equals_node_id, String::from("SIZEOF"));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from("SIZEOF")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
-                                            
+
                                             // take old node from stack - type_name
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                         
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
@@ -1497,7 +1515,7 @@ impl Parser<String> {
                                             let equals_node = DebugNode::new(equals_node_id, String::from("SIZEOF"));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from("SIZEOF")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
-                                            
+
                                             // OPENING_BRACKET
                                             // create new node id
                                             // create new node with node id and label
@@ -1505,11 +1523,11 @@ impl Parser<String> {
                                             let lessthan_node = DebugNode::new(lessthan_node_id, String::from("OPENING_BRACKET"));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", lessthan_node_id, String::from("OPENING_BRACKET")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, lessthan_node.id).as_str());
-                                            
+
                                             // take old node from stack - type_name
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                            
+
                                             // CLOSING_BRACKET
                                             // create new node id
                                             // create new node with node id and label
@@ -1622,7 +1640,7 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
 
                                             // push new node to stack
-                                            debug_node_stack.push(debug_node);                                            
+                                            debug_node_stack.push(debug_node);
 
                                             //
                                             // AST - unary_operator -> MINUS
@@ -1648,7 +1666,6 @@ impl Parser<String> {
                                             // print new node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("unary_operator")).as_str());
 
-                                            // break
                                             // create new node id
                                             // create new node with node id and label
                                             let equals_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -1668,6 +1685,45 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Operator;
                                                 ast_node.operator_type = AstNodeOperatorType::Complement;
+                                                // Nora Sandler, page 254, Not operator ends up being a int datatype
+                                                // all other operators use the data type of the inner node
+                                                // ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
+                                        // unary_operator -> EXCLAMATION_MARK
+                                        28 => {
+
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, String::from("unary_operator"), found_rule.original_id));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("unary_operator")).as_str());
+
+                                            // break
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let equals_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let equals_node = DebugNode::new(equals_node_id, String::from("!"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from("!")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - unary_operator -> TILDE
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                ast_node.node_type = AstNodeType::Operator;
+                                                ast_node.operator_type = AstNodeOperatorType::Not;
+                                                // Nora Sandler, page 254, Not operator ends up being a int datatype
+                                                // all other operators use the data type of the inner node
+                                                ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
 
                                                 self.ast_stack.push(ast_node);
                                             }
@@ -1680,7 +1736,8 @@ impl Parser<String> {
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("cast_expression"));
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("cast_expression")).as_str());
+                                            // string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n", debug_node_id, String::from("cast_expression")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("cast_expression")).as_str());
 
                                             // OPENING_BRACKET
                                             // create new node id
@@ -1726,6 +1783,7 @@ impl Parser<String> {
                                                 let mut cast_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 cast_ast_node.node_type = AstNodeType::Expression;
                                                 cast_ast_node.operator_type = AstNodeOperatorType::Cast;
+                                                cast_ast_node.analyzed_data_type = DataType::from_str(&type_ast_node.string_val).unwrap();
                                                 cast_ast_node.lhs = Some(Box::new(type_ast_node));
                                                 cast_ast_node.rhs = Some(Box::new(expression_ast_node));
                                                 cast_ast_node.data_type = Some(Box::new(data_type_ast_node));
@@ -1767,7 +1825,7 @@ impl Parser<String> {
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                            
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
@@ -1988,7 +2046,7 @@ impl Parser<String> {
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                            
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
@@ -2049,7 +2107,7 @@ impl Parser<String> {
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                            
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
@@ -2105,7 +2163,7 @@ impl Parser<String> {
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                            
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
@@ -2268,7 +2326,7 @@ impl Parser<String> {
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                            
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
@@ -2320,7 +2378,7 @@ impl Parser<String> {
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                            
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
@@ -2490,7 +2548,7 @@ impl Parser<String> {
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                            
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
@@ -2551,7 +2609,7 @@ impl Parser<String> {
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                            
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
@@ -2612,7 +2670,7 @@ impl Parser<String> {
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                            
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
@@ -3207,7 +3265,7 @@ impl Parser<String> {
 
                                                 //
                                                 // Can be a variable or function.
-                                                // 
+                                                //
                                                 // example: int a = 1;
                                                 // example: int foo(int a);
                                                 //
@@ -3219,18 +3277,14 @@ impl Parser<String> {
 
                                                 let mut declarator_ast_node = self.ast_stack.pop().unwrap(); // name/identifier and optional initialization value
                                                 // println!("{:?}", declarator_ast_node);
-                                                
+
                                                 let data_type_ast_node = self.ast_stack.pop().unwrap(); // (return value) data type
                                                 // println!("{:?}", data_type_ast_node);
-
-                                                //let ident = declarator_ast_node.string_val.clone();
 
                                                 let mut object_declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 match declarator_ast_node.node_type {
 
                                                     AstNodeType::FunctionDeclaration => {
-
-                                                        // object_declaration_ast_node.function_name_ast_node = declarator_ast_node.function_name_ast_node.clone();
 
                                                         if let Some(func_name) = declarator_ast_node.function_name_ast_node.as_ref() {
                                                             object_declaration_ast_node.function_name_ast_node = declarator_ast_node.function_name_ast_node;
@@ -3238,11 +3292,14 @@ impl Parser<String> {
 
                                                         object_declaration_ast_node.parameters = std::mem::take(&mut declarator_ast_node.parameters);
 
+                                                        //
+                                                        // TYPE (function return type)
+                                                        //
+                                                        object_declaration_ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
+
                                                         // println!("{:?}", data_type_ast_node.parameters);
                                                         object_declaration_ast_node.node_type = AstNodeType::FunctionDeclaration;
                                                         object_declaration_ast_node.rhs = Some(Box::new(data_type_ast_node));
-                                                        // object_declaration_ast_node.lhs = Some(Box::new(declarator_ast_node));
-                                                        // object_declaration_ast_node.string_val = ident;
 
                                                         // peek for storage class specifier
                                                         if self.ast_stack.len() > 0 {
@@ -3260,7 +3317,7 @@ impl Parser<String> {
                                                                 self.ast_stack.push(storage_class_specifier_ast_node);
                                                             }
                                                         }
-                                                        
+
                                                         self.ast_stack.push(object_declaration_ast_node);
                                                     }
 
@@ -3268,6 +3325,12 @@ impl Parser<String> {
 
                                                         object_declaration_ast_node.node_type = AstNodeType::VariableDeclaration;
                                                         // println!("{:?}", object_declaration_ast_node.lhs);
+
+                                                        //
+                                                        // TYPE
+                                                        //
+                                                        object_declaration_ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
+
                                                         object_declaration_ast_node.lhs = Some(Box::new(data_type_ast_node));
                                                         object_declaration_ast_node.rhs = Some(Box::new(declarator_ast_node));
 
@@ -3275,12 +3338,6 @@ impl Parser<String> {
                                                         if self.ast_stack.len() > 0 {
 
                                                             let initializer_expression_ast_node = self.ast_stack.pop().unwrap();
-
-                                                            // if initializer_expression_ast_node.node_type == AstNodeType::Expression {
-                                                            //     object_declaration_ast_node.expression = Some(Box::new(initializer_expression_ast_node));
-                                                            // } else {
-                                                            //     self.ast_stack.push(initializer_expression_ast_node);
-                                                            // }
 
                                                             match initializer_expression_ast_node.node_type {
                                                                 AstNodeType::SingleInit | AstNodeType::CompoundInit => {
@@ -3511,7 +3568,7 @@ impl Parser<String> {
                                                     let datatype_ast_node = self.ast_stack.pop().unwrap();
                                                     // println!("{:?}", datatype_ast_node);
 
-                                                    // Format: 
+                                                    // Format:
                                                     // 1st pop: identifier
                                                     // 2nd pop: data type of function return or variable
                                                     // 3rd pop: initializer expression
@@ -3523,7 +3580,7 @@ impl Parser<String> {
 
                                                     // let rhs_ast_node = self.ast_stack.pop().unwrap(); // value expression
                                                     self.ast_stack.push(identifier_ast_node); // 1st pop: identifier
-                                                    
+
                                                 } else if self.direct_declarator_counter == 1 {
 
                                                     let initializer_ast_node = self.ast_stack.pop().unwrap();
@@ -3545,7 +3602,7 @@ impl Parser<String> {
                                                     let datatype_ast_node = self.ast_stack.pop().unwrap();
                                                     // println!("{:?}", datatype_ast_node);
 
-                                                    // Format: 
+                                                    // Format:
                                                     // 1st pop: identifier
                                                     // 2nd pop: data type of function return or variable
                                                     // 3rd pop: initializer expression
@@ -3558,7 +3615,7 @@ impl Parser<String> {
                                                     // let rhs_ast_node = self.ast_stack.pop().unwrap(); // value expression
                                                     self.ast_stack.push(identifier_ast_node); // 1st pop: identifier
                                                 }
-                                            }                                           
+                                            }
                                         }
 
                                         // init_declarator -> declarator
@@ -3671,6 +3728,7 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::DataType;
                                                 ast_node.string_val = String::from("void");
+                                                ast_node.analyzed_data_type = DataType::from_str("void").unwrap();
 
                                                 self.ast_stack.push(ast_node);
                                             }
@@ -3700,12 +3758,52 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::DataType;
                                                 ast_node.string_val = String::from("char");
+                                                ast_node.analyzed_data_type = DataType::from_str("char").unwrap();
 
                                                 self.ast_stack.push(ast_node);
                                             }
                                         }
 
                                         // type_specifier -> SHORT
+                                        96 => {
+                                            // push node onto stack
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            // print node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier")).as_str());
+
+                                            let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let type_node = DebugNode::new(type_node_id, String::from("SHORT"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}| {}\"]\n", type_node_id, type_node_id, String::from("SHORT")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
+
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // TYPEDEF HANDLING
+                                            //
+
+                                            if self.is_typedef_active {
+                                                self.lexer_produce_type_name = true;
+                                                self.is_typedef_active = false;
+                                            }
+
+                                            self.last_source_type = String::from("short");
+
+                                            //
+                                            // AST - type_specifier -> SHORT
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                ast_node.node_type = AstNodeType::DataType;
+                                                ast_node.string_val = String::from("short");
+                                                ast_node.analyzed_data_type = DataType::from_str("short").unwrap();
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
 
                                         // type_specifier -> INT
                                         97 => {
@@ -3742,6 +3840,7 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::DataType;
                                                 ast_node.string_val = String::from("int");
+                                                ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
 
                                                 self.ast_stack.push(ast_node);
                                             }
@@ -3752,7 +3851,6 @@ impl Parser<String> {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
-                                            // print node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -3782,6 +3880,11 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::DataType;
                                                 ast_node.string_val = String::from("long");
+                                                //
+                                                // TYPE
+                                                //
+                                                // Nora Sandler, page 252, add datatype to AST nodes
+                                                ast_node.analyzed_data_type = DataType::from_str("long").unwrap();
 
                                                 self.ast_stack.push(ast_node);
                                             }
@@ -3801,10 +3904,10 @@ impl Parser<String> {
                                             // debug_node_stack.push(debug_node);
                                             string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, String::from("FLOAT")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
-                                        
+
                                             //
-                                            // TYPEDEF HANDLING - if a typedef is used over a type, the parser needs to 
-                                            // insert the new type into the list of user-defined types and it needs to 
+                                            // TYPEDEF HANDLING - if a typedef is used over a type, the parser needs to
+                                            // insert the new type into the list of user-defined types and it needs to
                                             // turn IDENTIFIER lookahead token into TYPE_NAME token to satisfy the grammar.
                                             //
 
@@ -3824,6 +3927,12 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::DataType;
                                                 ast_node.string_val = String::from("float");
+
+                                                //
+                                                // TYPE
+                                                //
+                                                // Nora Sandler, page 252, add datatype to AST nodes
+                                                ast_node.analyzed_data_type = DataType::from_str("float").unwrap();
 
                                                 self.ast_stack.push(ast_node);
                                             }
@@ -3864,6 +3973,12 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::DataType;
                                                 ast_node.string_val = String::from("double");
+
+                                                //
+                                                // TYPE
+                                                //
+                                                // Nora Sandler, page 252, add datatype to AST nodes
+                                                ast_node.analyzed_data_type = DataType::from_str("double").unwrap();
 
                                                 self.ast_stack.push(ast_node);
                                             }
@@ -4004,8 +4119,8 @@ impl Parser<String> {
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-                                            // IDENTIFIER 
-                                            
+                                            // IDENTIFIER
+
                                             // OPENING_CURLY_BRACKET
 
                                             // take old node from stack - struct_declaration_list
@@ -4099,7 +4214,7 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 let type_ast_node = self.ast_stack.pop().unwrap();
-                                                
+
                                                 let mut identifier_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 identifier_ast_node.node_type = AstNodeType::Identifier;
                                                 identifier_ast_node.string_val = value.clone();
@@ -4200,7 +4315,7 @@ impl Parser<String> {
                                             let field_identifier_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, field_identifier_node.id).as_str());
-                                            
+
                                             // SEMICOLON
 
                                             // push new node to stack
@@ -4244,7 +4359,7 @@ impl Parser<String> {
 
                                         // declarator -> pointer direct_declarator
                                         132 => {
-                                            
+
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -4358,7 +4473,7 @@ impl Parser<String> {
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                            
+
                                             // ]
                                             // create new node id
                                             // create new node with node id and label
@@ -4366,7 +4481,7 @@ impl Parser<String> {
                                             let comma_node = DebugNode::new(comma_node_id, String::from("]"));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("]")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
-                                        
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
@@ -4429,7 +4544,7 @@ impl Parser<String> {
                                             let comma_node = DebugNode::new(comma_node_id, String::from("["));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("[")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
-                                            
+
                                             // ]
                                             // create new node id
                                             // create new node with node id and label
@@ -4437,7 +4552,7 @@ impl Parser<String> {
                                             let comma_node = DebugNode::new(comma_node_id, String::from("]"));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("]")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
-                                        
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
@@ -4449,6 +4564,9 @@ impl Parser<String> {
 
                                                 let mut direct_declarator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 direct_declarator_ast_node.node_type = AstNodeType::VariableDeclaration;
+
+                                                // TODO
+                                                direct_declarator_ast_node.analyzed_data_type = DataType::from_str("double").unwrap();
 
                                                 self.ast_stack.push(direct_declarator_ast_node);
 
@@ -4503,16 +4621,16 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                // [direct_declarator] (138, this rule) is used in both full function definitions 
+                                                // [direct_declarator] (138, this rule) is used in both full function definitions
                                                 // and half function prototypes
                                                 //
                                                 // For function definitions as well as for function prototypes
-                                                // the [direct_declarator] contains 
+                                                // the [direct_declarator] contains
                                                 // - function name and paremeter list (type + name of each param)
                                                 // - does not contain return type
                                                 // - does not contain the body
-                                                // 
-                                                // For full function definitions, the return type along with the body 
+                                                //
+                                                // For full function definitions, the return type along with the body
                                                 // is contained in the parent [function_definition]
                                                 //
                                                 // For prototypes, the return type is contained in the parent [declaration] (77).
@@ -4550,6 +4668,8 @@ impl Parser<String> {
 
                                                 function_declaration_ast_node.lhs = None;
 
+                                                function_declaration_ast_node.analyzed_data_type = DataType::from_str("double").unwrap();
+
                                                 // if let Some(block) = function_declaration_ast_node.lhs.as_ref() {
                                                 //     println!("test");
                                                 // }
@@ -4570,7 +4690,7 @@ impl Parser<String> {
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!(" {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                            
+
                                             // (
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("("));
@@ -4596,6 +4716,8 @@ impl Parser<String> {
                                                 let mut function_definition_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 function_definition_ast_node.node_type = AstNodeType::FunctionDeclaration;
                                                 function_definition_ast_node.string_val = identifier_ast_node.string_val.clone();
+                                                // TODO
+                                                function_definition_ast_node.analyzed_data_type = DataType::from_str("double").unwrap();
 
                                                 let mut function_name_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 function_name_ast_node.node_type = AstNodeType::Identifier;
@@ -4701,7 +4823,7 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 self.parameter_counter = self.parameter_counter + 1;
-                                                
+
                                                 // parameter name
                                                 let identifier_ast_node = self.ast_stack.pop().unwrap();
 
@@ -4717,6 +4839,10 @@ impl Parser<String> {
                                                 let mut parameter_declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 parameter_declaration_ast_node.node_type = AstNodeType::ParameterDeclaration;
                                                 parameter_declaration_ast_node.lhs = Some(Box::new(identifier_ast_node));
+                                                //
+                                                // TYPE
+                                                //
+                                                parameter_declaration_ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
                                                 parameter_declaration_ast_node.rhs = Some(Box::new(data_type_ast_node));
 
                                                 self.ast_stack.push(parameter_declaration_ast_node);
@@ -4793,7 +4919,7 @@ impl Parser<String> {
                                             let comma_node = DebugNode::new(comma_node_id, String::from("{"));
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("{")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
-                                            
+
                                             // take old node from stack - initializer_list
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
@@ -4919,7 +5045,7 @@ impl Parser<String> {
                                                 let mut statement_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 statement_ast_node.node_type = AstNodeType::Statement;
                                                 statement_ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                
+
                                                 self.ast_stack.push(statement_ast_node);
                                             }
                                         }
@@ -5114,7 +5240,7 @@ impl Parser<String> {
                                                 // create a block since a compound AST node needs to have a block
                                                 let mut block_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 block_ast_node.node_type = AstNodeType::Block;
-                                                
+
                                                 // take all Statements, Declarations or BlockItem nodes and insert them into the block
                                                 while self.child_counter > 0 {
 
@@ -5296,12 +5422,12 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                // affects: case-statements, default-statement, 
+                                                // affects: case-statements, default-statement,
 
                                                 // the child counter is used by the 184 rule which constructs compound statements
                                                 self.child_counter = self.child_counter + 1;
                                                 // println!("child_counter: {}", self.child_counter);
-                                                
+
                                                 // loop {
                                                 //     let temp_node = self.ast_stack.pop().unwrap();
                                                 //     println!("{:?}", temp_node);
@@ -5465,7 +5591,7 @@ impl Parser<String> {
                                                     ast_node.expression = Some(Box::new(expression_ast_node));
 
                                                     self.ast_stack.push(ast_node);
-                                                
+
                                                 } else {
 
                                                     panic!("I forgot, what this case was meant for! I do not know of an example that triggers this part!");
@@ -5486,7 +5612,7 @@ impl Parser<String> {
                                                     self.ast_stack.push(ast_node);
                                                     */
                                                 }
-                                            }                                           
+                                            }
                                         }
 
                                         // selection_statement -> IF OPENING_BRACKET expression CLOSING_BRACKET statement ELSE statement
@@ -5510,7 +5636,7 @@ impl Parser<String> {
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-                                            
+
                                             // if-branch
 
                                             // take old node from stack
@@ -5625,7 +5751,7 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 // println!("{:?}", debug_node_id);
-                                                
+
                                                 // loop {
                                                 //     let temp_node = self.ast_stack.pop().unwrap();
                                                 //     println!("{:?}", temp_node);
@@ -5676,7 +5802,7 @@ impl Parser<String> {
                                                             //let lhs_item = temp_node.lhs.unwrap();
 
                                                             case_default = *temp_node;
-                                                            
+
                                                         }
 
                                                         _ => {
@@ -5870,7 +5996,7 @@ impl Parser<String> {
                                             debug_node_stack.push(debug_node);
 
                                             //
-                                            // AST - iteration_statement -> FOR OPENING_BRACKET 
+                                            // AST - iteration_statement -> FOR OPENING_BRACKET
                                             //          expression_statement expression_statement expression CLOSING_BRACKET statement
                                             //
 
@@ -5903,7 +6029,7 @@ impl Parser<String> {
 
                                                 self.ast_stack.push(ast_node);
                                             }
-                                        } 
+                                        }
 
                                         // jump_statement -> BREAK
                                         201 => {
@@ -6044,17 +6170,17 @@ impl Parser<String> {
                                             // print new node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("function_definition")).as_str());
 
-                                            // take old node from stack - declaration_specifiers
+                                            // declaration_specifiers
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-                                            // take old node from stack - declarator
+                                            // declarator
                                             let declarator_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, declarator_node.id).as_str());
 
-                                            // take old node from stack - compound_statement
+                                            // compound_statement
                                             let compound_statement_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, compound_statement_node.id).as_str());
@@ -6072,6 +6198,7 @@ impl Parser<String> {
 
                                                 let mut function_definition_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 function_definition_ast_node.node_type = AstNodeType::FunctionDeclaration;
+                                                // function_definition_ast_node.analyzed_data_type = a<.analyzed_data_type.clone();
 
                                                 // // function body statement (= block)
                                                 // let mut function_body_block_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
@@ -6116,6 +6243,8 @@ impl Parser<String> {
                                                             // Return Value
                                                             //
 
+                                                            function_definition_ast_node.analyzed_data_type = sub_ast_node.analyzed_data_type.clone();
+
                                                             // Assumption: return-value data-type of function
                                                             // return-value data-type of function
                                                             function_definition_ast_node.rhs = Some(Box::new(sub_ast_node));
@@ -6153,7 +6282,7 @@ impl Parser<String> {
 
                                                 // // LHS contains the block, the block contains all statements as block_items
                                                 // function_definition_ast_node.lhs = Some(Box::new(function_body_block_ast_node));
-                                                
+
                                                 //
                                                 // function name
                                                 //
@@ -6228,12 +6357,12 @@ impl Parser<String> {
 
     // passes a token (parameter: terminal_token_rule_element) to the parser.
     // The parser will now perform one or more steps until it is ready for the next token.
-    // it will consume the token which completes a production rule. 
+    // it will consume the token which completes a production rule.
     // Then it will potentially perform many reduction operations because one rule reduction
     // may lead to another and so on ...
     pub fn provide_input(&mut self,
         rule_map: &BTreeMap<usize, Rule<String>>,
-        step: &mut usize, 
+        step: &mut usize,
         terminal_token_rule_element: &RuleElement<String>,
         terminal_value: &String,
         string_buffer: &mut String,
@@ -6255,19 +6384,19 @@ impl Parser<String> {
 
                 // terminal_token_rule_element = &RuleElement::Terminal(String::from("TYPE_NAME"));
 
-                consumed = self.consume(RuleElement::Terminal(String::from("TYPE_NAME")), 
-                    &terminal_value, 
+                consumed = self.consume(RuleElement::Terminal(String::from("TYPE_NAME")),
+                    &terminal_value,
                     &rule_map,
-                    string_buffer, 
+                    string_buffer,
                     debug_node_stack,
                     *step);
 
             } else {
 
-                consumed = self.consume(terminal_token_rule_element.clone(), 
-                    &terminal_value, 
+                consumed = self.consume(terminal_token_rule_element.clone(),
+                    &terminal_value,
                     &rule_map,
-                    string_buffer, 
+                    string_buffer,
                     debug_node_stack,
                     *step);
 
@@ -6280,24 +6409,24 @@ impl Parser<String> {
     }
 }
 
-pub fn output_parse_table_to_csv(parse_table_string_buffer: &mut String, 
+pub fn output_parse_table_to_csv(parse_table_string_buffer: &mut String,
     parse_table: &HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>,
     grammar_state_hashmap: &BTreeMap<usize, GrammarState<String>>,
     rules: &mut Vec::<Rule::<String>>,
     rule_ids: &mut Vec::<usize>,
     rule_map: &mut BTreeMap::<usize, Rule<String>>) {
 
-    let debug: bool = false;    
+    let debug: bool = false;
 
     for i in 0..parse_table.len() {
 
         let parse_table_row = &parse_table[&i];
 
         // DEBUG - output parse table row
-        println!("{}) {:?}", i, parse_table_row);
+        // println!("{}) {:?}", i, parse_table_row);
 
         // write state id
-        parse_table_string_buffer.push_str(format!("{}", i).as_str());        
+        parse_table_string_buffer.push_str(format!("{}", i).as_str());
 
         // https://stackoverflow.com/questions/45724517/how-to-iterate-through-a-hashmap-print-the-key-value-and-remove-the-value-in-ru
         for (rule_element, parse_table_cell) in &*parse_table_row {
@@ -6310,7 +6439,7 @@ pub fn output_parse_table_to_csv(parse_table_string_buffer: &mut String,
             match rule_element {
 
                 RuleElement::Terminal(term) => {
-                    println!("{}", term);
+                    // println!("{}", term);
 
                     // rule element
                     parse_table_string_buffer.push_str(term);
@@ -6318,7 +6447,7 @@ pub fn output_parse_table_to_csv(parse_table_string_buffer: &mut String,
                 }
 
                 RuleElement::NonTerminal(non_term) => {
-                    println!("{}", non_term);
+                    // println!("{}", non_term);
 
                     // rule element
                     parse_table_string_buffer.push_str(non_term);
@@ -6334,7 +6463,7 @@ pub fn output_parse_table_to_csv(parse_table_string_buffer: &mut String,
                 // }
 
                 RuleElement::Closure => {
-                    println!("#");
+                    // println!("#");
 
                     // rule element
                     parse_table_string_buffer.push_str("#");
@@ -6350,7 +6479,7 @@ pub fn output_parse_table_to_csv(parse_table_string_buffer: &mut String,
             match parse_table_cell {
 
                 ParseTableCell::Shift(state_id) => {
-                    println!("Shift {}", state_id);
+                    // println!("Shift {}", state_id);
 
                     // operation
                     parse_table_string_buffer.push_str("S");
@@ -6358,7 +6487,7 @@ pub fn output_parse_table_to_csv(parse_table_string_buffer: &mut String,
                 }
 
                 ParseTableCell::Reduce(rule_id) => {
-                    println!("Reduce {}", rule_id);
+                    // println!("Reduce {}", rule_id);
 
                     // retrieve the state
                     let state = grammar_state_hashmap.get(&i).unwrap();
@@ -6419,7 +6548,7 @@ pub fn output_parse_table_to_csv(parse_table_string_buffer: &mut String,
                 }
 
                 ParseTableCell::Accept => {
-                    println!("Accept #");
+                    // println!("Accept #");
 
                     // operation
                     parse_table_string_buffer.push_str("A");
@@ -6427,7 +6556,7 @@ pub fn output_parse_table_to_csv(parse_table_string_buffer: &mut String,
                 }
 
                 ParseTableCell::Goto(state_id) => {
-                    println!("Goto {}", state_id);
+                    // println!("Goto {}", state_id);
 
                     // operation
                     parse_table_string_buffer.push_str("G");
@@ -6444,7 +6573,84 @@ pub fn output_parse_table_to_csv(parse_table_string_buffer: &mut String,
     }
 }
 
+pub fn read_parse_table_from_csv(filename: &str, parse_table: &mut HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>) {
 
+    let file = File::open(filename).expect("Reading file failed!");
+    let reader = BufReader::new(file);
+
+    // DEBUG - output the lines read from the parse table file
+    for line_result in reader.lines() {
+
+        if let Ok(line) = line_result {
+
+            // DEBUG
+            // println!("{:?}", line);
+
+            // File Format:
+            //
+            // <State_id>;
+            // 247;COLON.R61;CLOSING_ANGULAR_BRACKET.R61;ELSE.R61;unary_operator.G79;relational_expression.G100
+
+            let row_split: Vec<_> = line.split(';').collect();
+
+            // DEBUG
+            // println!("{:?}", row_split);
+
+            let state_id_as_tring = row_split[0];
+            let mut operations = HashMap::<RuleElement<String>, ParseTableCell<usize>>::new();
+
+            for i in 1..row_split.len() {
+
+                let entry_split: Vec<_> = row_split[i].split('.').collect();
+                let rule_element_as_string = entry_split[0];
+                let parse_table_cell_as_string = entry_split[1];
+
+                let mut temp_rule_element = RuleElement::<String>::Terminal(String::from(""));
+
+                // DEBUG
+                // println!("{:?}", entry_split);
+                // println!("{:?}", rule_element_as_string);
+                // println!("{:?}", parse_table_cell_as_string);
+
+                if rule_element_as_string == "#" {
+                    temp_rule_element = RuleElement::<String>::Closure;
+                } else {
+                    let is_uppercase = rule_element_as_string.chars().all( |c| c.is_uppercase() || c == '_' || c == '#' );
+                    if is_uppercase {
+                        temp_rule_element = RuleElement::<String>::Terminal(String::from(rule_element_as_string));
+                    } else {
+                        temp_rule_element = RuleElement::<String>::NonTerminal(String::from(rule_element_as_string));
+                    }
+                }
+
+                let mut parse_table_rule = ParseTableCell::<usize>::Accept;
+
+                if parse_table_cell_as_string.starts_with("R") {
+
+                    let temp = parse_table_cell_as_string[1..].parse().unwrap();
+                    parse_table_rule = ParseTableCell::<usize>::Reduce(temp);
+
+                } else if parse_table_cell_as_string.starts_with("S") {
+
+                    let temp = parse_table_cell_as_string[1..].parse().unwrap();
+                    parse_table_rule = ParseTableCell::<usize>::Shift(temp);
+
+                } else if parse_table_cell_as_string.starts_with("G") {
+
+                    let temp = parse_table_cell_as_string[1..].parse().unwrap();
+                    parse_table_rule = ParseTableCell::<usize>::Goto(temp);
+
+                } else {
+                    parse_table_rule = ParseTableCell::<usize>::Accept;
+                }
+
+                operations.insert(temp_rule_element, parse_table_rule);
+            }
+
+            parse_table.insert(state_id_as_tring.parse().unwrap(), operations);
+        }
+    }
+}
 
 // DEBUG
 //println!("{:?}", identifier_ast_node);

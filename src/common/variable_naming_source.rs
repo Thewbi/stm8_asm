@@ -10,9 +10,9 @@ use core::error::Error;
 // https://stackoverflow.com/questions/32935808/generate-sequential-ids-for-each-instance-of-a-struct
 static VAR_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-// 
+//
 // he VariableNamingSource is used to
-// output unique variable names and maintains a map from user choosen 
+// output unique variable names and maintains a map from user choosen
 // varible name to unique variable name.
 //
 // The VariableNamingSource maintains a stack of mappings
@@ -26,19 +26,19 @@ struct VarnameMapEntry {
 
     varname: String,
 
-    // If a variable was declared in the current scope, it is new by defintion. 
+    // If a variable was declared in the current scope, it is new by defintion.
     // If a entry is originating from lower down the stack it is not new by definition.
     is_new: bool,
 
-     // used to control whether the user-choosen identifier is replaced by a artificial 
-     // unique name (for local variables) or if it is kept (for global symbols such as 
+     // used to control whether the user-choosen identifier is replaced by a artificial
+     // unique name (for local variables) or if it is kept (for global symbols such as
      // functions that need to have the same name accross compilation units so the linker can link them)
     is_external_linkage: bool,
 }
 
 impl Clone for VarnameMapEntry {
     fn clone(&self) -> Self {
-        VarnameMapEntry { 
+        VarnameMapEntry {
             varname: self.varname.clone(),
             is_new: false, // make the clone an old instance by default
             is_external_linkage: false,
@@ -89,7 +89,7 @@ impl VariableNamingSource {
     // this identifier has never been processed before.
     pub fn is_variable_name_defined(&mut self, varname: &String) -> bool {
 
-        // look into the topmost map 
+        // look into the topmost map
         // (which automatically contains ALL variable from ALL levels! No need to go down the stack)
         if let Some(varname_map_refcell) = self.varname_map_stack.last() {
 
@@ -115,14 +115,14 @@ impl VariableNamingSource {
     //  Err(E),
     // }
     pub fn get_replaced_variable_name(&mut self, varname: &String) -> Result<String, String> {
-        
+
         // retrieve the topmost variable name map
         let stack_size = self.varname_map_stack.len();
         if stack_size > 0 {
             let varname_map = self.varname_map_stack[stack_size - 1].borrow();
 
             // DEBUG
-            println!("[VariableNamingSource::get_replaced_variable_name] Trying to resolve variable: \"{}\" ...", varname);
+            // println!("[VariableNamingSource::get_replaced_variable_name] Trying to resolve variable: \"{}\" ...", varname);
 
             if !varname_map.contains_key(varname) {
                 return Err(format!("Variable \"{}\" not defined!", varname).into());
@@ -131,7 +131,7 @@ impl VariableNamingSource {
             let resolved_var_name = varname_map.get(varname).unwrap().varname.clone();
 
             // DEBUG
-            println!("[VariableNamingSource::get_replaced_variable_name] Resolved variable: \"{}\" to \"{}\"", varname, resolved_var_name);
+            // println!("[VariableNamingSource::get_replaced_variable_name] Resolved variable: \"{}\" to \"{}\"", varname, resolved_var_name);
 
             return Ok(resolved_var_name);
         }
@@ -164,7 +164,7 @@ impl VariableNamingSource {
         // map var name to new temp name
         if let Some(varname_map) = self.varname_map_stack.last() {
 
-            let varname_map_entry: VarnameMapEntry = VarnameMapEntry { 
+            let varname_map_entry: VarnameMapEntry = VarnameMapEntry {
                 varname: new_unique_varname.clone(),
                 is_new: true, // new define
                 is_external_linkage: false, // a variable is NOT external linkage by default
@@ -182,7 +182,7 @@ impl VariableNamingSource {
         // TODO: if there is a variable name that matches the function name and the variable has no linkage,
         // then it is not allowed to reuse that name, since it refers to a different object and a single name
         // is not enough to make the objects unique!
-        
+
         let in_use = self.is_variable_name_defined(&func_name);
         if in_use {
             panic!("Variable Name \"{}\" is used already!", func_name);
@@ -191,7 +191,7 @@ impl VariableNamingSource {
         // map var name to new temp name
         if let Some(varname_map) = self.varname_map_stack.last() {
 
-            let varname_map_entry: VarnameMapEntry = VarnameMapEntry { 
+            let varname_map_entry: VarnameMapEntry = VarnameMapEntry {
                 varname: func_name.clone(),
                 is_new: true, // new define
                 is_external_linkage: true, // a function is external linkage by default

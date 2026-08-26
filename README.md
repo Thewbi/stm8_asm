@@ -2,208 +2,6 @@
 
 This is a C compiler written in Rust for the C programming language.
 
-## Assembler
-
-Good Overview of x86 and also x86-64 bit: 
-[1] https://en.wikibooks.org/wiki/X86_Assembly/Print_Version
-[2] https://lallouslab.net/2016/01/11/introduction-to-writing-x64-assembly-in-visual-studio/
-
-### MASM
-
-To assemble the output, you may use MASM from within Visual Studio.
-
-[MASM](MASM.md)
-
-
-### FASM
-
-https://gpfault.net/posts/asm-tut-0.txt.html
-
-[FASM](FASM.md)
-
-
-
-## Calling Conventions
-
-[3] https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention?view=msvc-170
-[4] https://stackoverflow.com/questions/79519237/windows-masm-x64-calling-convention-and-stack-setup
-[5] https://www.bigmessowires.com/2015/10/06/assembly-language-windows-programming/
-
-From [5] "All of the Win32 API functions use the __stdcall convention, while C functions and the C library use the __cdecl (or just plain “C”) convention. You may also rarely see the __fastcall convention; look it up for more details. stdcall and cdecl conventions are similar: both pass arguments on the stack, and the arguments are pushed in right to left order."
-
-### System-V ABI
-
-System-V ABI, the first six registers ("DI", "SI", "DX", "CX", "R8", "R9") store the first six parameters.
-the rest of the parameters go onto the stack in reverese order.
-
-
-### Fast Calling Convention - Windows, x64
-
-Is the only allowed calling convention for x64 on windows accoring to [2].
-
-* Registers RCX, RDX, R8 and R9 are used to pass the first four arguments
-* The remainder of the arguments must be pushed/passed on the stack
-* Even though that the first four registers are passed via the RCX, RDX, R8 and R9 registers, the stack pointer should still be decreased by 8 * 4 = 32 bytes prior to a function call. That is called registers shadow area.
-* The caller is responsible for allocating a shadow area for the 4 registers prior to calling a function, even if the callee takes no arguments.
-
-## Troubleshooting
-
-### Error: LNK 2001 unresolved external symbol _mainCRTStartup MASM
-
-When compiling with a x64 configuration:
-
-```
-LNK 2001 unresolved external symbol _mainCRTStartup MASM
-```
-SOLUTION:
-
-https://stackoverflow.com/questions/12379794/lnk-2001-unresolved-external-symbol-maincrtstartup-masm
-
-The other answers were confusing to me so I'll add my solution. In the properties of the project go to
-
-```
-Configuration Properties >> Linker >> Advanced
-```
-
-In Advanced at the top should be Entry Point. Type in main.
-
-### Error: Single Stepping in MASM 64 bit project in Visual Studio Code debugger does not single step
-
-https://stackoverflow.com/questions/14905769/step-through-an-assembly-language-program-one-statement-at-a-time
-
-https://developercommunity.azure.com/t/11056696
-
-https://developercommunity.visualstudio.com/t/11120915
-
-F10/F11 (Step Over/Step Into) do not single-step in a pure MASM (x64) native project — execution runs to completion or next breakpoint instead.
-
-Pure vs2026 x64 MASM assembly project (no CRT, no C/C++ files, entry point set via /ENTRY linker option), 
-
-1. File > New > Project/Solution (Datei > Neu > Projekt/Solution)
-1. Empty Project (Leeres Projekt) > OK (Weiter)
-1. Enter a project name and check "Place solution and project in the same directory ..." > Create (Erstellen)
-
-Enable MASM for the project
-
-1. Open Context Menu on the project (not the solution) > Build Customizations... (Buildanpassungen ...)
-1. Check the box "masm(.targets, .props) > OK
-
-Add a source file and set correct type (Microsoft Macro Assembler)
-
-1. Open Contextmenu on src (Quelldateien) > Add > New Element > main.asm > OK (Hinzufügen)
-1. On the newly added .asm file, open the context menu and select > Properties (Eigenschaften) > Item Type (Elementtyp): Microsoft Macro Assembler > OK
-1. Add code:
-
-```
-; ---------------------------------------------
-; Hello World for Win64 Intel x64 Assembly
-;
-; by fruel (https://github.com/fruel)
-; 13 June 2016
-; ---------------------------------------------
-
-GetStdHandle PROTO
-ExitProcess PROTO
-WriteConsoleA PROTO
-
-.data
-msg BYTE "Hello World",0
-bytesWritten DWORD ?
-
-.code
-main PROC
-    sub rsp, 5 * 8  
-
-    mov rcx, -11           
-    call GetStdHandle
-
-    mov  rcx, rax       
-    lea  rdx, msg    
-    mov  r8, LENGTHOF msg - 1
-    lea  r9, bytesWritten  
-    mov  QWORD PTR [rsp + 4 * SIZEOF QWORD], 0
-    call WriteConsoleA
-
-    mov rcx, 0      
-    call ExitProcess
-main ENDP
-
-END
-```
-
-```
-EXTERN ExitProcess: PROC
-
-PUBLIC main
-
-_TEXT SEGMENT
-main PROC
-	mov rax, 42h
-	call ExitProcess
-
-    ret
-main ENDP
-_TEXT ENDS
-
-END
-```
-
-or
-
-```
-EXTERN MessageBoxA: PROC
-EXTERN GetForegroundWindow: PROC
-
-PUBLIC main
-
-_DATA SEGMENT
-hello_msg db "Hello world", 0
-info_msg  db "Info", 0
-_DATA ENDS
-
-
-_TEXT SEGMENT
-
-main PROC
-
-	push rbp ; save frame pointer
-	mov rbp, rsp ; fix stack pointer
-	sub rsp, 8 * (4 + 2) ; allocate shadow register area + 2 QWORDs for stack alignment
-
-	; Get a window handle
-	call GetForegroundWindow
-	mov rcx, rax
-
-	; WINUSERAPI int WINAPI MessageBoxA(
-	;  RCX =>  _In_opt_ HWND hWnd,
-	;  RDX =>  _In_opt_ LPCSTR lpText,
-	;  R8  =>  _In_opt_ LPCSTR lpCaption,
-	;  R9  =>  _In_ UINT uType);
-
-	mov rdx, offset hello_msg
-	mov r8, offset info_msg
-	mov r9, 0 ; MB_OK
-
-	and rsp, not 8 ; align stack to 16 bytes prior to API call
-	call MessageBoxA
-
-	; epilog. restore stack pointer
-	mov rsp, rbp
-	pop rbp
-
-	ret
-main ENDP
-
-_TEXT ENDS
-
-END
-```
-
-Set the Entry Point value to main
-
-1. Open ContextMenu on project > Properties (Eigenschaften) > Linker > Advanced (Erweitert) > Entry Point (Einstiegspunkt) > main > ok
-
-
 # Disclaimer
 
 ```
@@ -215,9 +13,26 @@ Also excuse the horrible drawings! I am not a graphics designer by any means! I 
 
 Other than that. I hope you like this document. Thanks for reading. Enjoy.
 
-If you do not know about automata, please first consult the internet or the analog computer science literature. There is plenty of information out there. Automata are the formal theoretical basis of lexing and parsing. Same goes for context free grammars. 
+If you do not know about automata, please first consult the internet or the analog computer science literature. There is plenty of information out there. Automata are the formal theoretical basis of lexing and parsing. Same goes for context free grammars.
 
 And the LALR(1) parser used in this document is generally outdated (but works for the grammar used). Maybe you want to look into other types of parsers.
+
+
+
+
+# Source Code Structure
+
+## Where and how is the parse tree printed?
+
+The Parsers (parser.rs) has a function for each rule which is called when a rule is reduced. In each of these functions, the .dot graphviz is printed into a String called string_buffer. Also AST nodes are created in these functions. This means the parser outputs the parse tree and prepares AST nodes at the same time.
+
+## Where is the symbol table
+
+The symbol table is defined in main.rs. It is passed to the TypeCheckingVisitor via a smart pointer.
+
+The TypeCheckingVisitor assigns a type to a variable declaration and inserts this information into the symbol table.
+
+
 
 # The preprocessor
 
@@ -253,13 +68,13 @@ https://github.com/Thewbi/cpp_compiler/blob/main/src/main/java/preprocessor/Simp
 The input is a single compilation unit which is a .c file which draws in many .h files which in turn
 may also draw in more .h files by including them. The output is one large.c file with all the values
 from the .c and all included .h files. If two or more .h files for a loop by cyclicly including themselves,
-the loop is broken by including each .h file at most once. 
+the loop is broken by including each .h file at most once.
 
-.h files are identified by their absolute or relative path. Relative paths need one or more base paths 
+.h files are identified by their absolute or relative path. Relative paths need one or more base paths
 to be resolved into absolute paths. Based on the type of #include symbol the use of paths change.
-For chevron includes (#include <stdio.h>) the base paths are toolchain system paths and -I command line inputs. 
+For chevron includes (#include <stdio.h>) the base paths are toolchain system paths and -I command line inputs.
 For quote includes (#include "test.h") the include paths are resolved relative to the currently
-process file (.c or .h). 
+process file (.c or .h).
 
 A SimpleFileStackFrame object stands for either the main.c or any of the included files which.
 Every included .h file is represented by it's own SimpleFileStackFrame.
@@ -284,7 +99,7 @@ the base .c file which has performed the include and also when processing all su
 
 If a token is normal text (no preprocessor token), then the normal text is compared to the #define objects
 in the database. If the normal text matches one of the #define objects, the #define object is applied.
-This means that the formal parameters need to be replaced by actual parameters, and the normal text is 
+This means that the formal parameters need to be replaced by actual parameters, and the normal text is
 replaced by the processed #define object and the newly replaced text is output by the preprocessor into
 the large resulting StringBuffer or text file.
 
@@ -338,15 +153,15 @@ Take for example the input
 int main(int x, int y) { return x + y; }
 ```
 
-This yields the following parse tree (not AST but parse tree). 
+This yields the following parse tree (not AST but parse tree).
 
 ![Parse Tree](res/images/parse_tree.jpg "Parse Tree")
 
 The terminals are marked by circles around them and they are the leaves of the parse tree. If you print the leaf-nodes from left to right, you get the original input back!
 
-This lexer is implemented based on regular expressions. The token or terminals are described by individual regular expressions. The first step is to convert all the regular expressions for all token into individual non-deterministic finite automata. This is accomplished by converting the regular expression from infix to postfix notation. To perform this conversion, the regular expression in infix notation is scanned character by character and each character is inserted into a binary tree. Once the entire regular expression is contained in the tree, the tree is traversed and characteres are output in postfix order (output a parent node after both of it's children). 
+This lexer is implemented based on regular expressions. The token or terminals are described by individual regular expressions. The first step is to convert all the regular expressions for all token into individual non-deterministic finite automata. This is accomplished by converting the regular expression from infix to postfix notation. To perform this conversion, the regular expression in infix notation is scanned character by character and each character is inserted into a binary tree. Once the entire regular expression is contained in the tree, the tree is traversed and characteres are output in postfix order (output a parent node after both of it's children).
 
-Having the regular expression a in postfix notation allows it to be fed into the algorithm described by Russ Cox (https://swtch.com/%7Ersc/regexp/regexp1.html). 
+Having the regular expression a in postfix notation allows it to be fed into the algorithm described by Russ Cox (https://swtch.com/%7Ersc/regexp/regexp1.html).
 
 https://www.youtube.com/watch?v=dyZptpZLwIE
 
@@ -428,7 +243,7 @@ In order to test, what token the lexer will create using a given test input, use
 
 **Motivation:** I need a component that consumes the source code, allows for reactions to detected language constructs such as if, function declarations, structs, ... and also the component needs to be able to detect syntax errors as precisely as possible.
 
-**Warning:** If you want to hand-craft a parser, skip this section. This section is about generating a parser from a grammar using an algorithm! This section explains how the parser is generated using the algorithm from the dragon book! If you think this is not what you want, skip this section! 
+**Warning:** If you want to hand-craft a parser, skip this section. This section is about generating a parser from a grammar using an algorithm! This section explains how the parser is generated using the algorithm from the dragon book! If you think this is not what you want, skip this section!
 
 The reason for the dragon book LALR(1) parser is twofold.
 1. I got burned in the past pretty hard by investing days into writing my own C grammar just to eventually realize that I am not smart enough to come up with a working grammar for C! That is why I assume that I am not smart enough to create a hand-written compiler for the language which is even harder than formulating a grammar! If you want to hand-write a parser, be warned. My advice is it to find a way to perform rapid prototyping so failure is not too expensive! You will probably not get it right the first time around.
@@ -437,29 +252,29 @@ The reason for the dragon book LALR(1) parser is twofold.
 Here is what AI has to say about the Dragon Book's LALR(1) algorithm:
 
 ```
-The LALR(1) parsing theory from the Dragon Book (Aho, Sethi, Ullman, and Lam) is 
+The LALR(1) parsing theory from the Dragon Book (Aho, Sethi, Ullman, and Lam) is
 theoretically sound but practically outdated for most modern language development.
 
 Why it's outdated in practice
 
-* Shift to Recursive Descent: Most modern production compilers (e.g., Clang, Rustc, Go) 
-abandon LALR(1) generators in favor of hand-written recursive descent parsers. 
-Hand-written parsers allow for better error recovery, context-sensitive parsing hacks 
+* Shift to Recursive Descent: Most modern production compilers (e.g., Clang, Rustc, Go)
+abandon LALR(1) generators in favor of hand-written recursive descent parsers.
+Hand-written parsers allow for better error recovery, context-sensitive parsing hacks
 (essential for C++), and tighter integration with Abstract Syntax Tree (AST) construction.
 
-* The LALR(1) Bias: The Dragon Book championed LALR(1) because, historically, 
-full LR(1) required exponential memory. Today, computers have plenty of memory, 
-and modern tools (such as Bison) use optimizations like IELR(1) to generate smaller 
+* The LALR(1) Bias: The Dragon Book championed LALR(1) because, historically,
+full LR(1) required exponential memory. Today, computers have plenty of memory,
+and modern tools (such as Bison) use optimizations like IELR(1) to generate smaller
 tables without sacrificing parsing power.
 
-* Ambiguity and Conflicts: As syntax grows complex, LALR(1) often struggles with 
-reduce-reduce conflicts. Modern developers frequently prefer generalized parsing 
-strategies like GLR or Earley to handle ambiguous grammars, or use Pratt parsing 
+* Ambiguity and Conflicts: As syntax grows complex, LALR(1) often struggles with
+reduce-reduce conflicts. Modern developers frequently prefer generalized parsing
+strategies like GLR or Earley to handle ambiguous grammars, or use Pratt parsing
 for mathematical expressions.
 
-* Alternatives: Modern texts like Engineering a Compiler (by Cooper and Torczon) 
-or Modern Compiler Implementation (by Appel) are often recommended over the Dragon Book 
-because they better emphasize modern software architecture, static single assignment (SSA), 
+* Alternatives: Modern texts like Engineering a Compiler (by Cooper and Torczon)
+or Modern Compiler Implementation (by Appel) are often recommended over the Dragon Book
+because they better emphasize modern software architecture, static single assignment (SSA),
 and runtime systems.
 ```
 
@@ -467,11 +282,11 @@ and runtime systems.
 
 The dragon book (Compilers: Principles, Techniques, and Tools, by Alfred Aho (Author), Jeffrey Ullman (Author), Ravi Sethi (Author), Monica Lam (Author)) contains an algorithm which constructs a LALR(1) parser.
 
-What is LALR(1)? A grammar can be part of different classes of grammars in theoretical computer science. LALR(1) is one of them. It means Look-Ahead of 1 symbol, Left-to-right, Rightmost derivation. There is no precise definition which grammar is LALR(1) that can be applied to the grammar itself to know before building a LALR(1) parser! Instead, a LR(1) parser can be constructed (Using a well known algorithm). If that does not work, then the grammar is not LALR(1). 
+What is LALR(1)? A grammar can be part of different classes of grammars in theoretical computer science. LALR(1) is one of them. It means Look-Ahead of 1 symbol, Left-to-right, Rightmost derivation. There is no precise definition which grammar is LALR(1) that can be applied to the grammar itself to know before building a LALR(1) parser! Instead, a LR(1) parser can be constructed (Using a well known algorithm). If that does not work, then the grammar is not LALR(1).
 
 SideNote: As LR(1) parsers get absolutely huge, the task of determining LALR(1) is more of a theoretical excercise. We will not care at this point. We make the assumption that the grammar https://www.lysator.liu.se/c/ANSI-C-grammar-y.html is in fact LALR(1). That also leads to the assumption that the parser will parse the input using a single (1) element of lookahead to decide which rules to choose over other rules!
 
-There are two ways to build a LALR(1) parser: 
+There are two ways to build a LALR(1) parser:
 1. build a LR(0) graph first, then from the LR(0) graph build a LR(1) graph and then merge states that are equivalent which eventually produces the LALR(1) parser.
 1. build a LR(0) graph and immediately build the LALR(1) parser using a more complicated algorithm from the LR(0) graph.
 
@@ -486,20 +301,20 @@ The overview that comes next is a blend of the dragon book and an answer that th
 
 To create an LALR(1) parser generator yourself, follow these five core phases:
 
-1. Build the LR(0) Automaton 
-    First, convert your grammar into an augmented grammar and compute the LR(0) CLOSURE and GOTO functions to build the LR(0) states. 
-    These states will become the "cores" of your parser. 
+1. Build the LR(0) Automaton
+    First, convert your grammar into an augmented grammar and compute the LR(0) CLOSURE and GOTO functions to build the LR(0) states.
+    These states will become the "cores" of your parser.
     CLOSURE: Given a set of items, if a non-terminal is after a dot (e.g., A → α ⋅ B β), add all productions for B with a dot at the beginning to the set.
     GOTO: Determine which items a state transitions to when a specific grammar symbol (terminal or non-terminal) is consumed.
-    
+
 2. Compute the FIRST and FOLLOW Sets
     You need the lookaheads for your grammar.
     Compute FIRST(α) for all strings in your grammar.
     Compute FOLLOW(A) for all non-terminals.
     These sets dictate which tokens can validly appear immediately after a non-terminal in a sentential form.
-    
-3. Generate LR(1) Items and Merge States (LALR Trick) 
-    While you can build the full canonical LR(1) states and merge them (the brute-force method), 
+
+3. Generate LR(1) Items and Merge States (LALR Trick)
+    While you can build the full canonical LR(1) states and merge them (the brute-force method),
     a direct approach calculates lookaheads by propagation and spontaneous generation:
         - Calculate the LR(0) states.
         - Augment each LR(0) item in these states with its lookahead symbols.
@@ -508,21 +323,21 @@ To create an LALR(1) parser generator yourself, follow these five core phases:
                 by a process of propagation and spontaneous generation of lookaheads,
                 that we shall describe shortly."
             - Spontaneous Generation: A lookahead symbol is generated inherently from a specific reduction rule.
-            - Propagation: Lookahead symbols inherited from a parent/predecessor state are "pushed" down the parse 
+            - Propagation: Lookahead symbols inherited from a parent/predecessor state are "pushed" down the parse
               tree without alteration.
-        - States that have identical core productions (ignoring the lookaheads) are merged into a single state, 
+        - States that have identical core productions (ignoring the lookaheads) are merged into a single state,
           and their lookahead sets are combined via union.
-        
-4. Build the Parsing Table 
+
+4. Build the Parsing Table
     Construct the two-dimensional LALR(1) parse table using the merged states:
-    Action Table: Defines the shifts, reduces, and accepts for terminals. 
-        If a state has A → α ⋅ a β and \(GOTO(state, a) = state_k\), add Shift state_k on the terminal a. 
+    Action Table: Defines the shifts, reduces, and accepts for terminals.
+        If a state has A → α ⋅ a β and \(GOTO(state, a) = state_k\), add Shift state_k on the terminal a.
         If a state contains A → α ⋅, add Reduce A -> \alpha for all tokens in FOLLOW(A).
     Goto Table: Defines state transitions for non-terminals.
-    
+
 5. Implement the Driver Loop
-    The final step is the parsing engine itself. 
-    The driver loop takes a stream of tokens and uses a stack to process them against your generated LALR(1) parsing table. 
+    The final step is the parsing engine itself.
+    The driver loop takes a stream of tokens and uses a stack to process them against your generated LALR(1) parsing table.
     It looks up the current state (on top of the stack) and the current input token to execute a shift, reduce, accept, or error.
     To visually understand the mechanics of merging LR(1) states to create an LALR(1) table.
 ```
@@ -545,13 +360,13 @@ When a new rule is added by the closure operation, lookahead symbols are also de
 
 First it will build the closure of a state. Once the kernel and the closure rules are available. It will build transitions to new states. The states are created on the fly. One very important thing is to only transition to a state given a symbol, if the source state for that symbol activates ALL the rules in the kernel of the next state! (If no state for such a kernel exists yet, add a new node to the graph!). The ALL rules part is very, very important! A transition only happens if ALL rules that form the kernel of the next state are activated by the symbol at the same time! This means a transition consists of a set of rules and not just of a single rule! All rules in the kernel of the target state need to be satisified to transition to a target state. If no such state exists, create a new one!
 
-The closure operation in this implementation is called pub fn unfold_grammar_state(). The closure operation is what inserts the lookahead symbols into the rules initially! It uses First and Nullable information for that! (I have never used a Follow-Set! I do not know what that is! The AI says to use follow sets! I must have used something akin to a follow set as my implementation does in fact work although I have not explicitly computed any follow sets! I do not actually know what is goint on! Make sure you understand what a follow set is before you implement the channel algorithm.) 
+The closure operation in this implementation is called pub fn unfold_grammar_state(). The closure operation is what inserts the lookahead symbols into the rules initially! It uses First and Nullable information for that! (I have never used a Follow-Set! I do not know what that is! The AI says to use follow sets! I must have used something akin to a follow set as my implementation does in fact work although I have not explicitly computed any follow sets! I do not actually know what is goint on! Make sure you understand what a follow set is before you implement the channel algorithm.)
 
 During all the graph construction, somehow maintain information, which source rule has a channel to which target rule. Rules form channels, if a destination rule was created based on a source rule. Then there is a channel between the source rule and the target rule in that direction.
 
 Once the graph of nodes is constructed and the transitions between nodes are available, the last step is to push lookahead symbols through the channels until no state has seen any change any more. This means this is an iterative process which repeats until no more lookaheads are pushed because all states have received all data they need.
 
-**There is also one very important thing to get right here!** A symbol is **only pushed over a channel between to different states *if ALL ALL ALL* destination, kernel rules have empty-beta at the same time!** If one or more rules in the kernel are not empty-beta, **then no lookahead is pushed** between the two states! 
+**There is also one very important thing to get right here!** A symbol is **only pushed over a channel between to different states *if ALL ALL ALL* destination, kernel rules have empty-beta at the same time!** If one or more rules in the kernel are not empty-beta, **then no lookahead is pushed** between the two states!
 
 Empty beta means that the dot-marker in the rule points to a nonterminal followed by nothing! The following part is called beta. If there is no beta, then we say empty-beta! lookaheads inter-state are only pushed into rules that are empty-beta and **ALL ALL ALL** rules in the kernel need to be empty-beta at the same time! I cannot repeat this enough. **This is the secret sauce of the algorithm!** It is not mentioned in the dragon book (at least I missed it) and there is not a single youtube video on the internet that contains this bit of information! I took me days to figure this out! I hope you will not fail as hard as I did!
 
@@ -583,7 +398,7 @@ What in the world does this mean?
 
 First, you are looking at a rule where the dot-marker points to the non-terminal B.
 After B, follows a string of elements (nonterminal or terminal) which is called beta.
-After the comma follows a set of lookaheads (here: just a one symbol a) that have been 
+After the comma follows a set of lookaheads (here: just a one symbol a) that have been
 computed for this rule up to this point. The lookahead set may be extended as the algorithm goes.
 
 Concrete Example:
@@ -592,13 +407,13 @@ Concrete Example:
 S -> . L = R, #
 ```
 
-Comparing the example production to the standard form, we get: 
+Comparing the example production to the standard form, we get:
 * A is S
 * alpha is the empty string
 * The dot marker points to L whereas L is B in the general notation.
 * beta is "= R"
 
-The string beta may be empty: 
+The string beta may be empty:
 
 Concrete Example for empty-beta:
 
@@ -606,7 +421,7 @@ Concrete Example for empty-beta:
 S' -> . S, #
 ```
 
-Comparing the example production to the standard form, we get: 
+Comparing the example production to the standard form, we get:
 * A is S'
 * alpha is the empty string
 * The dot points to S whereas S is B in the general notation.
@@ -631,15 +446,15 @@ It will return all terminals that it can find in the concatenation of beta and t
 
 We know that beta can be the empty string so First() might just return the lookahead symbols.
 If beta is not the empty string, beta can either be a terminal itself in which case First() will return that terminal.
-In the most complicated case B can be the Lefthand side (LHS) of a set of rules. 
+In the most complicated case B can be the Lefthand side (LHS) of a set of rules.
 Lets say beta is the nonterminal B.
 
 In this case First(B) will look at all productions that have B on the LHS and return all the terminals that
-these rules can produce. Luckily First(B) is called the first set of a production and this first-set can 
+these rules can produce. Luckily First(B) is called the first set of a production and this first-set can
 be precomputed based on the grammar at hand befor starting LALR(1) construction.
 
 You need to implement the functionality that implements First().
-Once you have an implementation for first, 
+Once you have an implementation for first,
 1. compute the lookahead symbols for the rule
 1. determine all the follow up rules create from the current rule (dot points to nonterminal which is used as LHS of rules)
 1. Add the rules to the state (outside of the kernel)
@@ -662,7 +477,7 @@ If at one point none of the sets has seen any change, the iteration comes to a h
 is constructed.
 
 Mind you, if a new lookahead goes into a rule, it will not only trickle through channels that exist purely within
-the state but also through channels that connect different states (inter-state). **But for inter-state channel 
+the state but also through channels that connect different states (inter-state). **But for inter-state channel
 propagation, there is the important constraint that a symbol is only propagated over a channel if ALL destination
 rules in the destination kernel are empty-beta at the same time! I cannot stress this enough: Only propagate
 inter-channel lookaheads if ALL target kernel rules are ALL empty-beta at at the same time! If one or more of
@@ -673,7 +488,7 @@ them are not empty beta, then no propagation takes place at all!**
 The only reason why the LALR(1) Channel Algorithm performs LR(0) graph construction, closure, channel management
 and lookahead propagation is that from the final information, a parse table can be determined! The parse table
 is the result of the algorithm and the parse table is what is really needed! The LALR(1) graph including all
-state, lookaheads and channels can go into the trash after the parse table is available! In theory, the 
+state, lookaheads and channels can go into the trash after the parse table is available! In theory, the
 LALR(1) Channel Algorithm is a parser generator and it only needs to run, when no parse table is available yet
 or when the original grammar has changed and the parse table needs to be reconstructed!
 
@@ -686,7 +501,7 @@ The LALR(1) automaton is a tool to retrieve the final parse table which is then 
 run the parser.
 
 Therefore the parse table needs to be constructed from the DFA. There is a set of rules to compute the parse table
-from the LALR(1) graph. 
+from the LALR(1) graph.
 
 Both online tools:
 
@@ -739,7 +554,7 @@ This is a especially nasty trick in the grammar! The lexer is usually responsibl
 
 A user defined type is an occasion where an IDENTIFIER changes into a TYPE_NAME!
 
-Initially, I did the following test: I changed the rule from 
+Initially, I did the following test: I changed the rule from
 
 ```
 type_specifier -> TYPE_NAME
@@ -769,7 +584,7 @@ Instead, the example grammar makes the lexer output this token type TYPE_NAME, i
 typedef struct point point_t;
 ```
 
-the parser needs to talk to the lexer and reprogram the lexer! 
+the parser needs to talk to the lexer and reprogram the lexer!
 
 The parser needs to tell the lexer that point_t is a type! From then on, whenever the lexer has detected an IDENTIFIER token, it needs to run that IDENTIFIER token through an additional filter. The filter will check if the IDENTIFIER matches a type from the lexer's type database that is filled by the parser. When the lexer has a type registered for the specific IDENTIFIER, instead of returning an IDENTIFIER token, it will return a TYPE_NAME token to satisfy the grammar!
 
@@ -784,9 +599,9 @@ declaration_specifiers -> storage_class_specifier declaration_specifiers
 This rule is displayed as the left-most subtree in the tree-graph below.
 
 ```
-typedef struct point point_t; 
+typedef struct point point_t;
 
-void main () { 
+void main () {
     point_t pp;
 }
 ```
@@ -956,7 +771,7 @@ Each mentioning of the AST or AST grammar in the book represents a new iteration
 relative to the prior iterations. This section sums up all the changes.
 
 The AST grammar description syntax is:
-* The or | operator lists alternatives. 
+* The or | operator lists alternatives.
 * The ? operation marks a part as optional.
 * The * operation marks a part as repeated zero or more times.
 
@@ -975,7 +790,7 @@ exp = Constant(int)
 Page 14
 
 ```
-statement = 
+statement =
     Return(exp)
     | If(exp condition, statement then, statement? else)
 ```
@@ -983,7 +798,7 @@ statement =
 Page 33
 
 ```
-exp = 
+exp =
     Constant(int)
     | Unary(unary_operator, exp)
 
@@ -994,10 +809,10 @@ unary_operator =
 
 Page 40 - This is not for the normal AST but for the Assembly AST!
 
-Page 48 
+Page 48
 
 ```
-exp = 
+exp =
     Constant(int)
     | Unary(unary_operator, exp)
     | Unary(binary_operator, exp, exp)
@@ -1020,7 +835,7 @@ binary_operator = Add | Subtract | Multiply | Divide | Remainder
 Page 97
 
 ```
-exp = 
+exp =
     Constant(int)
     | Var(identifier)
     | Unary(unary_operator, exp)
@@ -1031,7 +846,7 @@ exp =
 Page 98
 
 ```
-statement = 
+statement =
     Return(exp)
     | Expression(exp)
     | If(exp condition, statement then, statement? else)
@@ -1050,10 +865,10 @@ function_definition = Function(identifier name, block_item* body)
 
 Page 100 - contains the entire AST grammar so far.
 
-Page 118 
+Page 118
 
 ```
-statement = 
+statement =
     Return(exp)
     | Expression(exp)
     | If(exp condition, statement then, statement? else)
@@ -1063,7 +878,7 @@ statement =
 Page 121
 
 ```
-exp = 
+exp =
     Constant(int)
     | Var(identifier)
     | Unary(unary_operator, exp)
@@ -1121,15 +936,15 @@ statement =
     ...
     | Switch
 
-Switch = 
-    Case*(Constant selector, Statement body)        // Statement body can resolve to Compound which contains a block 
+Switch =
+    Case*(Constant selector, Statement body)        // Statement body can resolve to Compound which contains a block
     | Default(Statement body)
 ```
 
 Page 171
 
 ```
-exp = 
+exp =
     Constant(int)
     | Var(identifier)
     | Unary(unary_operator, exp)
@@ -1177,7 +992,7 @@ New Types, adds cast
 ```
 type = Int | Long | FunType(type* params, type ret)
 
-exp = 
+exp =
     Constant(const)
     | Var(identifier)
     | Cast(type target_type, exp)
@@ -1193,7 +1008,7 @@ const = ConstInt(int) | ConstLong(int)
 Page 252 - (listing 11-7 and 11-9) adds type information to the AST Nodes
 
 ```
-exp = 
+exp =
     Constant(const, type)
     | Var(identifier, type)
     | Cast(type target_type, exp, type)
@@ -1209,7 +1024,7 @@ Page 276 - Chapter 12 - Unsigned integers
 ```
 type = Int | Long | UInt | ULong | Double | FunType(type* params, type ret)
 
-const = ConstInt(int) | ConstLong(int) | ConstUInt(int) | ConstULong(int) 
+const = ConstInt(int) | ConstLong(int) | ConstUInt(int) | ConstULong(int)
 ```
 
 2^31     = 2.147.483.648 =   10000000_00000000_00000000_00000000
@@ -1222,7 +1037,7 @@ const = ConstInt(int) | ConstLong(int) | ConstUInt(int) | ConstULong(int)
 2^64 - 1 = 18.446.744.073.709.551.615 =   11111111_11111111_11111111_11111111_11111111_11111111_11111111_11111111
 
 To determine the sub-type of const (ConstInt(int) | ConstLong(int) | ConstUInt(int) | ConstULong(int)),
-the following rules are used. 
+the following rules are used.
 
 - If the number has no negative sign, then the number is interpreted as unsigned
 - The compiler will fit the number into the smallest type that can safely hold the value
@@ -1240,7 +1055,7 @@ Page 354, 355 - Chapter 14 - Pointers
 ```
 type = Int | Long | UInt | ULong | Double | FunType(type* params, type ret) | Pointer(type referenced)
 
-exp = 
+exp =
     Constant(const, type)
     | Var(identifier, type)
     | Cast(type target_type, exp, type)
@@ -1257,7 +1072,7 @@ Page 359
 
 ??? (TACKY ???)
 ```TACKY
-declarator = 
+declarator =
     Ident(identifier)
     | PointerDeclarator(declarator)
     | FunDeclarator(param_info* params, declarator)
@@ -1272,21 +1087,21 @@ Page 393, 394 - Chapter 15 - arrays
 ```
 variable_declaration = (identifier name, initializer? init)
 
-initializer = 
+initializer =
     SingleInit(exp)
     | CompoundInit(initializer*)
 
-type = 
-    Int 
-    | Long 
-    | UInt 
-    | ULong 
-    | Double 
-    | FunType(type* params, type ret) 
-    | Pointer(type referenced) 
+type =
+    Int
+    | Long
+    | UInt
+    | ULong
+    | Double
+    | FunType(type* params, type ret)
+    | Pointer(type referenced)
     | Array(type element, int size) // new
 
-exp = 
+exp =
     Constant(const, type)
     | Var(identifier, type)
     | Cast(type target_type, exp, type)
@@ -1302,7 +1117,7 @@ exp =
 
 ??? (TACKY ???)
 ```TACKY
-declarator = 
+declarator =
     Ident(identifier)
     | PointerDeclarator(declarator)
     | ArrayDeclarator(declarator, int size)
@@ -1314,18 +1129,18 @@ Page 432 - Chapter 16 - strings
 Page 463/464 - Chapter 17 - Supporting Dynamic Memory Allocation (Sizeof operator: page 462)
 
 ```
-type = 
+type =
     Char
     | SChar
     | UChar
-    | Int 
-    | Long 
-    | UInt 
-    | ULong 
-    | Double 
+    | Int
+    | Long
+    | UInt
+    | ULong
+    | Double
     | Void // new
-    | FunType(type* params, type ret) 
-    | Pointer(type referenced) 
+    | FunType(type* params, type ret)
+    | Pointer(type referenced)
     | Array(type element, int size)
 ```
 
@@ -1337,7 +1152,7 @@ statement =
 ```
 
 ```
-exp = 
+exp =
     SizeOf(exp)
     | SizeOfT(type)
 ```
@@ -1345,31 +1160,31 @@ exp =
 Page 495/496 - Chapter 18 - Structures
 
 ```
-declaration = 
-    FunDecl(function_declaration) 
-    | VarDecl(variable_declaration) 
+declaration =
+    FunDecl(function_declaration)
+    | VarDecl(variable_declaration)
     | StructDecl(struct_declaration) // new
 
 struct_declaration = (identifier tag, member_declaration* members) // new
 
 member_declaration = (identifier member_name, type member_type) // new
 
-type = 
+type =
     Char
     | SChar
     | UChar
-    | Int 
-    | Long 
-    | UInt 
-    | ULong 
-    | Double 
+    | Int
+    | Long
+    | UInt
+    | ULong
+    | Double
     | Void
-    | FunType(type* params, type ret) 
-    | Pointer(type referenced) 
+    | FunType(type* params, type ret)
+    | Pointer(type referenced)
     | Array(type element, int size)
     | Structure(identifier tag) // new
 
-exp = 
+exp =
     Constant(const, type)
     | Var(identifier, type)
     | Cast(type target_type, exp, type)
@@ -1380,7 +1195,7 @@ exp =
     | FunctionCall(identifier, exp* args, type)
     | Dereference(exp)
     | AddrOf(exp)
-    | Subscript(exp, exp) 
+    | Subscript(exp, exp)
     | SizeOf(exp)
     | SizeOfT(type)
     | Dot(exp structure, identifier member) // new
@@ -1430,14 +1245,14 @@ program = Program(function_definition)
 
 function_definition = Function(identifier, instruction* body)
 
-instruction = 
+instruction =
     Return(val)
     | Unary(unary_operator, val src, val dst)
 
 val = Constant(int)
     | Var(identifier)
 
-unary_operator = 
+unary_operator =
     Complement
     | Negate
 ```
@@ -1457,7 +1272,7 @@ program = Program(function_definition)
 
 function_definition = Function(identifier, instruction* body)
 
-instruction = 
+instruction =
     Return(val)
     | Unary(unary_operator, val src, val dst)
     | Binary(binary_operator, val src1, val src2, val dst)
@@ -1465,11 +1280,11 @@ instruction =
 val = Constant(int)
     | Var(identifier)
 
-unary_operator = 
+unary_operator =
     Complement
     | Negate
 
-binary_operator = 
+binary_operator =
     Add
     | Subtract
     | Multiply
@@ -1492,7 +1307,7 @@ program = Program(function_definition)
 
 function_definition = Function(identifier, instruction* body)
 
-instruction = 
+instruction =
     Return(val)
     | Unary(unary_operator, val src, val dst)
     | Binary(binary_operator, val src1, val src2, val dst)
@@ -1505,12 +1320,12 @@ instruction =
 val = Constant(int)
     | Var(identifier)
 
-unary_operator = 
+unary_operator =
     Complement
     | Negate
     | Not
 
-binary_operator = 
+binary_operator =
     Add
     | Subtract
     | Multiply
@@ -1541,12 +1356,12 @@ The ASM_AST -> ASM conversion table is contained on page ?.
 
 ## Page 126 - If Statements and Conditional Expressions
 
-The TACKY definition is contained on page -- No new elements are introduced. 
+The TACKY definition is contained on page -- No new elements are introduced.
 
 The AST -> TACKY conversion table is contained on page 126.
 Templates to show how to construct TACKY are added.
 
-AST: 
+AST:
 ```
 if '(' <condition> ')' then <statement>
 ```
@@ -1710,7 +1525,7 @@ switch (test_val) {
     case 1:
         <body_1>
         break;
-        
+
     case 2:
         <body_2>
         break;
@@ -1719,7 +1534,7 @@ switch (test_val) {
     case 4:
         <body_3_4>
         break;
-    
+
     default:
         <body_default>
         break;
@@ -1770,7 +1585,7 @@ The ASM_AST -> ASM conversion table is contained on page ?.
 
 
 
-## Page ? - Function Calls 
+## Page ? - Function Calls
 
 The TACKY definition is contained on page 182.
 
@@ -1779,7 +1594,7 @@ program = Program(function_definition*)
 
 function_definition = Function(identifier, identifier* params, instruction* body)
 
-instruction = 
+instruction =
     Return(val)
     | Unary(unary_operator, val src, val dst)
     | Binary(binary_operator, val src1, val src2, val dst)
@@ -1830,7 +1645,7 @@ The TACKY definition is contained on page 234.
 ```
 program = Program(top_level*)
 
-top_level = 
+top_level =
     Function(identifier, bool global, identifier* params, instruction* body)
     | StaticVariable(identifier, bool global, int init)
 ```
@@ -1848,7 +1663,7 @@ The TACKY definition is contained on page 258, 259.
 ```
 StaticVariable(identifier, bool global, type t, static_init init)
 
-instruction = 
+instruction =
     Return(val)
     | SignExtend(val src, val dst)
     | Truncate(val src, val dst)
@@ -1876,7 +1691,7 @@ The ASM_AST -> ASM conversion table is contained on page ?.
 The TACKY definition is contained on page 281 and page 289.
 
 ```
-instruction = 
+instruction =
     Return(val)
     | SignExtend(val src, val dst)
     | Truncate(val src, val dst)
@@ -1890,7 +1705,7 @@ instruction =
     | Label(identifier)
     | FunCall(identifier fun_name, val* args, val dst)
 
-const = ConstInt(int) 
+const = ConstInt(int)
     | ConstUInt(int)
     | ConstLong(int)
     | ConstULong(int)
@@ -1907,7 +1722,7 @@ The ASM_AST -> ASM conversion table is contained on page ?.
 The TACKY definition is contained on page 309.
 
 ```
-instruction = 
+instruction =
     Return(val)
     | SignExtend(val src, val dst)
     | Truncate(val src, val dst)
@@ -1937,7 +1752,7 @@ The ASM_AST -> ASM conversion table is contained on page ?.
 The TACKY definition is contained on page 371.
 
 ```
-instruction = 
+instruction =
     Return(val)
     | SignExtend(val src, val dst)
     | Truncate(val src, val dst)
@@ -1967,7 +1782,7 @@ exp_result = PlainOperand(val) | DereferencedPointer(ptr)
 
 Used on page 373 in listing 14-23
 
-QUESTION: The symbol exp_result, PlainOperand, DereferencedPointer 
+QUESTION: The symbol exp_result, PlainOperand, DereferencedPointer
 never appear in any overview of the TACKY definitions in the book!
 It is as if they are defined but never really displayed in full context!
 I do not know what is going on.
@@ -1983,7 +1798,7 @@ emit_tacky() will return exp_result which represents an expression result that h
 emit_tacky_and_convert() will [internally] call emit_tacky(), lvalue convert the result (if it is an lvalue rather than a constant)
 and return the converted result as TACKY.
 
-The problem here is basically how the TACKY generator will handle 
+The problem here is basically how the TACKY generator will handle
 - unary expressions
 - dereference expressions
 - assignments
@@ -2072,7 +1887,7 @@ Store(src:Constant(5), dst_ptr(x_ptr))
 #### AddressOf on a Dereference of a pointer
 
 ```
-*(&x) is the same as just using x. Here the value of x is returned in both cases. 
+*(&x) is the same as just using x. Here the value of x is returned in both cases.
 
 &(*x_ptr) is the same as x_ptr. Here the lvalue-conversion of x_ptr which is an address of an object is returned in both cases.
 ```
@@ -2090,7 +1905,7 @@ The C standard says that in the case of the combining inverse operations, neithe
 The TACKY definition is contained on page 406, 407.
 
 ```
-instruction = 
+instruction =
     ...
     | AddPtr(val ptr, val index, int scale, val dst)
     | CopyToOffset(val src, identifier dst, int offset)
@@ -2130,12 +1945,12 @@ No new TACKY elements are introduced for SizeOf and SizeOfT instead, compute the
 emit a constant for the size:
 
 ```
-| SizeOf(inner) -> 
+| SizeOf(inner) ->
     type = get_type(inner)
     result = size(type)
     return PlainOperand(Constant(ConstULong(result)))
 
-| SizeOfT(type) -> 
+| SizeOfT(type) ->
     result = size(type)
     return PlainOperand(Constant(ConstULong(result)))
 ```
@@ -2157,12 +1972,12 @@ The TACKY definition is contained on page 481.
 ```
 program = Program(top_level*)
 
-top_level = 
+top_level =
     Function(identifier, bool global, identifier* params, instruction* body)
     | StaticVariable(identifier, bool global, type t, static_init init)
     | StaticConstant(identifier, type t, static_init init)
 
-instruction = 
+instruction =
     Return(val?)
     | SignExtend(val src, val dst)
     | Truncate(val src, val dst)
@@ -2188,12 +2003,12 @@ instruction =
 val = Constant(const)
     | Var(identifier)
 
-unary_operator = 
+unary_operator =
     Complement
     | Negate
     | Not
 
-binary_operator = 
+binary_operator =
     Add
     | Subtract
     | Multiply
@@ -2216,7 +2031,7 @@ The ASM_AST -> ASM conversion table is contained on page ?.
 The TACKY definition is contained on page 513.
 
 ```
-instruction = 
+instruction =
     ...
     | CopyToOffset(val src, identifier dst, int offset)
     | CopyFromOffset(identifier src, int offset, val dst)
@@ -2263,25 +2078,25 @@ are still missing from the overview somehow!
 ```
 program = Program(top_level*)
 
-top_level = 
+top_level =
     Function(identifier name, bool global, identifier* params, instruction* body)
     | StaticVariable(identifier name, bool global, type t, static_init init)
     | StaticConstant(identifier name, type t, static_init init)
 
-static_init = 
+static_init =
     | Constant(const)
 
-type = 
+type =
     <take this value from the type information data structure> (char, bool, int, short, float, double, ...)
 
-instruction = 
+instruction =
     Return(val?)
     | Unary(unary_operator op, val src, val dst)
     | Binary(binary_operator op, val src1, val src2, val dst)
     | Jump(identifier target)
     | JumpIfZero(val condition, identifier target)
     | JumpIfNotZero(val condition, identifier target)
-    | Copy(val src, val dst)    
+    | Copy(val src, val dst)
     | GetAddress(val src, val dst)
     | Load(val src_ptr, val dst)
     | Store(val src, val dst_ptr)
@@ -2301,12 +2116,12 @@ instruction =
 val = Constant(const value)
     | Var(identifier name)
 
-unary_operator = 
+unary_operator =
     Complement
     | Negate
     | Not
 
-binary_operator = 
+binary_operator =
     Add
     | Subtract
     | Multiply
@@ -2336,16 +2151,16 @@ binary_operator =
 Page 18
 
 ```
-program = 
+program =
     | Program(function_definition)
 
 function_definition = Function(identifier name, instruction* instructions)
 
-instruction = 
+instruction =
     Mov(operand src, operand dst)
     | Ret
 
-operand = Imm(int) 
+operand = Imm(int)
     | Register
 ```
 
@@ -2358,7 +2173,7 @@ program = Program(function_definition)
 
 function_definition = Function(identifier name, instruction* instructions)
 
-instruction = 
+instruction =
     Mov(operand src, operand dst)
     | Unary(unary_operator, operand)
     | AllocateStack(int)
@@ -2368,9 +2183,9 @@ unary_operator =
     Neg
     | Not
 
-operand = Imm(int) 
-    | Reg(reg) 
-    | Pseudo(Identifier) 
+operand = Imm(int)
+    | Reg(reg)
+    | Pseudo(Identifier)
     | Stack(int)
 
 reg = AX
@@ -2386,7 +2201,7 @@ Page 194
 ```
 program = Program(function_definition*)
 function_definition = Function(identifier name, instruction* instructions)
-instruction = 
+instruction =
     Mov(operand src, operand dst)
     | Unary(unary_operator, operand)
     | Binary(binary_operator, operand, operand)
@@ -2418,7 +2233,7 @@ assembly_type = Longword | Quadword | Double
 top_level = Function(identifier name, instruction* instructions)
     | StaticVariable(identifier name, bool global, int alignment, static_init init)
     | StaticConstant(identifier name, int alignment, static_init init)
-instruction = 
+instruction =
     Mov(assembly_type, operand src, operand dst)
     | Movsx(operand src, operand dst)
     | MovZeroExtend(operand src, operand dst)
@@ -2474,7 +2289,7 @@ Identifiers (variable and functions) are inserted into the Symbol Table which ma
 
 ## Emission Infrastructure
 
-The main.rs function uses a parser to build the parse tree. 
+The main.rs function uses a parser to build the parse tree.
 It uses a lexer of type Lexer which is connected to the parser of type parser.
 
 ```
@@ -2486,12 +2301,12 @@ let mut lexer: Lexer = Lexer::new(dfa);
 Every individual input character along with a reference to the parser is placed into a call to the lexer's consume_character() function:
 
 ```
-lexer.consume_character(current_character, 
-    lookahead_character, 
-    &mut step, 
-    &mut parser, 
+lexer.consume_character(current_character,
+    lookahead_character,
+    &mut step,
+    &mut parser,
     &rule_map,
-    &mut debug_node_string_buffer, 
+    &mut debug_node_string_buffer,
     &mut debug_node_stack);
 ```
 
@@ -2532,14 +2347,14 @@ asm_ast_fixup_visitor.replace_pseudo = true;
 asm_ast_fixup_visitor.visit_asm_ast_program(&mut asm_ast_conversion_visitor.asm_ast_program);
 ```
 
-Finally, the main.rs function uses a Emitter-Visitor specific to a processor target architecture and assembler to emit assembler instructions for a specific target and/or assembler (MASM, NASM, FASM, as, ...). 
+Finally, the main.rs function uses a Emitter-Visitor specific to a processor target architecture and assembler to emit assembler instructions for a specific target and/or assembler (MASM, NASM, FASM, as, ...).
 
 Currently these Emitter-Visitors exist
 
 * AsmAstEmitterVisitor (for as used on Linux)
 * AsmAstMasmEmitterVisitor (for Visual Studio which contains MASM)
 
-The Emitter-Visitors receive the top-level Asm AST 'program' node as an input 
+The Emitter-Visitors receive the top-level Asm AST 'program' node as an input
 
 ```
 let mut asm_ast_emitter_visitor = AsmAstMasmEmitterVisitor::new();
@@ -2554,7 +2369,7 @@ On linux add at end of file:
 .section .note.GNU-stack,"",@progbits
 ```
 
-Function(name, instruction) 
+Function(name, instruction)
 ```
 .globl <name>
 <name>:
@@ -2568,7 +2383,7 @@ On linux add at end of file:
 .section .note.GNU-stack,"",@progbits
 ```
 
-Function(name, instruction) 
+Function(name, instruction)
 ```
 .globl <name>
 <name>:
@@ -2581,6 +2396,211 @@ For NASM:
 
 For MASM:
 
+
+
+
+
+
+## Assembler
+
+Good Overview of x86 and also x86-64 bit:
+[1] https://en.wikibooks.org/wiki/X86_Assembly/Print_Version
+[2] https://lallouslab.net/2016/01/11/introduction-to-writing-x64-assembly-in-visual-studio/
+
+### MASM
+
+To assemble the output, you may use MASM from within Visual Studio.
+
+[MASM](MASM.md)
+
+
+### FASM
+
+https://gpfault.net/posts/asm-tut-0.txt.html
+
+[FASM](FASM.md)
+
+
+
+## Calling Conventions
+
+[3] https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention?view=msvc-170
+[4] https://stackoverflow.com/questions/79519237/windows-masm-x64-calling-convention-and-stack-setup
+[5] https://www.bigmessowires.com/2015/10/06/assembly-language-windows-programming/
+
+From [5] "All of the Win32 API functions use the __stdcall convention, while C functions and the C library use the __cdecl (or just plain “C”) convention. You may also rarely see the __fastcall convention; look it up for more details. stdcall and cdecl conventions are similar: both pass arguments on the stack, and the arguments are pushed in right to left order."
+
+### System-V ABI
+
+System-V ABI, the first six registers ("DI", "SI", "DX", "CX", "R8", "R9") store the first six parameters.
+the rest of the parameters go onto the stack in reverese order.
+
+
+### Fast Calling Convention - Windows, x64
+
+Is the only allowed calling convention for x64 on windows accoring to [2].
+
+* Registers RCX, RDX, R8 and R9 are used to pass the first four arguments
+* The remainder of the arguments must be pushed/passed on the stack
+* Even though that the first four registers are passed via the RCX, RDX, R8 and R9 registers, the stack pointer should still be decreased by 8 * 4 = 32 bytes prior to a function call. That is called registers shadow area.
+* The caller is responsible for allocating a shadow area for the 4 registers prior to calling a function, even if the callee takes no arguments.
+
+## Troubleshooting
+
+### Error: LNK 2001 unresolved external symbol _mainCRTStartup MASM
+
+When compiling with a x64 configuration:
+
+```
+LNK 2001 unresolved external symbol _mainCRTStartup MASM
+```
+SOLUTION:
+
+https://stackoverflow.com/questions/12379794/lnk-2001-unresolved-external-symbol-maincrtstartup-masm
+
+The other answers were confusing to me so I'll add my solution. In the properties of the project go to
+
+```
+Configuration Properties >> Linker >> Advanced
+```
+
+In Advanced at the top should be Entry Point. Type in main.
+
+### Error: Single Stepping in MASM 64 bit project in Visual Studio Code debugger does not single step
+
+https://stackoverflow.com/questions/14905769/step-through-an-assembly-language-program-one-statement-at-a-time
+
+https://developercommunity.azure.com/t/11056696
+
+https://developercommunity.visualstudio.com/t/11120915
+
+F10/F11 (Step Over/Step Into) do not single-step in a pure MASM (x64) native project — execution runs to completion or next breakpoint instead.
+
+Pure vs2026 x64 MASM assembly project (no CRT, no C/C++ files, entry point set via /ENTRY linker option),
+
+1. File > New > Project/Solution (Datei > Neu > Projekt/Solution)
+1. Empty Project (Leeres Projekt) > OK (Weiter)
+1. Enter a project name and check "Place solution and project in the same directory ..." > Create (Erstellen)
+
+Enable MASM for the project
+
+1. Open Context Menu on the project (not the solution) > Build Customizations... (Buildanpassungen ...)
+1. Check the box "masm(.targets, .props) > OK
+
+Add a source file and set correct type (Microsoft Macro Assembler)
+
+1. Open Contextmenu on src (Quelldateien) > Add > New Element > main.asm > OK (Hinzufügen)
+1. On the newly added .asm file, open the context menu and select > Properties (Eigenschaften) > Item Type (Elementtyp): Microsoft Macro Assembler > OK
+1. Add code:
+
+```
+; ---------------------------------------------
+; Hello World for Win64 Intel x64 Assembly
+;
+; by fruel (https://github.com/fruel)
+; 13 June 2016
+; ---------------------------------------------
+
+GetStdHandle PROTO
+ExitProcess PROTO
+WriteConsoleA PROTO
+
+.data
+msg BYTE "Hello World",0
+bytesWritten DWORD ?
+
+.code
+main PROC
+    sub rsp, 5 * 8
+
+    mov rcx, -11
+    call GetStdHandle
+
+    mov  rcx, rax
+    lea  rdx, msg
+    mov  r8, LENGTHOF msg - 1
+    lea  r9, bytesWritten
+    mov  QWORD PTR [rsp + 4 * SIZEOF QWORD], 0
+    call WriteConsoleA
+
+    mov rcx, 0
+    call ExitProcess
+main ENDP
+
+END
+```
+
+```
+EXTERN ExitProcess: PROC
+
+PUBLIC main
+
+_TEXT SEGMENT
+main PROC
+	mov rax, 42h
+	call ExitProcess
+
+    ret
+main ENDP
+_TEXT ENDS
+
+END
+```
+
+or
+
+```
+EXTERN MessageBoxA: PROC
+EXTERN GetForegroundWindow: PROC
+
+PUBLIC main
+
+_DATA SEGMENT
+hello_msg db "Hello world", 0
+info_msg  db "Info", 0
+_DATA ENDS
+
+
+_TEXT SEGMENT
+
+main PROC
+
+	push rbp ; save frame pointer
+	mov rbp, rsp ; fix stack pointer
+	sub rsp, 8 * (4 + 2) ; allocate shadow register area + 2 QWORDs for stack alignment
+
+	; Get a window handle
+	call GetForegroundWindow
+	mov rcx, rax
+
+	; WINUSERAPI int WINAPI MessageBoxA(
+	;  RCX =>  _In_opt_ HWND hWnd,
+	;  RDX =>  _In_opt_ LPCSTR lpText,
+	;  R8  =>  _In_opt_ LPCSTR lpCaption,
+	;  R9  =>  _In_ UINT uType);
+
+	mov rdx, offset hello_msg
+	mov r8, offset info_msg
+	mov r9, 0 ; MB_OK
+
+	and rsp, not 8 ; align stack to 16 bytes prior to API call
+	call MessageBoxA
+
+	; epilog. restore stack pointer
+	mov rsp, rbp
+	pop rbp
+
+	ret
+main ENDP
+
+_TEXT ENDS
+
+END
+```
+
+Set the Entry Point value to main
+
+1. Open ContextMenu on project > Properties (Eigenschaften) > Linker > Advanced (Erweitert) > Entry Point (Einstiegspunkt) > main > ok
 
 
 
@@ -2623,12 +2643,12 @@ https://medium.com/@ragagr116/what-happens-before-main-understanding-the-startup
 
 https://www.st.com/resource/en/product_training/STM32F7_Memory_Flash.pdf
 
-The VTOR register contains the address of the vector table. 
+The VTOR register contains the address of the vector table.
 The vector table contains the address of the reset handler, which is the code that the Cortex-M4 will jump to.
 
 The VTOR register is not persisted! Instead it is reset! The VTOR register does not survive power cycles!
 On reset (= power cycle. power down, power up) the VTOR register is reset to 0x00000000.
-Therefore the vector table will always be at address 0x00000000 after a power cycle. 
+Therefore the vector table will always be at address 0x00000000 after a power cycle.
 
 PM0214 Programming manual, STM32 Cortex®-M4 MCUs and MPUs programming manual
 Page 40:
@@ -2646,16 +2666,16 @@ and part of that flash chip also to 0x00000000 of the address space.
 
 This means that most linker files for STM are organized so that the code is located to the flash only, meaning the address 0x08000000 is used for the vector table.
 But the Cortex-M4 still searches the vector table at 0x00000000. The address 0x00000000 cannot be flashed by a .hex file since the flash memory is
-located at 0x08000000. Therefore the vector table in flash is mapped to 0x00000000 by processor logic. (I DO NOT KNOW HOW MUCH IS MAPPED, so what is the end 
+located at 0x08000000. Therefore the vector table in flash is mapped to 0x00000000 by processor logic. (I DO NOT KNOW HOW MUCH IS MAPPED, so what is the end
 address of the mapped area?)
 
 The emulator / simulator also has to map part of flash from 0x08000000 to 0x00000000. How large is that part? The question is which area is mapped!
 When the simulated Cortex-M4 accesses 0x00000000 it has to be rerouted to 0x08000000.
 
-INCORRECT: Also on reset (power cycle), the vector table will get it's default content! 
+INCORRECT: Also on reset (power cycle), the vector table will get it's default content!
 CORRECT: The vector table is defined by the .hex file that is flashed onto the microcontroller!
 This means there is no default vector table as defined by the microcontroller's logic, instead the vector table's content is application specific and
-defined by the user! This is the reason why the manual does only list the structure and offsets of the vector table but there is no default values 
+defined by the user! This is the reason why the manual does only list the structure and offsets of the vector table but there is no default values
 defined for the entries anywhere!
 
 The default reset-handler address is 0x????????, whichever is defined by the application binary that is flashed onto the chip.
@@ -2676,13 +2696,13 @@ The answer is that the microcontroller can be reset without a hard power-cycle. 
 Although the VTOR register and the vector table are not persisted, they will survive a soft-reset!
 
 The use case might be a bootloader. After a hard-reset, VTOR is updated and the vector table is relocated away from 0x00000000.
-The bootloader takes the position of the default vector table at 0x00000000. Then, when it is time to transfer new firmware to the system, 
-the system is first soft-reset so that the bootloader is still present and the vector table is still relocated. 
+The bootloader takes the position of the default vector table at 0x00000000. Then, when it is time to transfer new firmware to the system,
+the system is first soft-reset so that the bootloader is still present and the vector table is still relocated.
 
-After soft-reset, the microcontroller finds the vector table via VTOR and executes the reset_handler. 
-The reset_handler jumps to the bootloader. The bootloader will start. It will wait some time if there is an uploader application trying to 
+After soft-reset, the microcontroller finds the vector table via VTOR and executes the reset_handler.
+The reset_handler jumps to the bootloader. The bootloader will start. It will wait some time if there is an uploader application trying to
 push new firmware into the bootloader. If there is none, the bootloader will timeout and start the normal main() function of the old firmware.
-If the boot loader detects an uploader, it will talk to the uploader instead of jumping to the old firmware and it will accept the new firmware 
+If the boot loader detects an uploader, it will talk to the uploader instead of jumping to the old firmware and it will accept the new firmware
 via UART or some other media from the uploader. Once uplaoded, the bootloader executes the main() function of the new firmware.
 
 The steps during boot (after soft- or hard-reset) are:
@@ -2691,7 +2711,7 @@ The steps during boot (after soft- or hard-reset) are:
 2. (Hardwired Logic) The first element of the vector table contains the stackpointer address which is loaded into the stack pointer register
 3. The next word in the vector table contains the reset-handler
 4. (Hardwired Logic) The microcontroller will jump to the reset handler's address and execute normally often with the code from the startup.s file.
-5. startup.s sets up all clocks and peripherals and copies Copy the Initialized global variable, and static variable (.data) to SRAM, Copy the Un-initialized data (.bss) to SRAM and initialize it to 0. 
+5. startup.s sets up all clocks and peripherals and copies Copy the Initialized global variable, and static variable (.data) to SRAM, Copy the Un-initialized data (.bss) to SRAM and initialize it to 0.
 6. After setup, startup.s calls main()
 7. main() executes application code
 
@@ -2718,15 +2738,15 @@ https://embetronicx.com/bootloader-tutorials/
 HINT: In order to look at the .elf file in elf-viewer, switch to THUMB on the disassembly tab.
 
 Q: The reset handler address inside the vector table will be 0x08000009 although it should be 0x08000008.
-The code for the reset handler will correctly be generated at 0x08000008. 
+The code for the reset handler will correctly be generated at 0x08000008.
 Why is the address in the vector table for the reset ahndler seemingly misaligend and points one byte after the correct address?
 
 A: https://stackoverflow.com/questions/40841852/arm-vector-table-pointing-one-byte-after
 The address is different because ARM uses it to switch to THUMB mode.
 > Answer: ARM uses it for switching to THUMB mode.
 
-To switch to Thumb mode in an ARM reset handler, you must set the Least Significant Bit (LSB) of 
-the address in the reset vector table to 1, or use the BX (Branch and Exchange) instruction to 
+To switch to Thumb mode in an ARM reset handler, you must set the Least Significant Bit (LSB) of
+the address in the reset vector table to 1, or use the BX (Branch and Exchange) instruction to
 branch to a target address with the LSB set, such as BX r0 where r0 is odd.
 
 0x0800000[8] = 00000000 00001000 00000000 00000000 00000000 00000000 00000000 00001000
@@ -2743,7 +2763,7 @@ The Makefile will create a .bin file amongst other files.
 
 1. Load that bin file to 0x08000000 and mirror 0x08000000 to 0x00000000.
 2. Let the Cortex-M4 emulator run. It will execute the reset_vector from 0x00000004.
-3. Inspect the reset handler's address inside the vector table. If the lowest bit is set, switch to ARM and toggle the lowest bit. 
+3. Inspect the reset handler's address inside the vector table. If the lowest bit is set, switch to ARM and toggle the lowest bit.
 Then jump to that modified reset_handler address.
 4. Execute the reset_handler in THUMB mode if activated. There is no setup code and no jump to main(). The entire application is located inside the reset_handler.
 
@@ -2816,29 +2836,29 @@ Then use a disassembler (https://armconverter.com/?disasm) or objectdump the .el
 
 ```
 -- vector table
-0x8000000: 00 10 00 20      -- 0x20001000, Address to load into the Main Stack Pointer 
+0x8000000: 00 10 00 20      -- 0x20001000, Address to load into the Main Stack Pointer
                             -- (See res\C\samples\reset_handler\STM32F031K6T6.ld, line 6)
-0x8000004: 09 00 00 08      -- 0x08000009, Reset Handler address with THUMB bit set, 
-                            -- real address would be 08 00 00 08 which is eight byte after the Main Stack Pointer 
+0x8000004: 09 00 00 08      -- 0x08000009, Reset Handler address with THUMB bit set,
+                            -- real address would be 08 00 00 08 which is eight byte after the Main Stack Pointer
                             -- value which was inserted at 0x08000000.
 
 -- Usually the vector table contains several more entries, but they are all unused in this sample.
--- Instead of other addresses for excption/interrupt handlers, here is the code for the reset_handler, 
+-- Instead of other addresses for excption/interrupt handlers, here is the code for the reset_handler,
 -- which contains the entire application
 
 -- After jumping to the reset handler, PC is set to the address of the first instruction in the reset handler which is 0x8000008
 
 // Set the stack pointer to the end of the stack.
 // The '_estack' value is defined in our linker script.
-8000008: 02 48              -- ldr r0, [pc, #8]     -- [pc, #8] is a PC relative address. 
-                                                    -- This means PC+8. PC is 0x8000008 right now. 0x8000008 + 8 = 
-800000a: 85 46              -- mov sp, r0          
+8000008: 02 48              -- ldr r0, [pc, #8]     -- [pc, #8] is a PC relative address.
+                                                    -- This means PC+8. PC is 0x8000008 right now. 0x8000008 + 8 =
+800000a: 85 46              -- mov sp, r0
 
 // Set some dummy values. When we see these values
 // in our debugger, we'll know that our program
 // is loaded on the chip and working.
 800000c: 02 4F              -- ldr r7, [pc, #8]     -- [pc, #8] is a PC relative address. PC is 0x8000000C + 8 = 0x8000014
-800000e: 00 20              -- movs r0, #0          
+800000e: 00 20              -- movs r0, #0
 
 8000010: 01 30              -- adds r0, #1
 
@@ -2923,7 +2943,7 @@ Hinweis: Die Adressen lassen sich mit Hilfe der .map Datei prüfen.
 
 1. Lies F4650120 als big endian (MSB is stored last and needs to be placed first when building the number) -> 200165F4. Dieser Wert ist der Wert des Main-Stackpointer.
 
-2. Lies 6D420308 als big endian -> 0803426D. Entferne das ARM THUMB bit. 0803426D -> 0803426C. 
+2. Lies 6D420308 als big endian -> 0803426D. Entferne das ARM THUMB bit. 0803426D -> 0803426C.
 Das THUMB Bit wird gesetzt um den Chip in den THUMB-Modus zu schalten, damit er den THUMB code verarbeitet, den der Compiler generiert hat.
 Das ist die Adresse des ResetHandler. Springe zum Reset Handler.
 8DD30308 -> 0803D38D --> [0803][D38D]
@@ -3023,7 +3043,7 @@ push and pop instructions have a speciality:
 
 https://stackoverflow.com/questions/13686353/thumb-push-pop-instructions
 
-> "There is one caveat, arguments to push/pop/ldm/stm are in ascending register order, not in the order specified. 
+> "There is one caveat, arguments to push/pop/ldm/stm are in ascending register order, not in the order specified.
 So if you do push{r0,r1} and then pop{r1,r0} intending to swap them, this will fail because pop{r1,r0} is identical to pop{r0,r1}"
 
 This means push and pop will always reorder their arguments and not operate as the programmer has specified in all cases!
@@ -3202,7 +3222,7 @@ The RCC base address is 0x40021000.
 #define RCC_BASE              (AHB1PERIPH_BASE + 0x1000UL)
 ```
 
-RCC_CR is the Clock control register (RCC_CR). 
+RCC_CR is the Clock control register (RCC_CR).
 It has an RCC-relative offset of 0x00. 0x40021000 + 0x00 = 0x40021000.
 
 RCC has also a typedef for the C programming language:
@@ -3265,11 +3285,11 @@ The MSI clock is documented in the section "6.2.3 MSI clock" (cref [RM0394], pag
 Shutdown low-power modes. After restart from Reset, the MSI frequency is set to its default
 value 4 MHz. Refer to Section 6.3: Low-power modes."
 
-Looking at the clocktree on [RM0394], page 184, it can be seen that the MSI can be used as 
+Looking at the clocktree on [RM0394], page 184, it can be seen that the MSI can be used as
 a source for the SYSCLK signal (center of the figure 13, clock tree). SYSCLK is the main clock
 signal for the microcontroller's CPU.
 
-Apparently in the default coniguration, the MSI has a frequency of 4 MHz. This could be tested 
+Apparently in the default coniguration, the MSI has a frequency of 4 MHz. This could be tested
 using an oscilloscope.
 
 

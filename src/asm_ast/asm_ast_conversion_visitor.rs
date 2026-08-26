@@ -32,10 +32,10 @@ use crate::common::data_type::DataType;
 // 5. asm_ast/AsmAstMasmEmitterVisitor / asm_ast/AsmAstASEmitterVisitor / ...
 //
 // This visitor generates a precursory form of real assembly instructions.
-// For each indidivual line of TACKY instruction, it prepares one or more precursor assembly instructions 
-// that are required to execute functionality that the TACKY instruction hints at. 
+// For each indidivual line of TACKY instruction, it prepares one or more precursor assembly instructions
+// that are required to execute functionality that the TACKY instruction hints at.
 //
-// e.g. div, remainder/module, mul, ... need to arrange parameters and execute data type 
+// e.g. div, remainder/module, mul, ... need to arrange parameters and execute data type
 // conversion (cdq, ...) before finally executing the arithmetic mnemonic. This visitor
 // will prepare all the pseudo mnemonics required to execute each TACKY function/line.
 //
@@ -83,10 +83,10 @@ impl AsmAstConversionVisitor {
     }
 
     pub fn visit_tacky_program(&mut self, tacky_node_program: &Program) {
-        println!("[AsmAstConversionVisitor::visit_tacky_program()]");
+        // println!("[AsmAstConversionVisitor::visit_tacky_program()]");
 
         self.asm_ast_program.name = tacky_node_program.name.clone();
-        
+
         for i in 0..tacky_node_program.top_level.len() {
 
             let temp_top_level_item:&Box<TopLevel> = &tacky_node_program.top_level[i];
@@ -112,7 +112,7 @@ impl AsmAstConversionVisitor {
 
         let function_name = tacky_node_top_level_function.name.clone();
 
-        println!("[AsmAstConversionVisitor::visit_tacky_function()] {}", &function_name);
+        // println!("[AsmAstConversionVisitor::visit_tacky_function()] {}", &function_name);
 
         let mut asm_ast_function: AsmAstFunction = AsmAstFunction::new();
         asm_ast_function.name = function_name.clone();
@@ -137,18 +137,19 @@ impl AsmAstConversionVisitor {
         // Copy all function parameters which are located in registers onto the stack so that there is no need
         // to store and restore registers to keep the parameters alive as the function executes.
         //
-        // (System-V ABI, the first six registers ("DI", "SI", "DX", "CX", "R8", "R9") 
+        // (System-V ABI, the first six registers ("DI", "SI", "DX", "CX", "R8", "R9")
         // and Win64 FastCall, the first 4 registers (RCX, RDX, R8 and R9))
-        // 
+        //
         // To achieve this, the amount of parameters has to be known and move instructions
-        // to stack addresses need to be emitted. 
-        // 
-        // How to formulate the stack addresses? 
+        // to stack addresses need to be emitted.
+        //
+        // How to formulate the stack addresses?
         //
 
-        println!("Function {:?} has {} formal arguments!", &function_name, tacky_node_top_level_function.arguments.len());
-        println!("SYSTEM_V_ABI_REGISTER_ORDER: {:?}", SYSTEM_V_ABI_REGISTER_ORDER);
-        
+        // // DEBUG
+        // println!("Function {:?} has {} formal arguments!", &function_name, tacky_node_top_level_function.arguments.len());
+        // println!("SYSTEM_V_ABI_REGISTER_ORDER: {:?}", SYSTEM_V_ABI_REGISTER_ORDER);
+
         for (i, param) in tacky_node_top_level_function.arguments.iter().enumerate() {
 
             // System-V ABI
@@ -163,13 +164,13 @@ impl AsmAstConversionVisitor {
             }
 
             // DEBUG
-            println!("Parameter {:?}) {:?} is located in register {:?}", i, param, SYSTEM_V_ABI_REGISTER_ORDER[i]);
+            // println!("Parameter {:?}) {:?} is located in register {:?}", i, param, SYSTEM_V_ABI_REGISTER_ORDER[i]);
 
             //todo: generate move commands for each of the first n ABI registers into a stack address!
             //where and how are the stack addresses computed?
 
-            // This function is part of the AsmAstConversionVisitor (this struct) which is followed by the 
-            // AsmAstFixupVisitor. The AsmAstFixupVisitor has the purpose of generating addresses for 
+            // This function is part of the AsmAstConversionVisitor (this struct) which is followed by the
+            // AsmAstFixupVisitor. The AsmAstFixupVisitor has the purpose of generating addresses for
             // AsmAstOperandType::Pseudo defined in asm_ast.rs
 
             //
@@ -293,12 +294,12 @@ impl AsmAstConversionVisitor {
         self.asm_ast_program.functions.push(asm_ast_function);
     }
 
-    pub fn visit_tacky_store(&mut self, 
-        asm_ast_function: &mut AsmAstFunction, 
+    pub fn visit_tacky_store(&mut self,
+        asm_ast_function: &mut AsmAstFunction,
         tacky_node_store: &Instruction)
     {
         // DEBUG
-        println!("{:?}", tacky_node_store);
+        // println!("{:?}", tacky_node_store);
 
         //
         // Store - Conversion is explained on page 376 and defined again on 378
@@ -375,11 +376,11 @@ impl AsmAstConversionVisitor {
         asm_ast_function.body.push(Box::new(mov_2));
     }
 
-    pub fn visit_tacky_load(&mut self, 
-        asm_ast_function: &mut AsmAstFunction, 
+    pub fn visit_tacky_load(&mut self,
+        asm_ast_function: &mut AsmAstFunction,
         tacky_node_load: &Instruction)
     {
-        println!("{:?}", tacky_node_load);
+        // println!("{:?}", tacky_node_load);
 
         //
         // Load - Conversion is explained on page 376 and defined again on 378
@@ -444,11 +445,11 @@ impl AsmAstConversionVisitor {
         asm_ast_function.body.push(Box::new(mov_2));
     }
 
-    pub fn visit_tacky_get_address(&mut self, 
-        asm_ast_function: &mut AsmAstFunction, 
+    pub fn visit_tacky_get_address(&mut self,
+        asm_ast_function: &mut AsmAstFunction,
         tacky_node_get_address: &Instruction)
     {
-        println!("{:?}", tacky_node_get_address);
+        // println!("{:?}", tacky_node_get_address);
 
         //
         // Lea - see page 378
@@ -480,7 +481,7 @@ impl AsmAstConversionVisitor {
         asm_ast_function.body.push(Box::new(lea));
 
         //
-        // MOVE RBX to destination memory 
+        // MOVE RBX to destination memory
         //
 
         //
@@ -506,11 +507,11 @@ impl AsmAstConversionVisitor {
     }
 
     // Nora Sandler, page 195
-    pub fn visit_tacky_fun_call_system_v_abi(&mut self, 
-        asm_ast_function: &mut AsmAstFunction, 
-        tacky_node_fun_call: &Instruction) 
+    pub fn visit_tacky_fun_call_system_v_abi(&mut self,
+        asm_ast_function: &mut AsmAstFunction,
+        tacky_node_fun_call: &Instruction)
     {
-        println!("{:?}", tacky_node_fun_call);
+        // println!("{:?}", tacky_node_fun_call);
 
         //
         // allocate stack
@@ -586,11 +587,12 @@ impl AsmAstConversionVisitor {
         //
         // Push arguments to the stack according to the ABI (first arguments go into register )
         //
-        
+
         // System-V ABI
         for i in (6..total_param_count).rev() {
-            println!("test {}", i);
-            println!("{:?}", tacky_node_fun_call.parameters[i]);
+
+            // println!("test {}", i);
+            // println!("{:?}", tacky_node_fun_call.parameters[i]);
 
             let mut push: AsmAstInstruction = AsmAstInstruction::new();
             push.instruction_type = AsmAstInstructionType::Push;
@@ -614,7 +616,7 @@ impl AsmAstConversionVisitor {
         //
         // emit 'call' instruction
         //
-        // 'call' mnemonic (Places return address (address of next instruction) 
+        // 'call' mnemonic (Places return address (address of next instruction)
         // onto the stack and jumps to the function's label (set Instruction Pointer to address))
         //
 
@@ -649,11 +651,11 @@ impl AsmAstConversionVisitor {
         // TODO retrieve return value - move return value into EAX register which contains the return value in System-V ABI
         //
 
-        // 
+        //
         // TODO: move value from EAX into the destination register as defined by TACKY
         //
 
-        println!("tacky_node_fun_call.dst: {:?}", tacky_node_fun_call.dst);
+        // println!("tacky_node_fun_call.dst: {:?}", tacky_node_fun_call.dst);
 
         //
         // Mov - move value from EAX into the destination register as defined by TACKY
@@ -684,7 +686,7 @@ impl AsmAstConversionVisitor {
         // }
         // mov.dst = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(SYSTEM_V_ABI_REGISTER_ORDER[index].clone()) };
         // mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(tacky_node_fun_call.dst.variable_name.clone()) };
-        
+
         match &tacky_node_fun_call.dst {
 
             // ValueElement::Constant(value) => {
@@ -693,12 +695,12 @@ impl AsmAstConversionVisitor {
             ValueElement::Variable(value) => {
                 mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(value.clone()) };
             }
-            
+
             _ => {
                 panic!("test");
             }
         }
-        
+
         asm_ast_function.body.push(Box::new(mov));
 
     }
@@ -706,7 +708,7 @@ impl AsmAstConversionVisitor {
     pub fn visit_tacky_jump(&mut self, asm_ast_function: &mut AsmAstFunction, tacky_node_jump: &Instruction) {
         // println!("TODO: visit_tacky_jump()");
 
-        println!("{:?}", tacky_node_jump);
+        // println!("{:?}", tacky_node_jump);
 
         let mut jump: AsmAstInstruction = AsmAstInstruction::new();
         jump.instruction_type = AsmAstInstructionType::Jmp;
@@ -719,7 +721,7 @@ impl AsmAstConversionVisitor {
         //println!("TODO: visit_tacky_copy()");
 
         // DEBUG
-        println!("{:?}", tacky_node_copy);
+        // println!("{:?}", tacky_node_copy);
 
         // sometimes copies are generated, that copy src to dst where src and dst are the same object
         // ignore those cases
@@ -727,20 +729,20 @@ impl AsmAstConversionVisitor {
             return;
         }
 
-        // Instruction { 
-        //      instruction_type: Copy, 
-        //      src: Constant(123), 
-        //      src_2: None, 
-        //      dst: Variable(userdef_var.0), 
-        //      unary_operator: Not, 
-        //      binary_operator: Add, 
-        //      label: "", 
-        //      data_type: "", 
-        //      function_name: "", 
-        //      parameters: [], 
-        //      offset: 0, 
-        //      index: None, 
-        //      scale: 0 
+        // Instruction {
+        //      instruction_type: Copy,
+        //      src: Constant(123),
+        //      src_2: None,
+        //      dst: Variable(userdef_var.0),
+        //      unary_operator: Not,
+        //      binary_operator: Add,
+        //      label: "",
+        //      data_type: "",
+        //      function_name: "",
+        //      parameters: [],
+        //      offset: 0,
+        //      index: None,
+        //      scale: 0
         // }
 
         //
@@ -777,11 +779,11 @@ impl AsmAstConversionVisitor {
     }
 
     pub fn visit_tacky_variable_declaration(&mut self, asm_ast_function: &mut AsmAstFunction) {
-        println!("TODO: visit_tacky_variable_declaration()");
+        // println!("TODO: visit_tacky_variable_declaration()");
     }
 
     pub fn visit_tacky_label(&mut self, asm_ast_function: &mut AsmAstFunction, tacky_node_label: &Instruction) {
-        
+
         let mut label: AsmAstInstruction = AsmAstInstruction::new();
         label.instruction_type = AsmAstInstructionType::Label;
         label.src = AsmAstOperand { operand_type: AsmAstOperandType::Label(tacky_node_label.label.clone()) };
@@ -798,7 +800,7 @@ impl AsmAstConversionVisitor {
     //
     // Cmp(Imm(0), condition)
     // JmpCC(E, target)
-    // 
+    //
     // Nora Sandler, page 86
     //
     // JumpIfZero(val, target)
@@ -806,8 +808,8 @@ impl AsmAstConversionVisitor {
     // Cmp(Imm(0), val)
     // JmpCC(E, target)
     pub fn visit_tacky_jump_if_zero(&mut self, asm_ast_function: &mut AsmAstFunction, tacky_node_jump_if_zero: &Instruction) {
-        
-        println!("[AsmAstConversionVisitor::visit_tacky_jump_if_zero() {:?}]", tacky_node_jump_if_zero);
+
+        // println!("[AsmAstConversionVisitor::visit_tacky_jump_if_zero() {:?}]", tacky_node_jump_if_zero);
 
         //
         // Cmp(Imm(0), condition)
@@ -815,22 +817,22 @@ impl AsmAstConversionVisitor {
 
         let mut cmp: AsmAstInstruction = AsmAstInstruction::new();
         cmp.instruction_type = AsmAstInstructionType::Cmp;
-        cmp.dst = AsmAstOperand { 
-            operand_type: AsmAstOperandType::Imm(0) 
+        cmp.dst = AsmAstOperand {
+            operand_type: AsmAstOperandType::Imm(0)
         };
 
         match &tacky_node_jump_if_zero.src {
 
             ValueElement::Constant(constant_value) => {
                 let parsed_value = i32::from_str_radix(&constant_value, 10).expect("REASON");
-                cmp.src_2 = AsmAstOperand { 
-                    operand_type: AsmAstOperandType::Imm(parsed_value) 
+                cmp.src_2 = AsmAstOperand {
+                    operand_type: AsmAstOperandType::Imm(parsed_value)
                 };
             }
 
             ValueElement::Variable(variable_name) => {
-                println!("{}", variable_name);
-                cmp.src_2 = AsmAstOperand { 
+                // println!("{}", variable_name);
+                cmp.src_2 = AsmAstOperand {
                     operand_type: AsmAstOperandType::Pseudo(variable_name.clone())
                 };
             }
@@ -855,8 +857,7 @@ impl AsmAstConversionVisitor {
     }
 
     pub fn visit_tacky_return(&mut self, asm_ast_function: &mut AsmAstFunction, tacky_node_return: &Instruction) {
-        println!("[AsmAstConversionVisitor::visit_tacky_return() tacky_node_return: {:?}]", tacky_node_return);
-        // println!("[AsmAstConversionVisitor::visit_tacky_return() asm_ast_function: {:?}]", asm_ast_function);
+        // println!("[AsmAstConversionVisitor::visit_tacky_return() tacky_node_return: {:?}]", tacky_node_return);
 
         // This move will move the returned value into the ABI register EAX which is defined to contain the
         // return value. If the function has void return type, do not add this move!
@@ -903,14 +904,14 @@ impl AsmAstConversionVisitor {
 
     // Nora Sandler, page 41
     //
-    // Unary is implemented in TACKY as a UNARY node with a 
+    // Unary is implemented in TACKY as a UNARY node with a
     // - src which is the variable or constant to increment
     // - dst which is the place to put the result into
     // - unary_operator which is the unary operation to apply (inc, dec, not, neg, complement, ...)
     //
     // This will be translated into a Mov from src to dest followed by a unary oparation using dst.
     pub fn visit_tacky_unary(&mut self, asm_ast_function: &mut AsmAstFunction, tacky_node_unary: &Instruction) {
-        println!("[AsmAstConversionVisitor::visit_tacky_unary()]");
+        // println!("[AsmAstConversionVisitor::visit_tacky_unary()]");
 
         // The 'Dereference' Unary operator is resolved into it's own set of Intermediate Assembly
 
@@ -921,9 +922,7 @@ impl AsmAstConversionVisitor {
             }
             UnaryOperator::Dereference => {
 
-                // todo!();
-
-                println!("tacky_node_unary: {:?}", tacky_node_unary);
+                // println!("tacky_node_unary: {:?}", tacky_node_unary);
 
                 let mut mov: AsmAstInstruction = AsmAstInstruction::new();
                 mov.instruction_type = AsmAstInstructionType::Mov;
@@ -985,7 +984,7 @@ impl AsmAstConversionVisitor {
                 //
                 // TACKY Unary ==> Mov + Unary
                 //
-                
+
                 let mut unary: AsmAstInstruction = AsmAstInstruction::new();
                 unary.instruction_type = AsmAstInstructionType::Unary;
                 match &tacky_node_unary.unary_operator {
@@ -1029,12 +1028,12 @@ impl AsmAstConversionVisitor {
         }
 
 
-        
+
     }
 
     // Nora Sandler, page 63
     pub fn visit_tacky_binary(&mut self, asm_ast_function: &mut AsmAstFunction, tacky_instruction: &Instruction) {
-        println!("[AsmAstConversionVisitor::visit_tacky_binary()]");
+        // println!("[AsmAstConversionVisitor::visit_tacky_binary()]");
 
         match &tacky_instruction.binary_operator {
 
@@ -1072,14 +1071,14 @@ impl AsmAstConversionVisitor {
         }
     }
 
-    pub fn visit_tacky_binary_relational(&mut self, asm_ast_function: &mut AsmAstFunction, 
+    pub fn visit_tacky_binary_relational(&mut self, asm_ast_function: &mut AsmAstFunction,
         tacky_node_binary: &Instruction, operator_type_param: &AstNodeOperatorType) {
 
-        println!("[AsmAstConversionVisitor::visit_tacky_binary_relational()] {:?}", tacky_node_binary);
+        // println!("[AsmAstConversionVisitor::visit_tacky_binary_relational()] {:?}", tacky_node_binary);
 
         // nora sandler, page 87
         //
-        // Cmp(src2, src1) <----------- Cannot compare two immedites, needs at least one memory address or temp register. 
+        // Cmp(src2, src1) <----------- Cannot compare two immedites, needs at least one memory address or temp register.
         //                 <----------- See visit_tacky_binary_division() or visit_tacky_binary_multiplication()
         // Mov(Imm(0), dst)
         // SetCC(relational_operator, dst)
@@ -1123,7 +1122,7 @@ impl AsmAstConversionVisitor {
             }
         }
 
-        println!("{}", cmp);
+        // println!("{}", cmp);
 
         asm_ast_function.body.push(Box::new(cmp));
 
@@ -1176,10 +1175,10 @@ impl AsmAstConversionVisitor {
 
     }
 
-    pub fn visit_tacky_binary_division(&mut self, asm_ast_function: &mut AsmAstFunction, 
+    pub fn visit_tacky_binary_division(&mut self, asm_ast_function: &mut AsmAstFunction,
         tacky_node_binary: &Instruction, instruction_type_param: &AsmAstInstructionType) {
 
-        println!("[AsmAstConversionVisitor::visit_tacky_binary_division()]");
+        // println!("[AsmAstConversionVisitor::visit_tacky_binary_division()]");
 
         //
         // MOV, Nora Sandler, page 63
@@ -1270,7 +1269,7 @@ impl AsmAstConversionVisitor {
     }
 
     pub fn visit_tacky_binary_remainder(&mut self, asm_ast_function: &mut AsmAstFunction, tacky_node_binary: &Instruction) {
-        println!("[AsmAstConversionVisitor::visit_tacky_binary_remainder()]");
+        // println!("[AsmAstConversionVisitor::visit_tacky_binary_remainder()]");
 
         todo!();
     }
@@ -1279,7 +1278,7 @@ impl AsmAstConversionVisitor {
 
         // https://www.felixcloutier.com/x86/mul
         //
-        // The destination operand is an implied operand located in register AL, AX or EAX (depending on the size of the operand); 
+        // The destination operand is an implied operand located in register AL, AX or EAX (depending on the size of the operand);
         // the source operand is located in a general-purpose register or a memory location.
 
         // Move first operand into EAX (which also contains the result afterwards)
@@ -1342,13 +1341,13 @@ impl AsmAstConversionVisitor {
             }
         }
 
-        println!("{}", mov);
+        // println!("{}", mov);
 
         asm_ast_function.body.push(Box::new(mov));
     }
 
     pub fn visit_tacky_binary_standard(&mut self, asm_ast_function: &mut AsmAstFunction, tacky_node_binary: &Instruction) {
-        println!("[AsmAstConversionVisitor::visit_tacky_binary_standard()]");
+        // println!("[AsmAstConversionVisitor::visit_tacky_binary_standard()]");
 
         //
         // MOV, Nora Sandler, page 63
@@ -1428,6 +1427,26 @@ impl AsmAstConversionVisitor {
                 binary.binary_operator = AsmAstBinaryOperator::GreaterThanOrEqual;
             }
 
+            BinaryOperator::And => {
+                binary.binary_operator = AsmAstBinaryOperator::And;
+            }
+
+            BinaryOperator::Or => {
+                binary.binary_operator = AsmAstBinaryOperator::Or;
+            }
+
+            BinaryOperator::Xor => {
+                binary.binary_operator = AsmAstBinaryOperator::Xor;
+            }
+
+            BinaryOperator::LeftShift => {
+                binary.binary_operator = AsmAstBinaryOperator::LeftShift;
+            }
+
+            BinaryOperator::RightShift => {
+                binary.binary_operator = AsmAstBinaryOperator::RightShift;
+            }
+
             _ => {
                 panic!("{}", format!("Unhandled BinaryOperator {:?}!\n", tacky_node_binary.binary_operator).as_str());
             }
@@ -1435,7 +1454,7 @@ impl AsmAstConversionVisitor {
 
         match &tacky_node_binary.src_2 {
             ValueElement::Constant(constant_value) => {
-                println!("{}", constant_value);
+                // println!("{}", constant_value);
                 binary.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
             }
             ValueElement::Variable(variable_name) => {
