@@ -115,6 +115,9 @@ pub enum AstNodeOperatorType {
     LeftShiftAssignment,
     RightShiftAssignment,
 
+    LogicalAnd,
+    LogicalOr,
+
     NotApplicable,
 }
 
@@ -1001,7 +1004,7 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Binary\"]", ast_node_id, ast_node_id);
-        string_buffer.push_str(format!("{} [label=\"{} Binary\"]\n", ast_node_id, ast_node_id).as_str());
+        string_buffer.push_str(format!("{} [label=\"{} Binary [{}]\"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
 
         // connect parent and child
         // println!("{} -> {}", ast_node_id, lhs_ast_node_id);

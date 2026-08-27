@@ -362,6 +362,9 @@ pub enum AsmAstBinaryOperator {
     Xor,
     LeftShift,
     RightShift,
+
+    LogicalAnd,
+    LogicalOr,
 }
 
 #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
@@ -434,6 +437,14 @@ impl fmt::Display for AsmAstBinaryOperator {
 
             AsmAstBinaryOperator::RightShift => {
                 write!(f, "LeftShift").expect("Write failed!");
+            }
+
+            AsmAstBinaryOperator::LogicalAnd => {
+                write!(f, "LogicalAnd").expect("Write failed!");
+            }
+
+            AsmAstBinaryOperator::LogicalOr => {
+                write!(f, "LogicalOr").expect("Write failed!");
             }
         }
 
@@ -567,6 +578,16 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction, string
                 AsmAstBinaryOperator::RightShift => {
                     // write!(f, "{}", format!("RightShift(Xor, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
                     string_buffer.push_str(format!("RightShift(Xor,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::LogicalAnd => {
+                    // write!(f, "{}", format!("Binary(LOGICAL_AND, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("Binary(LOGICAL_AND,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::LogicalOr => {
+                    // write!(f, "{}", format!("Binary(LOGICAL_OR, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("Binary(LOGICAL_OR,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
                 }
 
                 _ => {

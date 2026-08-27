@@ -1,8 +1,7 @@
 int main() {
 
     int a = 1;
-    long b = 2;
-    long c = a + b;
+    int b = a && 0;
 
     return 0;
 }

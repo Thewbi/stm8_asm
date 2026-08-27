@@ -26,13 +26,29 @@ And the LALR(1) parser used in this document is generally outdated (but works fo
 
 The Parsers (parser.rs) has a function for each rule which is called when a rule is reduced. In each of these functions, the .dot graphviz is printed into a String called string_buffer. Also AST nodes are created in these functions. This means the parser outputs the parse tree and prepares AST nodes at the same time.
 
-## Where is the symbol table
+## Where is the symbol table and how is it used
 
 The symbol table is defined in main.rs. It is passed to the TypeCheckingVisitor via a smart pointer.
-
 The TypeCheckingVisitor assigns a type to a variable declaration and inserts this information into the symbol table.
 
+## How to output the format of the rules that the parser reduces while processing input?
 
+If you know the id of the rule you want to look up and if there is a rule_table.txt file already, then you can search for the rule id in rule_table.txt and check the format of the rule from within the file. If rule_table.txt does not exist yet, you have to generate the parser.
+
+Read the section "Debugging the Parser". You have to enable LALR generation.
+
+Enabling LALR generation:
+
+```
+let generate_lalr_1 = true;
+// let generate_lalr_1 = false;
+if generate_lalr_1 {
+
+    ...
+```
+
+Run the application. The parser is generated and a rule_table.txt file is generated.
+This file contains all rules along with their id and their components.
 
 # The preprocessor
 

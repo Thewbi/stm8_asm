@@ -44,6 +44,45 @@ impl TypeCheckingVisitor {
         self.symbol_table.borrow_mut().print_symbol_table();
     }
 
+    pub fn retrieve_type(&self, ast_node: &AstNode) -> DataType {
+        // check if the operand is a literal or a symbol
+        match ast_node.node_type {
+            AstNodeType::ConstInt => {
+                return DataType::DataTypeInt;
+            }
+            AstNodeType::ConstUInt => {
+                return DataType::DataTypeUnsignedInt;
+            }
+            AstNodeType::ConstLong => {
+                return DataType::DataTypeLong;
+            }
+            AstNodeType::ConstULong => {
+                return DataType::DataTypeUnsignedLong;
+            }
+            AstNodeType::Identifier => {
+                if self.symbol_table.borrow_mut().contains(&ast_node.string_val) {
+                    let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&ast_node.string_val);
+                    // // DEBUG
+                    // println!("{:?}", symbol_table_entry);
+                    return symbol_table_entry.data_type;
+                } else {
+                    todo!("NodeType: {:?}", ast_node.node_type);
+                }
+            }
+            _ => {
+                todo!("NodeType: {:?}", ast_node.node_type);
+            }
+        }
+    }
+
+    // Nora Sandler, page 254
+    pub fn get_common_type(&self, type1: &DataType, type2: &DataType) -> DataType {
+        if type1 == type2 {
+            return *type1;
+        }
+        return DataType::DataTypeLong;
+    }
+
     pub fn visit(&mut self, ast_node: &mut AstNode) {
 
         // DEBUG
@@ -157,17 +196,55 @@ impl TypeCheckingVisitor {
             AstNodeType::Binary => {
 
                 // DEBUG
-                if self.debug {
+                //if self.debug {
                     println!("{:?}", ast_node);
-                }
+                //}
+
+                let mut lhs_type = DataType::DataTypeUnknown;
+                let mut rhs_type = DataType::DataTypeUnknown;
 
                 // LHS
                 if let Some(left_node) = ast_node.lhs.as_mut() {
                     self.visit(left_node);
 
-                    // check if a variable name is used where a variable name should be used (e.g. b = a + foo)
+                    lhs_type = self.retrieve_type(left_node);
+
+                    // check if a function name is used where a variable name should be used (e.g. b = foo + a)
                     if self.symbol_table.borrow_mut().contains(&left_node.string_val) {
+
                         let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&left_node.string_val);
+
+                        // DEBUG
+                        println!("{:?}", symbol_table_entry);
+
+                        match symbol_table_entry.symbol_table_entry_type {
+                            SymbolTableEntryType::Function => {
+                                panic!("Function name used as a variable in an expression!");
+                            }
+                            _ => {
+
+                            }
+                        }
+
+                        // retrieve LHS data type from symbol table
+                        lhs_type = symbol_table_entry.data_type;
+                    }
+                }
+
+                // RHS
+                if let Some(right_node) = ast_node.rhs.as_mut() {
+                    self.visit(right_node);
+
+                    rhs_type = self.retrieve_type(right_node);
+
+                    // check if a function name is used where a variable name should be used (e.g. b = a + foo)
+                    if self.symbol_table.borrow_mut().contains(&right_node.string_val) {
+
+                        let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&right_node.string_val);
+
+                        // DEBUG
+                        println!("{:?}", symbol_table_entry);
+
                         match symbol_table_entry.symbol_table_entry_type {
                             SymbolTableEntryType::Function => {
                                 panic!("Function name used as a variable in an expression!");
@@ -178,9 +255,38 @@ impl TypeCheckingVisitor {
                         }
                     }
                 }
-                // RHS
-                if let Some(right_node) = ast_node.rhs.as_mut() {
-                    self.visit(right_node);
+
+                println!("LHS-Type: {}", lhs_type);
+                println!("RHS-Type: {}", rhs_type);
+
+                match ast_node.operator_type {
+
+                    // Nora Sandler, page 255. Binary Logical-AND/OR has type int (1 == true, 0 == false)
+                    AstNodeOperatorType::LogicalAnd | AstNodeOperatorType::LogicalOr => {
+                        ast_node.analyzed_data_type = DataType::DataTypeInt;
+                    }
+
+                    _ => {
+                        let common_data_type = self.get_common_type(&lhs_type, &rhs_type);
+
+                        if let Some(left_node) = ast_node.lhs.as_mut() {
+                            if left_node.analyzed_data_type != common_data_type {
+                                // insert a cast node into the AST!
+                                panic!();
+                            }
+                        }
+
+                        if let Some(right_node) = ast_node.rhs.as_mut() {
+                            if right_node.analyzed_data_type != common_data_type {
+                                panic!();
+                            }
+                        }
+
+                        // let converted_lhs_type = self.convert_to(lhs_type, common_data_type);
+                        // let converted_rhs_type = self.convert_to(rhs_type, common_data_type);
+
+                        // ast_node.analyzed_data_type =
+                    }
                 }
             }
 

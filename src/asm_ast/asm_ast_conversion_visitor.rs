@@ -1447,6 +1447,14 @@ impl AsmAstConversionVisitor {
                 binary.binary_operator = AsmAstBinaryOperator::RightShift;
             }
 
+            BinaryOperator::LogicalAnd => {
+                binary.binary_operator = AsmAstBinaryOperator::LogicalAnd;
+            }
+
+            BinaryOperator::LogicalOr => {
+                binary.binary_operator = AsmAstBinaryOperator::LogicalOr;
+            }
+
             _ => {
                 panic!("{}", format!("Unhandled BinaryOperator {:?}!\n", tacky_node_binary.binary_operator).as_str());
             }

@@ -1835,8 +1835,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -1887,8 +1887,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -1939,8 +1939,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -1999,8 +1999,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -2056,8 +2056,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -2117,8 +2117,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -2173,8 +2173,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -2231,8 +2231,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -2284,8 +2284,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -2336,8 +2336,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -2388,8 +2388,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -2445,8 +2445,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -2497,8 +2497,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -2558,8 +2558,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -2619,8 +2619,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -2680,8 +2680,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
@@ -2703,9 +2703,111 @@ impl Parser<String> {
                                             self.node_to_node("inclusive_or_expression", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
+                                        // logical_and_expression -> inclusive_or_expression AND_OP logical_and_expression
+                                        55 => {
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("logical_and_expression"));
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("logical_and_expression")).as_str());
+
+                                            // take old node from stack - exclusive_or_expression
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // logical_and_expression - 2x AMPERSAND
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let logical_and_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let logical_and_node = DebugNode::new(logical_and_node_id, String::from("AND &&"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", logical_and_node_id, String::from("AND &&")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, logical_and_node.id).as_str());
+
+                                            // take old node from stack - inclusive_or_expression
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, logical_and_node.id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - and_expression -> equality_expression AMPERSAND and_expression
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                operator_ast_node.node_type = AstNodeType::Operator;
+                                                operator_ast_node.operator_type = AstNodeOperatorType::LogicalAnd;
+
+                                                let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                ast_node.node_type = AstNodeType::Binary;
+                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
+                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
+                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.operator_type = AstNodeOperatorType::LogicalAnd;
+                                                ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
+
+                                                self.ast_stack.push(ast_node);
+                                            }
+                                        }
+
                                         // logical_and_expression -> inclusive_or_expression
                                         56 => {
                                             self.node_to_node("logical_and_expression", found_rule.original_id, string_buffer, debug_node_stack);
+                                        }
+
+                                        // logical_or_expression -> logical_and_expression OR_OP logical_or_expression
+                                        57 => {
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("logical_or_expression"));
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("logical_or_expression")).as_str());
+
+                                            // take old node from stack - exclusive_or_expression
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // logical_or_expression - 2x |
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let logical_or_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let logical_or_node = DebugNode::new(logical_or_node_id, String::from("LOGICAL_OR ||"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", logical_or_node_id, String::from("LOGICAL_OR ||")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, logical_or_node.id).as_str());
+
+                                            // take old node from stack - inclusive_or_expression
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, logical_or_node.id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - and_expression -> equality_expression AMPERSAND and_expression
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let rhs_ast_node = self.ast_stack.pop().unwrap();
+                                                let lhs_ast_node = self.ast_stack.pop().unwrap();
+
+                                                let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                operator_ast_node.node_type = AstNodeType::Operator;
+                                                operator_ast_node.operator_type = AstNodeOperatorType::LogicalOr;
+
+                                                let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                ast_node.node_type = AstNodeType::Binary;
+                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
+                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
+                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.operator_type = AstNodeOperatorType::LogicalOr;
+                                                ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
+
+                                                self.ast_stack.push(ast_node);
+                                            }
                                         }
 
                                         // logical_or_expression -> logical_and_expression

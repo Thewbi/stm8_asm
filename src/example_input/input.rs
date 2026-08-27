@@ -248,7 +248,7 @@ pub fn provide_sourcode_input() -> ( String, String ) {
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/unary_2.c").expect("file cannot be read!"); // return ~(-8); Result: "7" (0x7)
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/unary_3.c").expect("file cannot be read!"); // return -(~(-8)); Result: "-7" (0xfffffff9)
     // let filename = "res/C/samples/nora_sandler/unary_4.c";
-    let filename = "res/C/samples/nora_sandler/unary_5.c";
+    // let filename = "res/C/samples/nora_sandler/unary_5.c";
 
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_0.c").expect("file cannot be read!"); // return 1 + 2; Result: 3
     // let filename = "res/C/samples/nora_sandler/binary_0.c";
@@ -263,6 +263,13 @@ pub fn provide_sourcode_input() -> ( String, String ) {
     // let filename = "res/C/samples/nora_sandler/binary_8.c";
     // let filename = "res/C/samples/nora_sandler/binary_9.c";
     // let filename = "res/C/samples/nora_sandler/binary_10.c";
+    let filename = "res/C/samples/nora_sandler/binary_11.c";
+
+    // let filename = "res/C/samples/nora_sandler/binary_logical_0.c";
+    // let filename = "res/C/samples/nora_sandler/binary_logical_1.c";
+    // let filename = "res/C/samples/nora_sandler/binary_logical_2.c";
+    // let filename = "res/C/samples/nora_sandler/binary_logical_3.c";
+    // let filename = "res/C/samples/nora_sandler/binary_logical_4.c";
 
     // // &	bitwise AND
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_bitwise_0.c").expect("file cannot be read!");

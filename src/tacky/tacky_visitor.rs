@@ -728,6 +728,14 @@ impl TackyVisitor {
                             binary_instruction.binary_operator = BinaryOperator::RightShift;
                         }
 
+                        AstNodeOperatorType::LogicalAnd => {
+                            binary_instruction.binary_operator = BinaryOperator::LogicalAnd;
+                        }
+
+                        AstNodeOperatorType::LogicalOr => {
+                            binary_instruction.binary_operator = BinaryOperator::LogicalOr;
+                        }
+
                         _ => {
                             panic!("{}", format!("Unhandled OperatorType {:?}!\n", operator.operator_type).as_str());
                         }

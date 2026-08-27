@@ -224,6 +224,9 @@ pub enum BinaryOperator {
     Xor,
     LeftShift,
     RightShift,
+
+    LogicalAnd,
+    LogicalOr,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]

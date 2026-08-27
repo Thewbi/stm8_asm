@@ -1,5 +1,5 @@
-digraph {0 [label="0 Rule:98 type_specifier"]
-1 [label="1| LONG"]
+digraph {0 [label="0 Rule:97 type_specifier"]
+1 [label="1| INT"]
   0 -> 1
 2 [label="2 Rule:82 declaration_specifiers"]
  2 -> 0
@@ -14,8 +14,8 @@ digraph {0 [label="0 Rule:98 type_specifier"]
   5 -> 7
 8 [label="8 Rule:133 declarator"]
  8 -> 5
-9 [label="9 Rule:98 type_specifier"]
-10 [label="10| LONG"]
+9 [label="9 Rule:97 type_specifier"]
+10 [label="10| INT"]
   9 -> 10
 11 [label="11 Rule:82 declaration_specifiers"]
  11 -> 9
@@ -25,7 +25,7 @@ digraph {0 [label="0 Rule:98 type_specifier"]
 14 [label="14 Rule:133 declarator"]
  14 -> 12
 15 [label="15 Rule:3 primary_expression"]
-16 [label="10"]
+16 [label="1"]
   15 -> 16
 17 [label="17 Rule:7 postfix_expression"]
  17 -> 15
@@ -71,66 +71,194 @@ digraph {0 [label="0 Rule:98 type_specifier"]
   36 -> 11
 37 [label=";"]
   36 -> 37
-38 [label="unary_operator"]
-39 [label="~"]
+38 [label="38 Rule:98 type_specifier"]
+39 [label="39| LONG"]
   38 -> 39
-40 [label="40 Rule:1 primary_expression"]
-41 [label="41 a"]
-  40 -> 41
-42 [label="42 Rule:7 postfix_expression"]
- 42 -> 40
-43 [label="43 Rule:17 unary_expression"]
- 43 -> 42
-44 [label="44 Rule:30 cast_expression"]
- 44 -> 43
-45 [label="45 Rule:20 unary_expression"]
-  45 -> 44
-  45 -> 38
-46 [label="46 Rule:30 cast_expression"]
- 46 -> 45
-47 [label="47 Rule:34 multiplicative_expression"]
+40 [label="40 Rule:82 declaration_specifiers"]
+ 40 -> 38
+41 [label="41 Rule:134 direct_declarator"]
+42 [label="42| b"]
+  41 -> 42
+43 [label="43 Rule:133 declarator"]
+ 43 -> 41
+44 [label="44 Rule:3 primary_expression"]
+45 [label="2"]
+  44 -> 45
+46 [label="46 Rule:7 postfix_expression"]
+ 46 -> 44
+47 [label="47 Rule:17 unary_expression"]
  47 -> 46
-48 [label="48 Rule:37 additive_expression"]
+48 [label="48 Rule:30 cast_expression"]
  48 -> 47
-49 [label="49 Rule:40 shift_expression"]
+49 [label="49 Rule:34 multiplicative_expression"]
  49 -> 48
-50 [label="50 Rule:45 relational_expression"]
+50 [label="50 Rule:37 additive_expression"]
  50 -> 49
-51 [label="51 Rule:48 equality_expression"]
+51 [label="51 Rule:40 shift_expression"]
  51 -> 50
-52 [label="52 Rule:50 and_expression"]
+52 [label="52 Rule:45 relational_expression"]
  52 -> 51
-53 [label="53 Rule:52 exclusive_or_expression"]
+53 [label="53 Rule:48 equality_expression"]
  53 -> 52
-54 [label="54 Rule:54 inclusive_or_expression"]
+54 [label="54 Rule:50 and_expression"]
  54 -> 53
-55 [label="55 Rule:56 logical_and_expression"]
+55 [label="55 Rule:52 exclusive_or_expression"]
  55 -> 54
-56 [label="56 Rule:58 logical_or_expression"]
+56 [label="56 Rule:54 inclusive_or_expression"]
  56 -> 55
-57 [label="57 Rule:60 conditional_expression"]
+57 [label="57 Rule:56 logical_and_expression"]
  57 -> 56
-58 [label="58 Rule:62 assignment_expression"]
+58 [label="58 Rule:58 logical_or_expression"]
  58 -> 57
-59 [label="59 Rule:74 expression"]
+59 [label="59 Rule:60 conditional_expression"]
  59 -> 58
-60 [label="60 Rule:202 jump_statement RETURN"]
-  60 -> 59
-61 [label="61 Rule:180 statement"]
+60 [label="60 Rule:62 assignment_expression"]
+ 60 -> 59
+61 [label="61 Rule:170 initializer"]
  61 -> 60
-62 [label="62 Rule:189 declaration_or_statement_list"]
- 62 -> 61
-63 [label="63 Rule:186 declaration_or_statement_list"]
-  63 -> 62
-  63 -> 36
-64 [label="64 Rule:184 compound_statement"]
-  64 -> 63
-65 [label="65 Rule:208 function_definition"]
+62 [label="62 Rule:87 init_declarator"]
+  62 -> 61
+63 [label="="]
+  62 -> 63
+  62 -> 43
+64 [label="64 Rule:86 init_declarator_list"]
+ 64 -> 62
+65 [label="65 Rule:77 declaration"]
   65 -> 64
-  65 -> 8
-  65 -> 2
-66 [label="66 Rule:206 external_declaration"]
- 66 -> 65
-67 [label="67 Rule:205 translation_unit"]
- 67 -> 66
+  65 -> 40
+66 [label=";"]
+  65 -> 66
+67 [label="67 Rule:98 type_specifier"]
+68 [label="68| LONG"]
+  67 -> 68
+69 [label="69 Rule:82 declaration_specifiers"]
+ 69 -> 67
+70 [label="70 Rule:134 direct_declarator"]
+71 [label="71| c"]
+  70 -> 71
+72 [label="72 Rule:133 declarator"]
+ 72 -> 70
+73 [label="73 Rule:1 primary_expression"]
+74 [label="74 a"]
+  73 -> 74
+75 [label="75 Rule:7 postfix_expression"]
+ 75 -> 73
+76 [label="76 Rule:17 unary_expression"]
+ 76 -> 75
+77 [label="77 Rule:30 cast_expression"]
+ 77 -> 76
+78 [label="78 Rule:34 multiplicative_expression"]
+ 78 -> 77
+79 [label="79 Rule:1 primary_expression"]
+80 [label="80 b"]
+  79 -> 80
+81 [label="81 Rule:7 postfix_expression"]
+ 81 -> 79
+82 [label="82 Rule:17 unary_expression"]
+ 82 -> 81
+83 [label="83 Rule:30 cast_expression"]
+ 83 -> 82
+84 [label="84 Rule:34 multiplicative_expression"]
+ 84 -> 83
+85 [label="85 Rule:37 additive_expression"]
+ 85 -> 84
+86 [label="86 Rule:35 additive_expression"]
+  86 -> 85
+87 [label="PLUS"]
+  86 -> 87
+  86 -> 78
+88 [label="88 Rule:40 shift_expression"]
+ 88 -> 86
+89 [label="89 Rule:45 relational_expression"]
+ 89 -> 88
+90 [label="90 Rule:48 equality_expression"]
+ 90 -> 89
+91 [label="91 Rule:50 and_expression"]
+ 91 -> 90
+92 [label="92 Rule:52 exclusive_or_expression"]
+ 92 -> 91
+93 [label="93 Rule:54 inclusive_or_expression"]
+ 93 -> 92
+94 [label="94 Rule:56 logical_and_expression"]
+ 94 -> 93
+95 [label="95 Rule:58 logical_or_expression"]
+ 95 -> 94
+96 [label="96 Rule:60 conditional_expression"]
+ 96 -> 95
+97 [label="97 Rule:62 assignment_expression"]
+ 97 -> 96
+98 [label="98 Rule:170 initializer"]
+ 98 -> 97
+99 [label="99 Rule:87 init_declarator"]
+  99 -> 98
+100 [label="="]
+  99 -> 100
+  99 -> 72
+101 [label="101 Rule:86 init_declarator_list"]
+ 101 -> 99
+102 [label="102 Rule:77 declaration"]
+  102 -> 101
+  102 -> 69
+103 [label=";"]
+  102 -> 103
+104 [label="104 Rule:3 primary_expression"]
+105 [label="0"]
+  104 -> 105
+106 [label="106 Rule:7 postfix_expression"]
+ 106 -> 104
+107 [label="107 Rule:17 unary_expression"]
+ 107 -> 106
+108 [label="108 Rule:30 cast_expression"]
+ 108 -> 107
+109 [label="109 Rule:34 multiplicative_expression"]
+ 109 -> 108
+110 [label="110 Rule:37 additive_expression"]
+ 110 -> 109
+111 [label="111 Rule:40 shift_expression"]
+ 111 -> 110
+112 [label="112 Rule:45 relational_expression"]
+ 112 -> 111
+113 [label="113 Rule:48 equality_expression"]
+ 113 -> 112
+114 [label="114 Rule:50 and_expression"]
+ 114 -> 113
+115 [label="115 Rule:52 exclusive_or_expression"]
+ 115 -> 114
+116 [label="116 Rule:54 inclusive_or_expression"]
+ 116 -> 115
+117 [label="117 Rule:56 logical_and_expression"]
+ 117 -> 116
+118 [label="118 Rule:58 logical_or_expression"]
+ 118 -> 117
+119 [label="119 Rule:60 conditional_expression"]
+ 119 -> 118
+120 [label="120 Rule:62 assignment_expression"]
+ 120 -> 119
+121 [label="121 Rule:74 expression"]
+ 121 -> 120
+122 [label="122 Rule:202 jump_statement RETURN"]
+  122 -> 121
+123 [label="123 Rule:180 statement"]
+ 123 -> 122
+124 [label="124 Rule:189 declaration_or_statement_list"]
+ 124 -> 123
+125 [label="125 Rule:186 declaration_or_statement_list"]
+  125 -> 124
+  125 -> 102
+126 [label="126 Rule:186 declaration_or_statement_list"]
+  126 -> 125
+  126 -> 65
+127 [label="127 Rule:186 declaration_or_statement_list"]
+  127 -> 126
+  127 -> 36
+128 [label="128 Rule:184 compound_statement"]
+  128 -> 127
+129 [label="129 Rule:208 function_definition"]
+  129 -> 128
+  129 -> 8
+  129 -> 2
+130 [label="130 Rule:206 external_declaration"]
+ 130 -> 129
+131 [label="131 Rule:205 translation_unit"]
+ 131 -> 130
 }
