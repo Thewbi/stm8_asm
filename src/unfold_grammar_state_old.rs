@@ -1,11 +1,11 @@
 /*
-    // For this function to work, insert at least one rule into the identification_rules 
+    // For this function to work, insert at least one rule into the identification_rules
     // set of the grammar set prior to calling this function!
     //
-    // This function will develop all rules in the identification_rules set into the closure 
-    // of all rules that the parser can potentially activate on any input symbol when it is 
+    // This function will develop all rules in the identification_rules set into the closure
+    // of all rules that the parser can potentially activate on any input symbol when it is
     // located in the state for which this function is called.
-    // 
+    //
     // All these rules are inserted into the rules-set of the grammar state.
     //
     // This function fills the channel map with channels between rules.
@@ -14,7 +14,7 @@
     // same large loop that also calls this function.
     //
     // This function does not produce new states!
-    pub fn unfold_grammar_state(&mut self, 
+    pub fn unfold_grammar_state(&mut self,
         grammar_rules: &Vec::<Rule<T>>,
         first: &BTreeMap<RuleElement::<T>, Vec::<RuleElement::<T>>>,
         nullable: &BTreeMap::<RuleElement::<T>, bool>,
@@ -164,7 +164,7 @@
                             if nullable.contains_key(&temp_non_terminal) && *nullable.get(&temp_non_terminal).unwrap() == false {
                                 break;
                             }
-                            
+
                         }
 
                         RuleElement::Terminal(terminal) => {
@@ -179,7 +179,7 @@
                             break;
                         }
 
-                        _ => { 
+                        _ => {
                             panic!("test");
                         }
                     }
@@ -206,7 +206,7 @@
 
                     // DEBUG
                     // println!("non_terminal {}", non_terminal);
-                    
+
                     // find all rules that have a LHS == the non-terminal and add them into the d_set
                     for i in 0..grammar_rules.len() {
 
@@ -283,7 +283,7 @@
                                             }
                                         }
                                     }
-                                       
+
                                     contained_already = true;
                                 }
                             }
@@ -818,7 +818,7 @@
 
                 // }
 
-                // reset the lexer's DFA back to the start state and 
+                // reset the lexer's DFA back to the start state and
                 // try to accept the symbol again which was read from input already
                 char_consumed = false;
                 current_state_id = dfa.start_state_id;
@@ -835,16 +835,16 @@
                 //}
 
                 match dfa.states[&last_state_id].token_id {
-                    
+
                     NEWLINE_TOKEN_ID | WHITESPACE_TOKEN_ID => {
                         // ignore NEWLINE and WHITESPACE
                         // nop
                     }
                     _ => {
                         // pass token to the lexer
-                        provide_input(&mut parser, 
-                            &grammar_state_hashmap, 
-                            &mut step, 
+                        provide_input(&mut parser,
+                            &grammar_state_hashmap,
+                            &mut step,
                             &terminal);
                     }
                 }
@@ -1005,14 +1005,14 @@
 
 
 
-                            /*                
+                            /*
                 //
                 // Step 3 - check if the channel points to a normal rule
                 //
 
                 //
                 // This is the same code as for identifying rules above.
-                // Try to find 
+                // Try to find
                 //
 
                 println!("{:?}", dest_state);
@@ -1053,7 +1053,7 @@
                                 // println!("");
                                 continue;
                             }
-                            
+
                             println!("Updating dirty state: {} {:?}", dest_state_id, la.clone());
                             if !dest_state.rules[i].lookahead.contains(&la) {
                                 dest_state.rules[i].lookahead.push(la.clone());
@@ -1344,10 +1344,10 @@ impl<T: std::cmp::PartialEq> PartialEq<RuleElement<T>> for RuleElement<T> {
 /*
 // TODO: the lookahead character is not used at all!
 // Remove it! It makes the parser loop more complicated
-fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>, 
-    mut current_state_id: usize, 
-    token_string_buffer: &mut String, 
-    current_character: char, 
+fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>,
+    mut current_state_id: usize,
+    token_string_buffer: &mut String,
+    current_character: char,
     lookahead_character: char,
     step: &mut usize,
     parser: &mut Parser::<String>,
@@ -1406,7 +1406,7 @@ fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>,
             }
 
             match dfa.states[&current_state_id].token_id {
-                
+
                 NEWLINE_TOKEN_ID | WHITESPACE_TOKEN_ID => {
                     // ignore NEWLINE and WHITESPACE
                     if lexer_debug {
@@ -1424,9 +1424,9 @@ fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>,
                     if token_string_buffer == "point_t" {
 
                         // pass token to the lexer
-                        provide_input(parser, 
-                            grammar_state_hashmap, 
-                            step, 
+                        provide_input(parser,
+                            grammar_state_hashmap,
+                            step,
                             &RuleElement::Terminal(String::from("TYPE_NAME")),
                             &token_string_buffer,
                             string_buffer,
@@ -1434,9 +1434,9 @@ fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>,
 
                     } else {
                         // pass token to the lexer
-                        provide_input(parser, 
-                            grammar_state_hashmap, 
-                            step, 
+                        provide_input(parser,
+                            grammar_state_hashmap,
+                            step,
                             &terminal,
                             &token_string_buffer,
                             string_buffer,
@@ -1450,9 +1450,9 @@ fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>,
                     }
 
                     // pass token to the lexer
-                    provide_input(parser, 
-                        grammar_state_hashmap, 
-                        step, 
+                    provide_input(parser,
+                        grammar_state_hashmap,
+                        step,
                         &terminal,
                         &token_string_buffer,
                         string_buffer,
@@ -1460,14 +1460,14 @@ fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>,
                 }
             }
 
-            // reset the lexer's DFA back to the start state and 
+            // reset the lexer's DFA back to the start state and
             // try to accept the symbol again which was read from input already
             char_consumed = false;
             current_state_id = dfa.start_state_id;
             token_string_buffer.clear();
 
-        } else if dfa.is_end_state(next_state_id) { 
-            
+        } else if dfa.is_end_state(next_state_id) {
+
             //
             // if the state is normal or an end state, just consume the character
             //
@@ -1516,7 +1516,7 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
 
 
 
-        
+
 
 
 
@@ -1543,9 +1543,9 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
 
                 //                 self.stack_offset = self.stack_offset - 4;
                 //                 self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
-                                
+
                 //                 stack_offset_value = self.stack_offset;
-                                
+
                 //             }
                 //         }
 
@@ -1581,9 +1581,9 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
 
                 //     //             self.stack_offset = self.stack_offset - 4;
                 //     //             self.stack_offset_map.insert(value.to_string(), self.stack_offset);
-                                
+
                 //     //             value_test = self.stack_offset;
-                                
+
                 //     //         }
                 //     //     }
                 //     // }
@@ -1598,7 +1598,7 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
                 //     // asm_ast_instruction.src = ValueElement::Variable(self.stack_offset.to_string());
                 // }
 
-                
+
 
 
 
@@ -1623,9 +1623,9 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
 
                 //                 self.stack_offset = self.stack_offset - 4;
                 //                 self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
-                                
+
                 //                 stack_offset_value = self.stack_offset;
-                                
+
                 //             }
                 //         }
 
@@ -1661,9 +1661,9 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
 
                 //     //             self.stack_offset = self.stack_offset - 4;
                 //     //             self.stack_offset_map.insert(value.to_string(), self.stack_offset);
-                                
+
                 //     //             value_test = self.stack_offset;
-                                
+
                 //     //         }
                 //     //     }
                 //     // }
@@ -1701,9 +1701,9 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
 
                 //                 self.stack_offset = self.stack_offset - 4;
                 //                 self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
-                                
+
                 //                 stack_offset_value = self.stack_offset;
-                                
+
                 //             }
                 //         }
 
@@ -1721,7 +1721,7 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
                 // }
 
 
-                
+
 
 
 
@@ -1792,3 +1792,470 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
             }
         }
         */
+
+
+
+
+
+//
+    // JSON
+    //
+
+    // pub fn pretty_print_ast_json(&self) {
+    //     match self.node_type {
+    //         AstNodeType::FunctionDefinition => {
+    //             self.pretty_print_ast_function_definition_json();
+    //         }
+    //         AstNodeType::Return => {
+    //             self.pretty_print_ast_return_json();
+    //         }
+    //         AstNodeType::Constant => {
+    //             self.pretty_print_ast_constant_json();
+    //         }
+    //         AstNodeType::Unary => {
+    //             self.pretty_print_ast_unary_json();
+    //         }
+    //         _ => {
+    //             panic!("Test");
+    //         }
+    //     }
+    // }
+
+    // fn pretty_print_ast_function_definition_json(&self) {
+    //     println!("{{");
+    //     println!("\"name\":\"{}\",", self.string_val);
+    //     println!("\"body\": [");
+    //     if let Some(left_node) = self.lhs.as_ref() {
+    //         left_node.pretty_print_ast_json();
+    //     }
+    //     println!("]");
+    //     println!("}}");
+    // }
+
+    // fn pretty_print_ast_return_json(&self) {
+    //     println!("{{");
+    //     println!("\"name\":\"return\",");
+    //     println!("\"value\":{{");
+    //     if let Some(left_node) = self.lhs.as_ref() {
+    //         left_node.pretty_print_ast_json();
+    //     }
+    //     println!("}}");
+    //     println!("}}");
+    // }
+
+    // fn pretty_print_ast_constant_json(&self) {
+    //     println!("\"constant\":\"{}\"", self.string_val);
+    // }
+
+
+
+    // match self.operator_type {
+
+        //     AstNodeOperatorType::SizeOf => {
+        //         let mut expression_ast_node_id = 0;
+        //         if let Some(expression_node) = self.expression.as_ref() {
+        //             expression_ast_node_id = expression_node.pretty_print_ast_dot(string_buffer);
+        //             string_buffer.push_str(format!("{} -> {}\n", ast_node_id, expression_ast_node_id).as_str());
+        //         }
+        //     }
+
+        //     _ => {
+
+        //     }
+        // }
+
+
+
+        // // add instructions and declarations into body/block
+            // for i in 0..self.block_items.len() {
+            //     let block_item_ast_node_id = self.block_items[self.block_items.len()-1-i].pretty_print_ast_dot(string_buffer);
+            //     // connect parent and child
+            //     // println!("{} -> {}", block_ast_node_id, block_item_ast_node_id);
+            //     string_buffer.push_str(format!("{} -> {}\n", block_ast_node_id, block_item_ast_node_id).as_str());
+            // }
+
+
+
+
+//std::fmt::Display
+// impl fmt::Debug for AstNodeOperatorType {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         match *self {
+//             AstNodeOperatorType::Equal => write!(f, "E"),
+//             AstNodeOperatorType::NotEqual => write!(f, "NE"),
+//             AstNodeOperatorType::LessThan => write!(f, "L"),
+//             AstNodeOperatorType::LessThanOrEqual => write!(f, "LE"),
+//             AstNodeOperatorType::GreaterThan => write!(f, "G"),
+//             AstNodeOperatorType::GreaterThanOrEqual => write!(f, "GE"),
+//             _ => todo!(),
+//         }
+//     }
+// }
+
+/*
+use pest::{iterators::Pair};
+use crate::Rule; // this use statement will only work if you are compiling main.rs_asm
+use crate::ast::instruction::Instruction;
+
+use std::str::FromStr;
+
+use crate::ast::asm_line::ASMLine;
+use crate::ast::register::Register;
+
+pub struct Visitor {
+    pub asm_lines: Vec<ASMLine>,
+    pub current_asm_line: ASMLine
+}
+
+impl Visitor {
+
+    pub fn new() -> Visitor {
+        Visitor {
+            asm_lines: Vec::new(),
+            current_asm_line: ASMLine::new(),
+        }
+    }
+
+    pub fn enter_asm_line(&mut self, pair: &mut Pair<'_, Rule>) {
+        println!("[enter] asm_line: {}", pair.to_string());
+    }
+    pub fn exit_asm_line(&mut self, pair: &mut Pair<'_, Rule>) {
+        println!("[exit ] asm_line: {}", pair.to_string());
+        self.asm_lines.push(self.current_asm_line.clone());
+        self.current_asm_line.clear();
+    }
+
+    pub fn enter_arm_register(&mut self, pair: &mut Pair<'_, Rule>) {
+        println!("[enter] arm_register: {}", pair.to_string());
+
+        match self.current_asm_line.param_idx {
+            0 => {
+                self.current_asm_line.reg1 = Register::from_str(pair.as_str()).expect(&format!("Cannot convert: {}", pair.to_string()));
+                self.current_asm_line.param_idx = self.current_asm_line.param_idx + 1;
+            }
+            1 => {
+                self.current_asm_line.reg2 = Register::from_str(pair.as_str()).expect(&format!("Cannot convert: {}", pair.to_string()));
+                self.current_asm_line.param_idx = self.current_asm_line.param_idx + 1;
+            }
+            2 => {
+                self.current_asm_line.reg3 = Register::from_str(pair.as_str()).expect(&format!("Cannot convert: {}", pair.to_string()));
+                self.current_asm_line.param_idx = self.current_asm_line.param_idx + 1;
+            }
+            _ => todo!()
+        }
+    }
+    pub fn exit_arm_register(&mut self, pair: &mut Pair<'_, Rule>) {
+        println!("[exit ] arm_register: {}", pair.to_string());
+    }
+
+    pub fn enter_immediate(&mut self, pair: &mut Pair<'_, Rule>) {
+        println!("[enter] immediate: {}", pair.to_string());
+
+        let first_off: &str = &pair.to_string()[1..pair.to_string().len()];
+
+        println!("[enter] first_off: {}", first_off);
+
+        self.current_asm_line.immediate = first_off.parse::<i32>().unwrap();
+    }
+    pub fn exit_immediate(&mut self, pair: &mut Pair<'_, Rule>) {
+        println!("[exit ] immediate: {}", pair.to_string());
+    }
+
+    pub fn enter_opcode(&mut self, pair: &mut Pair<'_, Rule>) {
+        println!("[enter] opcode: {}", pair.to_string());
+        self.current_asm_line.instruction = Instruction::from_str(&pair.to_string()).expect("Cannot decode instruction!");
+    }
+    pub fn exit_opcode(&mut self, pair: &mut Pair<'_, Rule>) {
+        println!("[exit ] opcode: {}", pair.to_string());
+    }
+
+    pub fn enter_label(&mut self, pair: &mut Pair<'_, Rule>) {
+        println!("[enter] label: {}", pair.to_string());
+        self.current_asm_line.label = pair.to_string();
+    }
+    pub fn exit_label(&mut self, pair: &mut Pair<'_, Rule>) {
+        println!("[exit ] label: {}", pair.to_string());
+    }
+
+    pub fn enter_label_target(&mut self, pair: &mut Pair<'_, Rule>) {
+        println!("[enter] label_target: {}", pair.to_string());
+        self.current_asm_line.label_target = pair.to_string();
+    }
+    pub fn exit_label_target(&mut self, pair: &mut Pair<'_, Rule>) {
+        println!("[exit ] label_target: {}", pair.to_string());
+    }
+
+}
+*/
+
+// DEBUG
+//println!("{:?}", identifier_ast_node);
+
+// function_declaration_ast_node.string_val = identifier_ast_node.string_val;
+
+// let mut function_name_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+// function_name_ast_node.node_type = AstNodeType::Identifier;
+// function_name_ast_node.string_val = identifier_ast_node.string_val;
+
+// function_declaration_ast_node.function_name_ast_node = Some(Box::new(function_name_ast_node));
+
+// pub fn emit_tacky(tacky_program: &Program, ast_node: &AstNode) {
+//     println!("emit_tacky");
+// }
+
+
+
+
+
+            // // append instruction to latest top-level element of the program
+            // let last = self.program.top_level.len() - 1;
+            // self.program.top_level[last].body.push(Box::new(binary_instruction));
+/*
+            let mut tacky_program: Program = Program::new();
+            tacky_program.name = String::from("binary_0.c");
+
+            emit_tacky(&tacky_program, &program_ast_node);
+
+            let mut string_buffer = String::from("");
+            let indent = 0usize;
+
+            print_tacky_program(&tacky_program, &mut string_buffer, indent);
+*/
+
+
+
+// // https://dreampuf.github.io/GraphvizOnline
+
+            // let mut ast_string_buffer = String::from("");
+
+            // ast_string_buffer.push_str("digraph {\n");
+            // program_ast_node.pretty_print_ast_dot(&mut ast_string_buffer);
+            // ast_string_buffer.push_str("}");
+
+            // // 1. Create or overwrite the file
+            // let file = File::create("abstract_syntax_tree_2.dot").expect("Create file failed!");
+
+            // // 2. Wrap the file in a BufWriter
+            // let mut writer = BufWriter::new(file);
+
+            // // 3. Write data
+            // write!(writer, "{}", ast_string_buffer);
+
+            // // 4. Explicitly flush the remaining data to disk
+            // writer.flush().expect("flush failed!");
+
+        // //
+        // // Output Parse Table into grammar_state_hashmap file
+        // //
+
+        // // write grammar_state_hashmap to file because to pop RHS from the stack, the parser
+        // // needs to know all states and rules in that state!
+
+        // // BTreeMap<usize, GrammarState<String>>
+        // // maps from state_id to GrammarState
+
+        // for (grammar_state_id, grammar_state) in &grammar_state_hashmap {
+
+        //     println!("");
+        //     println!("{} / {:?}", grammar_state_id, grammar_state);
+        //     println!("");
+        // }
+
+
+
+
+
+
+
+// if let Some(right_node) = ast_node.rhs.as_mut() {
+                    // if self.debug {
+                    //     print!("{:?}", right_node);
+                    // }
+
+
+
+
+                    // let block_item_ast_node_id = self.block_items[self.block_items.len()-1-i].pretty_print_ast_dot(string_buffer);
+                    // // connect parent and child
+                    // // println!("{} -> {}", ast_node_id, block_item_ast_node_id);
+                    // string_buffer.push_str(format!("{} -> {}\n", ast_node_id, block_item_ast_node_id).as_str());
+
+                    // self.visit(ast_node.block_items[ast_node.block_items.len()-1-i]);
+
+                    // if let Some(block_item_node) = ast_node.block_items[ast_node.block_items.len()-1-i].as_mut() {
+                    //     self.visit(block_item_node);
+                    // }
+
+
+
+
+// #[derive(Debug, PartialEq)]
+// pub enum AstNodeType {
+//     Program,
+//     ConstInt,
+//     ConstLong,
+//     ConstUInt,
+//     ConstULong,
+//     ConstDouble,
+//     Structure,
+//     Array,
+//     Expression,
+//     Identifier,
+//     Return,
+//     If,
+//     Unary,
+//     Binary,
+//     Operator,
+//     PrefixOperator,
+//     DataType,
+//     Declaration, // variable declaration or function declaration
+//     FunctionDeclaration,
+//     VariableDeclaration,
+//     StructureDeclaration,
+//     ParameterDeclaration,
+//     Statement,
+//     Block,
+//     BlockItem,
+//     Conditional, // elvis operator
+//     Compound,
+//     While,
+//     DoWhile,
+//     For,
+//     FunctionCall,
+//     StorageClassSpecifier,
+//     Pointer,
+//     Switch,
+//     Case,
+//     Default,
+//     Break,
+//     Continue,
+//     EmptyStatement,
+//     SingleInit,
+//     CompoundInit,
+//     Subscript,
+//     MemberDeclaration,
+//     Dot,
+//     Arrow,
+//     AssignmentOperator,
+//     Unknown,
+// }
+
+
+// println!("id: {}", ast_node.node_id);
+                // if let Some(compound) = ast_node.lhs.as_ref() {
+                //     if let Some(left_node) = compound.lhs.as_ref() {
+                //         self.visit(&left_node);
+                //     }
+                // }
+
+
+
+                    // match return_value {
+
+                    //     Constant(string_value) => {
+
+                    //     }
+
+                    //     Variable(string_value) => {
+                    //         return_instruction.src = ValueElement::Variable(dst_name);
+                    //     }
+
+                    //     None => {
+
+                    //     }
+                    // }
+
+
+
+
+
+
+                // if let Some(sub) = ast_node.lhs.as_ref() {
+
+                //     // // match sub.expression_type {
+                //     // match sub.operator_type {
+
+                //     //     OperatorType::LessThan => {
+                //     //         println!("LessThan");
+                //     //     }
+
+                //     //     OperatorType::Assignment => {
+                //     //         println!("Assignment");
+                //     //     }
+
+                //     //     OperatorType::NotApplicable => {
+                //     //         println!("NotApplicable");
+                //     //     }
+
+                //     //     _ => {
+                //     //         panic!("Test");
+                //     //     }
+                //     // }
+
+                //     let mut br_cnt = 0;
+                //     self.visit(&sub, &dst_name, &mut br_cnt);
+                // }
+
+
+                // let mut branch_counter:usize = 0;
+                // self.if_index = self.if_index + 1;
+
+                // let mut output_end_label:bool = false;
+                // if *branch_counter == 0 {
+                //     output_end_label = true;
+                // }
+
+                // let mut binary_instruction: Instruction = Instruction::new();
+                // binary_instruction.instruction_type = InstructionType::Binary;
+                // binary_instruction.dst = ValueElement::Variable(dst_name.to_string());
+
+
+
+
+    // pub fn new_temp_var(&mut self) -> String {
+
+    //     let temp = TEMP_VAR_COUNTER.fetch_add(1, Ordering::SeqCst);
+
+    //     let mut t = String::from("tmp.");
+    //     t.push_str(temp.to_string().as_str());
+
+    //     t
+    // }
+
+
+
+    // println!("{:?}", lhs);
+
+                    // match lhs.node_type {
+
+                    //     AstNodeType::Identifier => {
+                    //         // simple variable
+                    //         exp_result_var_name = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&lhs.string_val);
+                    //         let lhs_value_element = self.visit(&lhs, &exp_result_var_name, branch_counter);
+                    //     }
+
+                    //     _ => {
+                    //         exp_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+                    //         let lhs_value_element = self.visit(&lhs, &exp_result_var_name, branch_counter);
+                    //     }
+                    // }
+
+                    // let mut temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+
+                    // let mut br_cnt = 0;
+                    // let rhs_value_element = self.visit(&rhs, &temp_var_name, &mut br_cnt);
+
+                    // println!("{:?}", rhs_value_element);
+
+                    // match rhs_value_element {
+                    //     ValueElement::Variable(variable_name) => {
+                    //         // resolve unique name for variable name
+                    //         temp_var_name = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&variable_name);
+                    //     }
+                    //     _ => {
+                    //         todo!();
+                    //     }
+                    // }
+
+                    // //unary_instruction.src = rhs_value_element;
+                    // unary_instruction.src = ValueElement::Variable(temp_var_name);

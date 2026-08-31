@@ -169,6 +169,7 @@ impl Instruction {
 #[derive(Debug)]
 pub enum InstructionType {
     Return,
+    Cast,
     Unary,
     Binary,
     Jump,
@@ -233,6 +234,7 @@ pub enum BinaryOperator {
 pub enum ValueElement {
     Constant(String),
     Variable(String),
+    Cast(String, String),
     None,
 }
 
@@ -272,6 +274,10 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
 
         InstructionType::Return => {
             string_buffer.push_str(format!("Return({:?})\n", instruction.src).as_str());
+        }
+
+        InstructionType::Cast => {
+            string_buffer.push_str(format!("Cast({:?}, src:{:?}, dst:{:?})\n", instruction.unary_operator, instruction.src, instruction.dst).as_str());
         }
 
         InstructionType::Unary => {

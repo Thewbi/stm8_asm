@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::str::FromStr;
@@ -93,7 +94,11 @@ impl TackyVisitor {
         t
     }
 
-    pub fn visit(&mut self, ast_node: &AstNode, dst_name: &String, branch_counter: &mut usize) -> ValueElement {
+    pub fn visit(&mut self,
+        ast_node: &AstNode,
+        dst_name: &String,
+        branch_counter: &mut usize,
+        node_map: &HashMap::<usize, AstNode>) -> ValueElement {
 
         match &ast_node.node_type {
 
@@ -101,9 +106,9 @@ impl TackyVisitor {
                 // visit all items in the body of the program
                 for i in 0..ast_node.block_items.len() {
                     let mut br_cnt = 0;
-
-                    let block_item = &ast_node.block_items[ast_node.block_items.len()-1-i];
-                    self.visit(&block_item, &String::from(""), &mut br_cnt);
+                    let block_item_id = &ast_node.block_items[ast_node.block_items.len()-1-i];
+                    let ast_node = node_map.get(block_item_id).unwrap();
+                    self.visit(&ast_node, &String::from(""), &mut br_cnt, node_map);
                 }
             }
 
@@ -113,7 +118,8 @@ impl TackyVisitor {
                 // println!("{:?}", ast_node);
 
                 let mut function_name = String::new();
-                if let Some(function_name_ast_node) = ast_node.function_name_ast_node.as_ref() {
+                if let Some(function_name_ast_node_id) = ast_node.function_name_ast_node.as_ref() {
+                    let function_name_ast_node = node_map.get(function_name_ast_node_id).unwrap();
                     function_name = function_name_ast_node.string_val.clone();
                 }
 
@@ -127,7 +133,7 @@ impl TackyVisitor {
                 top_level_function.global = true;
 
                 // return type
-                if let Some(data_type) = ast_node.rhs.as_ref() {
+                if let Some(data_type_ast_node_id) = ast_node.rhs.as_ref() {
 
                     // DEBUG
                     // println!("{:?}", data_type);
@@ -145,10 +151,12 @@ impl TackyVisitor {
 
                     // DataTypeUnknown,
 
-                    match data_type.node_type {
+                    let data_type_ast_node = node_map.get(data_type_ast_node_id).unwrap();
+                    match data_type_ast_node.node_type {
+
                         AstNodeType::DataType => {
 
-                            top_level_function.return_type = Some(DataType::from_str(&data_type.string_val).expect("REASON"));
+                            top_level_function.return_type = Some(DataType::from_str(&data_type_ast_node.string_val).expect("REASON"));
 
                             // match data_type.string_val.as_str() {
                             //     "int" => {
@@ -177,25 +185,34 @@ impl TackyVisitor {
                 // top_level_function.return_type = Some(ast_node.rhs);
 
                 // arguments
-                for param in &ast_node.parameters {
+                for param_ast_node_id in &ast_node.parameters {
+
+                    let param_ast_node = node_map.get(param_ast_node_id).unwrap();
+
                     // // DEBUG
                     // println!("{:?}", param);
 
                     let mut argument = Argument::new();
 
                     // name
-                    if let Some(left_node) = param.lhs.as_ref() {
+                    if let Some(left_ast_node_id) = param_ast_node.lhs.as_ref() {
+
+                        let left_ast_node = node_map.get(left_ast_node_id).unwrap();
+
                         // DEBUG
                         // print!("{:?}", left_node);
 
-                        argument.name = left_node.string_val.clone();
+                        argument.name = left_ast_node.string_val.clone();
                     }
                     // data type
-                    if let Some(right_node) = param.rhs.as_ref() {
+                    if let Some(right_ast_node_id) = param_ast_node.rhs.as_ref() {
+
+                        let right_ast_node = node_map.get(right_ast_node_id).unwrap();
+
                         // DEBUG
                         // print!("{:?}", right_node);
 
-                        argument.data_type = DataType::from_str(&right_node.string_val).expect(format!("Type is not known: {}\n", &right_node.string_val).as_str());
+                        argument.data_type = DataType::from_str(&right_ast_node.string_val).expect(format!("Type is not known: {}\n", &right_ast_node.string_val).as_str());
                     }
 
                     top_level_function.arguments.push(Box::new(argument));
@@ -205,31 +222,39 @@ impl TackyVisitor {
                 self.program.top_level.push(Box::new(top_level_function));
 
                 // add instructions and declarations into body/block
-                if let Some(block) = ast_node.lhs.as_ref() {
+                if let Some(block_ast_node_id) = ast_node.lhs.as_ref() {
 
-                    for i in 0..block.block_items.len() {
+                    let block_ast_node = node_map.get(block_ast_node_id).unwrap();
+
+                    for i in 0..block_ast_node.block_items.len() {
 
                         let destination_var_name = String::from("");
                         let mut br_cnt = 0;
-                        let last_block_item = &block.block_items[block.block_items.len()-1-i];
+                        let block_item_ast_node_id = &block_ast_node.block_items[block_ast_node.block_items.len()-1-i];
+                        let block_item_ast_node = node_map.get(block_item_ast_node_id).unwrap();
 
-                        self.visit(&last_block_item, &destination_var_name, &mut br_cnt);
+                        self.visit(&block_item_ast_node, &destination_var_name, &mut br_cnt, node_map);
                     }
 
                     // add return
 
-                    // let last_block_item = &block.block_items[block.block_items.len()-1];
-                    let last_block_item = &block.block_items[0];
+                    let last_block_item_ast_node_id = &block_ast_node.block_items[0];
+                    let last_block_item_ast_node = node_map.get(last_block_item_ast_node_id).unwrap();
 
                     //println!("block.block_items.len(): {}, last_block_item: {:?}", block.block_items.len(), last_block_item);
 
-                    if let Some(block_item) = last_block_item.lhs.as_ref() {
-                        if let Some(statement) = block_item.lhs.as_ref() {
+                    if let Some(left_block_item_id) = last_block_item_ast_node.lhs.as_ref() {
+
+                        let left_block_item_ast_node = node_map.get(left_block_item_id).unwrap();
+
+                        if let Some(statement_ast_node_id) = left_block_item_ast_node.lhs {
+
+                            let statement_ast_node = node_map.get(&statement_ast_node_id).unwrap();
 
                             // DEBUG
                             // println!("test: {:?}", statement.node_type);
 
-                            if statement.node_type != AstNodeType::Return {
+                            if statement_ast_node.node_type != AstNodeType::Return {
                                 // panic!("Cannot compile function without ret!");
 
                                 let return_value: ValueElement = ValueElement::Constant(String::from("0"));
@@ -237,8 +262,6 @@ impl TackyVisitor {
                                 let mut return_instruction: Instruction = Instruction::new();
                                 return_instruction.instruction_type = InstructionType::Return;
                                 return_instruction.src = return_value;
-
-                                // block.block_items.push(Box::new(return_instruction));
 
                                 // append instruction to latest top-level element of the program
                                 let last = self.program.top_level.len() - 1;
@@ -253,31 +276,39 @@ impl TackyVisitor {
                 // println!("id: {}", ast_node.node_id);
                 for i in 0..ast_node.block_items.len() {
                     let mut br_cnt = 0;
-                    self.visit(&ast_node.block_items[ast_node.block_items.len()-1-i], &String::from(""), &mut br_cnt);
+
+                    let id = ast_node.block_items.len()-1-i;
+                    let ast_node_id = ast_node.block_items[id];
+
+                    let ast_node = node_map.get(&ast_node_id).unwrap();
+
+                    self.visit(&ast_node, &String::from(""), &mut br_cnt, node_map);
                 }
             }
 
             AstNodeType::BlockItem => {
                 // println!("id: {}", ast_node.node_id);
-                if let Some(compound) = ast_node.lhs.as_ref() {
-                    if let Some(left_node) = compound.lhs.as_ref() {
+                if let Some(compound_id) = ast_node.lhs {
+                    let compound_ast_node = node_map.get(&compound_id).unwrap();
+                    if let Some(left_node_id) = compound_ast_node.lhs {
+                        let left_ast_node = node_map.get(&left_node_id).unwrap();
                         let mut br_cnt = 0;
-                        self.visit(&left_node, &String::from(""), &mut br_cnt);
+                        self.visit(&left_ast_node, &String::from(""), &mut br_cnt, node_map);
                     }
                 }
             }
 
             AstNodeType::Statement => {
-                if let Some(sub) = ast_node.lhs.as_ref() {
-                    // let mut br_cnt = 0;
-                    self.visit(&sub, &dst_name, /*&mut*/ branch_counter);
+                if let Some(sub_id) = ast_node.lhs {
+                    let ast_node = node_map.get(&sub_id).unwrap();
+                    self.visit(&ast_node, &dst_name, branch_counter, node_map);
                 }
             }
 
             AstNodeType::Compound => {
-                if let Some(sub) = ast_node.lhs.as_ref() {
-                    // let mut br_cnt = 0;
-                    self.visit(&sub, &dst_name, /*&mut*/ branch_counter);
+                if let Some(sub_id) = ast_node.lhs.as_ref() {
+                    let ast_node = node_map.get(&sub_id).unwrap();
+                    self.visit(&ast_node, &dst_name, branch_counter, node_map);
                 }
             }
 
@@ -292,8 +323,9 @@ impl TackyVisitor {
                         // println!("Assignment ---------------------------");
                         // println!("");
 
-                        if let Some(lhs_subnode) = ast_node.lhs.as_ref() {
+                        if let Some(lhs_subnode_id) = ast_node.lhs {
                             // println!("LHS: {:?}", lhs_subnode);
+                            let lhs_subnode = node_map.get(&lhs_subnode_id).unwrap();
 
                             match lhs_subnode.operator_type {
 
@@ -314,10 +346,11 @@ impl TackyVisitor {
                                     store_instruction.dst = ValueElement::Variable(String::from(lhs_subnode.string_val.clone()));
 
                                     // src
-                                    if let Some(rhs_sub) = ast_node.rhs.as_ref() {
+                                    if let Some(rhs_sub_id) = ast_node.rhs {
+                                        let rhs_sub = node_map.get(&rhs_sub_id).unwrap();
                                         // println!("RHS: {:?}", rhs_sub);
                                         let mut br_cnt = 0;
-                                        store_instruction.src = self.visit(&rhs_sub, &dst_name, &mut br_cnt);
+                                        store_instruction.src = self.visit(&rhs_sub, &dst_name, &mut br_cnt, node_map);
                                     }
 
                                     // append instruction to latest top-level element of the program
@@ -346,18 +379,21 @@ impl TackyVisitor {
 
                                     let mut dst_name = String::from("");
 
-                                    if let Some(lhs_sub) = ast_node.lhs.as_ref() {
+                                    if let Some(lhs_sub_id) = ast_node.lhs {
+                                        let lhs_sub = node_map.get(&lhs_sub_id).unwrap();
                                         // println!("LHS: {:?}", lhs_sub);
 
                                         dst_name = lhs_sub.string_val.clone();
                                         copy_instruction.dst = ValueElement::Variable(dst_name.clone());
                                     }
 
-                                    if let Some(rhs_sub) = ast_node.rhs.as_ref() {
+                                    if let Some(rhs_sub_id) = ast_node.rhs {
                                         // println!("RHS: {:?}", rhs_sub);
 
+                                        let rhs_sub = node_map.get(&rhs_sub_id).unwrap();
+
                                         let mut br_cnt = 0;
-                                        copy_instruction.src = self.visit(&rhs_sub, &dst_name, &mut br_cnt);
+                                        copy_instruction.src = self.visit(&rhs_sub, &dst_name, &mut br_cnt, node_map);
 
                                         // determine if the copy instruction is output or not
                                         match rhs_sub.node_type {
@@ -399,14 +435,17 @@ impl TackyVisitor {
                         let mut function_call_instruction: Instruction = Instruction::new();
                         function_call_instruction.instruction_type = InstructionType::FunCall;
 
-                        if let Some(lhs_ast_node) = ast_node.lhs.as_ref() {
+                        if let Some(lhs_ast_node_id) = ast_node.lhs {
+
+                            let lhs_ast_node = node_map.get(&lhs_ast_node_id).unwrap();
 
                             function_call_instruction.function_name = lhs_ast_node.string_val.clone();
 
                             // PARAMETERS / ARGUMENTS
                             for i in 0..lhs_ast_node.parameters.len() {
 
-                                let parameter_ast_node = &lhs_ast_node.parameters[lhs_ast_node.parameters.len()-1-i];
+                                let parameter_ast_node_id = &lhs_ast_node.parameters[lhs_ast_node.parameters.len()-1-i];
+                                let parameter_ast_node = node_map.get(&parameter_ast_node_id).unwrap();
 
                                 // DEBUG
                                 // println!("ARGUMENT_{}: {:?}", i, parameter_ast_node);
@@ -439,9 +478,10 @@ impl TackyVisitor {
                     AstNodeOperatorType::NotApplicable => {
                         // DEBUG
                         // println!("NotApplicable");
-                        if let Some(sub) = ast_node.lhs.as_ref() {
+                        if let Some(sub_id) = ast_node.lhs {
+                            let sub_ast_node = node_map.get(&sub_id).unwrap();
                             let mut br_cnt = 0;
-                            return self.visit(&sub, &dst_name, &mut br_cnt);
+                            return self.visit(&sub_ast_node, &dst_name, &mut br_cnt, node_map);
                         }
                     }
 
@@ -458,7 +498,9 @@ impl TackyVisitor {
 
             AstNodeType::Return => {
 
-                if let Some(expression) = ast_node.lhs.as_ref() {
+                if let Some(expression_id) = ast_node.lhs {
+
+                    let expression = node_map.get(&expression_id).unwrap();
 
                     let dst_name = self.variable_naming_source.borrow_mut().new_temp_var();
 
@@ -466,7 +508,7 @@ impl TackyVisitor {
                     // println!("{}", dst_name);
 
                     let mut br_cnt = 0;
-                    let return_value: ValueElement = self.visit(&expression, &dst_name, &mut br_cnt);
+                    let return_value: ValueElement = self.visit(&expression, &dst_name, &mut br_cnt, node_map);
 
                     // OPTIMIZATION: potential for optimization
                     // Currently, return will always return a local temporary variable e.g. tmp.0
@@ -500,21 +542,24 @@ impl TackyVisitor {
 
             AstNodeType::Unary => {
 
-                if let Some(operator) = ast_node.lhs.as_ref() {
+                if let Some(operator_id) = ast_node.lhs {
+
+                    let operator = node_map.get(&operator_id).unwrap();
 
                     match operator.operator_type {
 
                         AstNodeOperatorType::AddrOf => {
 
-                            println!("{:?}", ast_node);
+                            // println!("{:?}", ast_node);
 
-                            // DEBUG
-                            println!("{:?}", ast_node.lhs);
-                            println!("{:?}", ast_node.rhs);
+                            // // DEBUG
+                            // println!("{:?}", ast_node.lhs);
+                            // println!("{:?}", ast_node.rhs);
 
                             let mut get_address_instruction: Instruction = Instruction::new();
                             get_address_instruction.instruction_type = InstructionType::GetAddress;
-                            if let Some(rhs_node) = ast_node.rhs.as_ref() {
+                            if let Some(rhs_node_id) = ast_node.rhs {
+                                let rhs_node = node_map.get(&rhs_node_id).unwrap();
                                 get_address_instruction.src = ValueElement::Variable(rhs_node.string_val.clone());
                             }
                             get_address_instruction.dst = ValueElement::Variable(dst_name.to_string());
@@ -539,7 +584,8 @@ impl TackyVisitor {
                             let mut load_instruction: Instruction = Instruction::new();
                             load_instruction.instruction_type = InstructionType::Load;
 
-                            if let Some(rhs_node) = ast_node.rhs.as_ref() {
+                            if let Some(rhs_node_id) = ast_node.rhs {
+                                let rhs_node = node_map.get(&rhs_node_id).unwrap();
                                 load_instruction.src = ValueElement::Variable(rhs_node.string_val.clone());
                             }
                             load_instruction.dst = ValueElement::Variable(dst_name.to_string());
@@ -569,12 +615,14 @@ impl TackyVisitor {
                             //
 
                             // RHS contains the source
-                            if let Some(rhs) = ast_node.rhs.as_ref() {
+                            if let Some(rhs_id) = ast_node.rhs {
+
+                                let rhs = node_map.get(&rhs_id).unwrap();
 
                                 let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
 
                                 let mut br_cnt = 0;
-                                let rhs_value_element = self.visit(&rhs, &temp_var_name, &mut br_cnt);
+                                let rhs_value_element = self.visit(&rhs, &temp_var_name, &mut br_cnt, node_map);
 
                                 // source and destination are the same thing
                                 unary_instruction.src = rhs_value_element.clone();
@@ -585,7 +633,9 @@ impl TackyVisitor {
                             // operator
                             //
 
-                            if let Some(operator) = ast_node.lhs.as_ref() {
+                            if let Some(operator_id) = ast_node.lhs {
+
+                                let operator = node_map.get(&operator_id).unwrap();
 
                                 match operator.operator_type {
 
@@ -640,27 +690,33 @@ impl TackyVisitor {
                 binary_instruction.dst = ValueElement::Variable(dst_name.to_string());
 
                 // LHS
-                if let Some(lhs) = ast_node.lhs.as_ref() {
+                if let Some(lhs_id) = ast_node.lhs {
+                    let lhs = node_map.get(&lhs_id).unwrap();
 
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
 
                     let mut br_cnt = 0;
-                    let lhs_value_element = self.visit(&lhs, &temp_var_name, &mut br_cnt);
+                    let lhs_value_element = self.visit(&lhs, &temp_var_name, &mut br_cnt, node_map);
                     binary_instruction.src_2 = lhs_value_element;
                 }
 
                 // RHS
-                if let Some(rhs) = ast_node.rhs.as_ref() {
+                if let Some(rhs_id) = ast_node.rhs {
+                    let rhs = node_map.get(&rhs_id).unwrap();
 
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
 
                     let mut br_cnt = 0;
-                    let rhs_value_element = self.visit(&rhs, &temp_var_name, &mut br_cnt);
+                    let rhs_value_element = self.visit(&rhs, &temp_var_name, &mut br_cnt, node_map);
                     binary_instruction.src = rhs_value_element;
                 }
 
                 // operator
-                if let Some(operator) = ast_node.operator.as_ref() {
+                if let Some(operator_id) = ast_node.operator {
+
+                    let operator = node_map.get(&operator_id).unwrap();
+
+                    // node_type.get(operator);
 
                     match operator.operator_type {
 
@@ -761,10 +817,12 @@ impl TackyVisitor {
 
                 // expression
                 let mut exp_result_var_name = String::from("");
-                if let Some(lhs) = ast_node.expression.as_ref() {
+                if let Some(lhs_id) = ast_node.expression {
+
+                    let lhs = node_map.get(&lhs_id).unwrap();
 
                     exp_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    let lhs_value_element = self.visit(&lhs, &exp_result_var_name, branch_counter);
+                    let lhs_value_element = self.visit(&lhs, &exp_result_var_name, branch_counter, node_map);
 
                     // println!("{:?}", lhs_value_element);
 
@@ -774,6 +832,10 @@ impl TackyVisitor {
                         }
 
                         ValueElement::Constant(constant_value) => {
+                            // do nothing
+                        }
+
+                        ValueElement::Cast(src_type, dst_type) => {
                             // do nothing
                         }
 
@@ -800,10 +862,12 @@ impl TackyVisitor {
 
                 // LHS - if-branch statement / body
                 let mut stmt_result_var_name = String::from("");
-                if let Some(lhs) = ast_node.lhs.as_ref() {
+                if let Some(lhs_id) = ast_node.lhs {
+
+                    let lhs = node_map.get(&lhs_id).unwrap();
 
                     stmt_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    let lhs_value_element = self.visit(&lhs, &stmt_result_var_name, branch_counter);
+                    let lhs_value_element = self.visit(&lhs, &stmt_result_var_name, branch_counter, node_map);
 
                     if !ast_node.rhs.is_none() {
 
@@ -831,7 +895,9 @@ impl TackyVisitor {
                 }
 
                 // RHS - else-branch statement / body
-                if let Some(rhs) = ast_node.rhs.as_ref() {
+                if let Some(rhs_id) = ast_node.rhs {
+
+                    let rhs = node_map.get(&rhs_id).unwrap();
 
                     // // Jump(end)
                     // let mut jump_instruction: Instruction = Instruction::new();
@@ -849,7 +915,7 @@ impl TackyVisitor {
                     stmt_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
 
                     // let mut br_cnt = 0;
-                    let rhs_value_element = self.visit(&rhs, &stmt_result_var_name, /*&mut*/ branch_counter);
+                    let rhs_value_element = self.visit(&rhs, &stmt_result_var_name, branch_counter, node_map);
                     // binary_instruction.src_2 = rhs_value_element;
 
                     // // if the branch was taken, unconditionally jump to end_label -- Jump(end)
@@ -910,19 +976,20 @@ impl TackyVisitor {
                 binary_instruction.dst = ValueElement::Variable(dst_name.to_string());
 
                 // LHS
-                if let Some(lhs) = ast_node.lhs.as_ref() {
+                if let Some(lhs_id) = ast_node.lhs {
+
+                    let lhs = node_map.get(&lhs_id).unwrap();
 
                     // let temp_var_name = self.new_temp_var();
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
 
                     let mut br_cnt = 0;
-                    let lhs_value_element = self.visit(&lhs, &temp_var_name, &mut br_cnt);
+                    let lhs_value_element = self.visit(&lhs, &temp_var_name, &mut br_cnt, node_map);
 
                     // JumpIfZero
                     let mut jump_if_zero_instruction: Instruction = Instruction::new();
                     jump_if_zero_instruction.instruction_type = InstructionType::JumpIfZero;
                     jump_if_zero_instruction.src = lhs_value_element;
-
                     jump_if_zero_instruction.label = self.final_end_label(&ast_node, "while_");
 
                     // append instruction to latest top-level element of the program
@@ -931,13 +998,15 @@ impl TackyVisitor {
                 }
 
                 // RHS - body/statement
-                if let Some(rhs) = ast_node.rhs.as_ref() {
+                if let Some(rhs_id) = ast_node.rhs {
+
+                    let rhs = node_map.get(&rhs_id).unwrap();
 
                     // let temp_var_name = self.new_temp_var();
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
 
                     let mut br_cnt = 0;
-                    let rhs_value_element = self.visit(&rhs, &temp_var_name, &mut br_cnt);
+                    let rhs_value_element = self.visit(&rhs, &temp_var_name, &mut br_cnt, node_map);
                     // binary_instruction.src = rhs_value_element;
 
                     // // append instruction to latest top-level element of the program
@@ -1002,7 +1071,9 @@ impl TackyVisitor {
                 // LHS - initialization, e.g.: a = 0
                 //
 
-                if let Some(lhs) = ast_node.lhs.as_ref() {
+                if let Some(lhs_id) = ast_node.lhs {
+
+                    let lhs = node_map.get(&lhs_id).unwrap();
 
                     // println!("{:?}", lhs);
 
@@ -1010,7 +1081,7 @@ impl TackyVisitor {
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
 
                     let mut br_cnt = 0;
-                    let lhs_value_element = self.visit(&lhs, &temp_var_name, &mut br_cnt);
+                    let lhs_value_element = self.visit(&lhs, &temp_var_name, &mut br_cnt, node_map);
                     // // append instruction to latest top-level element of the program
                     // let last = self.program.top_level.len() - 1;
                     // self.program.top_level[last].body.push(Box::new(binary_instruction));
@@ -1031,9 +1102,10 @@ impl TackyVisitor {
 
                 // expression
                 let mut exp_result_var_name = String::from("");
-                if let Some(lhs) = ast_node.expression.as_ref() {
+                if let Some(lhs_id) = ast_node.expression {
+                    let lhs = node_map.get(&lhs_id).unwrap();
                     exp_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    let lhs_value_element = self.visit(&lhs, &exp_result_var_name, branch_counter);
+                    let lhs_value_element = self.visit(&lhs, &exp_result_var_name, branch_counter, node_map);
                 }
 
                 // JumpIfZero
@@ -1051,8 +1123,12 @@ impl TackyVisitor {
                 //
 
                 for i in 0..ast_node.block_items.len() {
+
+                    let block_item_id = ast_node.block_items[ast_node.block_items.len()-1-i];
+                    let block_item = node_map.get(&block_item_id).unwrap();
+
                     let mut br_cnt = 0;
-                    self.visit(&ast_node.block_items[ast_node.block_items.len()-1-i], &String::from(""), &mut br_cnt);
+                    self.visit(block_item, &String::from(""), &mut br_cnt, node_map);
                 }
 
                 // continue label
@@ -1067,7 +1143,9 @@ impl TackyVisitor {
                 // RHS - post: e.g.: a = a + 1
                 //
 
-                if let Some(rhs) = ast_node.rhs.as_ref() {
+                if let Some(rhs_id) = ast_node.rhs {
+
+                    let rhs = node_map.get(&rhs_id).unwrap();
 
                     // println!("{:?}", rhs);
 
@@ -1075,7 +1153,7 @@ impl TackyVisitor {
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
 
                     let mut br_cnt = 0;
-                    let rhs_value_element = self.visit(&rhs, &temp_var_name, &mut br_cnt);
+                    let rhs_value_element = self.visit(&rhs, &temp_var_name, &mut br_cnt, node_map);
 
                     // // append instruction to latest top-level element of the program
                     // let last = self.program.top_level.len() - 1;
@@ -1118,7 +1196,7 @@ impl TackyVisitor {
 
             AstNodeType::VariableDeclaration => {
 
-                let node_as_string = ast_node.serialize();
+                let node_as_string = ast_node.serialize(node_map);
 
                 let mut comment_declaration: Instruction = Instruction::new();
                 comment_declaration.instruction_type = InstructionType::Comment;
@@ -1150,14 +1228,17 @@ impl TackyVisitor {
                 var_declaration.instruction_type = InstructionType::VariableDeclaration;
 
                 // LHS - data type
-                if let Some(left_node) = ast_node.lhs.as_ref() {
+                if let Some(left_node_id) = ast_node.lhs {
+                    let left_node = node_map.get(&left_node_id).unwrap();
                     // print!("{:?}", left_node);
                     var_declaration.data_type = left_node.string_val.clone();
                 }
 
                 // RHS - identifier
                 let mut variable_identifier = String::from("ERROR");
-                if let Some(right_node) = ast_node.rhs.as_ref() {
+                if let Some(right_node_id) = ast_node.rhs {
+
+                    let right_node = node_map.get(&right_node_id).unwrap();
                     // print!("{:?}", right_node);
 
                     // variable_identifier = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&right_node.string_val);
@@ -1178,7 +1259,9 @@ impl TackyVisitor {
                 //
 
                 // expression
-                if let Some(expression_node) = ast_node.expression.as_ref() {
+                if let Some(expression_node_id) = ast_node.expression {
+
+                    let expression_node = node_map.get(&expression_node_id).unwrap();
 
                     // // DEBUG
                     // print!("{:?}", expression_node);
@@ -1190,7 +1273,9 @@ impl TackyVisitor {
                             // // DEBUG
                             // println!("SingleInit");
 
-                            if let Some(left_node) = expression_node.lhs.as_ref() {
+                            if let Some(left_node_id) = expression_node.lhs {
+                                let left_node = node_map.get(&left_node_id).unwrap();
+
                                 // print!("{:?}", left_node);
                                 // var_declaration.data_type = left_node.string_val.clone();
 
@@ -1198,12 +1283,10 @@ impl TackyVisitor {
                                 let mut copy_instruction: Instruction = Instruction::new();
                                 copy_instruction.instruction_type = InstructionType::Copy;
                                 match &left_node.node_type {
-
                                     AstNodeType::Expression => {
                                         let mut br_cnt = 0;
-                                        copy_instruction.src = self.visit(&left_node, &variable_identifier, &mut br_cnt);
+                                        copy_instruction.src = self.visit(&left_node, &variable_identifier, &mut br_cnt, node_map);
                                     }
-
                                     _ => {
                                         panic!("Unhandled type: {:?}", left_node.node_type);
                                     }
@@ -1215,7 +1298,6 @@ impl TackyVisitor {
                                 let last = self.program.top_level.len() - 1;
                                 self.program.top_level[last].body.push(Box::new(copy_instruction));
                             }
-
                         }
 
                         AstNodeType::CompoundInit => {
@@ -1242,6 +1324,20 @@ impl TackyVisitor {
 
             AstNodeType::Cast => {
                 // println!("{:?}", ast_node);
+                // //return ValueElement::Cast(ast_node.string_val.clone());
+                // binary_instruction.src_2 = lhs_value_element;
+
+                // TACKY Cast
+                let mut cast_instruction: Instruction = Instruction::new();
+                cast_instruction.instruction_type = InstructionType::Cast;
+
+                // append instruction to latest top-level element of the program
+                let last = self.program.top_level.len() - 1;
+                self.program.top_level[last].body.push(Box::new(cast_instruction));
+
+                // return cast_instruction;
+                // String::from(dst_name.to_string())
+                return ValueElement::Cast(String::from("type_dst"), String::from("type_src"));
             }
 
             AstNodeType::EmptyStatement => {
@@ -1256,174 +1352,3 @@ impl TackyVisitor {
         ValueElement::None
     }
 }
-
-// #[derive(Debug, PartialEq)]
-// pub enum AstNodeType {
-//     Program,
-//     ConstInt,
-//     ConstLong,
-//     ConstUInt,
-//     ConstULong,
-//     ConstDouble,
-//     Structure,
-//     Array,
-//     Expression,
-//     Identifier,
-//     Return,
-//     If,
-//     Unary,
-//     Binary,
-//     Operator,
-//     PrefixOperator,
-//     DataType,
-//     Declaration, // variable declaration or function declaration
-//     FunctionDeclaration,
-//     VariableDeclaration,
-//     StructureDeclaration,
-//     ParameterDeclaration,
-//     Statement,
-//     Block,
-//     BlockItem,
-//     Conditional, // elvis operator
-//     Compound,
-//     While,
-//     DoWhile,
-//     For,
-//     FunctionCall,
-//     StorageClassSpecifier,
-//     Pointer,
-//     Switch,
-//     Case,
-//     Default,
-//     Break,
-//     Continue,
-//     EmptyStatement,
-//     SingleInit,
-//     CompoundInit,
-//     Subscript,
-//     MemberDeclaration,
-//     Dot,
-//     Arrow,
-//     AssignmentOperator,
-//     Unknown,
-// }
-
-
-// println!("id: {}", ast_node.node_id);
-                // if let Some(compound) = ast_node.lhs.as_ref() {
-                //     if let Some(left_node) = compound.lhs.as_ref() {
-                //         self.visit(&left_node);
-                //     }
-                // }
-
-
-
-                    // match return_value {
-
-                    //     Constant(string_value) => {
-
-                    //     }
-
-                    //     Variable(string_value) => {
-                    //         return_instruction.src = ValueElement::Variable(dst_name);
-                    //     }
-
-                    //     None => {
-
-                    //     }
-                    // }
-
-
-
-
-
-
-                // if let Some(sub) = ast_node.lhs.as_ref() {
-
-                //     // // match sub.expression_type {
-                //     // match sub.operator_type {
-
-                //     //     OperatorType::LessThan => {
-                //     //         println!("LessThan");
-                //     //     }
-
-                //     //     OperatorType::Assignment => {
-                //     //         println!("Assignment");
-                //     //     }
-
-                //     //     OperatorType::NotApplicable => {
-                //     //         println!("NotApplicable");
-                //     //     }
-
-                //     //     _ => {
-                //     //         panic!("Test");
-                //     //     }
-                //     // }
-
-                //     let mut br_cnt = 0;
-                //     self.visit(&sub, &dst_name, &mut br_cnt);
-                // }
-
-
-                // let mut branch_counter:usize = 0;
-                // self.if_index = self.if_index + 1;
-
-                // let mut output_end_label:bool = false;
-                // if *branch_counter == 0 {
-                //     output_end_label = true;
-                // }
-
-                // let mut binary_instruction: Instruction = Instruction::new();
-                // binary_instruction.instruction_type = InstructionType::Binary;
-                // binary_instruction.dst = ValueElement::Variable(dst_name.to_string());
-
-
-
-
-    // pub fn new_temp_var(&mut self) -> String {
-
-    //     let temp = TEMP_VAR_COUNTER.fetch_add(1, Ordering::SeqCst);
-
-    //     let mut t = String::from("tmp.");
-    //     t.push_str(temp.to_string().as_str());
-
-    //     t
-    // }
-
-
-
-    // println!("{:?}", lhs);
-
-                    // match lhs.node_type {
-
-                    //     AstNodeType::Identifier => {
-                    //         // simple variable
-                    //         exp_result_var_name = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&lhs.string_val);
-                    //         let lhs_value_element = self.visit(&lhs, &exp_result_var_name, branch_counter);
-                    //     }
-
-                    //     _ => {
-                    //         exp_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    //         let lhs_value_element = self.visit(&lhs, &exp_result_var_name, branch_counter);
-                    //     }
-                    // }
-
-                    // let mut temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-
-                    // let mut br_cnt = 0;
-                    // let rhs_value_element = self.visit(&rhs, &temp_var_name, &mut br_cnt);
-
-                    // println!("{:?}", rhs_value_element);
-
-                    // match rhs_value_element {
-                    //     ValueElement::Variable(variable_name) => {
-                    //         // resolve unique name for variable name
-                    //         temp_var_name = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&variable_name);
-                    //     }
-                    //     _ => {
-                    //         todo!();
-                    //     }
-                    // }
-
-                    // //unary_instruction.src = rhs_value_element;
-                    // unary_instruction.src = ValueElement::Variable(temp_var_name);

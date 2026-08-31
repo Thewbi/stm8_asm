@@ -1,3 +1,16 @@
+# Rust Syntax Confusion
+
+## Option
+
+Why do we use Some(...) instead of Option::new(...) to create an option? Option::new() is easier to remember. Some(...) seems like a special case!
+
+## References (Confusion for C++ programmers)
+
+It is possible to dereference references! &something and *something are allowed! In C++ references are not distinguishable from the original variable and no dereferencing takes place to change the referenced object.
+
+
+
+
 # C Compiler build according to Nora Sandler's Book - Writing a C Compiler
 
 This is a C compiler written in Rust for the C programming language.

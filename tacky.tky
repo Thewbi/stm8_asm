@@ -1,7 +1,14 @@
-Program("res/C/samples/nora_sandler/binary_logical_1.c")
+Program("res/C/samples/nora_sandler/binary_11.c")
   Function("main", true)
-    //  int     userdef_var.0    0     1         
-    VariableDeclaration(label:"userdef_var.0", data_type:"int")
-    Binary(LogicalOr, src_1:Constant(1), src_2:Constant(0), dst:Variable(userdef_var.0))
-    Copy(src:Variable(userdef_var.0), dst:Variable(userdef_var.0))
+    //  int     a    1        
+    VariableDeclaration(label:"a", data_type:"int")
+    Copy(src:Constant(1), dst:Variable(a))
+    //  long     b    2        
+    VariableDeclaration(label:"b", data_type:"long")
+    Copy(src:Constant(2), dst:Variable(b))
+    //  long     c    a   new_node test     b         
+    VariableDeclaration(label:"c", data_type:"long")
+    Cast(Not, src:None, dst:None)
+    Binary(Add, src_1:Variable(b), src_2:None, dst:Variable(c))
+    Copy(src:Variable(c), dst:Variable(c))
     Return(Constant(0))

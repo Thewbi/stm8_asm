@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -30,6 +32,7 @@ use crate::common::variable_naming_source::VariableNamingSource;
 pub struct IdentifierResolutionVisitor {
     variable_naming_source: Rc<RefCell<VariableNamingSource>>, // https://www.youtube.com/watch?v=8O0Nt9qY_vo
     debug: bool,
+    identifier_resolution_node: IdentifierResolutionNode,
 }
 
 impl IdentifierResolutionVisitor {
@@ -38,23 +41,39 @@ impl IdentifierResolutionVisitor {
         IdentifierResolutionVisitor {
             variable_naming_source: variable_naming_source_param,
             debug: false,
+            identifier_resolution_node: IdentifierResolutionNode::new(),
         }
     }
 
-    pub fn visit(&mut self, ast_node: &mut AstNode) -> IdentifierResolutionNode {
-        self.visit_ex(ast_node, true)
+    pub fn visit(&mut self,
+        ast_node: &AstNode,
+        node_map: &HashMap::<usize, AstNode>)
+        // -> IdentifierResolutionNode
+        -> HashMap::<usize, AstNode>
+    {
+        self.visit_ex(ast_node, true, node_map)
     }
 
-    pub fn visit_ex(&mut self, ast_node: &mut AstNode, build_new_scope: bool) -> IdentifierResolutionNode {
+    pub fn visit_ex(&mut self,
+        ast_node: &AstNode,
+        build_new_scope: bool,
+        node_map: &HashMap::<usize, AstNode>
+    )
+        // -> IdentifierResolutionNode
+        -> HashMap::<usize, AstNode>
+    {
 
         // DEBUG
         if self.debug {
             println!("[visit_ex()] {:?}", ast_node.node_type);
         }
 
+        let mut node_map = node_map.clone();
+
         match ast_node.node_type {
 
             AstNodeType::Program => {
+                // DEBUG
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
@@ -63,205 +82,193 @@ impl IdentifierResolutionVisitor {
                 for i in 0..ast_node.block_items.len() {
 
                     let index = ast_node.block_items.len()-1-i;
-                    self.visit(&mut ast_node.block_items[index]);
+                    // let rc = ast_node.block_items[index].as_ref();
+                    // self.visit(&mut rc.borrow_mut());
+
+                    self.visit(&node_map.get(&ast_node.block_items[index]).unwrap(), &node_map);
                 }
             }
 
             AstNodeType::ConstInt => {
+                // DEBUG
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
 
-                let mut semantic_analysis_node: IdentifierResolutionNode = IdentifierResolutionNode::new();
-                semantic_analysis_node.node_type = ast_node.node_type.clone();
-                semantic_analysis_node.string_val = ast_node.string_val.clone();
+                // convert AstNode to IdentifierResolutionNode
+                // let mut semantic_analysis_node: IdentifierResolutionNode = IdentifierResolutionNode::new();
+                // semantic_analysis_node.node_type = ast_node.node_type.clone();
+                // semantic_analysis_node.string_val = ast_node.string_val.clone();
 
-                return semantic_analysis_node;
+                self.identifier_resolution_node.node_type = ast_node.node_type.clone();
+                self.identifier_resolution_node.string_val = ast_node.string_val.clone();
+
+                // return semantic_analysis_node;
             }
 
             AstNodeType::ConstLong => {
+                // DEBUG
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
 
-                let mut semantic_analysis_node: IdentifierResolutionNode = IdentifierResolutionNode::new();
-                semantic_analysis_node.node_type = ast_node.node_type.clone();
-                semantic_analysis_node.string_val = ast_node.string_val.clone();
+                // let mut semantic_analysis_node: IdentifierResolutionNode = IdentifierResolutionNode::new();
+                self.identifier_resolution_node.node_type = ast_node.node_type.clone();
+                self.identifier_resolution_node.string_val = ast_node.string_val.clone();
 
-                return semantic_analysis_node;
+                // return semantic_analysis_node;
             }
 
             AstNodeType::ConstUInt => {
+                // DEBUG
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
 
-                let mut semantic_analysis_node: IdentifierResolutionNode = IdentifierResolutionNode::new();
-                semantic_analysis_node.node_type = ast_node.node_type.clone();
-                semantic_analysis_node.string_val = ast_node.string_val.clone();
+                // let mut semantic_analysis_node: IdentifierResolutionNode = IdentifierResolutionNode::new();
+                self.identifier_resolution_node.node_type = ast_node.node_type.clone();
+                self.identifier_resolution_node.string_val = ast_node.string_val.clone();
 
-                return semantic_analysis_node;
+                // return semantic_analysis_node;
             }
 
             AstNodeType::ConstULong => {
+                // DEBUG
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
 
-                let mut semantic_analysis_node: IdentifierResolutionNode = IdentifierResolutionNode::new();
-                semantic_analysis_node.node_type = ast_node.node_type.clone();
-                semantic_analysis_node.string_val = ast_node.string_val.clone();
+                // let mut semantic_analysis_node: IdentifierResolutionNode = IdentifierResolutionNode::new();
+                self.identifier_resolution_node.node_type = ast_node.node_type.clone();
+                self.identifier_resolution_node.string_val = ast_node.string_val.clone();
 
-                return semantic_analysis_node;
+                // return semantic_analysis_node;
             }
 
             AstNodeType::ConstDouble => {
+                // DEBUG
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
 
-                let mut semantic_analysis_node: IdentifierResolutionNode = IdentifierResolutionNode::new();
-                semantic_analysis_node.node_type = ast_node.node_type.clone();
-                semantic_analysis_node.string_val = ast_node.string_val.clone();
+                // let mut semantic_analysis_node: IdentifierResolutionNode = IdentifierResolutionNode::new();
+                self.identifier_resolution_node.node_type = ast_node.node_type.clone();
+                self.identifier_resolution_node.string_val = ast_node.string_val.clone();
 
-                return semantic_analysis_node;
+                // return semantic_analysis_node;
             }
 
             AstNodeType::Structure => {
+                // DEBUG
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
             }
 
             AstNodeType::Array => {
+                // DEBUG
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
             }
 
             AstNodeType::Expression => {
+                // DEBUG
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                     println!("{:?}", ast_node);
                 }
 
+                let mut node_map_clone = node_map.clone();
+
                 // LHS
-                if let Some(left_node) = ast_node.lhs.as_mut() {
+                if let Some(left_node_id) = ast_node.lhs {
+                    let mut left_node = node_map_clone.get(&left_node_id).unwrap().clone();
 
                     // replace user-choosen variable name by unique variable name
-                    let replaced_var_name_node: IdentifierResolutionNode = self.visit(left_node);
-                    let replaced_var_name = replaced_var_name_node.string_val;
+                    // let replaced_var_name_node: IdentifierResolutionNode = self.visit(&left_node, &node_map_clone);
+                    self.visit(&left_node, &node_map_clone);
+                    let replaced_var_name = self.identifier_resolution_node.string_val.clone();
+                    left_node.string_val = replaced_var_name;
+
+                    node_map_clone.insert(left_node.id, left_node);
+
                     // // DEBUG
                     // println!("{:?}", replaced_var_name);
-                    left_node.string_val = replaced_var_name;
                 }
 
                 // RHS
-                if let Some(right_node) = ast_node.rhs.as_mut() {
-                    let replaced_var_name_node: IdentifierResolutionNode = self.visit(right_node);
-                    let replaced_var_name = replaced_var_name_node.string_val;
+                if let Some(right_node_id) = ast_node.rhs {
+                    let mut right_node = node_map_clone.get(&right_node_id).unwrap().clone();
+
+                    // replace user-choosen variable name by unique variable name
+                    // let replaced_var_name_node: IdentifierResolutionNode = self.visit(&right_node, &node_map_clone);
+                    self.visit(&right_node, &node_map_clone);
+                    let replaced_var_name = self.identifier_resolution_node.string_val.clone();
                     right_node.string_val = replaced_var_name;
+
+                    node_map_clone.insert(right_node.id, right_node);
                 }
+
+                return node_map_clone;
             }
 
             AstNodeType::Identifier => {
+                // DEBUG
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
 
-                let mut node = IdentifierResolutionNode::new();
-                node.node_type = ast_node.node_type.clone();
-
+                // let mut identifier_resolution_node = IdentifierResolutionNode::new();
+                self.identifier_resolution_node.node_type = ast_node.node_type.clone();
                 let user_choosen_variable_name = ast_node.string_val.clone();
-
                 // DEBUG
                 // println!("user_choosen_variable_name: {:?}", user_choosen_variable_name);
 
-                node.string_val = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
+                //
+                // Replace Variable Name
+                //
+
+                self.identifier_resolution_node.string_val = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
                     Ok(var_name) => var_name,
                     Err(e) => {
                         panic!("{}", e);
                     }
                 };
 
-                return node;
+                // return identifier_resolution_node;
             }
 
             AstNodeType::Return => {
+                // DEBUG
                 if self.debug {
-                    // println!("AstNodeType.RETURN: {:?}", ast_node.node_type);
                     println!("AstNodeType.RETURN: {:?}", ast_node);
                 }
-                if let Some(left_node) = ast_node.lhs.as_mut() {
 
-                    let semant_node: IdentifierResolutionNode = self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
 
-                    println!("{:?}", semant_node);
+                    let mut node_map_clone = node_map.clone();
+
+                    let mut left_node = node_map_clone.get(&left_node_id).unwrap().clone();
+
+                    // let semant_node: IdentifierResolutionNode = self.visit(&left_node, &node_map_clone);
+                    self.visit(&left_node, &node_map_clone);
+
+                    // println!("{:?}", semant_node);
 
                     let user_choosen_variable_name = left_node.string_val.clone();
-                    let replaced_variable_name = semant_node.string_val.clone();
+                    let replaced_variable_name = self.identifier_resolution_node.string_val.clone();
 
                     // DEBUG
-                    println!("user_choosen_variable_name: '{}', replaced_variable_name: '{}'", user_choosen_variable_name, replaced_variable_name);
+                    println!("user_choosen_variable_name: '{}', replaced_variable_name: '{}'",
+                        user_choosen_variable_name, replaced_variable_name);
 
                     left_node.string_val = replaced_variable_name.clone();
 
-                    // match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
-                    //     Ok(var_name) => {
-                    //         // DEBUG
-                    //         // println!("user_choosen_variable_name: {:?} resolved into {:?}", user_choosen_variable_name, var_name);
-                    //         left_node.string_val = var_name.clone();
-                    //         var_name
-                    //     }
-                    //     Err(e) => {
-                    //         // println!("test");
-                    //         //panic!("{}", e);
-                    //         e
-                    //     }
-                    // };
+                    node_map_clone.insert(left_node.id, left_node);
+
+                    return node_map_clone;
                 }
-
-                // let mut node = IdentifierResolutionNode::new();
-                // node.node_type = ast_node.node_type.clone();
-
-                // if let Some(mut left_node) = ast_node.lhs.as_mut() {
-                //     print!("{:?}", left_node);
-
-                //     let user_choosen_variable_name = left_node.string_val.clone();
-
-                //     node.string_val = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
-                //         Ok(var_name) => {
-                //             // DEBUG
-                //             println!("user_choosen_variable_name: {:?} resolved into {:?}", user_choosen_variable_name, node.string_val);
-
-                //             left_node.string_val = node.string_val;
-
-                //             var_name
-                //         }
-                //         Err(e) => {
-                //             //panic!("{}", e);
-                //         }
-                //     };
-
-                // }
-
-                // return node;
-
-                // // LHS
-                // if let Some(left_node) = ast_node.lhs.as_mut() {
-
-                //     println!("AstNodeType.RETURN.LHS: {:?}", left_node);
-
-                //     let semant_node: IdentifierResolutionNode = self.visit(left_node);
-                //     left_node.string_val = semant_node.string_val.clone();
-                // }
-
-                // // RHS
-                // if let Some(right_node) = ast_node.rhs.as_mut() {
-                //     let semant_node: IdentifierResolutionNode = self.visit(right_node);
-
-                //     right_node.string_val = semant_node.string_val.clone();
-                // }
             }
 
             AstNodeType::If => {
@@ -272,18 +279,18 @@ impl IdentifierResolutionVisitor {
                 // Important: replace variable names in potential if expressions
 
                 // Expression
-                if let Some(expression_node) = ast_node.expression.as_mut() {
-                    self.visit(expression_node);
+                if let Some(expression_node_id) = ast_node.expression {
+                    self.visit(node_map.get(&expression_node_id).unwrap(), &node_map);
                 }
 
                 // LHS
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
+                    self.visit(node_map.get(&left_node_id).unwrap(), &node_map);
                 }
 
                 // RHS
-                if let Some(right_node) = ast_node.rhs.as_mut() {
-                    self.visit(right_node);
+                if let Some(right_node_id) = ast_node.rhs {
+                    self.visit(node_map.get(&right_node_id).unwrap(), &node_map);
                 }
             }
 
@@ -293,10 +300,15 @@ impl IdentifierResolutionVisitor {
                     println!("AstNode: {:?}", ast_node);
                 }
 
-                let mut node = IdentifierResolutionNode::new();
-                node.node_type = ast_node.node_type.clone();
+                // let mut node = IdentifierResolutionNode::new();
+                self.identifier_resolution_node.node_type = ast_node.node_type.clone();
 
-                if let Some(rhs_node) = ast_node.rhs.as_mut() {
+                let mut node_map_clone = HashMap::<usize, AstNode>::new();
+
+                if let Some(rhs_node_id) = ast_node.rhs {
+
+                    let mut rhs_node = node_map_clone.get(&rhs_node_id).unwrap().clone();
+
                     let user_choosen_variable_name = rhs_node.string_val.clone();
 
                     let replaced_var_name = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
@@ -310,10 +322,13 @@ impl IdentifierResolutionVisitor {
                     println!("user_choosen_variable_name: '{:?}', replaced_var_name: '{:?}'", user_choosen_variable_name, replaced_var_name);
 
                     rhs_node.string_val = replaced_var_name.clone();
-                    node.string_val = replaced_var_name.clone();
+
+                    node_map_clone.insert(rhs_node.id, rhs_node);
+
+                    self.identifier_resolution_node.string_val = replaced_var_name.clone();
                 }
 
-                return node;
+                return node_map_clone;
             }
 
             AstNodeType::Binary => {
@@ -321,21 +336,27 @@ impl IdentifierResolutionVisitor {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
 
+                let mut node_map_clone = HashMap::<usize, AstNode>::new();
+
                 // LHS
-                if let Some(left_node) = ast_node.lhs.as_mut() {
+                if let Some(left_node_id) = ast_node.lhs {
+
+                    let left_node = node_map.get(&left_node_id).unwrap();
 
                     if self.debug {
                         println!("{:?}", left_node);
                         println!("{:?}", left_node.string_val);
                     }
 
-                    let lhs_result = self.visit(left_node);
+                    //let lhs_result: IdentifierResolutionNode = self.visit(left_node, node_map);
+                    node_map_clone = self.visit(left_node, &node_map_clone);
 
-                    if self.debug {
-                        println!("{:?}", lhs_result);
-                    }
+                    // // DEBUG
+                    // if self.debug {
+                    //     println!("{:?}", lhs_result);
+                    // }
 
-                    match lhs_result.node_type {
+                    match self.identifier_resolution_node.node_type {
 
                         AstNodeType::Identifier => {
                             //let is_defined = self.variable_naming_source.borrow_mut().is_variable_name_defined(&lhs_result.string_val);
@@ -343,7 +364,7 @@ impl IdentifierResolutionVisitor {
                             // check the original user-choosen variable name
                             let is_defined = self.variable_naming_source.borrow_mut().is_variable_name_defined(&left_node.string_val);
                             if !is_defined {
-                                panic!("Variable \"{}\" is not defined!", &lhs_result.string_val);
+                                panic!("Variable \"{}\" is not defined!", &self.identifier_resolution_node.string_val);
                             }
                             //let new_name = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&lhs_result.string_val) {
                             let new_name = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&left_node.string_val) {
@@ -355,7 +376,11 @@ impl IdentifierResolutionVisitor {
                             if self.debug {
                                 println!("{:?}", new_name);
                             }
-                            left_node.string_val = new_name;
+
+                            let mut left_node_clone = left_node.clone();
+                            left_node_clone.string_val = new_name;
+
+                            node_map_clone.insert(left_node_clone.id, left_node_clone);
                         }
                         _ => {
 
@@ -364,34 +389,33 @@ impl IdentifierResolutionVisitor {
                 }
 
                 // RHS
-                if let Some(right_node) = ast_node.rhs.as_mut() {
-                    let rhs_result = self.visit(right_node);
+                if let Some(right_node_id) = ast_node.rhs {
+                    let right_node = node_map.get(&right_node_id).unwrap();
 
+                    //let rhs_result: IdentifierResolutionNode = self.visit(right_node, node_map);
+
+                    node_map_clone = self.visit(right_node, &node_map_clone);
+
+                    // DEBUG
                     if self.debug {
-                        println!("{:?}", rhs_result);
+                        println!("{:?}", self.identifier_resolution_node);
                     }
 
-                    match rhs_result.node_type {
-
+                    match self.identifier_resolution_node.node_type {
                         AstNodeType::Identifier => {
-                            // let is_defined = self.variable_naming_source.borrow_mut().is_variable_name_defined(&rhs_result.string_val);
-                            // if !is_defined {
-                            //     panic!("Variable \"{}\" is not defined!", &rhs_result.string_val);
-                            // }
 
-                            // let new_name = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&rhs_result.string_val);
-                            // if self.debug {
-                            //     println!("{:?}", new_name);
-                            // }
-                            // right_node.string_val = new_name;
+                            let mut right_node_clone = right_node.clone();
+                            right_node_clone.string_val = self.identifier_resolution_node.string_val.clone();
 
-                            right_node.string_val = rhs_result.string_val.clone();
+                            node_map_clone.insert(right_node_clone.id, right_node_clone);
                         }
                         _ => {
 
                         }
                     }
                 }
+
+                return node_map_clone;
             }
 
             AstNodeType::Operator => {
@@ -417,8 +441,8 @@ impl IdentifierResolutionVisitor {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
 
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
+                    self.visit(node_map.get(&left_node_id).unwrap(), &node_map);
                 }
             }
 
@@ -433,11 +457,6 @@ impl IdentifierResolutionVisitor {
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
-
-                // ast_node.rhs = Some(Box::new(data_type_ast_node));
-                //    object_declaration_ast_node.lhs = Some(Box::new(identifier_ast_node));
-                //    object_declaration_ast_node.string_val = ident;
-                // data_type (return value)
 
                 // DEBUG
                 if self.debug {
@@ -454,8 +473,11 @@ impl IdentifierResolutionVisitor {
 
                 // &ast_node.function_name_ast_node.unwrap().string_val
 
-                if let Some(function_name) = ast_node.function_name_ast_node.as_ref() {
-                    let user_define_function_name = self.variable_naming_source.borrow_mut().new_function_declaration(&function_name.string_val);
+                if let Some(function_name_id) = ast_node.function_name_ast_node {
+
+                    let function_name = node_map.get(&function_name_id).unwrap();
+                    let user_define_function_name
+                        = self.variable_naming_source.borrow_mut().new_function_declaration(&function_name.string_val);
 
                     // // DEBUG
                     // println!("user_define_function_name: {:?}", user_define_function_name);
@@ -471,12 +493,17 @@ impl IdentifierResolutionVisitor {
                 // println!("[AstNodeType::FunctionDeclaration ENTER_SCOPE]");
                 self.variable_naming_source.borrow_mut().enter_scope();
 
+                let mut node_map_clone = HashMap::<usize, AstNode>::new();
+
                 // parameters - are visited in the same context (= same varname_map on the stack) as the function declaration itself
                 for i in 0..ast_node.parameters.len() {
                     // let index = ast_node.parameters.len()-1-i;
                     // self.visit(&mut ast_node.parameters[index]);
 
-                    self.visit(&mut ast_node.parameters[i]);
+                    let id = ast_node.parameters[i];
+                    let node = node_map.get(&id).unwrap();
+
+                    node_map_clone = self.visit(&node, &node_map);
                 }
 
                 //
@@ -484,7 +511,9 @@ impl IdentifierResolutionVisitor {
                 // is visited in the same context (= same varname_map on the stack) as the function declaration and it's parameters
                 //
 
-                if let Some(left_node) = ast_node.lhs.as_mut() {
+                if let Some(left_node_id) = ast_node.lhs {
+
+                    let left_node = node_map.get(&left_node_id).unwrap();
 
                     if self.debug {
                         print!("{:?}", left_node);
@@ -503,7 +532,7 @@ impl IdentifierResolutionVisitor {
                     // parameter names as it is not valid to shadow parameters using
                     // local variables!
                     let build_new_scope = false;
-                    self.visit_ex(left_node, build_new_scope);
+                    self.visit_ex(left_node, build_new_scope, &node_map);
 
                     // println!("[AstNodeType::FunctionDeclaration EXIT_SCOPE]");
                     // self.variable_naming_source.borrow_mut().exit_scope();
@@ -522,10 +551,10 @@ impl IdentifierResolutionVisitor {
                 }
 
                 // data type
-                if let Some(left_node) = ast_node.lhs.as_mut() {
+                if let Some(left_node_id) = ast_node.lhs {
                     // DEBUG
                     if self.debug {
-                        print!("{:?}", left_node);
+                        print!("{:?}", left_node_id);
                     }
                 }
 
@@ -533,7 +562,9 @@ impl IdentifierResolutionVisitor {
 
                 // identifier (RHS)
                 let mut varname = String::from("");
-                if let Some(right_node) = ast_node.rhs.as_mut() {
+                if let Some(right_node_id) = ast_node.rhs {
+
+                    let mut right_node = node_map.get(&right_node_id).unwrap().clone();
 
                     // DEBUG
                     if self.debug {
@@ -558,6 +589,8 @@ impl IdentifierResolutionVisitor {
                     // Subsequent steps such as TACKY generation will use unique names instead
                     // of duplicate names separated by scopes
                     right_node.string_val = user_define_varname.clone();
+
+                    node_map.insert(right_node.id, right_node);
                 }
 
                 // initialization expression
@@ -565,25 +598,26 @@ impl IdentifierResolutionVisitor {
                 // perform semantic analysis of the initialization expression
                 // replace variable names with the unique variable names from
                 // the map stored inside the variable_naming_source
-                if let Some(expression_node) = ast_node.expression.as_mut() {
+                if let Some(expression_node_id) = ast_node.expression {
+                    let expression_node = node_map.get(&expression_node_id).unwrap();
                     // DEBUG
                     if self.debug {
                         print!("{:?}", expression_node);
                     }
-                    self.visit(expression_node);
+                    self.visit(expression_node, &node_map);
                 }
 
                 // TODO: return VariableDeclaration node
 
-                let mut node = IdentifierResolutionNode::new();
-                node.node_type = AstNodeType::VariableDeclaration;
+                // let mut node = IdentifierResolutionNode::new();
+                self.identifier_resolution_node.node_type = AstNodeType::VariableDeclaration;
 
                 // the variable name is changed to a unique variable name to handle/represent nested scopes
                 // Subsequent steps such as TACKY generation will not know about scopes as the variable
                 // names have already been made unique by the linearization applied here!
-                node.string_val = user_define_varname;
+                self.identifier_resolution_node.string_val = user_define_varname;
 
-                return node;
+                // return node;
             }
 
             AstNodeType::StructureDeclaration => {
@@ -598,7 +632,9 @@ impl IdentifierResolutionVisitor {
                 }
 
                 // parameter's data type (RHS)
-                if let Some(right_node) = ast_node.rhs.as_mut() {
+                if let Some(right_node_id) = ast_node.rhs {
+
+                    let right_node = node_map.get(&right_node_id).unwrap();
 
                     // data type
                     let data_type = right_node.string_val.clone();
@@ -608,13 +644,15 @@ impl IdentifierResolutionVisitor {
 
                     // void parameters are not inserted into the name map
                     if data_type == "void" {
-                        return IdentifierResolutionNode::new();
+                        // return IdentifierResolutionNode::new();
                     }
                 }
 
                 // parameter's identifier (LHS)
                 let mut param_name = String::from("");
-                if let Some(left_node) = ast_node.lhs.as_mut() {
+                if let Some(left_node_id) = ast_node.lhs {
+
+                    let left_node = node_map.get(&left_node_id).unwrap();
 
                     // DEBUG
                     if self.debug {
@@ -631,11 +669,11 @@ impl IdentifierResolutionVisitor {
                     // To remember if a variable is used, it maintains a data structure of variables
                     let user_define_varname = self.variable_naming_source.borrow_mut().new_user_defined_var(&param_name);
 
-                    let mut node = IdentifierResolutionNode::new();
-                    node.node_type = AstNodeType::ParameterDeclaration;
-                    node.string_val = user_define_varname;
+                    // let mut node = IdentifierResolutionNode::new();
+                    self.identifier_resolution_node.node_type = AstNodeType::ParameterDeclaration;
+                    self.identifier_resolution_node.string_val = user_define_varname;
 
-                    return node;
+                    // return node;
                 }
             }
 
@@ -645,8 +683,8 @@ impl IdentifierResolutionVisitor {
                     println!("{:?}", ast_node);
                 }
 
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(ast_node.lhs.as_mut().unwrap());
+                if let Some(left_node_id) = ast_node.lhs {
+                    self.visit(node_map.get(&left_node_id).unwrap(), &node_map);
                 }
             }
 
@@ -671,14 +709,13 @@ impl IdentifierResolutionVisitor {
                 }
 
                 for i in 0..ast_node.block_items.len() {
-
                     // DEBUG
                     if self.debug {
                         println!("BlockItem {}:", i+1);
                     }
-
                     let index = ast_node.block_items.len()-1-i;
-                    self.visit(&mut ast_node.block_items[index]);
+                    let block_item = node_map.get(&ast_node.block_items[index]).unwrap();
+                    self.visit(&block_item, &node_map);
                 }
 
                 if build_new_scope {
@@ -694,8 +731,8 @@ impl IdentifierResolutionVisitor {
                 }
 
                 // LHS
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id_id) = ast_node.lhs {
+                    self.visit(node_map.get(&left_node_id_id).unwrap(), &node_map);
                 }
             }
 
@@ -711,8 +748,8 @@ impl IdentifierResolutionVisitor {
                 }
 
                 // LHS
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
+                    self.visit(node_map.get(&left_node_id).unwrap(), &node_map);
                 }
             }
 
@@ -729,33 +766,40 @@ impl IdentifierResolutionVisitor {
 
                 // LHS - initialization, e.g.: a = 0
                 let lhs_ast_node_id = 0;
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
+                    self.visit(node_map.get(&left_node_id).unwrap(), &node_map);
                 }
 
                 // Expression - expression_ast_node, condition, e.g. a < 10
                 let rhs_ast_node_id = 0;
-                if let Some(expression_node) = ast_node.expression.as_mut() {
-                    self.visit(expression_node);
+                if let Some(expression_node_id) = ast_node.expression {
+                    self.visit(node_map.get(&expression_node_id).unwrap(), &node_map);
                 }
 
                 // RHS - post, e.g.: a = a + 1
                 let rhs_ast_node_id = 0;
-                if let Some(right_node) = ast_node.rhs.as_mut() {
-                    let replaced_var_name_node = self.visit(right_node);
-                    let replaced_var_name = replaced_var_name_node.string_val;
+                if let Some(right_node_id) = ast_node.rhs {
+
+                    let mut right_node = node_map.get(&right_node_id).unwrap().clone();
+
+                    // let replaced_var_name_node: IdentifierResolutionNode = self.visit(right_node, node_map);
+                    // let replaced_var_name = replaced_var_name_node.string_val;
+                    node_map = self.visit(&right_node, &node_map);
+                    let replaced_var_name = self.identifier_resolution_node.string_val.clone();
 
                     // DEBUG
                     println!("{:?}", replaced_var_name);
 
                     right_node.string_val = replaced_var_name;
+
+                    node_map.insert(right_node.id, right_node);
                 }
 
                 // BLOCK_ITEMS - instructions and declarations
                 for i in 0..ast_node.block_items.len() {
                     let idx = ast_node.block_items.len()-1-i;
-                    let block_item = ast_node.block_items[idx].as_mut();
-                    self.visit(block_item);
+                    let mut block_item = node_map.get(&ast_node.block_items[idx]).unwrap();
+                    self.visit(&mut block_item, &node_map);
                 }
             }
 
@@ -764,11 +808,11 @@ impl IdentifierResolutionVisitor {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
 
-                let mut node = IdentifierResolutionNode::new();
-                node.node_type = AstNodeType::FunctionCall;
-                node.string_val = ast_node.string_val.clone();
+                // let mut node = IdentifierResolutionNode::new();
+                self.identifier_resolution_node.node_type = AstNodeType::FunctionCall;
+                self.identifier_resolution_node.string_val = ast_node.string_val.clone();
 
-                return node;
+                // return node;
             }
 
             AstNodeType::StorageClassSpecifier => {
@@ -825,8 +869,8 @@ impl IdentifierResolutionVisitor {
                 }
 
                 // LHS
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
+                    self.visit(node_map.get(&left_node_id).unwrap(), &node_map);
                 }
             }
 
@@ -871,12 +915,12 @@ impl IdentifierResolutionVisitor {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
                 // LHS
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
+                    self.visit(node_map.get(&left_node_id).unwrap(), &node_map);
                 }
                 // RHS
-                if let Some(right_node) = ast_node.rhs.as_mut() {
-                    self.visit(right_node);
+                if let Some(right_node_id) = ast_node.rhs {
+                    self.visit(node_map.get(&right_node_id).unwrap(), &node_map);
                 }
             }
 
@@ -888,28 +932,80 @@ impl IdentifierResolutionVisitor {
             }
         }
 
-        return IdentifierResolutionNode::new();
+        // return IdentifierResolutionNode::new();
+        return node_map.clone();
     }
 }
 
 
+// match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
+                    //     Ok(var_name) => {
+                    //         // DEBUG
+                    //         // println!("user_choosen_variable_name: {:?} resolved into {:?}", user_choosen_variable_name, var_name);
+                    //         left_node.string_val = var_name.clone();
+                    //         var_name
+                    //     }
+                    //     Err(e) => {
+                    //         // println!("test");
+                    //         //panic!("{}", e);
+                    //         e
+                    //     }
+                    // };
 
+// let mut node = IdentifierResolutionNode::new();
+                // node.node_type = ast_node.node_type.clone();
 
-// if let Some(right_node) = ast_node.rhs.as_mut() {
-                    // if self.debug {
-                    //     print!("{:?}", right_node);
-                    // }
+                // if let Some(mut left_node) = ast_node.lhs.as_mut() {
+                //     print!("{:?}", left_node);
 
+                //     let user_choosen_variable_name = left_node.string_val.clone();
 
+                //     node.string_val = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
+                //         Ok(var_name) => {
+                //             // DEBUG
+                //             println!("user_choosen_variable_name: {:?} resolved into {:?}", user_choosen_variable_name, node.string_val);
 
+                //             left_node.string_val = node.string_val;
 
-                    // let block_item_ast_node_id = self.block_items[self.block_items.len()-1-i].pretty_print_ast_dot(string_buffer);
-                    // // connect parent and child
-                    // // println!("{} -> {}", ast_node_id, block_item_ast_node_id);
-                    // string_buffer.push_str(format!("{} -> {}\n", ast_node_id, block_item_ast_node_id).as_str());
+                //             var_name
+                //         }
+                //         Err(e) => {
+                //             //panic!("{}", e);
+                //         }
+                //     };
 
-                    // self.visit(ast_node.block_items[ast_node.block_items.len()-1-i]);
+                // }
 
-                    // if let Some(block_item_node) = ast_node.block_items[ast_node.block_items.len()-1-i].as_mut() {
-                    //     self.visit(block_item_node);
-                    // }
+                // return node;
+
+                // // LHS
+                // if let Some(left_node) = ast_node.lhs.as_mut() {
+
+                //     println!("AstNodeType.RETURN.LHS: {:?}", left_node);
+
+                //     let semant_node: IdentifierResolutionNode = self.visit(left_node);
+                //     left_node.string_val = semant_node.string_val.clone();
+                // }
+
+                // // RHS
+                // if let Some(right_node) = ast_node.rhs.as_mut() {
+                //     let semant_node: IdentifierResolutionNode = self.visit(right_node);
+
+                //     right_node.string_val = semant_node.string_val.clone();
+                // }
+
+                // let is_defined = self.variable_naming_source.borrow_mut().is_variable_name_defined(&rhs_result.string_val);
+                            // if !is_defined {
+                            //     panic!("Variable \"{}\" is not defined!", &rhs_result.string_val);
+                            // }
+
+                            // let new_name = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&rhs_result.string_val);
+                            // if self.debug {
+                            //     println!("{:?}", new_name);
+                            // }
+                            // right_node.string_val = new_name;
+
+// ast_node.rhs = Some(Box::new(data_type_ast_node));
+                //    object_declaration_ast_node.lhs = Some(Box::new(identifier_ast_node));
+                //    object_declaration_ast_node.string_val = ident;
+                // data_type (return value)

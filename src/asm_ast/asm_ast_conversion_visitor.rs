@@ -229,6 +229,11 @@ impl AsmAstConversionVisitor {
                 InstructionType::Comment => {
                 }
 
+                InstructionType::Cast => {
+                    // TODO
+                    println!("Fixme!");
+                }
+
                 InstructionType::Unary => {
                     self.visit_tacky_unary(&mut asm_ast_function, tacky_instruction);
                 }
@@ -877,6 +882,9 @@ impl AsmAstConversionVisitor {
                     ValueElement::Variable(variable_name) => {
                         mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
                     }
+                    ValueElement::Cast(src_type, dst_type) => {
+                        //mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+                    }
                     ValueElement::None => {
                         // do nothing
                     }
@@ -1462,11 +1470,15 @@ impl AsmAstConversionVisitor {
 
         match &tacky_node_binary.src_2 {
             ValueElement::Constant(constant_value) => {
-                // println!("{}", constant_value);
                 binary.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
             }
             ValueElement::Variable(variable_name) => {
                 binary.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+            }
+            ValueElement::Cast(src_type, dst_type) => {
+                // TODO
+                println!("Fixme!");
+                binary.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(String::from("Fixme!")) };
             }
             _ => {
                 panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_binary.src_2).as_str());

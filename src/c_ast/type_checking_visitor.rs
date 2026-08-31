@@ -1,7 +1,13 @@
-use std::cell::RefCell;
 use std::rc::Rc;
 
+use std::cell::RefCell;
+
+use std::collections::HashMap;
+
 use std::str::FromStr;
+
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 
 use crate::AstNode;
 use crate::AstNodeType;
@@ -12,6 +18,9 @@ use crate::common::data_type::DataType;
 use crate::common::data_type::DataType::DataTypeInt;
 use crate::common::symbol_table::SymbolTableEntry;
 use crate::common::symbol_table::SymbolTableEntryType;
+
+// pub static AST_NODE_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+use crate::c_ast::ast_node_id_counter::AST_NODE_ID_COUNTER;
 
 //
 // Nora Sandler, page 178
@@ -29,6 +38,7 @@ use crate::common::symbol_table::SymbolTableEntryType;
 pub struct TypeCheckingVisitor {
     symbol_table: Rc<RefCell<SymbolTable>>, // https://www.youtube.com/watch?v=8O0Nt9qY_vo
     debug: bool,
+    // node_map: HashMap::<usize, Rc<RefCell<AstNode>>>,
 }
 
 impl TypeCheckingVisitor {
@@ -37,6 +47,7 @@ impl TypeCheckingVisitor {
         TypeCheckingVisitor {
             symbol_table: symbol_table_param,
             debug: false,
+            // node_map: HashMap::<usize, Rc<RefCell<AstNode>>>::new(),
         }
     }
 
@@ -44,7 +55,49 @@ impl TypeCheckingVisitor {
         self.symbol_table.borrow_mut().print_symbol_table();
     }
 
-    pub fn retrieve_type(&self, ast_node: &AstNode) -> DataType {
+    pub fn get_node_type(&self, node_id: usize, node_map: &mut HashMap::<usize, AstNode>) -> AstNodeType {
+        // self.get_node(node_id).node_type
+        //AstNodeType::Program
+
+        let node = node_map.get(&node_id).unwrap();
+        return node.node_type.clone();
+    }
+
+    // pub fn get_node(&self, node_id: usize, node_map: &mut HashMap::<usize, AstNode>) -> AstNode {
+    //     let node = node_map.get(&node_id).unwrap();
+    //     return node;
+    //     // return node.borrow().clone();
+    //     // AstNode::new(0usize)
+    // }
+
+    pub fn insert_new_parent(&mut self, node_id: usize, node_map: &HashMap::<usize, AstNode>) -> HashMap::<usize, AstNode> {
+        println!("test");
+
+        node_map.clone()
+
+        // //
+        // // HOW DO I FIGHT THE BORROW-SCHMECKLER CORRECTLY?
+        // //
+        // // i have no idea! How about a round of supra mayro krat?
+        // //
+
+        // let mut temp_map = HashMap::<usize, Rc<RefCell<AstNode>>>::new();
+
+        // let mut used_map = std::mem::replace(&mut node_map, temp_map);
+
+        // // let data_type_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+        // let data_type_ast_node: AstNode = AstNode::new(300usize);
+        // let rc = Rc::new(RefCell::new(data_type_ast_node));
+        // used_map.insert(300usize, rc.clone());
+
+        // let node = used_map.get(&node_id).unwrap();
+        // node.borrow_mut().parent_id = Some(300usize);
+        // // node.borrow_mut().insert_new_parent(&mut used_map);
+
+        // let mut temp_map = std::mem::replace(&mut node_map, used_map);
+    }
+
+    pub fn retrieve_type(&mut self, ast_node: &AstNode) -> DataType {
         // check if the operand is a literal or a symbol
         match ast_node.node_type {
             AstNodeType::ConstInt => {
@@ -83,12 +136,26 @@ impl TypeCheckingVisitor {
         return DataType::DataTypeLong;
     }
 
-    pub fn visit(&mut self, ast_node: &mut AstNode) {
+    //pub fn visit(&mut self, ast_node: &mut AstNode: &mut HashMap::<usize, Rc<RefCell<AstNode>>>) {
+    //pub fn visit(&mut self, ast_node_ref: &Rc<RefCell<AstNode>>: &mut HashMap::<usize, Rc<RefCell<AstNode>>>) {
+    pub fn visit(&mut self, ast_node_id: usize, node_map: &HashMap::<usize, AstNode>) -> HashMap::<usize, AstNode> {
 
-        // DEBUG
-        if self.debug {
-            println!("[visit_ex()] {:?}", ast_node.node_type);
-        }
+        let ast_node = node_map.get(&ast_node_id).unwrap();
+        let mut node_map = node_map.clone();
+
+        // // DEBUG
+        // if self.debug {
+        //     println!("[visit_ex()] {:?}", ast_node.node_type);
+        // }
+
+        // let mut ast_node = ast_node_ref.borrow_mut();
+
+        // let ast_node = node_map.get(&ast_node_id).unwrap().borrow();
+        //let mut ast_node = node_map.get_mut(&ast_node_id).unwrap().borrow_mut();
+        // let mut ast_node = ast_node.clone();
+
+        // let ast_node_type = self.get_node_type(ast_node_id, node_map);
+        // let mut ast_node = self.get_node(ast_node_id);
 
         match ast_node.node_type {
 
@@ -96,7 +163,11 @@ impl TypeCheckingVisitor {
                 // visit all items in the body of the program
                 for i in 0..ast_node.block_items.len() {
                     let index = ast_node.block_items.len()-1-i;
-                    self.visit(&mut ast_node.block_items[index]);
+                    let block_item_id = ast_node.block_items[index];
+                    //let mut block_item_node = node_map.get(&block_item_id).unwrap().borrow();
+                    //self.visit(&mut block_item_node);
+                    // let block_item_node = node_map.get_mut(&block_item_id).unwrap();
+                    node_map = self.visit(block_item_id, &node_map);
                 }
             }
 
@@ -122,22 +193,23 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Expression => {
-
                 // // DEBUG
                 // println!("{:?}", ast_node);
 
                 // LHS
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
+                    // let mut left_node = node_map.get(&left_node_id).unwrap();
+                    node_map = self.visit(left_node_id, &node_map);
                 }
                 // RHS
-                if let Some(right_node) = ast_node.rhs.as_mut() {
-                    self.visit(right_node);
+                if let Some(right_node_id) = ast_node.rhs {
+                    // let mut right_node = node_map.get(&right_node_id).unwrap();
+                    node_map = self.visit(right_node_id, &node_map);
                 }
             }
 
             AstNodeType::Identifier => {
-                // // DEBUG
+                // DEBUG
                 if self.debug {
                     println!("{:?}", ast_node);
                 }
@@ -145,25 +217,29 @@ impl TypeCheckingVisitor {
 
             AstNodeType::Return => {
                 // LHS
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
+                    // let mut left_node = node_map.get(&left_node_id).unwrap();
+                    node_map = self.visit(left_node_id, &node_map);
                 }
             }
 
             AstNodeType::If => {
                 // Expression
-                if let Some(expression_node) = ast_node.expression.as_mut() {
-                    self.visit(expression_node);
+                if let Some(expression_node_id) = ast_node.expression {
+                    // let mut expression_node = node_map.get(&expression_node_id).unwrap();
+                    node_map = self.visit(expression_node_id, &node_map);
                 }
 
                 // LHS
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
+                    // let mut left_node = node_map.get(&left_node_id).unwrap();
+                    node_map = self.visit(left_node_id, &node_map);
                 }
 
                 // RHS
-                if let Some(right_node) = ast_node.rhs.as_mut() {
-                    self.visit(right_node);
+                if let Some(right_node_id) = ast_node.rhs {
+                    // let mut right_node = node_map.get(&right_node_id).unwrap();
+                    node_map = self.visit(right_node_id, &node_map);
                 }
             }
 
@@ -171,21 +247,33 @@ impl TypeCheckingVisitor {
                 // println!("Unary: {:?}", ast_node);
 
                 // RHS
-                if let Some(right_node) = ast_node.rhs.as_mut() {
-                    self.visit(right_node);
+                if let Some(right_node_id) = ast_node.rhs {
+                    // let right_node = node_map.get(&right_node_id).unwrap();
+                    node_map = self.visit(right_node_id, &node_map);
 
                     // Nora Sandler, page 254. Not is always creating integer values 1 (= true), (0 = false)
                     match ast_node.operator_type {
                         AstNodeOperatorType::Not => {
-                            ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
+                            // ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
+
+                            let mut ast_node_cloned = ast_node.clone();
+                            ast_node_cloned.set_analyzed_data_type(DataType::DataTypeInt);
+
+                            node_map.insert(ast_node_cloned.id, ast_node_cloned);
                         }
                         _ => {
                             //ast_node.analyzed_data_type = right_node.analyzed_data_type.clone();
+                            // let right_node = self.get_node(right_node_id);
+                            let right_node = node_map.get(&right_node_id).unwrap();
                             if !self.symbol_table.borrow_mut().contains(&right_node.string_val) {
                                 panic!("Variable '{}' not contained!", &right_node.string_val);
                             }
                             let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&right_node.string_val);
-                            ast_node.analyzed_data_type = symbol_table_entry.data_type;
+
+                            // ast_node.analyzed_data_type = symbol_table_entry.data_type;
+                            //ast_node.set_analyzed_data_type(symbol_table_entry.data_type);
+
+                            panic!();
                         }
                     }
 
@@ -196,18 +284,23 @@ impl TypeCheckingVisitor {
             AstNodeType::Binary => {
 
                 // DEBUG
-                //if self.debug {
+                if self.debug {
                     println!("{:?}", ast_node);
-                //}
+                }
 
                 let mut lhs_type = DataType::DataTypeUnknown;
                 let mut rhs_type = DataType::DataTypeUnknown;
 
                 // LHS
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
 
-                    lhs_type = self.retrieve_type(left_node);
+
+                    // let mut left_node = node_map.get(&left_node_id).unwrap();
+                    // let left_node = self.get_node(left_node_id);
+                    let left_node = node_map.get(&left_node_id).unwrap().clone();
+                    let node_map = self.visit(left_node_id, &node_map);
+
+                    lhs_type = self.retrieve_type(&left_node);
 
                     // check if a function name is used where a variable name should be used (e.g. b = foo + a)
                     if self.symbol_table.borrow_mut().contains(&left_node.string_val) {
@@ -232,10 +325,14 @@ impl TypeCheckingVisitor {
                 }
 
                 // RHS
-                if let Some(right_node) = ast_node.rhs.as_mut() {
-                    self.visit(right_node);
+                if let Some(right_node_id) = ast_node.rhs {
 
-                    rhs_type = self.retrieve_type(right_node);
+                    // let mut right_node = node_map.get(&right_node_id).unwrap();
+                    // let right_node = self.get_node(right_node_id);
+                    let right_node = node_map.get(&right_node_id).unwrap().clone();
+                    node_map = self.visit(right_node_id, &node_map);
+
+                    rhs_type = self.retrieve_type(&right_node);
 
                     // check if a function name is used where a variable name should be used (e.g. b = a + foo)
                     if self.symbol_table.borrow_mut().contains(&right_node.string_val) {
@@ -263,21 +360,78 @@ impl TypeCheckingVisitor {
 
                     // Nora Sandler, page 255. Binary Logical-AND/OR has type int (1 == true, 0 == false)
                     AstNodeOperatorType::LogicalAnd | AstNodeOperatorType::LogicalOr => {
-                        ast_node.analyzed_data_type = DataType::DataTypeInt;
+
+                        // ast_node.analyzed_data_type = DataType::DataTypeInt;
+                        //ast_node.set_analyzed_data_type(DataType::DataTypeInt);
+                        todo!();
                     }
 
                     _ => {
                         let common_data_type = self.get_common_type(&lhs_type, &rhs_type);
 
-                        if let Some(left_node) = ast_node.lhs.as_mut() {
-                            if left_node.analyzed_data_type != common_data_type {
+                        if let Some(left_node_id) = ast_node.lhs {
+
+                            // let left_node = node_map.get(&left_node_id).unwrap().borrow();
+                            // let left_node = self.get_node(left_node_id);
+
+                            let mut left_node = node_map.get(&left_node_id).unwrap().clone();
+                            lhs_type = self.retrieve_type(&left_node);
+                            if lhs_type != common_data_type {
+
+                                //
                                 // insert a cast node into the AST!
-                                panic!();
+                                //
+
+                                let cast_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                println!("{}", cast_ast_node_id);
+                                let mut cast_ast_node = AstNode::new(cast_ast_node_id);
+                                cast_ast_node.node_type = AstNodeType::Cast;
+                                cast_ast_node.lhs = Some(left_node.id);
+                                cast_ast_node.string_val = "new_node test".to_string();
+                                cast_ast_node.parent_id = Some(ast_node.id);
+                                node_map.insert(cast_ast_node_id, cast_ast_node);
+
+                                // the left node becomes child of the new middle node
+                                left_node.parent_id = Some(cast_ast_node_id);
+                                node_map.insert(left_node.id, left_node);
+
+                                // println!("{:?}", ast_node); // parent
+                                // println!("{:?}", cast_ast_node); // new middle
+                                // println!("{:?}", left_node); // child
+
+                                // clone parent, insert new LHS, replace parent in hashmap
+                                let mut ast_node_clone = ast_node.clone();
+                                ast_node_clone.lhs = Some(cast_ast_node_id);
+                                node_map.insert(ast_node_clone.id, ast_node_clone);
+
+                                // let t = node_map.get(&ast_node.id).unwrap();
+                                // println!("{:?}", t);
+                                // assert_eq!(t.lhs.unwrap(), 43usize);
+
+
+                                // TODO
+                                // let new_ast_node = left_node.insert_new_parent(&mut node_map);
+                                // node_map.insert(new_ast_node.id, Rc::new(RefCell::new(new_ast_node)));
+
+                                // return self.insert_new_parent(left_node.id, node_map);
+
+
+
+                                // let new_ast_node = AstNode::new(300usize);
+                                // node_map.insert(300usize, new_ast_node);
+
+                                // println!("test {}", node_map.contains_key(&300usize));
+
+                                // panic!();
                             }
                         }
 
-                        if let Some(right_node) = ast_node.rhs.as_mut() {
-                            if right_node.analyzed_data_type != common_data_type {
+                        if let Some(right_node_id) = ast_node.rhs {
+                            let right_node = node_map.get(&right_node_id).unwrap();
+                            rhs_type = self.retrieve_type(&right_node);
+                            if rhs_type != common_data_type {
+                                // insert a cast node into the AST!
+                                // right_node.insert_new_parent(&mut node_map);
                                 panic!();
                             }
                         }
@@ -300,8 +454,10 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Declaration => {
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                // LHS
+                if let Some(left_node_id) = ast_node.lhs {
+                    // let mut left_node = node_map.get(&left_node_id).unwrap();
+                    node_map = self.visit(left_node_id, &node_map);
                 }
             }
 
@@ -317,32 +473,38 @@ impl TypeCheckingVisitor {
 
                 // function name
                 let mut temp_function_name = String::new();
-                if let Some(function_name) = ast_node.function_name_ast_node.as_ref() {
-                    temp_function_name = function_name.string_val.clone();
+                if let Some(function_name_id) = ast_node.function_name_ast_node {
+                    let function_name_node = node_map.get(&function_name_id).unwrap();
+                    temp_function_name = function_name_node.string_val.clone();
                 }
 
                 // parameters
                 let temp_parameter_count = ast_node.parameters.len();
                 for i in 0..ast_node.parameters.len() {
-                    self.visit(&mut ast_node.parameters[i]);
+                    // let mut param_node = node_map.get(&ast_node.parameters[i]).unwrap();
+                    node_map = self.visit(ast_node.parameters[i], &node_map);
                 }
 
                 // LHS - body of function == block with statements as block_items
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
+                    // let mut left_node = node_map.get(&left_node_id).unwrap();
+                    node_map = self.visit(left_node_id, &node_map);
 
                     symbol_table_entry.has_body = true;
                 }
 
                 // RHS - Return type
                 let mut temp_data_type_as_string = String::new();
-                if let Some(right_node) = ast_node.rhs.as_mut() {
+                if let Some(right_node_id) = ast_node.rhs {
                     // println!("{:?}", right_node);
 
+                    let right_node = node_map.get(&right_node_id).unwrap();
+
                     assert!(right_node.node_type == AstNodeType::DataType);
+
                     temp_data_type_as_string = right_node.string_val.clone();
 
-                    self.visit(right_node);
+                    node_map = self.visit(right_node_id, &node_map);
                 }
 
                 let data_type_as_enum = match DataType::from_str(&temp_data_type_as_string) {
@@ -374,14 +536,15 @@ impl TypeCheckingVisitor {
 
                 // data type
                 let mut data_type = String::from("");
-                if let Some(left_node) = ast_node.lhs.as_mut() {
+                if let Some(left_node_id) = ast_node.lhs {
+                    let right_node = node_map.get(&left_node_id).unwrap();
 
                     // DEBUG
                     if self.debug {
-                        print!("{:?}", left_node);
+                        print!("{:?}", right_node);
                     }
 
-                    data_type = left_node.string_val.clone();
+                    data_type = right_node.string_val.clone();
                 }
 
                 let data_type_as_enum = match DataType::from_str(&data_type) {
@@ -395,13 +558,12 @@ impl TypeCheckingVisitor {
 
                 // identifier (RHS)
                 let mut varname = String::from("");
-                if let Some(right_node) = ast_node.rhs.as_mut() {
-
+                if let Some(right_node_id) = ast_node.rhs {
+                    let right_node = node_map.get(&right_node_id).unwrap();
                     // DEBUG
                     if self.debug {
                         print!("{:?}", right_node);
                     }
-
                     varname = right_node.string_val.clone();
                 }
 
@@ -413,12 +575,13 @@ impl TypeCheckingVisitor {
                 // perform semantic analysis of the initialization expression
                 // replace variable names with the unique variable names from
                 // the map stored inside the variable_naming_source
-                if let Some(expression_node) = ast_node.expression.as_mut() {
+                if let Some(expression_node_id) = ast_node.expression {
+                    let expression_node = node_map.get(&expression_node_id).unwrap();
                     // DEBUG
                     if self.debug {
                         print!("{:?}", expression_node);
                     }
-                    self.visit(expression_node);
+                    node_map = self.visit(expression_node_id, &node_map);
                 }
             }
 
@@ -429,8 +592,9 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Statement => {
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(ast_node.lhs.as_mut().unwrap());
+                if let Some(left_node_id) = ast_node.lhs {
+                    let left_node = node_map.get(&left_node_id).unwrap();
+                    node_map = self.visit(left_node_id, &node_map);
                 }
             }
 
@@ -443,14 +607,19 @@ impl TypeCheckingVisitor {
                     }
 
                     let index = ast_node.block_items.len()-1-i;
-                    self.visit(&mut ast_node.block_items[index]);
+                    let block_item_id = ast_node.block_items[index];
+                    let block_item_node = node_map.get(&block_item_id).unwrap();
+
+                    node_map = self.visit(block_item_id, &node_map);
                 }
             }
 
             AstNodeType::BlockItem => {
                 // LHS
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
+                    let left_node = node_map.get(&left_node_id).unwrap();
+
+                    node_map = self.visit(left_node_id, &node_map);
                 }
             }
 
@@ -459,8 +628,10 @@ impl TypeCheckingVisitor {
 
             AstNodeType::Compound => {
                 // LHS
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
+                    // let mut left_node = node_map.get(&left_node_id).unwrap();
+
+                    node_map = self.visit(left_node_id, &node_map);
                 }
             }
 
@@ -473,25 +644,29 @@ impl TypeCheckingVisitor {
             AstNodeType::For => {
                 // LHS - initialization, e.g.: a = 0
                 let lhs_ast_node_id = 0;
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
+                    // let mut left_node = node_map.get(&left_node_id).unwrap();
+                    node_map = self.visit(left_node_id, &node_map);
                 }
 
                 // Expression - expression_ast_node, condition, e.g. a < 10
-                if let Some(expression_node) = ast_node.expression.as_mut() {
-                    self.visit(expression_node);
+                if let Some(expression_node_id) = ast_node.expression {
+                    // let mut expression_node = node_map.get(&expression_node_id).unwrap();
+                    node_map = self.visit(expression_node_id, &node_map);
                 }
 
                 // RHS - post, e.g.: a = a + 1
-                if let Some(right_node) = ast_node.rhs.as_mut() {
-                    self.visit(right_node);
+                if let Some(right_node_id) = ast_node.rhs {
+                    // let mut right_node = node_map.get(&right_node_id).unwrap();
+                    node_map = self.visit(right_node_id, &node_map);
                 }
 
                 // BLOCK_ITEMS - instructions and declarations
                 for i in 0..ast_node.block_items.len() {
                     let idx = ast_node.block_items.len()-1-i;
-                    let block_item = ast_node.block_items[idx].as_mut();
-                    self.visit(block_item);
+                    let block_item_id = ast_node.block_items[idx];
+                    // let mut block_item_node = node_map.get(&block_item_id).unwrap();
+                    node_map = self.visit(block_item_id, &node_map);
                 }
             }
 
@@ -556,8 +731,9 @@ impl TypeCheckingVisitor {
 
             AstNodeType::SingleInit => {
                 // LHS
-                if let Some(left_node) = ast_node.lhs.as_mut() {
-                    self.visit(left_node);
+                if let Some(left_node_id) = ast_node.lhs {
+                    // let mut left_node = node_map.get(&left_node_id).unwrap();
+                    node_map = self.visit(left_node_id, &node_map);
                 }
             }
 
@@ -584,6 +760,15 @@ impl TypeCheckingVisitor {
 
             AstNodeType::Unknown => {
             }
+
+            _ => {
+                panic!();
+            }
         }
+
+        // let t = node_map.get(&27usize).unwrap();
+        // println!("{:?}", t);
+
+        return node_map;
     }
 }
