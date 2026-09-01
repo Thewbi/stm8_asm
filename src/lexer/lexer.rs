@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use crate::EpsilonNfa;
+use crate::c_ast::ast_node::AstNode;
 use crate::regex::enfa::transition_dfa;
 use crate::State;
 use crate::RegexBuildingBlock;
@@ -25,7 +27,7 @@ pub struct Lexer {
 
 impl Lexer {
 
-    pub fn new(dfa_param: EpsilonNfa::<State, RegexBuildingBlock>, 
+    pub fn new(dfa_param: EpsilonNfa::<State, RegexBuildingBlock>,
         lexer_debug_param: bool, lexer_token_debug_param: bool) -> Self {
 
         let lexer = Lexer {
@@ -42,7 +44,7 @@ impl Lexer {
     // TODO: the lookahead character is not used at all!
     // Remove it! It makes the parser loop more complicated
     pub fn consume_character(&mut self,
-        current_character: char, 
+        current_character: char,
         lookahead_character: char,
         step: &mut usize,
         parser: &mut Parser::<String>,
@@ -50,10 +52,12 @@ impl Lexer {
         debug_node_string_buffer: &mut String,
         debug_node_stack: &mut Vec::<DebugNode>,
         file: &String,
-        line: usize) -> usize {
+        line: usize,
+        node_map: &mut Box<HashMap::<usize, AstNode>>
+    ) -> usize {
 
-        // TODO: write line and file into the token before passing it to the parser 
-        // so that the parser has line and file information        
+        // TODO: write line and file into the token before passing it to the parser
+        // so that the parser has line and file information
 
         // check if there is a valid transition for the next character
         // greedily consume it and do not directly feed a half finished token to the parser
@@ -68,7 +72,7 @@ impl Lexer {
 
             // DEBUG
             if self.lexer_debug {
-                println!("[LEXER] State; '{}', Input: '{}', lookahead: '{}'", 
+                println!("[LEXER] State; '{}', Input: '{}', lookahead: '{}'",
                     self.current_state_id, current_character, lookahead_character);
             }
 
@@ -77,7 +81,7 @@ impl Lexer {
             // If the input has no valid transition, the DFA transitions into a trap state.
             //
 
-            next_state_id = transition_dfa(&mut self.dfa, 
+            next_state_id = transition_dfa(&mut self.dfa,
                 self.current_state_id, &RegexBuildingBlock::CharacterLiteral(current_character));
 
             if self.lexer_debug {
@@ -92,9 +96,9 @@ impl Lexer {
 
                 // DEBUG
                 if self.lexer_debug {
-                    println!("[LEXER.TRAP_STATE] Emitting '{}', Token-Id: {}, Token-Name: {} | File: {:?}, Line: {:?}", 
-                        self.token_string_buffer, 
-                        self.dfa.states[&self.current_state_id].token_id, 
+                    println!("[LEXER.TRAP_STATE] Emitting '{}', Token-Id: {}, Token-Name: {} | File: {:?}, Line: {:?}",
+                        self.token_string_buffer,
+                        self.dfa.states[&self.current_state_id].token_id,
                         self.dfa.states[&self.current_state_id].token_name,
                         file,
                         line);
@@ -115,7 +119,7 @@ impl Lexer {
                 }
 
                 match self.dfa.states[&self.current_state_id].token_id {
-                    
+
                     NEWLINE_TOKEN_ID | WHITESPACE_TOKEN_ID => {
                         // ignore NEWLINE and WHITESPACE
                         if self.lexer_debug {
@@ -130,28 +134,32 @@ impl Lexer {
                         }
 
                         // turn an identifier into a TYPE_NAME if the identifier matches a user-defined type
-                        
+
                         if parser.defined_types.contains(&self.token_string_buffer) {
 
                             // pass token to the lexer
                             parser.provide_input(
                                 rule_map,
-                                step, 
+                                step,
                                 &RuleElement::Terminal(String::from("TYPE_NAME")),
                                 &self.token_string_buffer,
                                 debug_node_string_buffer,
-                                debug_node_stack);
+                                debug_node_stack,
+                                node_map
+                            );
 
                         } else {
 
                             // pass token to the lexer
                             parser.provide_input(
                                 rule_map,
-                                step, 
+                                step,
                                 &terminal,
                                 &self.token_string_buffer,
                                 debug_node_string_buffer,
-                                debug_node_stack);
+                                debug_node_stack,
+                                node_map
+                            );
 
                         }
                     }
@@ -167,11 +175,13 @@ impl Lexer {
                             // pass token to the lexer
                             parser.provide_input(
                                 rule_map,
-                                step, 
+                                step,
                                 &terminal,
                                 &self.token_string_buffer,
                                 debug_node_string_buffer,
-                                debug_node_stack);
+                                debug_node_stack,
+                                node_map
+                            );
                         } else {
                             println!("[WARN] No rules supplied! Not calling parser!");
                             *step = *step + 1;
@@ -179,7 +189,7 @@ impl Lexer {
                     }
                 }
 
-                // reset the lexer's DFA back to the start state and 
+                // reset the lexer's DFA back to the start state and
                 // try to accept the symbol again which was read from input already
                 char_consumed = false;
                 self.current_state_id = self.dfa.start_state_id;
@@ -190,16 +200,16 @@ impl Lexer {
                 self.token_string_buffer.push(current_character);
 
                 char_consumed = true;
-                
+
                 //
                 // if the state is normal or an end state, just consume the character
                 //
 
                 // DEBUG
                 if self.lexer_debug {
-                    println!("[LEXER] Emitting '{}', Token-Id: {}, Token-Name: {} | File: {:?}, Line: {:?}", 
-                        self.token_string_buffer, 
-                        self.dfa.states[&next_state_id].token_id, 
+                    println!("[LEXER] Emitting '{}', Token-Id: {}, Token-Name: {} | File: {:?}, Line: {:?}",
+                        self.token_string_buffer,
+                        self.dfa.states[&next_state_id].token_id,
                         self.dfa.states[&next_state_id].token_name,
                         file,
                         line
@@ -232,15 +242,19 @@ impl Lexer {
         rule_map: &BTreeMap<usize, Rule<String>>,
         rule_element: &RuleElement<String>,
         debug_node_string_buffer: &mut String,
-        debug_node_stack: &mut Vec::<DebugNode>) {
+        debug_node_stack: &mut Vec::<DebugNode>,
+        node_map: &mut Box<HashMap::<usize, AstNode>>
+    ) {
 
         parser.provide_input(
             &rule_map,
-            step, 
+            step,
             rule_element,
-            &self.token_string_buffer, 
-            debug_node_string_buffer, 
-            debug_node_stack);
+            &self.token_string_buffer,
+            debug_node_string_buffer,
+            debug_node_stack,
+            node_map
+        );
     }
 
 }

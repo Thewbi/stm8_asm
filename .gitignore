@@ -1,3 +1,4 @@
 /target
 res/wdp/output.lst
 .cargo/config.toml
+abstract_syntax_tree.dot

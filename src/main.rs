@@ -96,12 +96,12 @@ use crate::example_input::input::provide_sourcode_input;
 mod c_ast;
 use crate::c_ast::ast_node::AstNode;
 use crate::c_ast::ast_node::AstNodeType;
-use crate::c_ast::identifier_resolution_visitor::IdentifierResolutionVisitor;
-use crate::c_ast::type_checking_visitor::TypeCheckingVisitor;
+// use crate::c_ast::identifier_resolution_visitor::IdentifierResolutionVisitor;
+// use crate::c_ast::type_checking_visitor::TypeCheckingVisitor;
 
 mod tacky;
 use crate::tacky::tacky::Instruction;
-use crate::tacky::tacky_visitor::TackyVisitor;
+// use crate::tacky::tacky_visitor::TackyVisitor;
 use crate::tacky::tacky::Program;
 use crate::tacky::tacky::print_tacky_program;
 
@@ -119,6 +119,65 @@ const BASE_PATH: &'static str = "";
 // https://stackoverflow.com/questions/32935808/generate-sequential-ids-for-each-instance-of-a-struct
 static RULE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static STATE_COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+pub fn print_ast(program_ast_node_id: &usize, node_map: &Box<HashMap::<usize, AstNode>>) {
+
+    let debug = false;
+
+    // println!("");
+    // println!("---------------------------------------------------------------------------------");
+    // println!("{{");
+    // println!("\"function_definitions\": [");
+    // program_ast_node.pretty_print_ast_json();
+    // println!("]");
+    // println!("}}");
+    // println!("---------------------------------------------------------------------------------");
+
+    if debug {
+        println!("");
+        println!("---------------------------------------------------------------------------------");
+    }
+
+    let mut ast_string_buffer = String::from("");
+
+    // serialize the AST into .dot graphviz format
+    ast_string_buffer.push_str("digraph {\n");
+    if let Some(body_ast_node) = node_map.get(&program_ast_node_id) {
+        body_ast_node.pretty_print_ast_dot(&mut ast_string_buffer, &node_map);
+    }
+    ast_string_buffer.push_str("}");
+
+    // DEBUG - print AST dot to console
+    // let output_ast_as_dot_to_console: bool = true;
+    let output_ast_as_dot_to_console: bool = false;
+    if output_ast_as_dot_to_console {
+        println!("{}", ast_string_buffer);
+    }
+
+    // DEBUG - print AST dot to dot file (before variable replacement)
+    let output_abstract_syntax_tree_as_dot_to_file: bool = true;
+    // let output_abstract_syntax_tree_as_dot_to_file: bool = false;
+    if output_abstract_syntax_tree_as_dot_to_file {
+
+        // https://dreampuf.github.io/GraphvizOnline
+
+        // 1. Create or overwrite the file
+        let file = File::create("abstract_syntax_tree.dot").expect("Create file failed!");
+
+        // 2. Wrap the file in a BufWriter
+        let mut writer = BufWriter::new(file);
+
+        // 3. Write data
+        write!(writer, "{}", ast_string_buffer);
+
+        // 4. Explicitly flush the remaining data to disk
+        writer.flush().expect("flush failed!");
+    }
+
+    if debug {
+        println!("---------------------------------------------------------------------------------");
+    }
+}
 
 fn main() {
 
@@ -256,7 +315,11 @@ fn main() {
             println!("*********************************************************************************");
         }
 
-        build_parse_table(&mut parse_table, &mut grammar_state_hashmap, &rule_channel_map, &augmented_start_symbol, &rule_id_to_state_id_map);
+        build_parse_table(&mut parse_table,
+            &mut grammar_state_hashmap,
+            &rule_channel_map,
+            &augmented_start_symbol,
+            &rule_id_to_state_id_map);
 
         if debug {
             println!("*********************************************************************************");
@@ -270,7 +333,8 @@ fn main() {
         let mut parse_table_string_buffer = String::new();
         let mut rules = Vec::<Rule::<String>>::new();
         let mut rule_ids = Vec::<usize>::new();
-        output_parse_table_to_csv(&mut parse_table_string_buffer, &parse_table, &grammar_state_hashmap, &mut rules, &mut rule_ids, &mut rule_map);
+        output_parse_table_to_csv(&mut parse_table_string_buffer,
+            &parse_table, &grammar_state_hashmap, &mut rules, &mut rule_ids, &mut rule_map);
         write_string_to_file("parse_table.txt", &parse_table_string_buffer);
 
         //
@@ -413,6 +477,8 @@ fn main() {
     let mut lookahead_character: char = 'y';
     let mut has_lookahead_character = false;
 
+    let mut node_map = Box::new(HashMap::<usize, AstNode>::new());
+
     //
     // DOT Graph
     //
@@ -423,8 +489,8 @@ fn main() {
     let mut debug_node_stack = Vec::<DebugNode>::new();
 
     // build the root node which is of type program
-    let id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-    let mut program_ast_node: AstNode = AstNode::new(id);
+    let program_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let mut program_ast_node: AstNode = AstNode::new(program_ast_node_id);
 
     //
     // Feed the input source code to the lexer
@@ -445,7 +511,8 @@ fn main() {
 
         // TODO: the lookahead character is not used at all!
         // Remove it! It makes the parser loop more complicated
-        lexer.consume_character(current_character,
+        lexer.consume_character(
+            current_character,
             lookahead_character,
             &mut step,
             &mut parser,
@@ -453,7 +520,9 @@ fn main() {
             &mut debug_node_string_buffer,
             &mut debug_node_stack,
             &input_tuple.1,
-            line_number);
+            line_number,
+            &mut node_map
+        );
 
         if character == '\n' {
             line_number = line_number + 1;
@@ -461,7 +530,8 @@ fn main() {
     }
 
     // consume the lookahead from the very last cycle as a normal input. Specify dummy lookahead character.
-    lexer.consume_character(lookahead_character,
+    lexer.consume_character(
+        lookahead_character,
         'x',
         &mut step,
         &mut parser,
@@ -469,7 +539,9 @@ fn main() {
         &mut debug_node_string_buffer,
         &mut debug_node_stack,
         &input_tuple.1,
-        line_number);
+        line_number,
+        &mut node_map
+    );
 
     // // DEBUG
     // let lexer_debug: bool = false;
@@ -487,24 +559,31 @@ fn main() {
             lookahead_character,
             RuleElement::Terminal(lexer.dfa.states[&lexer.current_state_id].token_name.clone()),
             &input_tuple.1,
-            line_number);
+            line_number
+        );
     }
 
     // provide the last token to the parser
-    lexer.parser_provide_input(&mut parser,
+    lexer.parser_provide_input(
+        &mut parser,
         &mut step,
         &rule_map,
         &RuleElement::Terminal(lexer.dfa.states[&lexer.current_state_id].token_name.clone()),
         &mut debug_node_string_buffer,
-        &mut debug_node_stack);
+        &mut debug_node_stack,
+        &mut node_map
+    );
 
     // provide EOI (End of Input) to the parser
-    lexer.parser_provide_input(&mut parser,
+    lexer.parser_provide_input(
+        &mut parser,
         &mut step,
         &rule_map,
         &RuleElement::Closure,
         &mut debug_node_string_buffer,
-        &mut debug_node_stack);
+        &mut debug_node_stack,
+        &mut node_map
+    );
 
     // print the parse tree to a dot file for online debugging (https://dreampuf.github.io/GraphvizOnline)
     // let output_parse_tree_as_dot_to_console: bool = true;
@@ -544,84 +623,34 @@ fn main() {
 
     if parser.construct_ast {
 
-        // // build the root node which is of type program
-        // let id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-        // let mut program_ast_node: AstNode = AstNode::new(id);
+        // build the root node which is of type program
         program_ast_node.node_type = AstNodeType::Program;
 
         // insert all nodes into program node
         let mut done = false;
         while !done {
 
-            let body_ast_node = parser.ast_stack.pop().unwrap();
-            program_ast_node.block_items.push(Box::new(body_ast_node));
+            let body_ast_node_id = parser.ast_stack.pop().unwrap();
+            // let body_ast_node = node_map.get(&body_ast_node_id);
+            program_ast_node.block_items.push(body_ast_node_id);
 
             done = parser.ast_stack.len() == 0;
         }
 
         // place the root-program node onto the stack
-        parser.ast_stack.push(program_ast_node);
+        parser.ast_stack.push(program_ast_node_id);
+
+        node_map.insert(program_ast_node.id, program_ast_node);
 
         //
         // pretty print AST (pre semantic visitor)
         //
 
         let ast_stack_root_option = parser.ast_stack.pop();
-        if let Some(ref program_ast_node) = ast_stack_root_option {
-
-            // println!("");
-            // println!("---------------------------------------------------------------------------------");
-            // println!("{{");
-            // println!("\"function_definitions\": [");
-            // program_ast_node.pretty_print_ast_json();
-            // println!("]");
-            // println!("}}");
-            // println!("---------------------------------------------------------------------------------");
-
-            if debug {
-                println!("");
-                println!("---------------------------------------------------------------------------------");
-            }
-
-            let mut ast_string_buffer = String::from("");
-
-            // serialize the AST into .dot graphviz format
-            ast_string_buffer.push_str("digraph {\n");
-            program_ast_node.pretty_print_ast_dot(&mut ast_string_buffer);
-            ast_string_buffer.push_str("}");
-
-            // DEBUG - print AST dot to console
-            // let output_ast_as_dot_to_console: bool = true;
-            let output_ast_as_dot_to_console: bool = false;
-            if output_ast_as_dot_to_console {
-                println!("{}", ast_string_buffer);
-            }
-
-            // DEBUG - print AST dot to dot file (before variable replacement)
-            let output_abstract_syntax_tree_as_dot_to_file: bool = true;
-            // let output_abstract_syntax_tree_as_dot_to_file: bool = false;
-            if output_abstract_syntax_tree_as_dot_to_file {
-
-                // https://dreampuf.github.io/GraphvizOnline
-
-                // 1. Create or overwrite the file
-                let file = File::create("abstract_syntax_tree.dot").expect("Create file failed!");
-
-                // 2. Wrap the file in a BufWriter
-                let mut writer = BufWriter::new(file);
-
-                // 3. Write data
-                write!(writer, "{}", ast_string_buffer);
-
-                // 4. Explicitly flush the remaining data to disk
-                writer.flush().expect("flush failed!");
-            }
-
-            if debug {
-                println!("---------------------------------------------------------------------------------");
-            }
+        if let Some(ref program_ast_node_id) = ast_stack_root_option {
+            print_ast(program_ast_node_id, &node_map);
         }
-
+/*
         //
         // Semantic Analysis Stage, page 103, 174ff
         //
@@ -844,72 +873,10 @@ fn main() {
                 writer.flush().expect("flush failed!");
             }
         }
-
+*/
     } else {
         println!("AST is empty!");
     }
 
     println!("end");
 }
-
-// pub fn emit_tacky(tacky_program: &Program, ast_node: &AstNode) {
-//     println!("emit_tacky");
-// }
-
-
-
-
-
-            // // append instruction to latest top-level element of the program
-            // let last = self.program.top_level.len() - 1;
-            // self.program.top_level[last].body.push(Box::new(binary_instruction));
-/*
-            let mut tacky_program: Program = Program::new();
-            tacky_program.name = String::from("binary_0.c");
-
-            emit_tacky(&tacky_program, &program_ast_node);
-
-            let mut string_buffer = String::from("");
-            let indent = 0usize;
-
-            print_tacky_program(&tacky_program, &mut string_buffer, indent);
-*/
-
-
-
-// // https://dreampuf.github.io/GraphvizOnline
-
-            // let mut ast_string_buffer = String::from("");
-
-            // ast_string_buffer.push_str("digraph {\n");
-            // program_ast_node.pretty_print_ast_dot(&mut ast_string_buffer);
-            // ast_string_buffer.push_str("}");
-
-            // // 1. Create or overwrite the file
-            // let file = File::create("abstract_syntax_tree_2.dot").expect("Create file failed!");
-
-            // // 2. Wrap the file in a BufWriter
-            // let mut writer = BufWriter::new(file);
-
-            // // 3. Write data
-            // write!(writer, "{}", ast_string_buffer);
-
-            // // 4. Explicitly flush the remaining data to disk
-            // writer.flush().expect("flush failed!");
-
-        // //
-        // // Output Parse Table into grammar_state_hashmap file
-        // //
-
-        // // write grammar_state_hashmap to file because to pop RHS from the stack, the parser
-        // // needs to know all states and rules in that state!
-
-        // // BTreeMap<usize, GrammarState<String>>
-        // // maps from state_id to GrammarState
-
-        // for (grammar_state_id, grammar_state) in &grammar_state_hashmap {
-
-        //     println!("");
-        //     println!("{} / {:?}", grammar_state_id, grammar_state);
-        //     println!("");
-        // }

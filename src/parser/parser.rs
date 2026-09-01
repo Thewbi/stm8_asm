@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet, BTreeSet, BTreeMap};
 
 use std::fs::File;
 
+use std::hash::Hash;
 use std::io::BufReader;
 use std::io::BufRead;
 
@@ -142,7 +143,7 @@ pub struct Parser<T> {
 
     // AST
     pub construct_ast: bool,
-    pub ast_stack: Vec::<AstNode>,
+    pub ast_stack: Vec::<usize>,
     pub child_counter: usize,
     pub parameter_counter: usize,
     pub switch_case_default_counter: usize,
@@ -175,7 +176,7 @@ impl Parser<String> {
             // AST
             construct_ast: true,
             //construct_ast: false,
-            ast_stack: Vec::<AstNode>::new(),
+            ast_stack: Vec::<usize>::new(),
             child_counter: 0,
             parameter_counter: 0,
             switch_case_default_counter: 0,
@@ -195,7 +196,8 @@ impl Parser<String> {
         label: &str,
         rule_id: usize,
         string_buffer: &mut String,
-        debug_node_stack: &mut Vec::<DebugNode>) -> usize {
+        debug_node_stack: &mut Vec::<DebugNode>
+    ) -> usize {
 
         // leave this function empty for a compact Tree which could be an AST.
         // Uncomment the code for a full parse tree that contains all production rules!
@@ -248,7 +250,9 @@ impl Parser<String> {
         rule_map: &BTreeMap<usize, Rule<String>>,
         string_buffer: &mut String,
         debug_node_stack: &mut Vec::<DebugNode>,
-        step: usize) -> bool {
+        step: usize,
+        node_map: &mut Box<HashMap<usize, AstNode>>
+    ) -> bool {
 
         // let debug = true;
         let debug = false;
@@ -565,11 +569,14 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                                let mut ast_node: AstNode = AstNode::new(ast_node_id);
                                                 ast_node.node_type = AstNodeType::Identifier;
                                                 ast_node.string_val = value;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node_id);
+
+                                                node_map.insert(ast_node_id, ast_node);
                                             }
                                         }
 
@@ -605,13 +612,15 @@ impl Parser<String> {
                                                 // println!("{:?}", debug_node_id);
 
                                                 // page 252 - every expression needs a type
-                                                let mut data_type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                let data_type_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                                let mut data_type_ast_node: AstNode = AstNode::new(data_type_ast_node_id);
                                                 data_type_ast_node.node_type = AstNodeType::DataType;
                                                 data_type_ast_node.string_val = String::from("undefined_type:primary_expression");
 
                                                 // println!("{:?}", value);
 
-                                                let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                                let mut ast_node: AstNode = AstNode::new(ast_node_id);
 
                                                 // https://stackoverflow.com/questions/32381414/converting-a-hexadecimal-string-to-a-decimal-integer
                                                 let value_without_prefix = value.trim_start_matches("0x");
@@ -636,9 +645,12 @@ impl Parser<String> {
                                                 };
 
                                                 ast_node.string_val = value;
-                                                ast_node.data_type = Some(Box::new(data_type_ast_node));
+                                                ast_node.data_type = Some(data_type_ast_node.id);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(data_type_ast_node.id, data_type_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -675,11 +687,13 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 // page 252 - every expression needs a type
-                                                let mut data_type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                let data_type_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                                let mut data_type_ast_node: AstNode = AstNode::new(data_type_ast_node_id);
                                                 data_type_ast_node.node_type = AstNodeType::DataType;
                                                 data_type_ast_node.string_val = String::from("undefined_type:primary_expression");
 
-                                                let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                                let mut ast_node: AstNode = AstNode::new(ast_node_id);
 
                                                 // println!("{:?}", value);
                                                 let res = match value.parse::<u64>() {
@@ -706,9 +720,12 @@ impl Parser<String> {
 
                                                 ast_node.string_val = value;
                                                 ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
-                                                ast_node.data_type = Some(Box::new(data_type_ast_node));
+                                                ast_node.data_type = Some(data_type_ast_node.id);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(data_type_ast_node.id, data_type_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -760,9 +777,12 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::ConstDouble;
                                                 ast_node.string_val = value;
-                                                ast_node.data_type = Some(Box::new(data_type_ast_node));
+                                                ast_node.data_type = Some(data_type_ast_node.id);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(data_type_ast_node.id, data_type_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -856,11 +876,12 @@ impl Parser<String> {
 
                                                 let mut subscript_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 subscript_ast_node.node_type = AstNodeType::Subscript;
-                                                // subscript_ast_node.operator_type = AstNodeOperatorType::Subscript;
-                                                subscript_ast_node.lhs = Some(Box::new(pointer_ast_node));
-                                                subscript_ast_node.rhs = Some(Box::new(index_numeric_ast_node));
+                                                subscript_ast_node.lhs = Some(pointer_ast_node);
+                                                subscript_ast_node.rhs = Some(index_numeric_ast_node);
 
-                                                self.ast_stack.push(subscript_ast_node);
+                                                self.ast_stack.push(subscript_ast_node.id);
+
+                                                node_map.insert(subscript_ast_node.id, subscript_ast_node);
                                             }
                                         }
 
@@ -880,14 +901,17 @@ impl Parser<String> {
 
                                                 let mut function_call_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 function_call_ast_node.node_type = AstNodeType::FunctionCall;
-                                                function_call_ast_node.string_val = primary_ast_node.string_val;
+                                                function_call_ast_node.string_val = node_map.get(&primary_ast_node).unwrap().string_val.clone();
 
                                                 let mut exp_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 exp_ast_node.node_type = AstNodeType::Expression;
                                                 exp_ast_node.operator_type = AstNodeOperatorType::FunctionCall;
-                                                exp_ast_node.lhs = Some(Box::new(function_call_ast_node));
+                                                exp_ast_node.lhs = Some(function_call_ast_node.id);
 
-                                                self.ast_stack.push(exp_ast_node);
+                                                self.ast_stack.push(exp_ast_node.id);
+
+                                                node_map.insert(function_call_ast_node.id, function_call_ast_node);
+                                                node_map.insert(exp_ast_node.id, exp_ast_node);
                                             }
                                         }
 
@@ -935,19 +959,22 @@ impl Parser<String> {
                                                     self.parameter_counter = self.parameter_counter - 1;
 
                                                     let parameter_ast_node = self.ast_stack.pop().unwrap();
-                                                    function_call_ast_node.parameters.push(Box::new(parameter_ast_node));
+                                                    function_call_ast_node.parameters.push(parameter_ast_node);
                                                 }
 
                                                 // identifier
                                                 let identifier_ast_node = self.ast_stack.pop().unwrap();
-                                                function_call_ast_node.string_val = identifier_ast_node.string_val;
+                                                function_call_ast_node.string_val = node_map.get(&identifier_ast_node).unwrap().string_val.clone();
 
                                                 let mut exp_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 exp_ast_node.node_type = AstNodeType::Expression;
                                                 exp_ast_node.operator_type = AstNodeOperatorType::FunctionCall;
-                                                exp_ast_node.lhs = Some(Box::new(function_call_ast_node));
+                                                exp_ast_node.lhs = Some(function_call_ast_node.id);
 
-                                                self.ast_stack.push(exp_ast_node);
+                                                self.ast_stack.push(exp_ast_node.id);
+
+                                                node_map.insert(function_call_ast_node.id, function_call_ast_node);
+                                                node_map.insert(exp_ast_node.id, exp_ast_node);
                                             }
                                         }
 
@@ -1009,25 +1036,30 @@ impl Parser<String> {
                                                 // operator_ast_node.operator_type = AstNodeOperatorType::Increment;
 
                                                 // field - e.g. age of struct person
-                                                let mut member_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                let member_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                                let mut member_ast_node: AstNode = AstNode::new(member_ast_node_id);
                                                 member_ast_node.node_type = AstNodeType::Identifier;
                                                 member_ast_node.operator_type = AstNodeOperatorType::Dot;
                                                 member_ast_node.string_val = value.clone();
 
                                                 // let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 // ast_node.node_type = AstNodeType::Unary;
-                                                // ast_node.operator = Some(Box::new(operator_ast_node));
+                                                // ast_node.operator = Some(operator_ast_node.id);
                                                 // ast_node.operator_type = AstNodeOperatorType::Increment;
-                                                // ast_node.lhs = Some(Box::new(expression_ast_node));
+                                                // ast_node.lhs = Some(expression_ast_node.id);
 
-                                                let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                                let mut ast_node: AstNode = AstNode::new(ast_node_id);
                                                 ast_node.node_type = AstNodeType::Dot;
                                                 ast_node.operator_type = AstNodeOperatorType::Dot;
-                                                ast_node.lhs = Some(Box::new(struct_identifier_ast_node)); // structure
-                                                ast_node.rhs = Some(Box::new(member_ast_node)); // structure-field / member
+                                                ast_node.lhs = Some(struct_identifier_ast_node); // structure
+                                                ast_node.rhs = Some(member_ast_node.id); // structure-field / member
                                                 // ast_node.data_type = Some(Box::new(data_type_ast_node));
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(member_ast_node.id, member_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1110,18 +1142,21 @@ impl Parser<String> {
 
                                                 // let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 // ast_node.node_type = AstNodeType::Unary;
-                                                // ast_node.operator = Some(Box::new(operator_ast_node));
+                                                // ast_node.operator = Some(operator_ast_node.id);
                                                 // ast_node.operator_type = AstNodeOperatorType::Increment;
-                                                // ast_node.lhs = Some(Box::new(expression_ast_node));
+                                                // ast_node.lhs = Some(expression_ast_node.id);
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Arrow;
                                                 ast_node.operator_type = AstNodeOperatorType::Arrow;
-                                                ast_node.lhs = Some(Box::new(struct_identifier_ast_node)); // structure
-                                                ast_node.rhs = Some(Box::new(member_ast_node)); // structure-field / member
+                                                ast_node.lhs = Some(struct_identifier_ast_node); // structure
+                                                ast_node.rhs = Some(member_ast_node.id); // structure-field / member
                                                 // ast_node.data_type = Some(Box::new(data_type_ast_node));
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(member_ast_node.id, member_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1140,8 +1175,6 @@ impl Parser<String> {
 
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-
 
                                             // ++
                                             // create new node id
@@ -1175,11 +1208,15 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Unary;
                                                 ast_node.operator_type = AstNodeOperatorType::Increment;
-                                                ast_node.lhs = Some(Box::new(operator_ast_node)); // operator
-                                                ast_node.rhs = Some(Box::new(expression_ast_node)); // operand
-                                                ast_node.data_type = Some(Box::new(data_type_ast_node));
+                                                ast_node.lhs = Some(operator_ast_node.id); // operator
+                                                ast_node.rhs = Some(expression_ast_node); // operand
+                                                ast_node.data_type = Some(data_type_ast_node.id);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(data_type_ast_node.id, data_type_ast_node);
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1230,11 +1267,15 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Unary;
                                                 ast_node.operator_type = AstNodeOperatorType::Decrement;
-                                                ast_node.lhs = Some(Box::new(operator_ast_node)); // operator
-                                                ast_node.rhs = Some(Box::new(expression_ast_node)); // operand
-                                                ast_node.data_type = Some(Box::new(data_type_ast_node));
+                                                ast_node.lhs = Some(operator_ast_node.id); // operator
+                                                ast_node.rhs = Some(expression_ast_node); // operand
+                                                ast_node.data_type = Some(data_type_ast_node.id);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(data_type_ast_node.id, data_type_ast_node);
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1327,7 +1368,6 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 let expression_ast_node = self.ast_stack.pop().unwrap();
-                                                // let operator_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::PrefixOperator;
@@ -1341,11 +1381,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Unary;
-                                                ast_node.lhs = Some(Box::new(operator_ast_node)); // operator
-                                                ast_node.rhs = Some(Box::new(expression_ast_node)); // operand
-                                                ast_node.data_type = Some(Box::new(data_type_ast_node));
+                                                ast_node.lhs = Some(operator_ast_node.id); // operator
+                                                ast_node.rhs = Some(expression_ast_node); // operand
+                                                ast_node.data_type = Some(data_type_ast_node.id);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(data_type_ast_node.id, data_type_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1380,7 +1424,6 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 let expression_ast_node = self.ast_stack.pop().unwrap();
-                                                // let operator_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::PrefixOperator;
@@ -1394,11 +1437,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Unary;
-                                                ast_node.lhs = Some(Box::new(operator_ast_node)); // operator
-                                                ast_node.rhs = Some(Box::new(expression_ast_node)); // operand
-                                                ast_node.data_type = Some(Box::new(data_type_ast_node));
+                                                ast_node.lhs = Some(operator_ast_node.id); // operator
+                                                ast_node.rhs = Some(expression_ast_node); // operand
+                                                ast_node.data_type = Some(data_type_ast_node.id);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(data_type_ast_node.id, data_type_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1431,7 +1478,7 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 let expression_ast_node = self.ast_stack.pop().unwrap();
-                                                let data_type = expression_ast_node.analyzed_data_type.clone();
+                                                let data_type = node_map.get(&expression_ast_node).unwrap().analyzed_data_type.clone();
                                                 // println!("{:?}", expression_ast_node);
                                                 let operator_ast_node = self.ast_stack.pop().unwrap();
                                                 // println!("{:?}", operator_ast_node);
@@ -1443,16 +1490,19 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Unary;
-                                                ast_node.operator_type = operator_ast_node.operator_type.clone();
-                                                ast_node.lhs = Some(Box::new(operator_ast_node)); // operator
-                                                ast_node.rhs = Some(Box::new(expression_ast_node)); // operand
-                                                ast_node.data_type = Some(Box::new(data_type_ast_node));
+                                                ast_node.operator_type = node_map.get(&operator_ast_node).unwrap().operator_type.clone();
+                                                ast_node.lhs = Some(operator_ast_node); // operator
+                                                ast_node.rhs = Some(expression_ast_node); // operand
+                                                ast_node.data_type = Some(data_type_ast_node.id);
 
                                                 // Nora Sandler, page 254, as a type take the type of the inner node
                                                 // ast_node.analyzed_data_type = DataType::from_str("ulong").unwrap();
                                                 ast_node.analyzed_data_type = data_type;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(data_type_ast_node.id, data_type_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1493,9 +1543,11 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Operator;
                                                 ast_node.operator_type = AstNodeOperatorType::SizeOf;
-                                                ast_node.expression = Some(Box::new(expression_ast_node));
+                                                ast_node.expression = Some(expression_ast_node);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1549,7 +1601,9 @@ impl Parser<String> {
                                                 ast_node.node_type = AstNodeType::Operator;
                                                 ast_node.operator_type = AstNodeOperatorType::SizeOf;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1583,7 +1637,9 @@ impl Parser<String> {
                                                 ast_node.node_type = AstNodeType::Operator;
                                                 ast_node.operator_type = AstNodeOperatorType::AddrOf;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1617,7 +1673,9 @@ impl Parser<String> {
                                                 ast_node.node_type = AstNodeType::Operator;
                                                 ast_node.operator_type = AstNodeOperatorType::Dereference;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1652,7 +1710,9 @@ impl Parser<String> {
                                                 ast_node.node_type = AstNodeType::Operator;
                                                 ast_node.operator_type = AstNodeOperatorType::Negate;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1689,7 +1749,9 @@ impl Parser<String> {
                                                 // all other operators use the data type of the inner node
                                                 // ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1725,7 +1787,9 @@ impl Parser<String> {
                                                 // all other operators use the data type of the inner node
                                                 ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1773,7 +1837,8 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 let expression_ast_node = self.ast_stack.pop().unwrap();
-                                                let type_ast_node = self.ast_stack.pop().unwrap();
+                                                let type_ast_node_id = self.ast_stack.pop().unwrap();
+                                                let type_ast_node = node_map.get(&type_ast_node_id).unwrap();
 
                                                 // page 252 - every expression needs a type
                                                 let mut data_type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
@@ -1784,11 +1849,14 @@ impl Parser<String> {
                                                 cast_ast_node.node_type = AstNodeType::Expression;
                                                 cast_ast_node.operator_type = AstNodeOperatorType::Cast;
                                                 cast_ast_node.analyzed_data_type = DataType::from_str(&type_ast_node.string_val).unwrap();
-                                                cast_ast_node.lhs = Some(Box::new(type_ast_node));
-                                                cast_ast_node.rhs = Some(Box::new(expression_ast_node));
-                                                cast_ast_node.data_type = Some(Box::new(data_type_ast_node));
+                                                cast_ast_node.lhs = Some(type_ast_node_id);
+                                                cast_ast_node.rhs = Some(expression_ast_node);
+                                                cast_ast_node.data_type = Some(data_type_ast_node.id);
 
-                                                self.ast_stack.push(cast_ast_node);
+                                                self.ast_stack.push(cast_ast_node.id);
+
+                                                node_map.insert(data_type_ast_node.id, data_type_ast_node);
+                                                node_map.insert(cast_ast_node.id, cast_ast_node);
                                             }
                                         }
 
@@ -1844,12 +1912,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::Multiplication;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1896,12 +1967,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::Division;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -1948,12 +2022,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::Remainder;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2008,12 +2085,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::Addition;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2065,12 +2145,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::Subtraction;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2126,12 +2209,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::LeftShift;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2182,12 +2268,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::RightShift;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2240,12 +2329,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::LessThan;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2293,12 +2385,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::GreaterThan;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2345,12 +2440,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::LessThanOrEqual;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2397,12 +2495,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::GreaterThanOrEqual;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2454,12 +2555,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::Equal;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2506,12 +2610,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::NotEqual;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2567,12 +2674,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::And;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2628,12 +2738,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::Xor;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2689,12 +2802,15 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::Or;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2744,13 +2860,16 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::LogicalAnd;
                                                 ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2800,13 +2919,16 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator = Some(Box::new(operator_ast_node));
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::LogicalOr;
                                                 ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(operator_ast_node.id, operator_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2867,11 +2989,13 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Conditional;
-                                                ast_node.lhs = Some(Box::new(second_ast_node)); // true-statement
-                                                ast_node.rhs = Some(Box::new(first_ast_node)); // false-statement
-                                                ast_node.expression = Some(Box::new(third_ast_node)); // expression-statement
+                                                ast_node.lhs = Some(second_ast_node); // true-statement
+                                                ast_node.rhs = Some(first_ast_node); // false-statement
+                                                ast_node.expression = Some(third_ast_node); // expression-statement
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2914,18 +3038,21 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
-                                                let operator_ast_node = self.ast_stack.pop().unwrap();
+                                                let operator_ast_node_id = self.ast_stack.pop().unwrap();
+                                                let operator_ast_node = node_map.get(&operator_ast_node_id).unwrap();
                                                 let lhs_ast_node = self.ast_stack.pop().unwrap();
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Expression;
-                                                ast_node.lhs = Some(Box::new(lhs_ast_node));
-                                                ast_node.rhs = Some(Box::new(rhs_ast_node));
-                                                ast_node.operator_type = operator_ast_node.operator_type;
+                                                ast_node.lhs = Some(lhs_ast_node);
+                                                ast_node.rhs = Some(rhs_ast_node);
+                                                ast_node.operator_type = operator_ast_node.operator_type.clone();
 
                                                 // println!("ast_node: {:?}", ast_node);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -2965,7 +3092,9 @@ impl Parser<String> {
                                                 ast_node.operator_type = AstNodeOperatorType::Assignment;
                                                 ast_node.string_val = String::from("=");
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3000,7 +3129,9 @@ impl Parser<String> {
                                                 ast_node.operator_type = AstNodeOperatorType::MulAssignment;
                                                 ast_node.string_val = String::from("*=");
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3035,7 +3166,9 @@ impl Parser<String> {
                                                 ast_node.operator_type = AstNodeOperatorType::DivAssignment;
                                                 ast_node.string_val = String::from("/=");
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3070,7 +3203,9 @@ impl Parser<String> {
                                                 ast_node.operator_type = AstNodeOperatorType::ModAssignment;
                                                 ast_node.string_val = String::from("%=");
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3105,7 +3240,9 @@ impl Parser<String> {
                                                 ast_node.operator_type = AstNodeOperatorType::AddAssignment;
                                                 ast_node.string_val = String::from("+=");
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3140,7 +3277,9 @@ impl Parser<String> {
                                                 ast_node.operator_type = AstNodeOperatorType::SubAssignment;
                                                 ast_node.string_val = String::from("-=");
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3175,7 +3314,9 @@ impl Parser<String> {
                                                 ast_node.operator_type = AstNodeOperatorType::LeftShiftAssignment;
                                                 ast_node.string_val = String::from("<<=");
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3210,7 +3351,9 @@ impl Parser<String> {
                                                 ast_node.operator_type = AstNodeOperatorType::RightShiftAssignment;
                                                 ast_node.string_val = String::from(">>=");
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3245,7 +3388,9 @@ impl Parser<String> {
                                                 ast_node.operator_type = AstNodeOperatorType::BinaryAndAssignment;
                                                 ast_node.string_val = String::from("&=");
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3280,7 +3425,9 @@ impl Parser<String> {
                                                 ast_node.operator_type = AstNodeOperatorType::BinaryXorAssignment;
                                                 ast_node.string_val = String::from("|=");
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3315,7 +3462,9 @@ impl Parser<String> {
                                                 ast_node.operator_type = AstNodeOperatorType::BinaryOrAssignment;
                                                 ast_node.string_val = String::from("|=");
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3377,10 +3526,12 @@ impl Parser<String> {
                                                 // 2nd pop: data type of function return or variable
                                                 // 3rd pop: initializer SingleInit or CompoundInit
 
-                                                let mut declarator_ast_node = self.ast_stack.pop().unwrap(); // name/identifier and optional initialization value
+                                                let declarator_ast_node_id = self.ast_stack.pop().unwrap(); // name/identifier and optional initialization value
+                                                let declarator_ast_node = node_map.get(&declarator_ast_node_id).unwrap();
                                                 // println!("{:?}", declarator_ast_node);
 
-                                                let data_type_ast_node = self.ast_stack.pop().unwrap(); // (return value) data type
+                                                let data_type_ast_node_id = self.ast_stack.pop().unwrap(); // (return value) data type
+                                                let data_type_ast_node = node_map.get(&data_type_ast_node_id).unwrap();
                                                 // println!("{:?}", data_type_ast_node);
 
                                                 let mut object_declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
@@ -3392,7 +3543,8 @@ impl Parser<String> {
                                                             object_declaration_ast_node.function_name_ast_node = declarator_ast_node.function_name_ast_node;
                                                         }
 
-                                                        object_declaration_ast_node.parameters = std::mem::take(&mut declarator_ast_node.parameters);
+                                                        //object_declaration_ast_node.parameters = std::mem::take(&mut declarator_ast_node.parameters);
+                                                        object_declaration_ast_node.parameters = declarator_ast_node.parameters.clone();
 
                                                         //
                                                         // TYPE (function return type)
@@ -3401,26 +3553,27 @@ impl Parser<String> {
 
                                                         // println!("{:?}", data_type_ast_node.parameters);
                                                         object_declaration_ast_node.node_type = AstNodeType::FunctionDeclaration;
-                                                        object_declaration_ast_node.rhs = Some(Box::new(data_type_ast_node));
+                                                        object_declaration_ast_node.rhs = Some(data_type_ast_node.id);
 
                                                         // peek for storage class specifier
                                                         if self.ast_stack.len() > 0 {
-                                                            let storage_class_specifier_ast_node = self.ast_stack.pop().unwrap();
+                                                            let storage_class_specifier_ast_node_id = self.ast_stack.pop().unwrap();
+                                                            let storage_class_specifier_ast_node = node_map.get(&storage_class_specifier_ast_node_id).unwrap();
                                                             if storage_class_specifier_ast_node.node_type == AstNodeType::StorageClassSpecifier {
                                                                 // println!("storage_class: {:?}", storage_class_specifier_ast_node.string_val);
                                                                 if storage_class_specifier_ast_node.string_val == "STATIC" {
                                                                     object_declaration_ast_node.is_static = true;
-                                                                    object_declaration_ast_node.storage_class = Some(Box::new(storage_class_specifier_ast_node));
+                                                                    object_declaration_ast_node.storage_class = Some(storage_class_specifier_ast_node.id);
                                                                 } else if storage_class_specifier_ast_node.string_val == "EXTERN" {
                                                                     object_declaration_ast_node.is_extern = true;
-                                                                    object_declaration_ast_node.storage_class = Some(Box::new(storage_class_specifier_ast_node));
+                                                                    object_declaration_ast_node.storage_class = Some(storage_class_specifier_ast_node.id);
                                                                 }
                                                             } else {
-                                                                self.ast_stack.push(storage_class_specifier_ast_node);
+                                                                self.ast_stack.push(storage_class_specifier_ast_node.id);
                                                             }
                                                         }
 
-                                                        self.ast_stack.push(object_declaration_ast_node);
+                                                        self.ast_stack.push(object_declaration_ast_node.id);
                                                     }
 
                                                     _ => {
@@ -3433,55 +3586,62 @@ impl Parser<String> {
                                                         //
                                                         object_declaration_ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
 
-                                                        object_declaration_ast_node.lhs = Some(Box::new(data_type_ast_node));
-                                                        object_declaration_ast_node.rhs = Some(Box::new(declarator_ast_node));
+                                                        object_declaration_ast_node.lhs = Some(data_type_ast_node.id);
+                                                        object_declaration_ast_node.rhs = Some(declarator_ast_node.id);
 
                                                         // peek for initializer expression
                                                         if self.ast_stack.len() > 0 {
 
-                                                            let initializer_expression_ast_node = self.ast_stack.pop().unwrap();
+                                                            let initializer_expression_ast_node_id = self.ast_stack.pop().unwrap();
+                                                            let initializer_expression_ast_node = node_map.get(&initializer_expression_ast_node_id).unwrap();
 
                                                             match initializer_expression_ast_node.node_type {
                                                                 AstNodeType::SingleInit | AstNodeType::CompoundInit => {
-                                                                    object_declaration_ast_node.expression = Some(Box::new(initializer_expression_ast_node));
+                                                                    object_declaration_ast_node.expression = Some(initializer_expression_ast_node_id);
                                                                 }
                                                                 _ => {
                                                                     // put it back after pop to simulate peek
-                                                                    self.ast_stack.push(initializer_expression_ast_node);
+                                                                    self.ast_stack.push(initializer_expression_ast_node_id);
                                                                 }
                                                             }
                                                         }
 
                                                         // peek for storage class specifier
                                                         if self.ast_stack.len() > 0 {
-                                                            let storage_class_specifier_ast_node = self.ast_stack.pop().unwrap();
+                                                            let storage_class_specifier_ast_node_id = self.ast_stack.pop().unwrap();
+                                                            let storage_class_specifier_ast_node = node_map.get(&storage_class_specifier_ast_node_id).unwrap();
                                                             if storage_class_specifier_ast_node.node_type == AstNodeType::StorageClassSpecifier {
                                                                 // println!("storage_class: {:?}", storage_class_specifier_ast_node.string_val);
                                                                 if storage_class_specifier_ast_node.string_val == "STATIC" {
                                                                     object_declaration_ast_node.is_static = true;
-                                                                    object_declaration_ast_node.storage_class = Some(Box::new(storage_class_specifier_ast_node));
+                                                                    object_declaration_ast_node.storage_class = Some(storage_class_specifier_ast_node_id);
                                                                 } else if storage_class_specifier_ast_node.string_val == "EXTERN" {
                                                                     object_declaration_ast_node.is_extern = true;
-                                                                    object_declaration_ast_node.storage_class = Some(Box::new(storage_class_specifier_ast_node));
+                                                                    object_declaration_ast_node.storage_class = Some(storage_class_specifier_ast_node_id);
                                                                 }
                                                             } else {
                                                                 // push node back to simulate peek
-                                                                self.ast_stack.push(storage_class_specifier_ast_node);
+                                                                self.ast_stack.push(storage_class_specifier_ast_node_id);
                                                             }
                                                         }
 
                                                         let mut declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                         declaration_ast_node.node_type = AstNodeType::Declaration;
-                                                        declaration_ast_node.lhs = Some(Box::new(object_declaration_ast_node));
+                                                        declaration_ast_node.lhs = Some(object_declaration_ast_node.id);
 
                                                         // wrap declaration into block_item
                                                         let mut block_item_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                         block_item_ast_node.node_type = AstNodeType::BlockItem;
-                                                        block_item_ast_node.lhs = Some(Box::new(declaration_ast_node));
+                                                        block_item_ast_node.lhs = Some(declaration_ast_node.id);
 
-                                                        self.ast_stack.push(block_item_ast_node);
+                                                        self.ast_stack.push(block_item_ast_node.id);
+
+                                                        node_map.insert(declaration_ast_node.id, declaration_ast_node);
+                                                        node_map.insert(block_item_ast_node.id, block_item_ast_node);
                                                     }
                                                 }
+
+                                                node_map.insert(object_declaration_ast_node.id, object_declaration_ast_node);
                                             }
                                         }
 
@@ -3556,15 +3716,20 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let mut ast_node = self.ast_stack.pop().unwrap();
+                                                // TODO: check if the node in the hash_map is really updated or not!
+
+                                                let ast_node_id = self.ast_stack.pop().unwrap();
+                                                let mut ast_node = node_map.get(&ast_node_id).unwrap().clone();
 
                                                 // add UInt, ULong
-                                                let temp_string = ast_node.string_val;
+                                                let temp_string = ast_node.string_val.clone();
                                                 let mut new_type_string = String::from("U");
                                                 new_type_string.push_str(&temp_string);
                                                 ast_node.string_val = new_type_string;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node_id);
+
+                                                // node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3656,12 +3821,14 @@ impl Parser<String> {
 
                                                         let mut expr_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                         expr_ast_node.node_type = AstNodeType::Expression;
-                                                        expr_ast_node.lhs = Some(Box::new(initializer_ast_node));
+                                                        expr_ast_node.lhs = Some(initializer_ast_node);
                                                         // println!("{:?}", expr_ast_node);
 
-                                                        compound_init_ast_node.block_items.push(Box::new(expr_ast_node));
+                                                        compound_init_ast_node.block_items.push(expr_ast_node.id);
 
                                                         self.direct_declarator_counter = self.direct_declarator_counter - 1;
+
+                                                        node_map.insert(expr_ast_node.id, expr_ast_node);
                                                     }
 
                                                     let identifier_ast_node = self.ast_stack.pop().unwrap();
@@ -3675,7 +3842,7 @@ impl Parser<String> {
                                                     // 2nd pop: data type of function return or variable
                                                     // 3rd pop: initializer expression
 
-                                                    self.ast_stack.push(compound_init_ast_node); // 3rd pop: initializer expression
+                                                    self.ast_stack.push(compound_init_ast_node.id); // 3rd pop: initializer expression
 
                                                     // let lhs_ast_node = self.ast_stack.pop().unwrap(); // name, identifier
                                                     self.ast_stack.push(datatype_ast_node); // 2nd pop: data type of function return or variable
@@ -3683,18 +3850,20 @@ impl Parser<String> {
                                                     // let rhs_ast_node = self.ast_stack.pop().unwrap(); // value expression
                                                     self.ast_stack.push(identifier_ast_node); // 1st pop: identifier
 
+                                                    node_map.insert(compound_init_ast_node.id, compound_init_ast_node);
+
                                                 } else if self.direct_declarator_counter == 1 {
 
                                                     let initializer_ast_node = self.ast_stack.pop().unwrap();
 
                                                     let mut expr_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     expr_ast_node.node_type = AstNodeType::Expression;
-                                                    expr_ast_node.lhs = Some(Box::new(initializer_ast_node));
+                                                    expr_ast_node.lhs = Some(initializer_ast_node);
                                                     // println!("{:?}", expr_ast_node);
 
                                                     let mut single_init_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     single_init_ast_node.node_type = AstNodeType::SingleInit;
-                                                    single_init_ast_node.lhs = Some(Box::new(expr_ast_node));
+                                                    single_init_ast_node.lhs = Some(expr_ast_node.id);
 
                                                     self.direct_declarator_counter = self.direct_declarator_counter - 1;
 
@@ -3709,13 +3878,16 @@ impl Parser<String> {
                                                     // 2nd pop: data type of function return or variable
                                                     // 3rd pop: initializer expression
 
-                                                    self.ast_stack.push(single_init_ast_node); // 3rd pop: initializer expression
+                                                    self.ast_stack.push(single_init_ast_node.id); // 3rd pop: initializer expression
 
                                                     // let lhs_ast_node = self.ast_stack.pop().unwrap(); // name, identifier
                                                     self.ast_stack.push(datatype_ast_node); // 2nd pop: data type of function return or variable
 
                                                     // let rhs_ast_node = self.ast_stack.pop().unwrap(); // value expression
                                                     self.ast_stack.push(identifier_ast_node); // 1st pop: identifier
+
+                                                    node_map.insert(expr_ast_node.id, expr_ast_node);
+                                                    node_map.insert(single_init_ast_node.id, single_init_ast_node);
                                                 }
                                             }
                                         }
@@ -3773,7 +3945,9 @@ impl Parser<String> {
                                                 ast_node.node_type = AstNodeType::StorageClassSpecifier;
                                                 ast_node.string_val = String::from("EXTERN");
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3802,7 +3976,9 @@ impl Parser<String> {
                                                 ast_node.node_type = AstNodeType::StorageClassSpecifier;
                                                 ast_node.string_val = String::from("STATIC");
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3832,7 +4008,9 @@ impl Parser<String> {
                                                 ast_node.string_val = String::from("void");
                                                 ast_node.analyzed_data_type = DataType::from_str("void").unwrap();
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3862,7 +4040,9 @@ impl Parser<String> {
                                                 ast_node.string_val = String::from("char");
                                                 ast_node.analyzed_data_type = DataType::from_str("char").unwrap();
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3903,7 +4083,9 @@ impl Parser<String> {
                                                 ast_node.string_val = String::from("short");
                                                 ast_node.analyzed_data_type = DataType::from_str("short").unwrap();
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3944,7 +4126,9 @@ impl Parser<String> {
                                                 ast_node.string_val = String::from("int");
                                                 ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -3988,7 +4172,9 @@ impl Parser<String> {
                                                 // Nora Sandler, page 252, add datatype to AST nodes
                                                 ast_node.analyzed_data_type = DataType::from_str("long").unwrap();
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -4036,7 +4222,9 @@ impl Parser<String> {
                                                 // Nora Sandler, page 252, add datatype to AST nodes
                                                 ast_node.analyzed_data_type = DataType::from_str("float").unwrap();
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -4082,7 +4270,9 @@ impl Parser<String> {
                                                 // Nora Sandler, page 252, add datatype to AST nodes
                                                 ast_node.analyzed_data_type = DataType::from_str("double").unwrap();
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -4246,15 +4436,17 @@ impl Parser<String> {
                                                 struct_ast_node.string_val = value.clone();
                                                 for i in 0..self.struct_field_counter {
                                                     let member_declaration_ast_node = self.ast_stack.pop().unwrap();
-                                                    struct_ast_node.block_items.push(Box::new(member_declaration_ast_node))
+                                                    struct_ast_node.block_items.push(member_declaration_ast_node)
                                                 }
                                                 self.struct_field_counter = 0;
 
                                                 // struct declaration
                                                 let struct_declaration_ast_node = self.ast_stack.pop().unwrap();
-                                                struct_ast_node.lhs = Some(Box::new(struct_declaration_ast_node));
+                                                struct_ast_node.lhs = Some(struct_declaration_ast_node);
 
-                                                self.ast_stack.push(struct_ast_node);
+                                                self.ast_stack.push(struct_ast_node.id);
+
+                                                node_map.insert(struct_ast_node.id, struct_ast_node);
                                             }
                                         }
 
@@ -4323,10 +4515,13 @@ impl Parser<String> {
 
                                                 let mut data_type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 data_type_ast_node.node_type = AstNodeType::Structure;
-                                                data_type_ast_node.lhs = Some(Box::new(type_ast_node));
-                                                data_type_ast_node.rhs = Some(Box::new(identifier_ast_node));
+                                                data_type_ast_node.lhs = Some(type_ast_node);
+                                                data_type_ast_node.rhs = Some(identifier_ast_node.id);
 
-                                                self.ast_stack.push(data_type_ast_node);
+                                                self.ast_stack.push(data_type_ast_node.id);
+
+                                                node_map.insert(identifier_ast_node.id, identifier_ast_node);
+                                                node_map.insert(data_type_ast_node.id, data_type_ast_node);
                                             }
                                         }
 
@@ -4356,7 +4551,9 @@ impl Parser<String> {
                                                 struct_ast_node.node_type = AstNodeType::DataType;
                                                 struct_ast_node.string_val = String::from("STRUCT");
 
-                                                self.ast_stack.push(struct_ast_node);
+                                                self.ast_stack.push(struct_ast_node.id);
+
+                                                node_map.insert(struct_ast_node.id, struct_ast_node);
                                             }
                                         }
 
@@ -4435,12 +4632,14 @@ impl Parser<String> {
                                                 let mut member_declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 // member_declaration_ast_node.string_val = type_ast_node.string_val.clone();
                                                 member_declaration_ast_node.node_type = AstNodeType::MemberDeclaration;
-                                                member_declaration_ast_node.lhs = Some(Box::new(type_ast_node));
-                                                member_declaration_ast_node.rhs = Some(Box::new(identifier_ast_node));
+                                                member_declaration_ast_node.lhs = Some(type_ast_node);
+                                                member_declaration_ast_node.rhs = Some(identifier_ast_node);
 
                                                 self.struct_field_counter = self.struct_field_counter + 1;
 
-                                                self.ast_stack.push(member_declaration_ast_node);
+                                                self.ast_stack.push(member_declaration_ast_node.id);
+
+                                                node_map.insert(member_declaration_ast_node.id, member_declaration_ast_node);
                                             }
                                         }
 
@@ -4491,14 +4690,17 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 // referenced type
-                                                let referenced_type_ast_node = self.ast_stack.pop().unwrap();
+                                                let referenced_type_ast_node_id = self.ast_stack.pop().unwrap();
+                                                let referenced_type_ast_node = node_map.get(&referenced_type_ast_node_id).unwrap();
 
                                                 let mut pointer_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 pointer_ast_node.node_type = AstNodeType::Pointer;
                                                 pointer_ast_node.string_val = referenced_type_ast_node.string_val.clone();
-                                                pointer_ast_node.rhs = Some(Box::new(referenced_type_ast_node));
+                                                pointer_ast_node.rhs = Some(referenced_type_ast_node.id);
 
-                                                self.ast_stack.push(pointer_ast_node);
+                                                self.ast_stack.push(pointer_ast_node.id);
+
+                                                node_map.insert(pointer_ast_node.id, pointer_ast_node);
                                             }
                                         }
 
@@ -4542,7 +4744,9 @@ impl Parser<String> {
                                                 // // DEBUG
                                                 // println!("{:?}", &ast_node.string_val);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -4602,23 +4806,26 @@ impl Parser<String> {
                                                 let identifier_ast_node = self.ast_stack.pop().unwrap();
 
                                                 // array element data type
-                                                let array_element_data_type_ast_node = self.ast_stack.pop().unwrap();
+                                                let array_element_data_type_ast_node_id = self.ast_stack.pop().unwrap();
+                                                let array_element_data_type_ast_node = node_map.get(&array_element_data_type_ast_node_id).unwrap();
 
                                                 let mut array_datatype_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 //array_datatype_ast_node.node_type = AstNodeType::DataType;
                                                 array_datatype_ast_node.node_type = AstNodeType::Array;
                                                 // this is where the dot printer takes the data type from
                                                 array_datatype_ast_node.string_val = array_element_data_type_ast_node.string_val.clone();
-                                                array_datatype_ast_node.data_type = Some(Box::new(array_element_data_type_ast_node));
-                                                array_datatype_ast_node.lhs = Some(Box::new(size_ast_node));
+                                                array_datatype_ast_node.data_type = Some(array_element_data_type_ast_node.id);
+                                                array_datatype_ast_node.lhs = Some(size_ast_node);
 
                                                 // Format:
                                                 // 1st pop: identifier
                                                 // 2nd pop: data type of function return or variable
                                                 // 3rd pop: initializer SingleInit or CompoundInit
 
-                                                self.ast_stack.push(array_datatype_ast_node);
+                                                self.ast_stack.push(array_datatype_ast_node.id);
                                                 self.ast_stack.push(identifier_ast_node);
+
+                                                node_map.insert(array_datatype_ast_node.id, array_datatype_ast_node);
                                             }
                                         }
 
@@ -4670,9 +4877,11 @@ impl Parser<String> {
                                                 // TODO
                                                 direct_declarator_ast_node.analyzed_data_type = DataType::from_str("double").unwrap();
 
-                                                self.ast_stack.push(direct_declarator_ast_node);
+                                                self.ast_stack.push(direct_declarator_ast_node.id);
 
                                                 self.direct_declarator_counter = self.direct_declarator_counter + 1;
+
+                                                node_map.insert(direct_declarator_ast_node.id, direct_declarator_ast_node);
                                             }
                                         }
 
@@ -4752,7 +4961,7 @@ impl Parser<String> {
                                                     self.parameter_counter = self.parameter_counter - 1;
 
                                                     let parameter_ast_node = self.ast_stack.pop().unwrap();
-                                                    function_declaration_ast_node.parameters.push(Box::new(parameter_ast_node));
+                                                    function_declaration_ast_node.parameters.push(parameter_ast_node);
                                                 }
 
                                                 //
@@ -4760,7 +4969,7 @@ impl Parser<String> {
                                                 //
 
                                                 let identifier_ast_node = self.ast_stack.pop().unwrap();
-                                                function_declaration_ast_node.function_name_ast_node = Some(Box::new(identifier_ast_node));
+                                                function_declaration_ast_node.function_name_ast_node = Some(identifier_ast_node);
 
                                                 //
                                                 // Body Block
@@ -4776,7 +4985,9 @@ impl Parser<String> {
                                                 //     println!("test");
                                                 // }
 
-                                                self.ast_stack.push(function_declaration_ast_node);
+                                                self.ast_stack.push(function_declaration_ast_node.id);
+
+                                                node_map.insert(function_declaration_ast_node.id, function_declaration_ast_node);
                                             }
                                         }
 
@@ -4813,7 +5024,8 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let identifier_ast_node = self.ast_stack.pop().unwrap();
+                                                let identifier_ast_node_id = self.ast_stack.pop().unwrap();
+                                                let identifier_ast_node = node_map.get(&identifier_ast_node_id).unwrap();
 
                                                 let mut function_definition_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 function_definition_ast_node.node_type = AstNodeType::FunctionDeclaration;
@@ -4825,12 +5037,15 @@ impl Parser<String> {
                                                 function_name_ast_node.node_type = AstNodeType::Identifier;
                                                 function_name_ast_node.string_val = identifier_ast_node.string_val.clone();
 
-                                                function_definition_ast_node.function_name_ast_node = Some(Box::new(function_name_ast_node));
+                                                function_definition_ast_node.function_name_ast_node = Some(function_name_ast_node.id);
 
                                                 // // DEBUG
                                                 // println!("{:?}", &function_definition_ast_node.string_val);
 
-                                                self.ast_stack.push(function_definition_ast_node);
+                                                self.ast_stack.push(function_definition_ast_node.id);
+
+                                                node_map.insert(function_definition_ast_node.id, function_definition_ast_node);
+                                                node_map.insert(function_name_ast_node.id, function_name_ast_node);
                                             }
                                         }
 
@@ -4933,21 +5148,24 @@ impl Parser<String> {
                                                 // println!("{:?}", identifier_ast_node);
 
                                                 // parameter DataType
-                                                let data_type_ast_node = self.ast_stack.pop().unwrap();
+                                                let data_type_ast_node_id = self.ast_stack.pop().unwrap();
+                                                let data_type_ast_node = node_map.get(&data_type_ast_node_id).unwrap();
 
                                                 // DEBUG
                                                 // println!("{:?}", data_type_ast_node);
 
                                                 let mut parameter_declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 parameter_declaration_ast_node.node_type = AstNodeType::ParameterDeclaration;
-                                                parameter_declaration_ast_node.lhs = Some(Box::new(identifier_ast_node));
+                                                parameter_declaration_ast_node.lhs = Some(identifier_ast_node);
                                                 //
                                                 // TYPE
                                                 //
                                                 parameter_declaration_ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
-                                                parameter_declaration_ast_node.rhs = Some(Box::new(data_type_ast_node));
+                                                parameter_declaration_ast_node.rhs = Some(data_type_ast_node.id);
 
-                                                self.ast_stack.push(parameter_declaration_ast_node);
+                                                self.ast_stack.push(parameter_declaration_ast_node.id);
+
+                                                node_map.insert(parameter_declaration_ast_node.id, parameter_declaration_ast_node);
                                             }
                                         }
 
@@ -4972,10 +5190,13 @@ impl Parser<String> {
 
                                                 let mut parameter_declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 parameter_declaration_ast_node.node_type = AstNodeType::ParameterDeclaration;
-                                                parameter_declaration_ast_node.lhs = Some(Box::new(identifier_ast_node));
-                                                parameter_declaration_ast_node.rhs = Some(Box::new(data_type_ast_node));
+                                                parameter_declaration_ast_node.lhs = Some(identifier_ast_node.id);
+                                                parameter_declaration_ast_node.rhs = Some(data_type_ast_node);
 
-                                                self.ast_stack.push(parameter_declaration_ast_node);
+                                                self.ast_stack.push(parameter_declaration_ast_node.id);
+
+                                                node_map.insert(identifier_ast_node.id, identifier_ast_node);
+                                                node_map.insert(parameter_declaration_ast_node.id, parameter_declaration_ast_node);
                                             }
                                         }
 
@@ -5089,9 +5310,11 @@ impl Parser<String> {
 
                                                 let mut statement_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 statement_ast_node.node_type = AstNodeType::Statement;
-                                                statement_ast_node.lhs = Some(Box::new(compound_ast_node));
+                                                statement_ast_node.lhs = Some(compound_ast_node);
 
-                                                self.ast_stack.push(statement_ast_node);
+                                                self.ast_stack.push(statement_ast_node.id);
+
+                                                node_map.insert(statement_ast_node.id, statement_ast_node);
                                             }
                                         }
 
@@ -5107,25 +5330,29 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let exp_ast_node = self.ast_stack.pop().unwrap();
+                                                let exp_ast_node_id = self.ast_stack.pop().unwrap();
+                                                let exp_ast_node = node_map.get(&exp_ast_node_id).unwrap();
                                                 // println!("{:?}", exp_ast_node);
 
                                                 if exp_ast_node.node_type == AstNodeType::Expression {
 
                                                     let mut statement_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     statement_ast_node.node_type = AstNodeType::Statement;
-                                                    statement_ast_node.lhs = Some(Box::new(exp_ast_node));
+                                                    statement_ast_node.lhs = Some(exp_ast_node_id);
 
                                                     // wrap declaration into block_item
                                                     let mut block_item_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     block_item_ast_node.node_type = AstNodeType::BlockItem;
-                                                    block_item_ast_node.lhs = Some(Box::new(statement_ast_node));
+                                                    block_item_ast_node.lhs = Some(statement_ast_node.id);
 
-                                                    self.ast_stack.push(block_item_ast_node);
+                                                    self.ast_stack.push(block_item_ast_node.id);
+
+                                                    node_map.insert(statement_ast_node.id, statement_ast_node);
+                                                    node_map.insert(block_item_ast_node.id, block_item_ast_node);
 
                                                 } else {
 
-                                                    self.ast_stack.push(exp_ast_node);
+                                                    self.ast_stack.push(exp_ast_node.id);
 
                                                 }
                                             }
@@ -5146,9 +5373,11 @@ impl Parser<String> {
                                                 // statement
                                                 let mut statement_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 statement_ast_node.node_type = AstNodeType::Statement;
-                                                statement_ast_node.lhs = Some(Box::new(lhs_ast_node));
+                                                statement_ast_node.lhs = Some(lhs_ast_node);
 
-                                                self.ast_stack.push(statement_ast_node);
+                                                self.ast_stack.push(statement_ast_node.id);
+
+                                                node_map.insert(statement_ast_node.id, statement_ast_node);
                                             }
                                         }
 
@@ -5174,9 +5403,11 @@ impl Parser<String> {
                                                 // statement
                                                 let mut statement_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 statement_ast_node.node_type = AstNodeType::Statement;
-                                                statement_ast_node.lhs = Some(Box::new(lhs_ast_node));
+                                                statement_ast_node.lhs = Some(lhs_ast_node);
 
-                                                self.ast_stack.push(statement_ast_node);
+                                                self.ast_stack.push(statement_ast_node.id);
+
+                                                node_map.insert(statement_ast_node.id, statement_ast_node);
                                             }
                                         }
 
@@ -5240,13 +5471,14 @@ impl Parser<String> {
                                                 // case node
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Case;
-                                                //ast_node.lhs = Some(Box::new(body_ast_node));
-                                                ast_node.block_items.push(Box::new(body_ast_node));
-                                                ast_node.expression = Some(Box::new(differentiator_ast_node));
+                                                ast_node.block_items.push(body_ast_node);
+                                                ast_node.expression = Some(differentiator_ast_node);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
 
                                                 self.switch_case_default_counter = self.switch_case_default_counter + 1;
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -5302,12 +5534,13 @@ impl Parser<String> {
                                                 // default node
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Default;
-                                                // ast_node.lhs = Some(Box::new(body_ast_node));
-                                                ast_node.block_items.push(Box::new(body_ast_node));
+                                                ast_node.block_items.push(body_ast_node);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
 
                                                 self.switch_case_default_counter = self.switch_case_default_counter + 1;
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -5348,7 +5581,8 @@ impl Parser<String> {
 
                                                     self.child_counter = self.child_counter - 1;
 
-                                                    let body_ast_node = self.ast_stack.pop().unwrap();
+                                                    let body_ast_node_id = self.ast_stack.pop().unwrap();
+                                                    let body_ast_node = node_map.get(&body_ast_node_id).unwrap();
                                                     match body_ast_node.node_type {
 
                                                         // AstNodeType::BlockItem => {
@@ -5358,9 +5592,11 @@ impl Parser<String> {
                                                         AstNodeType::Declaration | AstNodeType::Statement => {
                                                             let mut block_item_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                             block_item_ast_node.node_type = AstNodeType::BlockItem;
-                                                            block_item_ast_node.lhs = Some(Box::new(body_ast_node));
+                                                            block_item_ast_node.lhs = Some(body_ast_node.id);
 
-                                                            block_ast_node.block_items.push(Box::new(block_item_ast_node));
+                                                            block_ast_node.block_items.push(block_item_ast_node.id);
+
+                                                            node_map.insert(block_item_ast_node.id, block_item_ast_node);
                                                         }
 
                                                         // AstNodeType::Default | AstNodeType::Case => {
@@ -5374,7 +5610,7 @@ impl Parser<String> {
                                                         _ => {
                                                             // println!("{:?}", body_ast_node);
                                                             // self.ast_stack.push(body_ast_node);
-                                                            block_ast_node.block_items.push(Box::new(body_ast_node));
+                                                            block_ast_node.block_items.push(body_ast_node.id);
                                                         }
                                                     }
                                                 }
@@ -5382,11 +5618,14 @@ impl Parser<String> {
                                                 // create compound AST node - insert block
                                                 let mut compound_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 compound_ast_node.node_type = AstNodeType::Compound;
-                                                compound_ast_node.lhs = Some(Box::new(block_ast_node));
+                                                compound_ast_node.lhs = Some(block_ast_node.id);
 
                                                 // println!("{:?}", compound_ast_node);
 
-                                                self.ast_stack.push(compound_ast_node);
+                                                self.ast_stack.push(compound_ast_node.id);
+
+                                                node_map.insert(block_ast_node.id, block_ast_node);
+                                                node_map.insert(compound_ast_node.id, compound_ast_node);
                                             }
                                         }
 
@@ -5421,9 +5660,12 @@ impl Parser<String> {
                                                 // create compound AST node
                                                 let mut compound_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 compound_ast_node.node_type = AstNodeType::Compound;
-                                                compound_ast_node.lhs = Some(Box::new(block_ast_node));
+                                                compound_ast_node.lhs = Some(block_ast_node.id);
 
-                                                self.ast_stack.push(compound_ast_node);
+                                                self.ast_stack.push(compound_ast_node.id);
+
+                                                node_map.insert(compound_ast_node.id, compound_ast_node);
+                                                node_map.insert(block_ast_node.id, block_ast_node);
                                             }
                                         }
 
@@ -5471,10 +5713,12 @@ impl Parser<String> {
                                                     // wrap declaration into BlockItem
                                                     let mut block_item_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     block_item_ast_node.node_type = AstNodeType::BlockItem;
-                                                    block_item_ast_node.lhs = Some(Box::new(first_ast_node));
+                                                    block_item_ast_node.lhs = Some(first_ast_node);
 
-                                                    self.ast_stack.push(block_item_ast_node);
+                                                    self.ast_stack.push(block_item_ast_node.id);
                                                     self.ast_stack.push(second_ast_node);
+
+                                                    node_map.insert(block_item_ast_node.id, block_item_ast_node);
                                                 }
                                             }
                                         }
@@ -5616,7 +5860,9 @@ impl Parser<String> {
                                                     let mut empty_statement_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     empty_statement_ast_node.node_type = AstNodeType::EmptyStatement;
 
-                                                    self.ast_stack.push(empty_statement_ast_node);
+                                                    self.ast_stack.push(empty_statement_ast_node.id);
+
+                                                    node_map.insert(empty_statement_ast_node.id, empty_statement_ast_node);
                                                 }
                                             }
                                         }
@@ -5659,7 +5905,8 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 let first_ast_node = self.ast_stack.pop().unwrap(); // compound > block > block_items/statements
-                                                let second_ast_node = self.ast_stack.pop().unwrap(); // binary expression for if
+                                                let second_ast_node_id = self.ast_stack.pop().unwrap(); // binary expression for if
+                                                let second_ast_node = node_map.get(&second_ast_node_id).unwrap();
 
                                                 // println!("{:?}", first_ast_node);
                                                 // println!("{:?}", second_ast_node);
@@ -5670,14 +5917,17 @@ impl Parser<String> {
 
                                                     let mut expression_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     expression_ast_node.node_type = AstNodeType::Expression;
-                                                    expression_ast_node.lhs = Some(Box::new(second_ast_node));
+                                                    expression_ast_node.lhs = Some(second_ast_node.id);
 
                                                     let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     ast_node.node_type = AstNodeType::If;
-                                                    ast_node.lhs = Some(Box::new(first_ast_node));
-                                                    ast_node.expression = Some(Box::new(expression_ast_node));
+                                                    ast_node.lhs = Some(first_ast_node);
+                                                    ast_node.expression = Some(expression_ast_node.id);
 
-                                                    self.ast_stack.push(ast_node);
+                                                    self.ast_stack.push(ast_node.id);
+
+                                                    node_map.insert(expression_ast_node.id, expression_ast_node);
+                                                    node_map.insert(ast_node.id, ast_node);
 
                                                 } else if second_ast_node.node_type == AstNodeType::Identifier {
 
@@ -5685,14 +5935,17 @@ impl Parser<String> {
 
                                                     let mut expression_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     expression_ast_node.node_type = AstNodeType::Expression;
-                                                    expression_ast_node.lhs = Some(Box::new(second_ast_node));
+                                                    expression_ast_node.lhs = Some(second_ast_node.id);
 
                                                     let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     ast_node.node_type = AstNodeType::If;
-                                                    ast_node.lhs = Some(Box::new(first_ast_node));
-                                                    ast_node.expression = Some(Box::new(expression_ast_node));
+                                                    ast_node.lhs = Some(first_ast_node);
+                                                    ast_node.expression = Some(expression_ast_node.id);
 
-                                                    self.ast_stack.push(ast_node);
+                                                    self.ast_stack.push(ast_node.id);
+
+                                                    node_map.insert(expression_ast_node.id, expression_ast_node);
+                                                    node_map.insert(ast_node.id, ast_node);
 
                                                 } else {
 
@@ -5707,11 +5960,11 @@ impl Parser<String> {
 
                                                     let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     ast_node.node_type = AstNodeType::If;
-                                                    ast_node.lhs = Some(Box::new(expression_ast_node));
+                                                    ast_node.lhs = Some(expression_ast_node.id);
                                                     ast_node.rhs = Some(Box::new(second_ast_node));
                                                     ast_node.expression = Some(Box::new(first_ast_node));
 
-                                                    self.ast_stack.push(ast_node);
+                                                    self.ast_stack.push(ast_node.id);
                                                     */
                                                 }
                                             }
@@ -5763,22 +6016,26 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 let first_ast_node = self.ast_stack.pop().unwrap();
-                                                let second_ast_node = self.ast_stack.pop().unwrap();
+                                                let second_ast_node_id = self.ast_stack.pop().unwrap();
+                                                let second_ast_node = node_map.get(&second_ast_node_id).unwrap();
 
                                                 if second_ast_node.node_type == AstNodeType::Binary {
 
                                                     // build AST node for expression
                                                     let mut expression_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     expression_ast_node.node_type = AstNodeType::Expression;
-                                                    expression_ast_node.lhs = Some(Box::new(second_ast_node));
+                                                    expression_ast_node.lhs = Some(second_ast_node.id);
 
                                                     // build AST node for IF
                                                     let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     ast_node.node_type = AstNodeType::If;
-                                                    ast_node.lhs = Some(Box::new(first_ast_node));
-                                                    ast_node.expression = Some(Box::new(expression_ast_node));
+                                                    ast_node.lhs = Some(first_ast_node);
+                                                    ast_node.expression = Some(expression_ast_node.id);
 
-                                                    self.ast_stack.push(ast_node);
+                                                    self.ast_stack.push(ast_node.id);
+
+                                                    node_map.insert(expression_ast_node.id, expression_ast_node);
+                                                    node_map.insert(ast_node.id, ast_node);
 
                                                 } else {
 
@@ -5787,16 +6044,19 @@ impl Parser<String> {
                                                     // build AST node for expression
                                                     let mut expression_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     expression_ast_node.node_type = AstNodeType::Expression;
-                                                    expression_ast_node.lhs = Some(Box::new(third_ast_node));
+                                                    expression_ast_node.lhs = Some(third_ast_node);
 
                                                     // build AST node for IF
                                                     let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     ast_node.node_type = AstNodeType::If;
-                                                    ast_node.lhs = Some(Box::new(second_ast_node));
-                                                    ast_node.rhs = Some(Box::new(first_ast_node));
-                                                    ast_node.expression = Some(Box::new(expression_ast_node));
+                                                    ast_node.lhs = Some(second_ast_node.id);
+                                                    ast_node.rhs = Some(first_ast_node);
+                                                    ast_node.expression = Some(expression_ast_node.id);
 
-                                                    self.ast_stack.push(ast_node);
+                                                    self.ast_stack.push(ast_node.id);
+
+                                                    node_map.insert(expression_ast_node.id, expression_ast_node);
+                                                    node_map.insert(ast_node.id, ast_node);
                                                 }
                                             }
                                         }
@@ -5862,9 +6122,11 @@ impl Parser<String> {
                                                 //     }
                                                 // }
 
-                                                let statement_ast_node = self.ast_stack.pop().unwrap();
+                                                let statement_ast_node_id = self.ast_stack.pop().unwrap();
+                                                let statement_ast_node = node_map.get(&statement_ast_node_id).unwrap();
                                                 // println!("{:?}", statement_ast_node);
-                                                let compound_ast_node = statement_ast_node.lhs.unwrap();
+                                                let compound_ast_node_id = statement_ast_node.lhs.unwrap();
+                                                let compound_ast_node = node_map.get(&compound_ast_node_id).unwrap();
 
                                                 // let compound_ast_node = statement_ast_node.lhs.unwrap();
                                                 // let mut block_ast_node = compound_ast_node.lhs.unwrap();
@@ -5874,7 +6136,7 @@ impl Parser<String> {
                                                 // switch
                                                 let mut switch_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 switch_ast_node.node_type = AstNodeType::Switch;
-                                                switch_ast_node.expression = Some(Box::new(switch_expression_ast_node));
+                                                switch_ast_node.expression = Some(switch_expression_ast_node);
 
                                                 let mut temp_items = Vec::<AstNode>::new();
 
@@ -5882,10 +6144,12 @@ impl Parser<String> {
 
                                                 let mut is_first: bool = true;
 
-                                                let mut all_statements_ast_node = compound_ast_node.lhs.unwrap();
-                                                loop {
+                                                let all_statements_ast_node_id = compound_ast_node.lhs.unwrap();
+                                                let all_statements_ast_node = node_map.get(&all_statements_ast_node_id).unwrap();
+                                                for i in 0..all_statements_ast_node.block_items.len() {
 
-                                                    let temp_node = all_statements_ast_node.block_items.pop().unwrap();
+                                                    let temp_node_id = all_statements_ast_node.block_items[i];
+                                                    let temp_node = node_map.get(&temp_node_id).unwrap();
                                                     match temp_node.node_type {
 
                                                         AstNodeType::Case | AstNodeType::Default => {
@@ -5903,15 +6167,14 @@ impl Parser<String> {
                                                             // temp_node.block_items.push(temp_node.lhs.expect("REASON"));
                                                             //let lhs_item = temp_node.lhs.unwrap();
 
-                                                            case_default = *temp_node;
-
+                                                            case_default = temp_node.clone();
                                                         }
 
                                                         _ => {
                                                             // temp_items.push(*temp_node);
 
                                                             // println!("{:?}", case_default.lhs);
-                                                            case_default.block_items.push(Box::new(*temp_node));
+                                                            case_default.block_items.push(temp_node_id);
                                                         }
                                                     }
 
@@ -5921,16 +6184,21 @@ impl Parser<String> {
                                                 }
 
                                                 //switch_ast_node.block_items.push(Box::new(case_default));
-                                                temp_items.push(case_default);
+                                                // temp_items.push(case_default);
 
                                                 for i in 0..temp_items.len() {
                                                     let temp_node = temp_items.pop().unwrap();
                                                     // let temp_lhs = temp_node.lhs.unwrap();
                                                     // temp_node.block_items.push(temp_lhs);
-                                                    switch_ast_node.block_items.push(Box::new(temp_node));
+                                                    switch_ast_node.block_items.push(temp_node.id);
                                                 }
 
-                                                self.ast_stack.push(switch_ast_node);
+                                                switch_ast_node.block_items.push(case_default.id);
+
+                                                self.ast_stack.push(switch_ast_node.id);
+
+                                                node_map.insert(switch_ast_node.id, switch_ast_node);
+                                                node_map.insert(case_default.id, case_default);
                                             }
                                         }
 
@@ -5966,16 +6234,19 @@ impl Parser<String> {
                                                 // while
                                                 let mut while_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 while_ast_node.node_type = AstNodeType::While;
-                                                while_ast_node.lhs = Some(Box::new(statement_ast_node));
-                                                while_ast_node.rhs = Some(Box::new(expression_ast_node));
+                                                while_ast_node.lhs = Some(statement_ast_node);
+                                                while_ast_node.rhs = Some(expression_ast_node);
                                                 while_ast_node.string_val = "WHILE: insert label here!".to_string();
 
                                                 // statement
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Statement;
-                                                ast_node.lhs = Some(Box::new(while_ast_node));
+                                                ast_node.lhs = Some(while_ast_node.id);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(while_ast_node.id, while_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -6046,26 +6317,25 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 let body_ast_node = self.ast_stack.pop().unwrap();
-                                                // let post_ast_node = self.ast_stack.pop().unwrap();
                                                 let expression_ast_node = self.ast_stack.pop().unwrap();
-                                                // let init_ast_node = self.ast_stack.pop().unwrap();
 
                                                 // for
                                                 let mut for_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 for_ast_node.node_type = AstNodeType::DoWhile;
-                                                // for_ast_node.lhs = Some(Box::new(init_ast_node)); // initialization, e.g.: a = 0
-                                                for_ast_node.expression = Some(Box::new(expression_ast_node)); // condition, e.g. a < 10
-                                                // for_ast_node.rhs = Some(Box::new(post_ast_node)); // post: e.g.: a = a + 1
+                                                for_ast_node.expression = Some(expression_ast_node); // condition, e.g. a < 10
                                                 for_ast_node.string_val = "DO_WHILE: insert label here!".to_string();
 
-                                                for_ast_node.block_items.push(Box::new(body_ast_node));
+                                                for_ast_node.block_items.push(body_ast_node);
 
                                                 // statement
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Statement;
-                                                ast_node.lhs = Some(Box::new(for_ast_node));
+                                                ast_node.lhs = Some(for_ast_node.id);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(for_ast_node.id, for_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -6117,19 +6387,22 @@ impl Parser<String> {
                                                 // for
                                                 let mut for_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 for_ast_node.node_type = AstNodeType::For;
-                                                for_ast_node.lhs = Some(Box::new(init_ast_node)); // initialization, e.g.: a = 0
-                                                for_ast_node.expression = Some(Box::new(expression_ast_node)); // condition, e.g. a < 10
-                                                for_ast_node.rhs = Some(Box::new(post_ast_node)); // post: e.g.: a = a + 1
+                                                for_ast_node.lhs = Some(init_ast_node); // initialization, e.g.: a = 0
+                                                for_ast_node.expression = Some(expression_ast_node); // condition, e.g. a < 10
+                                                for_ast_node.rhs = Some(post_ast_node); // post: e.g.: a = a + 1
                                                 for_ast_node.string_val = "FOR: insert label here!".to_string();
 
-                                                for_ast_node.block_items.push(Box::new(body_ast_node));
+                                                for_ast_node.block_items.push(body_ast_node);
 
                                                 // statement
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Statement;
-                                                ast_node.lhs = Some(Box::new(for_ast_node));
+                                                ast_node.lhs = Some(for_ast_node.id);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(for_ast_node.id, for_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -6162,7 +6435,9 @@ impl Parser<String> {
                                                 let mut break_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 break_ast_node.node_type = AstNodeType::Break;
 
-                                                self.ast_stack.push(break_ast_node);
+                                                self.ast_stack.push(break_ast_node.id);
+
+                                                node_map.insert(break_ast_node.id, break_ast_node);
                                             }
                                         }
 
@@ -6194,9 +6469,11 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Return;
-                                                ast_node.lhs = Some(Box::new(expression_ast_node));
+                                                ast_node.lhs = Some(expression_ast_node);
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -6223,7 +6500,9 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Return;
 
-                                                self.ast_stack.push(ast_node);
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
@@ -6312,7 +6591,8 @@ impl Parser<String> {
                                                 let mut done = false;
                                                 while !done {
 
-                                                    let mut sub_ast_node = self.ast_stack.pop().unwrap();
+                                                    let sub_ast_node_id = self.ast_stack.pop().unwrap();
+                                                    let sub_ast_node = node_map.get(&sub_ast_node_id).unwrap();
                                                     match sub_ast_node.node_type {
 
                                                         // AstNodeType::Identifier => {
@@ -6320,8 +6600,7 @@ impl Parser<String> {
                                                         // }
 
                                                         AstNodeType::BlockItem => {
-                                                            //function_body_block_ast_node.block_items.push(Box::new(sub_ast_node));
-                                                            function_definition_ast_node.block_items.push(Box::new(sub_ast_node));
+                                                            function_definition_ast_node.block_items.push(sub_ast_node.id);
                                                         }
 
                                                         AstNodeType::Compound => {
@@ -6349,7 +6628,7 @@ impl Parser<String> {
 
                                                             // Assumption: return-value data-type of function
                                                             // return-value data-type of function
-                                                            function_definition_ast_node.rhs = Some(Box::new(sub_ast_node));
+                                                            function_definition_ast_node.rhs = Some(sub_ast_node.id);
                                                             done = true;
                                                         }
 
@@ -6357,17 +6636,21 @@ impl Parser<String> {
                                                             // wrap statement into BlockItem
                                                             let mut block_item_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                             block_item_ast_node.node_type = AstNodeType::BlockItem;
-                                                            block_item_ast_node.lhs = Some(Box::new(sub_ast_node));
+                                                            block_item_ast_node.lhs = Some(sub_ast_node.id);
 
-                                                            //function_body_block_ast_node.block_items.push(Box::new(block_item_ast_node));
-                                                            function_definition_ast_node.block_items.push(Box::new(block_item_ast_node));
+                                                            function_definition_ast_node.block_items.push(block_item_ast_node.id);
+
+                                                            node_map.insert(block_item_ast_node.id, block_item_ast_node);
                                                         }
 
                                                         AstNodeType::FunctionDeclaration => {
-                                                            if let Some(function_name_ast_node_deref) = sub_ast_node.function_name_ast_node.as_ref() {
-                                                                function_name = function_name_ast_node_deref.string_val.clone();
+                                                            if let Some(function_name_ast_node_id) = sub_ast_node.function_name_ast_node {
+
+                                                                let function_name_ast_node = node_map.get(&function_name_ast_node_id).unwrap();
+                                                                function_name = function_name_ast_node.string_val.clone();
                                                             }
-                                                            function_definition_ast_node.parameters = std::mem::take(&mut sub_ast_node.parameters);
+                                                            //function_definition_ast_node.parameters = std::mem::take(&mut sub_ast_node.parameters);
+                                                            function_definition_ast_node.parameters = sub_ast_node.parameters.clone();
 
                                                             // function_name = sub_ast_node.string_val;
 
@@ -6376,8 +6659,7 @@ impl Parser<String> {
                                                         }
 
                                                         _ => {
-                                                            //function_body_block_ast_node.block_items.push(Box::new(sub_ast_node));
-                                                            function_definition_ast_node.block_items.push(Box::new(sub_ast_node));
+                                                            function_definition_ast_node.block_items.push(sub_ast_node.id);
                                                         }
                                                     }
                                                 }
@@ -6396,9 +6678,12 @@ impl Parser<String> {
                                                 function_name_ast_node.string_val = function_name.clone();
                                                 function_name_ast_node.node_type = AstNodeType::Identifier;
 
-                                                function_definition_ast_node.function_name_ast_node = Some(Box::new(function_name_ast_node));
+                                                function_definition_ast_node.function_name_ast_node = Some(function_name_ast_node.id);
 
-                                                self.ast_stack.push(function_definition_ast_node);
+                                                self.ast_stack.push(function_definition_ast_node.id);
+
+                                                node_map.insert(function_name_ast_node.id, function_name_ast_node);
+                                                node_map.insert(function_definition_ast_node.id, function_definition_ast_node);
                                             }
                                         }
 
@@ -6468,7 +6753,9 @@ impl Parser<String> {
         terminal_token_rule_element: &RuleElement<String>,
         terminal_value: &String,
         string_buffer: &mut String,
-        debug_node_stack: &mut Vec::<DebugNode>) -> usize {
+        debug_node_stack: &mut Vec::<DebugNode>,
+        node_map: &mut Box<HashMap::<usize, AstNode>>
+    ) -> usize {
 
         // let debug = true;
         let debug = false;
@@ -6491,7 +6778,9 @@ impl Parser<String> {
                     &rule_map,
                     string_buffer,
                     debug_node_stack,
-                    *step);
+                    *step,
+                    node_map
+                );
 
             } else {
 
@@ -6500,7 +6789,9 @@ impl Parser<String> {
                     &rule_map,
                     string_buffer,
                     debug_node_stack,
-                    *step);
+                    *step,
+                    node_map
+            );
 
             }
 
@@ -6511,12 +6802,14 @@ impl Parser<String> {
     }
 }
 
-pub fn output_parse_table_to_csv(parse_table_string_buffer: &mut String,
+pub fn output_parse_table_to_csv(
+    parse_table_string_buffer: &mut String,
     parse_table: &HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>,
     grammar_state_hashmap: &BTreeMap<usize, GrammarState<String>>,
     rules: &mut Vec::<Rule::<String>>,
     rule_ids: &mut Vec::<usize>,
-    rule_map: &mut BTreeMap::<usize, Rule<String>>) {
+    rule_map: &mut BTreeMap::<usize, Rule<String>>
+) {
 
     let debug: bool = false;
 
