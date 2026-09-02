@@ -150,6 +150,7 @@ pub struct AstNode {
     pub parent: Option<usize>,
     pub lhs: Option<usize>,
     pub rhs: Option<usize>,
+    pub parent_id: Option<usize>, // id of parent AstNode
     pub data_type: Option<usize>,
     pub analyzed_data_type: DataType,
     pub expression: Option<usize>,
@@ -520,6 +521,7 @@ impl AstNode {
             parent: None,
             lhs: None,
             rhs: None,
+            parent_id: None,
             data_type: None,
             analyzed_data_type: DataType::DataTypeUnknown,
             expression: None,
@@ -720,6 +722,9 @@ impl AstNode {
             }
             AstNodeType::Arrow => {
                 self.pretty_print_ast_arrow_dot(string_buffer, node_map)
+            }
+            AstNodeType::Cast => {
+                self.pretty_print_ast_cast_dot(string_buffer, node_map)
             }
             _ => {
                 panic!("{}", format!("Unhandled AST node_type: {:?}", self.node_type).as_str());
@@ -1875,4 +1880,43 @@ impl AstNode {
         ast_node_id
     }
 
+    pub fn pretty_print_ast_cast_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap::<usize, AstNode>>) -> usize {
+
+        // create node for this AstNode
+        let ast_node_id = self.id;
+
+        // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
+        string_buffer.push_str(format!("{} [label=\"{} Cast: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+
+        // lhs - type
+        let mut lhs_ast_node_id = 0;
+        if let Some(left_node_id) = self.lhs.as_ref() {
+
+            let left_node = node_map.get(left_node_id).unwrap();
+            lhs_ast_node_id = left_node.pretty_print_ast_dot_ex(string_buffer, node_map, "LHS:");
+
+            // connect parent and child
+            // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
+            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
+        }
+
+        // rhs - identifier
+        let mut rhs_ast_node_id = 0;
+        if let Some(right_node_id) = self.rhs.as_ref() {
+
+            let right_node = node_map.get(&right_node_id).unwrap();
+            rhs_ast_node_id = right_node.pretty_print_ast_dot_ex(string_buffer, node_map, "RHS:");
+
+            // connect parent and child
+            // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
+            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
+        }
+
+        // draw arrow to parent
+        if let Some(parent_id) = self.parent_id {
+            string_buffer.push_str(format!("{} -> {}\n", self.id, parent_id).as_str());
+        }
+
+        ast_node_id
+    }
 }

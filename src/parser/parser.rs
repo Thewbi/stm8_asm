@@ -12,6 +12,7 @@ use std::fmt::Debug;
 
 use std::str::FromStr;
 
+use crate::c_ast::ast_node_id_counter::AST_NODE_ID_COUNTER;
 use crate::common::data_type::DataType;
 
 use crate::parser::rule::Rule;
@@ -32,7 +33,7 @@ use std::{
 pub struct Transition<T>(pub usize, pub RuleElement<T>);
 
 static DEBUG_NODE_COUNTER: AtomicUsize = AtomicUsize::new(0);
-pub static AST_NODE_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+// pub static AST_NODE_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug)]
 pub struct DebugNode {

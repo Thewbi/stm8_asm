@@ -25,7 +25,8 @@ use std::io::Write;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use crate::parser::parser::AST_NODE_ID_COUNTER;
+use crate::c_ast::ast_node_id_counter::AST_NODE_ID_COUNTER;
+// use crate::parser::parser::AST_NODE_ID_COUNTER;
 use crate::parser::rule::read_rule_map;
 use crate::parser::rule::serialize_rules;
 
@@ -97,7 +98,7 @@ mod c_ast;
 use crate::c_ast::ast_node::AstNode;
 use crate::c_ast::ast_node::AstNodeType;
 // use crate::c_ast::identifier_resolution_visitor::IdentifierResolutionVisitor;
-// use crate::c_ast::type_checking_visitor::TypeCheckingVisitor;
+use crate::c_ast::type_checking_visitor::TypeCheckingVisitor;
 
 mod tacky;
 use crate::tacky::tacky::Instruction;
@@ -120,7 +121,7 @@ const BASE_PATH: &'static str = "";
 static RULE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static STATE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-pub fn print_ast(program_ast_node_id: &usize, node_map: &Box<HashMap::<usize, AstNode>>) {
+pub fn print_ast(program_ast_node_id: &usize, node_map: &Box<HashMap::<usize, AstNode>>, filename: &str) {
 
     let debug = false;
 
@@ -162,7 +163,7 @@ pub fn print_ast(program_ast_node_id: &usize, node_map: &Box<HashMap::<usize, As
         // https://dreampuf.github.io/GraphvizOnline
 
         // 1. Create or overwrite the file
-        let file = File::create("abstract_syntax_tree.dot").expect("Create file failed!");
+        let file = File::create(filename).expect("Create file failed!");
 
         // 2. Wrap the file in a BufWriter
         let mut writer = BufWriter::new(file);
@@ -648,14 +649,14 @@ fn main() {
 
         let ast_stack_root_option = parser.ast_stack.pop();
         if let Some(ref program_ast_node_id) = ast_stack_root_option {
-            print_ast(program_ast_node_id, &node_map);
+            print_ast(program_ast_node_id, &node_map, "abstract_syntax_tree.dot");
         }
-/*
+
         //
         // Semantic Analysis Stage, page 103, 174ff
         //
 
-        if let Some(mut program_ast_node) = ast_stack_root_option {
+        if let Some(program_ast_node_id) = ast_stack_root_option {
 
             // rc - refcell VariableNamingSource so that the IdentifierResolutionVisitor
             // and the TackyVisitor can both use the same object
@@ -670,7 +671,6 @@ fn main() {
             // add initial scope for global namespace
             //
 
-            // variable_naming_source_rc_3.enter_scope();
             variable_naming_source_rc_3.borrow_mut().enter_scope();
 
             //
@@ -688,9 +688,10 @@ fn main() {
             // variables can be defined and are valid only within the scope they
             // are defined in.
             //
-
+            /*
             let mut identifier_resolution_visitor = IdentifierResolutionVisitor::new(variable_naming_source_rc_1);
             identifier_resolution_visitor.visit(&mut program_ast_node);
+            */
 
             //
             // 2. Type Checking Phase - Nora Sandler, page 178ff
@@ -700,8 +701,17 @@ fn main() {
             let symbol_table_rc_1 = Rc::new(RefCell::new(symbol_table));
 
             let mut type_checking_visitor = TypeCheckingVisitor::new(symbol_table_rc_1);
-            type_checking_visitor.visit(&mut program_ast_node);
+            type_checking_visitor.visit(program_ast_node_id, &mut node_map);
 
+            //
+            // Print AST to dot after TypeChecking
+            //
+
+            let test = node_map.get(&program_ast_node_id).unwrap();
+
+            print_ast(&program_ast_node_id, &node_map, "abstract_syntax_tree_post_type_checking.dot");
+
+/*
             type_checking_visitor.print_symbol_table();
 
             //
@@ -871,9 +881,10 @@ fn main() {
 
                 // 4. Explicitly flush the remaining data to disk
                 writer.flush().expect("flush failed!");
-            }
+
+            }*/
         }
-*/
+
     } else {
         println!("AST is empty!");
     }
