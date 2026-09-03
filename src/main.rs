@@ -97,7 +97,7 @@ use crate::example_input::input::provide_sourcode_input;
 mod c_ast;
 use crate::c_ast::ast_node::AstNode;
 use crate::c_ast::ast_node::AstNodeType;
-// use crate::c_ast::identifier_resolution_visitor::IdentifierResolutionVisitor;
+use crate::c_ast::identifier_resolution_visitor::IdentifierResolutionVisitor;
 use crate::c_ast::type_checking_visitor::TypeCheckingVisitor;
 
 mod tacky;
@@ -688,10 +688,17 @@ fn main() {
             // variables can be defined and are valid only within the scope they
             // are defined in.
             //
-            /*
+
             let mut identifier_resolution_visitor = IdentifierResolutionVisitor::new(variable_naming_source_rc_1);
-            identifier_resolution_visitor.visit(&mut program_ast_node);
-            */
+            identifier_resolution_visitor.visit(program_ast_node_id, &mut node_map);
+
+            //
+            // Print AST to dot after Identifier Resolution
+            //
+
+            let test = node_map.get(&program_ast_node_id).unwrap();
+
+            print_ast(&program_ast_node_id, &node_map, "abstract_syntax_tree_post_identifier_resolution.dot");
 
             //
             // 2. Type Checking Phase - Nora Sandler, page 178ff
