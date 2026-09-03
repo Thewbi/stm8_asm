@@ -42,7 +42,11 @@ impl IdentifierResolutionVisitor {
         }
     }
 
-    pub fn visit(&mut self, ast_node_id: usize, node_map: &mut Box<HashMap<usize, AstNode>>) -> IdentifierResolutionNode {
+    pub fn visit(&mut self,
+        ast_node_id: usize,
+        node_map: &mut Box<HashMap<usize, AstNode>>)
+        -> IdentifierResolutionNode
+    {
         self.visit_ex(ast_node_id, node_map, true)
     }
 
@@ -50,8 +54,8 @@ impl IdentifierResolutionVisitor {
     pub fn visit_ex(&mut self,
         ast_node_id: usize,
         node_map: &mut Box<HashMap<usize, AstNode>>,
-        build_new_scope: bool
-    ) -> IdentifierResolutionNode
+        build_new_scope: bool)
+        -> IdentifierResolutionNode
     {
 
         let mut ast_node = AstNode::new(0);

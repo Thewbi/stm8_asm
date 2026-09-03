@@ -102,7 +102,7 @@ use crate::c_ast::type_checking_visitor::TypeCheckingVisitor;
 
 mod tacky;
 use crate::tacky::tacky::Instruction;
-// use crate::tacky::tacky_visitor::TackyVisitor;
+use crate::tacky::tacky_visitor::TackyVisitor;
 use crate::tacky::tacky::Program;
 use crate::tacky::tacky::print_tacky_program;
 
@@ -718,7 +718,6 @@ fn main() {
 
             print_ast(&program_ast_node_id, &node_map, "abstract_syntax_tree_post_type_checking.dot");
 
-/*
             type_checking_visitor.print_symbol_table();
 
             //
@@ -731,6 +730,7 @@ fn main() {
 
             variable_naming_source_rc_3.borrow_mut().exit_scope();
 
+/*
             //
             // Output AST post IdentifierResolutionVisitor (replaces variables)
             //
@@ -738,7 +738,7 @@ fn main() {
             let mut ast_string_buffer = String::from("");
 
             ast_string_buffer.push_str("digraph {\n");
-            program_ast_node.pretty_print_ast_dot(&mut ast_string_buffer);
+            program_ast_node.pretty_print_ast_dot(&mut ast_string_buffer, &node_map);
             ast_string_buffer.push_str("}");
 
             // DEBUG - print AST dot to console
@@ -767,16 +767,17 @@ fn main() {
                 // 4. Explicitly flush the remaining data to disk
                 writer.flush().expect("flush failed!");
             }
+*/
 
             //
             // Generate TACKY (from AST)
             //
 
             let mut tacky_visitor = TackyVisitor::new(variable_naming_source_rc_2);
-
             tacky_visitor.program.name = String::from(input_tuple.1);
+
             let mut br_cnt = 0;
-            tacky_visitor.visit(&mut program_ast_node, &String::from(""), &mut br_cnt);
+            tacky_visitor.visit(program_ast_node_id, &mut node_map, &String::from(""), &mut br_cnt);
 
             //
             // DEBUG print TACKY statements to file
@@ -799,6 +800,7 @@ fn main() {
             // 4. Explicitly flush the remaining data to disk
             writer.flush().expect("flush failed!");
 
+            /*
             //
             // Generate Assembler AST (from TACKY)
             //

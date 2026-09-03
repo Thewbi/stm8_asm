@@ -40,3 +40,4 @@ top_automaton.dot
 top_fragment.dot
 abstract_syntax_tree_post_type_checking.dot
 abstract_syntax_tree_post_identifier_resolution.dot
+tacky.tky

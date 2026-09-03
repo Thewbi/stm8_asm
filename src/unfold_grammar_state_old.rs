@@ -1,11 +1,11 @@
 /*
-    // For this function to work, insert at least one rule into the identification_rules 
+    // For this function to work, insert at least one rule into the identification_rules
     // set of the grammar set prior to calling this function!
     //
-    // This function will develop all rules in the identification_rules set into the closure 
-    // of all rules that the parser can potentially activate on any input symbol when it is 
+    // This function will develop all rules in the identification_rules set into the closure
+    // of all rules that the parser can potentially activate on any input symbol when it is
     // located in the state for which this function is called.
-    // 
+    //
     // All these rules are inserted into the rules-set of the grammar state.
     //
     // This function fills the channel map with channels between rules.
@@ -14,7 +14,7 @@
     // same large loop that also calls this function.
     //
     // This function does not produce new states!
-    pub fn unfold_grammar_state(&mut self, 
+    pub fn unfold_grammar_state(&mut self,
         grammar_rules: &Vec::<Rule<T>>,
         first: &BTreeMap<RuleElement::<T>, Vec::<RuleElement::<T>>>,
         nullable: &BTreeMap::<RuleElement::<T>, bool>,
@@ -164,7 +164,7 @@
                             if nullable.contains_key(&temp_non_terminal) && *nullable.get(&temp_non_terminal).unwrap() == false {
                                 break;
                             }
-                            
+
                         }
 
                         RuleElement::Terminal(terminal) => {
@@ -179,7 +179,7 @@
                             break;
                         }
 
-                        _ => { 
+                        _ => {
                             panic!("test");
                         }
                     }
@@ -206,7 +206,7 @@
 
                     // DEBUG
                     // println!("non_terminal {}", non_terminal);
-                    
+
                     // find all rules that have a LHS == the non-terminal and add them into the d_set
                     for i in 0..grammar_rules.len() {
 
@@ -283,7 +283,7 @@
                                             }
                                         }
                                     }
-                                       
+
                                     contained_already = true;
                                 }
                             }
@@ -818,7 +818,7 @@
 
                 // }
 
-                // reset the lexer's DFA back to the start state and 
+                // reset the lexer's DFA back to the start state and
                 // try to accept the symbol again which was read from input already
                 char_consumed = false;
                 current_state_id = dfa.start_state_id;
@@ -835,16 +835,16 @@
                 //}
 
                 match dfa.states[&last_state_id].token_id {
-                    
+
                     NEWLINE_TOKEN_ID | WHITESPACE_TOKEN_ID => {
                         // ignore NEWLINE and WHITESPACE
                         // nop
                     }
                     _ => {
                         // pass token to the lexer
-                        provide_input(&mut parser, 
-                            &grammar_state_hashmap, 
-                            &mut step, 
+                        provide_input(&mut parser,
+                            &grammar_state_hashmap,
+                            &mut step,
                             &terminal);
                     }
                 }
@@ -1005,14 +1005,14 @@
 
 
 
-                            /*                
+                            /*
                 //
                 // Step 3 - check if the channel points to a normal rule
                 //
 
                 //
                 // This is the same code as for identifying rules above.
-                // Try to find 
+                // Try to find
                 //
 
                 println!("{:?}", dest_state);
@@ -1053,7 +1053,7 @@
                                 // println!("");
                                 continue;
                             }
-                            
+
                             println!("Updating dirty state: {} {:?}", dest_state_id, la.clone());
                             if !dest_state.rules[i].lookahead.contains(&la) {
                                 dest_state.rules[i].lookahead.push(la.clone());
@@ -1344,10 +1344,10 @@ impl<T: std::cmp::PartialEq> PartialEq<RuleElement<T>> for RuleElement<T> {
 /*
 // TODO: the lookahead character is not used at all!
 // Remove it! It makes the parser loop more complicated
-fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>, 
-    mut current_state_id: usize, 
-    token_string_buffer: &mut String, 
-    current_character: char, 
+fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>,
+    mut current_state_id: usize,
+    token_string_buffer: &mut String,
+    current_character: char,
     lookahead_character: char,
     step: &mut usize,
     parser: &mut Parser::<String>,
@@ -1406,7 +1406,7 @@ fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>,
             }
 
             match dfa.states[&current_state_id].token_id {
-                
+
                 NEWLINE_TOKEN_ID | WHITESPACE_TOKEN_ID => {
                     // ignore NEWLINE and WHITESPACE
                     if lexer_debug {
@@ -1424,9 +1424,9 @@ fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>,
                     if token_string_buffer == "point_t" {
 
                         // pass token to the lexer
-                        provide_input(parser, 
-                            grammar_state_hashmap, 
-                            step, 
+                        provide_input(parser,
+                            grammar_state_hashmap,
+                            step,
                             &RuleElement::Terminal(String::from("TYPE_NAME")),
                             &token_string_buffer,
                             string_buffer,
@@ -1434,9 +1434,9 @@ fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>,
 
                     } else {
                         // pass token to the lexer
-                        provide_input(parser, 
-                            grammar_state_hashmap, 
-                            step, 
+                        provide_input(parser,
+                            grammar_state_hashmap,
+                            step,
                             &terminal,
                             &token_string_buffer,
                             string_buffer,
@@ -1450,9 +1450,9 @@ fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>,
                     }
 
                     // pass token to the lexer
-                    provide_input(parser, 
-                        grammar_state_hashmap, 
-                        step, 
+                    provide_input(parser,
+                        grammar_state_hashmap,
+                        step,
                         &terminal,
                         &token_string_buffer,
                         string_buffer,
@@ -1460,14 +1460,14 @@ fn consume_character(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>,
                 }
             }
 
-            // reset the lexer's DFA back to the start state and 
+            // reset the lexer's DFA back to the start state and
             // try to accept the symbol again which was read from input already
             char_consumed = false;
             current_state_id = dfa.start_state_id;
             token_string_buffer.clear();
 
-        } else if dfa.is_end_state(next_state_id) { 
-            
+        } else if dfa.is_end_state(next_state_id) {
+
             //
             // if the state is normal or an end state, just consume the character
             //
@@ -1516,7 +1516,7 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
 
 
 
-        
+
 
 
 
@@ -1543,9 +1543,9 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
 
                 //                 self.stack_offset = self.stack_offset - 4;
                 //                 self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
-                                
+
                 //                 stack_offset_value = self.stack_offset;
-                                
+
                 //             }
                 //         }
 
@@ -1581,9 +1581,9 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
 
                 //     //             self.stack_offset = self.stack_offset - 4;
                 //     //             self.stack_offset_map.insert(value.to_string(), self.stack_offset);
-                                
+
                 //     //             value_test = self.stack_offset;
-                                
+
                 //     //         }
                 //     //     }
                 //     // }
@@ -1598,7 +1598,7 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
                 //     // asm_ast_instruction.src = ValueElement::Variable(self.stack_offset.to_string());
                 // }
 
-                
+
 
 
 
@@ -1623,9 +1623,9 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
 
                 //                 self.stack_offset = self.stack_offset - 4;
                 //                 self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
-                                
+
                 //                 stack_offset_value = self.stack_offset;
-                                
+
                 //             }
                 //         }
 
@@ -1661,9 +1661,9 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
 
                 //     //             self.stack_offset = self.stack_offset - 4;
                 //     //             self.stack_offset_map.insert(value.to_string(), self.stack_offset);
-                                
+
                 //     //             value_test = self.stack_offset;
-                                
+
                 //     //         }
                 //     //     }
                 //     // }
@@ -1701,9 +1701,9 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
 
                 //                 self.stack_offset = self.stack_offset - 4;
                 //                 self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
-                                
+
                 //                 stack_offset_value = self.stack_offset;
-                                
+
                 //             }
                 //         }
 
@@ -1721,7 +1721,7 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
                 // }
 
 
-                
+
 
 
 
@@ -1792,3 +1792,194 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
             }
         }
         */
+
+        // #[derive(Debug, PartialEq)]
+// pub enum AstNodeType {
+//     Program,
+//     ConstInt,
+//     ConstLong,
+//     ConstUInt,
+//     ConstULong,
+//     ConstDouble,
+//     Structure,
+//     Array,
+//     Expression,
+//     Identifier,
+//     Return,
+//     If,
+//     Unary,
+//     Binary,
+//     Operator,
+//     PrefixOperator,
+//     DataType,
+//     Declaration, // variable declaration or function declaration
+//     FunctionDeclaration,
+//     VariableDeclaration,
+//     StructureDeclaration,
+//     ParameterDeclaration,
+//     Statement,
+//     Block,
+//     BlockItem,
+//     Conditional, // elvis operator
+//     Compound,
+//     While,
+//     DoWhile,
+//     For,
+//     FunctionCall,
+//     StorageClassSpecifier,
+//     Pointer,
+//     Switch,
+//     Case,
+//     Default,
+//     Break,
+//     Continue,
+//     EmptyStatement,
+//     SingleInit,
+//     CompoundInit,
+//     Subscript,
+//     MemberDeclaration,
+//     Dot,
+//     Arrow,
+//     AssignmentOperator,
+//     Unknown,
+// }
+
+
+// println!("id: {}", ast_node.node_id);
+                // if let Some(compound) = ast_node.lhs.as_ref() {
+                //     if let Some(left_node) = compound.lhs.as_ref() {
+                //         self.visit(&left_node);
+                //     }
+                // }
+
+
+
+                    // match return_value {
+
+                    //     Constant(string_value) => {
+
+                    //     }
+
+                    //     Variable(string_value) => {
+                    //         return_instruction.src = ValueElement::Variable(dst_name);
+                    //     }
+
+                    //     None => {
+
+                    //     }
+                    // }
+
+
+
+
+
+
+                // if let Some(sub) = ast_node.lhs.as_ref() {
+
+                //     // // match sub.expression_type {
+                //     // match sub.operator_type {
+
+                //     //     OperatorType::LessThan => {
+                //     //         println!("LessThan");
+                //     //     }
+
+                //     //     OperatorType::Assignment => {
+                //     //         println!("Assignment");
+                //     //     }
+
+                //     //     OperatorType::NotApplicable => {
+                //     //         println!("NotApplicable");
+                //     //     }
+
+                //     //     _ => {
+                //     //         panic!("Test");
+                //     //     }
+                //     // }
+
+                //     let mut br_cnt = 0;
+                //     self.visit(&sub, &dst_name, &mut br_cnt);
+                // }
+
+
+                // let mut branch_counter:usize = 0;
+                // self.if_index = self.if_index + 1;
+
+                // let mut output_end_label:bool = false;
+                // if *branch_counter == 0 {
+                //     output_end_label = true;
+                // }
+
+                // let mut binary_instruction: Instruction = Instruction::new();
+                // binary_instruction.instruction_type = InstructionType::Binary;
+                // binary_instruction.dst = ValueElement::Variable(dst_name.to_string());
+
+
+
+
+    // pub fn new_temp_var(&mut self) -> String {
+
+    //     let temp = TEMP_VAR_COUNTER.fetch_add(1, Ordering::SeqCst);
+
+    //     let mut t = String::from("tmp.");
+    //     t.push_str(temp.to_string().as_str());
+
+    //     t
+    // }
+
+
+
+    // println!("{:?}", lhs);
+
+                    // match lhs.node_type {
+
+                    //     AstNodeType::Identifier => {
+                    //         // simple variable
+                    //         exp_result_var_name = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&lhs.string_val);
+                    //         let lhs_value_element = self.visit(&lhs, &exp_result_var_name, branch_counter);
+                    //     }
+
+                    //     _ => {
+                    //         exp_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+                    //         let lhs_value_element = self.visit(&lhs, &exp_result_var_name, branch_counter);
+                    //     }
+                    // }
+
+                    // let mut temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+
+                    // let mut br_cnt = 0;
+                    // let rhs_value_element = self.visit(&rhs, &temp_var_name, &mut br_cnt);
+
+                    // println!("{:?}", rhs_value_element);
+
+                    // match rhs_value_element {
+                    //     ValueElement::Variable(variable_name) => {
+                    //         // resolve unique name for variable name
+                    //         temp_var_name = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&variable_name);
+                    //     }
+                    //     _ => {
+                    //         todo!();
+                    //     }
+                    // }
+
+                    // //unary_instruction.src = rhs_value_element;
+                    // unary_instruction.src = ValueElement::Variable(temp_var_name);
+
+                    // match data_type.string_val.as_str() {
+                            //     "int" => {
+                            //         top_level_function.return_type = Some(DataType::DataTypeInt);
+                            //     }
+                            //     _ => {
+                            //         todo!();
+                            //     }
+                            // }
+                            //top_level_function.return_type = Some(data_type.as_ref().clone());
+                            //top_level_function.return_type = data_type.clone();
+
+                            // match ast_node.rhs {
+                //     _ => {
+                //         println!("{:?}", ast_node.rhs);
+                //         top_level_function.return_type = ast_node.rhs;
+                //         panic!("test");
+                //     }
+                // }
+                // top_level_function.return_type = Some(ast_node.rhs);

@@ -1,7 +1,0 @@
-Program("res/C/samples/nora_sandler/binary_logical_1.c")
-  Function("main", true)
-    //  int     userdef_var.0    0     1         
-    VariableDeclaration(label:"userdef_var.0", data_type:"int")
-    Binary(LogicalOr, src_1:Constant(1), src_2:Constant(0), dst:Variable(userdef_var.0))
-    Copy(src:Variable(userdef_var.0), dst:Variable(userdef_var.0))
-    Return(Constant(0))
