@@ -3013,7 +3013,7 @@ impl Parser<String> {
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("assignment_expression"));
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("assignment_expression")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("assignment_expression")).as_str());
 
                                             // take old node from stack - unary_expression
                                             let old_debug_node = debug_node_stack.pop().unwrap();
@@ -3030,26 +3030,36 @@ impl Parser<String> {
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
-                                            // println!("debug_node_id: {}", debug_node_id);
-
                                             //
                                             // AST - assignment_expression -> unary_expression assignment_operator assignment_expression
                                             //
 
                                             if self.construct_ast {
 
+                                                // source value element (variable or expression or literal)
                                                 let rhs_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // operator (= equals token for assignment operator)
                                                 let operator_ast_node_id = self.ast_stack.pop().unwrap();
                                                 let operator_ast_node = node_map.get(&operator_ast_node_id).unwrap();
+
+                                                // dest value element
                                                 let lhs_ast_node = self.ast_stack.pop().unwrap();
 
+                                                // create new expression AST Node
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Expression;
                                                 ast_node.lhs = Some(lhs_ast_node);
                                                 ast_node.rhs = Some(rhs_ast_node);
                                                 ast_node.operator_type = operator_ast_node.operator_type.clone();
 
-                                                // println!("ast_node: {:?}", ast_node);
+                                                // DEBUG
+                                                if debug {
+                                                    println!("{:?}", ast_node);
+                                                }
+
+                                                assert!(ast_node.lhs.is_some());
+                                                assert!(ast_node.rhs.is_some());
 
                                                 self.ast_stack.push(ast_node.id);
 
@@ -5461,13 +5471,6 @@ impl Parser<String> {
 
                                                 // take the expression or constant that acts as differentiator for this case from the stack
                                                 let differentiator_ast_node = self.ast_stack.pop().unwrap();
-
-                                                // loop {
-                                                //     let temp_node = self.ast_stack.pop().unwrap();
-                                                //     if temp_node.node_type == AstNodeType::EmptyStatement {
-                                                //         break;
-                                                //     }
-                                                // }
 
                                                 // case node
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));

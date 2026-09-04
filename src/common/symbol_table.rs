@@ -40,6 +40,7 @@ impl PartialEq<SymbolTableEntry> for SymbolTableEntry {
 
 pub struct SymbolTable {
     identifier_type_map: HashMap::<String, SymbolTableEntry>,
+    debug: bool,
 }
 
 impl SymbolTable {
@@ -47,13 +48,16 @@ impl SymbolTable {
     pub fn new() -> SymbolTable {
         let instance = SymbolTable {
             identifier_type_map: HashMap::<String, SymbolTableEntry>::new(),
+            debug: false,
         };
         instance
     }
 
     pub fn insert(&mut self, varname: String, symbol_table_entry: SymbolTableEntry) {
         // DEBUG
-        println!("Inserting '{}' with type {:?}", varname, symbol_table_entry);
+        if self.debug {
+            println!("Inserting '{}' with type {:?}", varname, symbol_table_entry);
+        }
         self.identifier_type_map.insert(varname, symbol_table_entry);
     }
 
@@ -61,14 +65,27 @@ impl SymbolTable {
         self.identifier_type_map.contains_key(varname)
     }
 
+    pub fn contains_key(&mut self, varname: &String) -> bool {
+        self.identifier_type_map.contains_key(varname)
+    }
+
     pub fn retrieve(&mut self, varname: &String) -> SymbolTableEntry {
         self.identifier_type_map.get(varname).unwrap().clone()
     }
 
+    pub fn get(&mut self, varname: &String) -> SymbolTableEntry {
+        self.identifier_type_map.get(varname).unwrap().clone()
+    }
+
     pub fn print_symbol_table(&self) {
+        let mut index = 0;
+        println!("print_symbol_table() ------------------------------------------------------------");
         for (key, value) in self.identifier_type_map.clone().into_iter() {
-            println!("{} / {:?}", key, value);
+            println!("{}) {} / {:?}", index, key, value);
             // println!("{} / {:?}", key, value.data_type);
+            println!("");
+            index = index + 1;
         }
+        println!("---------------------------------------------------------------------------------");
     }
 }

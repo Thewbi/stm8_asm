@@ -345,6 +345,20 @@ impl AsmAstMasmEmitterVisitor {
                 self.string_buffer.push_str("\n");
             }
 
+            AsmAstInstructionType::Movsx => {
+                // statement
+                self.string_buffer.push_str("    movsx ");
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::QWord);
+                self.string_buffer.push_str(", ");
+                self.emit_asm_ast_operand(&asm_ast_instruction.src, DataTypeSize::QWord);
+
+                // comment
+                self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
+
+                // newline
+                self.string_buffer.push_str("\n");
+            }
+
             AsmAstInstructionType::Push => {
                 // print!("    push ");
                 self.string_buffer.push_str("    push ");
@@ -364,7 +378,6 @@ impl AsmAstMasmEmitterVisitor {
                 let mut mnemonic = String::new();
 
                 match &asm_ast_instruction.unary_operator {
-
                     AsmAstUnaryOperator::Neg => {
                         panic!("");
                     }
@@ -377,7 +390,6 @@ impl AsmAstMasmEmitterVisitor {
                     _ => {
                         println!("{}", format!("Unhandled AsmAstInstructionType {:?}!\n", asm_ast_instruction.unary_operator).as_str());
                     }
-
                 }
 
                 // print!("    {} ", mnemonic);

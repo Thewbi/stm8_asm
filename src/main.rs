@@ -643,15 +643,17 @@ fn main() {
 
         node_map.insert(program_ast_node.id, program_ast_node);
 
+        let ast_stack_root_option = parser.ast_stack.pop();
+
+/*
         //
         // pretty print AST (pre semantic visitor)
         //
 
-        let ast_stack_root_option = parser.ast_stack.pop();
         if let Some(ref program_ast_node_id) = ast_stack_root_option {
             print_ast(program_ast_node_id, &node_map, "abstract_syntax_tree.dot");
         }
-
+*/
         //
         // Semantic Analysis Stage, page 103, 174ff
         //
@@ -692,20 +694,20 @@ fn main() {
             let mut identifier_resolution_visitor = IdentifierResolutionVisitor::new(variable_naming_source_rc_1);
             identifier_resolution_visitor.visit(program_ast_node_id, &mut node_map);
 
+/*
             //
             // Print AST to dot after Identifier Resolution
             //
 
-            let test = node_map.get(&program_ast_node_id).unwrap();
-
             print_ast(&program_ast_node_id, &node_map, "abstract_syntax_tree_post_identifier_resolution.dot");
-
+*/
             //
             // 2. Type Checking Phase - Nora Sandler, page 178ff
             //
 
             let symbol_table = SymbolTable::new();
             let symbol_table_rc_1 = Rc::new(RefCell::new(symbol_table));
+            let symbol_table_rc_2 = symbol_table_rc_1.clone();
 
             let mut type_checking_visitor = TypeCheckingVisitor::new(symbol_table_rc_1);
             type_checking_visitor.visit(program_ast_node_id, &mut node_map);
@@ -714,11 +716,13 @@ fn main() {
             // Print AST to dot after TypeChecking
             //
 
-            let test = node_map.get(&program_ast_node_id).unwrap();
+            // let test = node_map.get(&program_ast_node_id).unwrap();
 
             print_ast(&program_ast_node_id, &node_map, "abstract_syntax_tree_post_type_checking.dot");
 
-            type_checking_visitor.print_symbol_table();
+            if debug {
+                type_checking_visitor.print_symbol_table();
+            }
 
             //
             // 3. Loop Labeling Phase
@@ -773,7 +777,7 @@ fn main() {
             // Generate TACKY (from AST)
             //
 
-            let mut tacky_visitor = TackyVisitor::new(variable_naming_source_rc_2);
+            let mut tacky_visitor = TackyVisitor::new(variable_naming_source_rc_2, symbol_table_rc_2);
             tacky_visitor.program.name = String::from(input_tuple.1);
 
             let mut br_cnt = 0;
@@ -800,7 +804,7 @@ fn main() {
             // 4. Explicitly flush the remaining data to disk
             writer.flush().expect("flush failed!");
 
-            /*
+
             //
             // Generate Assembler AST (from TACKY)
             //
@@ -830,6 +834,7 @@ fn main() {
             // 4. Explicitly flush the remaining data to disk
             writer.flush().expect("flush failed!");
 
+            /**/
             //
             // Fixup
             //
@@ -891,7 +896,8 @@ fn main() {
                 // 4. Explicitly flush the remaining data to disk
                 writer.flush().expect("flush failed!");
 
-            }*/
+            }
+            /**/
         }
 
     } else {

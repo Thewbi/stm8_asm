@@ -141,6 +141,10 @@ impl AsmAstFixupVisitor {
                 }
             }
 
+            AsmAstInstructionType::Movsx => {
+                new_body.push(Box::new(asm_ast_instruction));
+             }
+
             AsmAstInstructionType::Unary => {
                 // println!("Unary {:?} {:?}", asm_ast_instruction.unary_operator, asm_ast_instruction.dst);
 

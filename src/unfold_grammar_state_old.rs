@@ -1983,3 +1983,120 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
                 //     }
                 // }
                 // top_level_function.return_type = Some(ast_node.rhs);
+
+
+
+// // unary.src = tacky_node_unary.src.clone();
+// match &tacky_node_unary.src {
+//     ValueElement::Constant(constant_value) => {
+//         unary.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+//     }
+//     ValueElement::Variable(variable_name) => {
+//         unary.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+//     }
+//     _ => {
+//         panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_unary.src).as_str());
+//     }
+// }
+
+// match &tacky_node_unary.src {
+//     ValueElement::Variable(variable_name) => {
+//         unary.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+//     }
+//     _ => {
+//         panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_unary.src).as_str());
+//     }
+// }
+
+// match &tacky_node_unary.src {
+//     ValueElement::Variable(variable_name) => {
+//         unary.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+//     }
+//     _ => {
+//         panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_unary.src).as_str());
+//     }
+// }
+
+// mov.src = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(AsmAstReg::BX) };
+
+// mov.src = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(AsmAstReg::BX) };
+
+
+
+/*
+            //
+            // Mov - page 198 - move arguments to the stack
+            //
+
+            let mut mov: AsmAstInstruction = AsmAstInstruction::new();
+            mov.instruction_type = AsmAstInstructionType::Mov;
+
+            match param.as_ref() {
+                ValueElement::Constant(constant_value) => {
+                    mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+                }
+                ValueElement::Variable(variable_name) => {
+                    mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+                }
+                _ => {
+                    panic!("{}", format!("Unhandled InstructionType {:?}!\n", param).as_str());
+                }
+            }
+
+            // match &tacky_node_copy.dst {
+            //     ValueElement::Variable(variable_name) => {
+            //         mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+            //     }
+            //     _ => {
+            //         panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_copy.dst).as_str());
+            //     }
+            // }
+
+            //mov.dst = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(system_V_ABI_Register_order[index].clone()) };
+
+            // AsmAstOperand{ operand_type: AsmAstOperandType::Stack(i32),
+            mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Stack(stack_offset_value) };
+
+            asm_ast_function.body.push(Box::new(mov));
+*/
+
+/*
+        for (index, param) in tacky_node_fun_call.parameters.iter().enumerate() {
+
+            if index < 6 {
+                continue;
+            }
+
+            if index >= 6 {
+                println!("[STACK] ARGUMENT_{}: {:?}", index, param);
+            }
+
+            let mut push: AsmAstInstruction = AsmAstInstruction::new();
+            push.instruction_type = AsmAstInstructionType::Push;
+
+            match param.as_ref() {
+                ValueElement::Constant(constant_value) => {
+                    push.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+                }
+                ValueElement::Variable(variable_name) => {
+                    push.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+                }
+                _ => {
+                    panic!("{}", format!("Unhandled InstructionType {:?}!\n", param).as_str());
+                }
+            }
+
+            asm_ast_function.body.push(Box::new(push));
+        }
+*/
+
+
+
+            // match &tacky_node_copy.dst {
+            //     ValueElement::Variable(variable_name) => {
+            //         mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+            //     }
+            //     _ => {
+            //         panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_copy.dst).as_str());
+            //     }
+            // }

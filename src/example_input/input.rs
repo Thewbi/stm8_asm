@@ -263,7 +263,7 @@ pub fn provide_sourcode_input() -> ( String, String ) {
     // let filename = "res/C/samples/nora_sandler/binary_8.c";
     // let filename = "res/C/samples/nora_sandler/binary_9.c";
     // let filename = "res/C/samples/nora_sandler/binary_10.c";
-    let filename = "res/C/samples/nora_sandler/binary_11.c";
+    // let filename = "res/C/samples/nora_sandler/binary_11.c";
 
     // let filename = "res/C/samples/nora_sandler/binary_logical_0.c";
     // let filename = "res/C/samples/nora_sandler/binary_logical_1.c";
@@ -316,6 +316,8 @@ pub fn provide_sourcode_input() -> ( String, String ) {
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_3.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_4.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_5.c").expect("file cannot be read!");
+    // let filename = "res/C/samples/nora_sandler/assignment_6.c";
+    let filename = "res/C/samples/nora_sandler/assignment_7.c";
 
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_assignment_0.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/binary_assignment_1.c").expect("file cannot be read!");

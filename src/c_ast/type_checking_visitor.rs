@@ -13,6 +13,7 @@ use crate::c_ast::ast_node::AstNodeOperatorType;
 use crate::c_ast::ast_node_id_counter::AST_NODE_ID_COUNTER;
 use crate::common::data_type::DataType;
 use crate::common::data_type::DataType::DataTypeInt;
+use crate::common::data_type::DataType::DataTypeUnknown;
 use crate::common::symbol_table::SymbolTableEntry;
 use crate::common::symbol_table::SymbolTableEntryType;
 
@@ -48,7 +49,6 @@ impl TypeCheckingVisitor {
     }
 
     pub fn retrieve_type(&self, ast_node: &AstNode) -> DataType {
-        // check if the operand is a literal or a symbol
         match ast_node.node_type {
             AstNodeType::ConstInt => {
                 return DataType::DataTypeInt;
@@ -78,15 +78,16 @@ impl TypeCheckingVisitor {
         }
     }
 
-    // Nora Sandler, page 254
     pub fn get_common_type(&self, type1: &DataType, type2: &DataType) -> DataType {
+        // DESCRIPTION:
+        //
+        // Nora Sandler, page 254
         if type1 == type2 {
             return *type1;
         }
         return DataType::DataTypeLong;
     }
 
-    // pub fn visit(&mut self, ast_node: &mut AstNode) {
     pub fn visit(&mut self, ast_node_id: usize, node_map: &mut Box<HashMap<usize, AstNode>>) {
 
         let mut ast_node = AstNode::new(0);
@@ -133,29 +134,100 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Expression => {
-                // // DEBUG
-                // println!("{:?}", ast_node);
+                // DEBUG
+                if self.debug {
+                    println!("{:?}", ast_node);
+                }
+
+                assert!(ast_node.lhs.is_some());
+
+                let mut lhs_type = DataType::DataTypeUnknown;
+                let mut rhs_type = DataType::DataTypeUnknown;
+
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
                     self.visit(left_node_id, node_map);
+
+                    let left_node = node_map.get(&left_node_id).unwrap();
+                    lhs_type = self.retrieve_type(left_node);
                 }
                 // RHS
+                let mut right_node = AstNode::new(0);
                 if let Some(right_node_id) = ast_node.rhs {
                     self.visit(right_node_id, node_map);
+
+                    right_node = node_map.get(&right_node_id).unwrap().clone();
+                    rhs_type = self.retrieve_type(&right_node);
+                }
+
+                // not all expressions have a RHS. If there is a RHS, check types and insert cast if needed
+                if ast_node.rhs.is_some() {
+
+                    assert_ne!(lhs_type, DataTypeUnknown);
+                    assert_ne!(rhs_type, DataTypeUnknown);
+
+                    if lhs_type != rhs_type {
+                        println!("lhs_type: {:?}, rhs_type: {:?}", lhs_type, rhs_type);
+
+                        // insert a cast node into the AST!
+                        let cast_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                        let mut cast_ast_node = AstNode::new(cast_ast_node_id);
+                        cast_ast_node.node_type = AstNodeType::Cast;
+                        cast_ast_node.lhs = Some(ast_node.rhs.unwrap()); // LHS is the variable or literal (value element) which needs casting
+                        cast_ast_node.analyzed_data_type = lhs_type; // analyzed_data_type is the type to cast into
+                        cast_ast_node.parent_id = Some(ast_node.id);
+                        node_map.insert(cast_ast_node_id, cast_ast_node);
+
+                        // the left node becomes child of the new middle node
+                        right_node.parent_id = Some(cast_ast_node_id);
+                        node_map.insert(right_node.id, right_node);
+
+                        // // DEBUG
+                        // if self.debug {
+                        //     println!("{}", cast_ast_node_id);
+                        //     println!("{:?}", ast_node); // parent
+                        //     println!("{:?}", cast_ast_node); // new middle
+                        //     println!("{:?}", left_node); // child
+                        // }
+
+                        // clone parent, insert new LHS, replace parent in hashmap
+                        let mut ast_node_clone = ast_node.clone();
+                        ast_node_clone.rhs = Some(cast_ast_node_id);
+                        node_map.insert(ast_node_clone.id, ast_node_clone);
+                    }
                 }
             }
 
             AstNodeType::Identifier => {
-                // // DEBUG
+                // DEBUG
                 if self.debug {
                     println!("{:?}", ast_node);
                 }
+
+                if !self.symbol_table.borrow_mut().contains(&ast_node.string_val) {
+                    panic!("Variable '{}' not contained!", &ast_node.string_val);
+                }
+                let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&ast_node.string_val);
+                ast_node.analyzed_data_type = symbol_table_entry.data_type;
+
+                assert_ne!(ast_node.analyzed_data_type, DataType::DataTypeUnknown);
             }
 
             AstNodeType::Return => {
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
                     self.visit(left_node_id, node_map);
+
+                    let left_node = node_map.get(&left_node_id).unwrap();
+
+                    if !self.symbol_table.borrow_mut().contains(&left_node.string_val) {
+                        panic!("Variable '{}' not contained!", &left_node.string_val);
+                    }
+                    let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&left_node.string_val);
+                    ast_node.analyzed_data_type = symbol_table_entry.data_type;
+
+                    // the cloned node has been changed. Replace the original node in the node_map to preserve the change
+                    node_map.insert(ast_node.id, ast_node);
                 }
             }
 
@@ -191,12 +263,14 @@ impl TypeCheckingVisitor {
                             ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
                         }
                         _ => {
-                            //ast_node.analyzed_data_type = right_node.analyzed_data_type.clone();
                             if !self.symbol_table.borrow_mut().contains(&right_node.string_val) {
                                 panic!("Variable '{}' not contained!", &right_node.string_val);
                             }
                             let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&right_node.string_val);
                             ast_node.analyzed_data_type = symbol_table_entry.data_type;
+
+                            // the cloned node has been changed. Replace the original node in the node_map to preserve the change
+                            node_map.insert(ast_node.id, ast_node);
                         }
                     }
 
@@ -271,8 +345,11 @@ impl TypeCheckingVisitor {
                     }
                 }
 
-                println!("LHS-Type: {}", lhs_type);
-                println!("RHS-Type: {}", rhs_type);
+                // DEBUG
+                if self.debug {
+                    println!("LHS-Type: {}", lhs_type);
+                    println!("RHS-Type: {}", rhs_type);
+                }
 
                 match ast_node.operator_type {
 
@@ -285,31 +362,28 @@ impl TypeCheckingVisitor {
                         let common_data_type = self.get_common_type(&lhs_type, &rhs_type);
 
                         if let Some(left_node_id) = ast_node.lhs {
-
-                            // let left_node = AstNode
-
                             let mut left_node = node_map.get(&left_node_id).unwrap().clone();
-
                             if left_node.analyzed_data_type != common_data_type {
-                                // insert a cast node into the AST!
-                                // panic!();
 
+                                // insert a cast node into the AST!
                                 let cast_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                // println!("{}", cast_ast_node_id);
                                 let mut cast_ast_node = AstNode::new(cast_ast_node_id);
                                 cast_ast_node.node_type = AstNodeType::Cast;
-                                cast_ast_node.lhs = Some(left_node.id);
-                                cast_ast_node.string_val = "new_node test".to_string();
+                                cast_ast_node.lhs = Some(left_node.id); // LHS is the variable or literal (value element) which needs casting
+                                cast_ast_node.analyzed_data_type = common_data_type; // analyzed_data_type is the type to cast into
                                 cast_ast_node.parent_id = Some(ast_node.id);
                                 node_map.insert(cast_ast_node_id, cast_ast_node);
 
                                 // the left node becomes child of the new middle node
                                 left_node.parent_id = Some(cast_ast_node_id);
-                                // node_map.insert(left_node.id, left_node);
 
-                                // println!("{:?}", ast_node); // parent
-                                // println!("{:?}", cast_ast_node); // new middle
-                                // println!("{:?}", left_node); // child
+                                // // DEBUG
+                                // if self.debug {
+                                //     println!("{}", cast_ast_node_id);
+                                //     println!("{:?}", ast_node); // parent
+                                //     println!("{:?}", cast_ast_node); // new middle
+                                //     println!("{:?}", left_node); // child
+                                // }
 
                                 // clone parent, insert new LHS, replace parent in hashmap
                                 let mut ast_node_clone = ast_node.clone();
@@ -324,11 +398,6 @@ impl TypeCheckingVisitor {
                                 // panic!();
                             }
                         }
-
-                        // let converted_lhs_type = self.convert_to(lhs_type, common_data_type);
-                        // let converted_rhs_type = self.convert_to(rhs_type, common_data_type);
-
-                        // ast_node.analyzed_data_type =
                     }
                 }
             }
@@ -391,9 +460,13 @@ impl TypeCheckingVisitor {
                 // RHS - Return type
                 let mut temp_data_type_as_string = String::new();
                 if let Some(right_node_id) = ast_node.rhs {
-                    // println!("{:?}", right_node);
 
                     let right_node = node_map.get(&right_node_id).unwrap();
+
+                    // DEBUG
+                    if self.debug {
+                        println!("{:?}", right_node);
+                    }
 
                     assert!(right_node.node_type == AstNodeType::DataType);
                     temp_data_type_as_string = right_node.string_val.clone();
@@ -431,14 +504,11 @@ impl TypeCheckingVisitor {
                 // data type
                 let mut data_type = String::from("");
                 if let Some(left_node_id) = ast_node.lhs {
-
                     let left_node = node_map.get(&left_node_id).unwrap();
-
                     // DEBUG
                     if self.debug {
                         print!("{:?}", left_node);
                     }
-
                     data_type = left_node.string_val.clone();
                 }
 
@@ -454,14 +524,11 @@ impl TypeCheckingVisitor {
                 // identifier (RHS)
                 let mut varname = String::from("");
                 if let Some(right_node_id) = ast_node.rhs {
-
                     let right_node = node_map.get(&right_node_id).unwrap();
-
                     // DEBUG
                     if self.debug {
                         print!("{:?}", right_node);
                     }
-
                     varname = right_node.string_val.clone();
                 }
 
@@ -474,14 +541,11 @@ impl TypeCheckingVisitor {
                 // replace variable names with the unique variable names from
                 // the map stored inside the variable_naming_source
                 if let Some(expression_node_id) = ast_node.expression {
-
                     let expression_node = node_map.get(&expression_node_id).unwrap();
-
                     // DEBUG
                     if self.debug {
                         print!("{:?}", expression_node);
                     }
-
                     self.visit(expression_node_id, node_map);
                 }
             }
@@ -501,12 +565,10 @@ impl TypeCheckingVisitor {
 
             AstNodeType::Block => {
                 for i in 0..ast_node.block_items.len() {
-
                     // DEBUG
                     if self.debug {
                         println!("BlockItem {}:", i+1);
                     }
-
                     let index = ast_node.block_items.len()-1-i;
                     let block_item_id = ast_node.block_items[index];
                     self.visit(block_item_id, node_map);
@@ -561,11 +623,17 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::FunctionCall => {
-                // println!("{:?}", ast_node);
+                // DEBUG
+                if self.debug {
+                    println!("{:?}", ast_node);
+                }
+
                 let function_name = ast_node.string_val.clone();
 
                 // DEBUG
-                println!("FunctionCall to function using identifier: {:?}", function_name);
+                if self.debug {
+                    println!("FunctionCall to function using identifier: {:?}", function_name);
+                }
 
                 // make sure, the identifier is a function call and not a variable
                 if self.symbol_table.borrow_mut().contains(&function_name) {
@@ -573,13 +641,18 @@ impl TypeCheckingVisitor {
                     if existing_symbol_table_entry.symbol_table_entry_type == SymbolTableEntryType::Variable {
                         panic!("[ERR] Symbol {} is not a function but a variable! Cannot call variable!", &function_name);
                     } else {
+
                         // DEBUG
-                        println!("[OK] Symbol {} is a declared function! Checking arguments next!", &function_name);
-                        // // PARAMETERS / ARGUMENTS
-                        // for i in 0..ast_node.parameters.len() {
-                        //     let parameter_ast_node = &ast_node.parameters[ast_node.parameters.len()-1-i];
-                        //     print!("ARGUMENT_{}: {:?}", i, parameter_ast_node);
-                        // }
+                        if self.debug {
+                            // DEBUG
+                            println!("[OK] Symbol {} is a declared function! Checking arguments next!", &function_name);
+                            // PARAMETERS / ARGUMENTS
+                            for i in 0..ast_node.parameters.len() {
+                                let parameter_ast_node = &ast_node.parameters[ast_node.parameters.len()-1-i];
+                                print!("ARGUMENT_{}: {:?}", i, parameter_ast_node);
+                            }
+                        }
+
                         // argument count must match
                         if ast_node.parameters.len() != existing_symbol_table_entry.parameter_count {
                             panic!("[ERR] Symbol {} is called with incorrect amount of arguments! Arguments expected: {}. Found: {}.", &function_name, existing_symbol_table_entry.parameter_count, ast_node.parameters.len());

@@ -164,11 +164,14 @@ impl IdentifierResolutionVisitor {
             }
 
             AstNodeType::Expression => {
-                // DEBUG
-                if self.debug {
-                    println!("AstNodeType: {:?}", ast_node.node_type);
-                    println!("{:?}", ast_node);
-                }
+                // // DEBUG
+                // if self.debug {
+                //     println!("AstNodeType: {:?}", ast_node.node_type);
+                //     println!("{:?}", ast_node);
+                // }
+
+                assert!(ast_node.lhs.is_some());
+                // assert!(ast_node.rhs.is_some());
 
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {

@@ -42,3 +42,5 @@ abstract_syntax_tree_post_type_checking.dot
 abstract_syntax_tree_post_identifier_resolution.dot
 tacky.tky
 asm_ast.intasm
+main.asm
+preprocessed.c

@@ -8,8 +8,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::common::data_type::DataType;
 
-// static DOT_NODE_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
-
 // Just to be fair, I asked AI on how to design a recursive data structure in rust
 // which can be iterated over recursively several times without being consumed
 // and AI delivered ...
@@ -115,10 +113,8 @@ pub enum AstNodeOperatorType {
     BinaryXorAssignment,
     LeftShiftAssignment,
     RightShiftAssignment,
-
     LogicalAnd,
     LogicalOr,
-
     NotApplicable,
 }
 
@@ -304,10 +300,10 @@ impl fmt::Debug for AstNode {
             AstNodeType::Expression => {
                 println!("Expression: node_id:{}", self.id);
                 if let Some(left_node) = self.lhs.as_ref() {
-                    print!("LHS: {:?}", left_node);
+                    println!("LHS: {:?}", left_node);
                 }
                 if let Some(right_node) = self.rhs.as_ref() {
-                    print!("RHS {:?}", right_node);
+                    println!("RHS {:?}", right_node);
                 }
             }
 
@@ -500,6 +496,20 @@ impl fmt::Debug for AstNode {
                 }
 
                 println!("Replaced Variable Name: {:?}", self.string_val);
+            }
+
+            AstNodeType::Cast => {
+                println!("Cast");
+
+                // type
+                if let Some(left_node_id) = self.lhs {
+                    // let left_node = node_map.get(left_node_id).unwrap();
+                    print!("{:?}", left_node_id);
+                }
+                // identifier
+                if let Some(right_node) = self.rhs.as_ref() {
+                    print!("{:?}", right_node);
+                }
             }
 
             _ => {
@@ -843,11 +853,10 @@ impl AstNode {
         }
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Return\"]", ast_node_id, ast_node_id);
-        string_buffer.push_str(format!("{} [label=\"{} Return\"]\n", ast_node_id, ast_node_id).as_str());
+        string_buffer.push_str(format!("{} [label=\"{} Return [{}]\"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
 
         // connect parent and child
         if let Some(left_node) = self.lhs.as_ref() {

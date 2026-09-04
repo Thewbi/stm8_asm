@@ -40,6 +40,13 @@ impl AsmAstFunction {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum AstAstAssemblyType {
+    Longword,
+    Quadword,
+    Unknown
+}
+
 #[derive(Clone, Debug)]
 pub struct AsmAstInstruction {
     pub instruction_type: AsmAstInstructionType,
@@ -50,6 +57,7 @@ pub struct AsmAstInstruction {
     pub dst: AsmAstOperand,
     pub identifier: String,
     pub comment: String,
+    pub assembly_type: AstAstAssemblyType,
 }
 
 impl AsmAstInstruction {
@@ -63,6 +71,7 @@ impl AsmAstInstruction {
             dst: AsmAstOperand::new(),
             identifier: String::new(),
             comment: String::new(),
+            assembly_type: AstAstAssemblyType::Unknown,
         }
     }
 }
@@ -80,34 +89,18 @@ impl fmt::Display for AsmAstInstruction {
             }
 
             AsmAstInstructionType::Mov => {
-                // write!(f, "Mov").expect("Write failed!");
-                write!(f, "{}", format!("Mov(src:{:?}, dst:{:?})", self.src, self.dst).as_str()).expect("Write failed!");
+                write!(f, "{}", format!("Mov(assembly_type:{:?}, src:{:?}, dst:{:?})", self.assembly_type, self.src, self.dst).as_str()).expect("Write failed!");
+            }
+
+            AsmAstInstructionType::Movsx => {
+                write!(f, "{}", format!("Movsx(src:{:?}, dst:{:?})", self.src, self.dst).as_str()).expect("Write failed!");
             }
 
             AsmAstInstructionType::Unary => {
-                // write!(f, "Unary").expect("Write failed!");
-
-                match self.unary_operator {
-                    AsmAstUnaryOperator::Neg => {
-                        // write!(f, "{}", format!("Neg({:?}, {:?}, {:?})", self.dst, self.src, self.src_2).as_str()).expect("Write failed!");
-                        write!(f, "{}", format!("Neg(dst:{:?})", self.dst).as_str()).expect("Write failed!");
-                    }
-                    AsmAstUnaryOperator::Not => {
-                        // write!(f, "{}", format!("Not({:?}, {:?}, {:?})", self.dst, self.src, self.src_2).as_str()).expect("Write failed!");
-                        write!(f, "{}", format!("Not(dst:{:?})", self.dst).as_str()).expect("Write failed!");
-                    }
-                    AsmAstUnaryOperator::Increment => {
-                        write!(f, "{}", format!("Not(dst:{:?})", self.dst).as_str()).expect("Write failed!");
-                    }
-                    // AsmAstUnaryOperator::Dereference => {
-                    //     write!(f, "{}", format!("Dereference(dst:{:?})", self.dst).as_str()).expect("Write failed!");
-                    // }
-                }
+                write!(f, "{}", format!("Unary(unary_operator:{:?}, assembly_type:{:?}, dst:{:?})", self.unary_operator, self.assembly_type, self.dst).as_str()).expect("Write failed!");
             }
 
             AsmAstInstructionType::Binary => {
-                // write!(f, "Binary").expect("Write failed!");
-
                 match self.binary_operator {
 
                     AsmAstBinaryOperator::Add => {
@@ -208,6 +201,7 @@ impl fmt::Display for AsmAstInstruction {
 pub enum AsmAstInstructionType {
     Ret,
     Mov,
+    Movsx,
     Unary,
     Binary,
     Cdq,
@@ -315,7 +309,6 @@ pub enum AsmAstUnaryOperator {
     Neg,
     Not,
     Increment,
-    // Dereference,
 }
 
 #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
@@ -334,9 +327,6 @@ impl fmt::Display for AsmAstUnaryOperator {
             AsmAstUnaryOperator::Increment => {
                 write!(f, "increment").expect("Write failed!");
             }
-            // AsmAstUnaryOperator::Dereference => {
-            //     write!(f, "Dereference").expect("Write failed!");
-            // }
         }
 
         Ok(())
@@ -452,7 +442,6 @@ impl fmt::Display for AsmAstBinaryOperator {
     }
 }
 
-
 pub fn print_asm_ast_program(program: &AsmAstProgram, string_buffer: &mut String, indent: usize) {
 
     // indent
@@ -488,7 +477,6 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction, string
     let double_indent_string = std::iter::repeat(" ").take(indent * 4).collect::<String>();
 
     if asm_ast_instruction.comment.len() > 0usize {
-        //string_buffer.push_str(format!("\n{}// {}\n", double_indent_string.clone(), &asm_ast_instruction.comment.clone()).as_str());
         string_buffer.push_str(format!("\n{}\n", &asm_ast_instruction.comment.clone()).as_str());
     }
 
@@ -499,46 +487,110 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction, string
     match &asm_ast_instruction.instruction_type {
 
         AsmAstInstructionType::Ret => {
-            //string_buffer.push_str(format!("Ret {:?}\n", asm_ast_instruction.src).as_str());
-            //string_buffer.push_str(format!("Ret {:?}\n", asm_ast_instruction.dst).as_str());
             string_buffer.push_str(format!("Ret\n").as_str());
         }
 
         AsmAstInstructionType::Mov => {
-            // write!(f, "Mov").expect("Write failed!");
-            // write!(f, "{}", format!("Mov(src:{:?}, dst:{:?})", self.src, self.dst).as_str()).expect("Write failed!");
-            string_buffer.push_str(format!("Mov(src:{:?}, dst:{:?})\n", asm_ast_instruction.src, asm_ast_instruction.dst).as_str());
+            string_buffer.push_str(format!("Mov({:?}, src:{:?}, dst:{:?})\n",
+                asm_ast_instruction.assembly_type,
+                asm_ast_instruction.src,
+                asm_ast_instruction.dst).as_str());
+        }
+
+        AsmAstInstructionType::Movsx => {
+            string_buffer.push_str(format!("Movsx(src:{:?}, dst:{:?})\n",
+                asm_ast_instruction.src,
+                asm_ast_instruction.dst).as_str());
         }
 
         AsmAstInstructionType::Unary => {
-            // write!(f, "Unary").expect("Write failed!");
-
-            match asm_ast_instruction.unary_operator {
-                AsmAstUnaryOperator::Neg => {
-                    // write!(f, "{}", format!("Neg({:?}, {:?}, {:?})", self.dst, self.src, self.src_2).as_str()).expect("Write failed!");
-                    // write!(f, "{}", format!("Neg(dst:{:?})", self.dst).as_str()).expect("Write failed!");
-                    string_buffer.push_str(format!("Neg(dst:{:?})", asm_ast_instruction.dst).as_str());
-                }
-                AsmAstUnaryOperator::Not => {
-                    // write!(f, "{}", format!("Not({:?}, {:?}, {:?})", self.dst, self.src, self.src_2).as_str()).expect("Write failed!");
-                    // write!(f, "{}", format!("Not(dst:{:?})", self.dst).as_str()).expect("Write failed!");
-                    string_buffer.push_str(format!("Not(dst:{:?})", asm_ast_instruction.dst).as_str());
-                }
-                AsmAstUnaryOperator::Increment => {
-                    // write!(f, "{}", format!("Not(dst:{:?})", self.dst).as_str()).expect("Write failed!");
-                    string_buffer.push_str(format!("Not(dst:{:?})", asm_ast_instruction.dst).as_str());
-                }
-                // AsmAstUnaryOperator::Dereference => {
-                //     write!(f, "{}", format!("Not(dst:{:?})", self.dst).as_str()).expect("Write failed!");
-                //     string_buffer.push_str(format!().as_str());
-                // }
-            }
+            string_buffer.push_str(format!("Unary(unary_operator:{:?}, assembly_type:{:?}, dst:{:?})",
+            asm_ast_instruction.unary_operator,
+            asm_ast_instruction.assembly_type,
+            asm_ast_instruction.dst).as_str());
         }
 
         AsmAstInstructionType::Binary => {
-            // write!(f, "Binary").expect("Write failed!");
+            string_buffer.push_str(format!("Binary(binary_operator:{:?}, assembly_type:{:?}, src_2:{:?}, dst:{:?})",
+                asm_ast_instruction.binary_operator,
+                asm_ast_instruction.assembly_type,
+                asm_ast_instruction.src_2,
+                asm_ast_instruction.dst).as_str());
+        }
 
-            match asm_ast_instruction.binary_operator {
+        AsmAstInstructionType::Lea => {
+            string_buffer.push_str(format!("Lea(src:{:?}, dst:{:?})\n",
+                asm_ast_instruction.src,
+                asm_ast_instruction.dst).as_str());
+        }
+
+
+        AsmAstInstructionType::AllocateStack => {
+            match asm_ast_instruction.src.operand_type {
+                AsmAstOperandType::Imm(imm_value) => {
+                    string_buffer.push_str(format!("AllocateStack({:?})\n", imm_value).as_str());
+                }
+                _ => {
+                    panic!("{}", format!("Unhandled ASM AST operand_type: '{:?}'!\n", asm_ast_instruction.src.operand_type).as_str());
+                }
+            }
+        }
+
+        AsmAstInstructionType::DeallocateStack => {
+            match asm_ast_instruction.src.operand_type {
+                AsmAstOperandType::Imm(imm_value) => {
+                    string_buffer.push_str(format!("DeallocateStack({:?})\n", imm_value).as_str());
+                }
+                _ => {
+                    panic!("{}", format!("Unhandled ASM AST operand_type: '{:?}'!\n", asm_ast_instruction.src.operand_type).as_str());
+                }
+            }
+        }
+
+        _ => {
+            panic!("{}", format!("Unhandled ASM AST Type: '{:?}'!\n", asm_ast_instruction.instruction_type).as_str());
+        }
+    }
+}
+
+// match self.src.operand_type {
+                //     AsmAstOperandType::Imm(imm_value) => {
+                //         write!(f, "{}", format!("Mov({:?})", imm_value).as_str()).expect("Write failed!");
+                //     }
+                //     _ => {
+                //         todo!();
+                //     }
+                // }
+
+                // match self.dst.operand_type {
+                //     AsmAstOperandType::Imm(imm_value) => {
+                //         write!(f, "{}", format!("Mov({:?})", imm_value).as_str()).expect("Write failed!");
+                //     }
+                //     _ => {
+                //         todo!();
+                //     }
+                // }
+
+                //match self.unary_operator {
+                    // AsmAstUnaryOperator::Neg => {
+                    //     write!(f, "{}", format!("Unary(assembly_type:{:?}, dst:{:?})", self.assembly_type, self.dst).as_str()).expect("Write failed!");
+                    // }
+                    // AsmAstUnaryOperator::Not => {
+                    //     write!(f, "{}", format!("Unary(dst:{:?})", self.dst).as_str()).expect("Write failed!");
+                    // }
+                    // AsmAstUnaryOperator::Increment => {
+                    //     write!(f, "{}", format!("Unary(dst:{:?})", self.dst).as_str()).expect("Write failed!");
+                    // }
+                //}
+
+                /*
+        AsmAstInstructionType::Push => {
+            write!(f, "{}", format!("Push(operand:{:?})", self.dst).as_str()).expect("Write failed!");
+            string_buffer.push_str(format!().as_str());
+        }
+*/
+/*
+match asm_ast_instruction.binary_operator {
 
                 AsmAstBinaryOperator::Add => {
                     // write!(f, "{}", format!("Binary(ADD, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
@@ -594,13 +646,8 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction, string
                     todo!();
                 }
             }
-        }
-
-        AsmAstInstructionType::Lea => {
-            string_buffer.push_str(format!("Lea(src:{:?}, dst:{:?})\n", asm_ast_instruction.src, asm_ast_instruction.dst).as_str());
-        }
-
-/*
+            */
+            /*
         AsmAstInstructionType::Cdq => {
             write!(f, "Cdq").expect("Write failed!");
             string_buffer.push_str(format!().as_str());
@@ -651,54 +698,3 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction, string
             string_buffer.push_str(format!().as_str());
         }
 */
-        AsmAstInstructionType::AllocateStack => {
-            match asm_ast_instruction.src.operand_type {
-                AsmAstOperandType::Imm(imm_value) => {
-                    string_buffer.push_str(format!("AllocateStack({:?})\n", imm_value).as_str());
-                }
-                _ => {
-                    panic!("{}", format!("Unhandled ASM AST operand_type: '{:?}'!\n", asm_ast_instruction.src.operand_type).as_str());
-                }
-            }
-        }
-
-        AsmAstInstructionType::DeallocateStack => {
-            match asm_ast_instruction.src.operand_type {
-                AsmAstOperandType::Imm(imm_value) => {
-                    string_buffer.push_str(format!("DeallocateStack({:?})\n", imm_value).as_str());
-                }
-                _ => {
-                    panic!("{}", format!("Unhandled ASM AST operand_type: '{:?}'!\n", asm_ast_instruction.src.operand_type).as_str());
-                }
-            }
-        }
-/*
-        AsmAstInstructionType::Push => {
-            write!(f, "{}", format!("Push(operand:{:?})", self.dst).as_str()).expect("Write failed!");
-            string_buffer.push_str(format!().as_str());
-        }
-*/
-
-        _ => {
-            panic!("{}", format!("Unhandled ASM AST Type: '{:?}'!\n", asm_ast_instruction.instruction_type).as_str());
-        }
-    }
-}
-
-// match self.src.operand_type {
-                //     AsmAstOperandType::Imm(imm_value) => {
-                //         write!(f, "{}", format!("Mov({:?})", imm_value).as_str()).expect("Write failed!");
-                //     }
-                //     _ => {
-                //         todo!();
-                //     }
-                // }
-
-                // match self.dst.operand_type {
-                //     AsmAstOperandType::Imm(imm_value) => {
-                //         write!(f, "{}", format!("Mov({:?})", imm_value).as_str()).expect("Write failed!");
-                //     }
-                //     _ => {
-                //         todo!();
-                //     }
-                // }

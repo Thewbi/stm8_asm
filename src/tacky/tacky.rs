@@ -138,7 +138,8 @@ pub struct Instruction {
     pub unary_operator: UnaryOperator,
     pub binary_operator: BinaryOperator,
     pub label: String,
-    pub data_type: String,
+    // pub data_type: String,
+    pub data_type: DataType,
     pub function_name: String,
     pub parameters: Vec::<Box<ValueElement>>,
     pub offset: i32,
@@ -156,7 +157,8 @@ impl Instruction {
             unary_operator: UnaryOperator::Not,
             binary_operator: BinaryOperator::Add,
             label: String::from(""),
-            data_type: String::from(""),
+            // data_type: String::from(""),
+            data_type: DataType::DataTypeUnknown,
             function_name: String::from(""),
             parameters: Vec::<Box<ValueElement>>::new(),
             offset: 0i32,
@@ -614,7 +616,8 @@ mod tests {
         let mut var_declaration: Instruction = Instruction::new();
         var_declaration.instruction_type = InstructionType::VariableDeclaration;
         var_declaration.label = String::from("var_name");
-        var_declaration.data_type = String::from("int");
+        // var_declaration.data_type = String::from("int");
+        var_declaration.data_type = DataType::DataTypeInt;
 
 
 
