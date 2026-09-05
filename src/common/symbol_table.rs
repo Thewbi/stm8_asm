@@ -15,6 +15,7 @@ pub struct SymbolTableEntry {
     pub data_type: DataType,
     pub parameter_count: usize,
     pub has_body: bool,
+    pub is_array: bool,
 
     // TODO: add custom typedeffed types here somehow!
 }
@@ -27,6 +28,7 @@ impl SymbolTableEntry {
             data_type: DataType::DataTypeUnknown, // data type of variable and return data type for functions
             parameter_count: 0,
             has_body: false,
+            is_array: false,
         };
         instance
     }

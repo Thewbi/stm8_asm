@@ -176,6 +176,20 @@ impl fmt::Debug for AstNode {
                 }
             }
 
+            AstNodeType::CompoundInit => {
+                println!("CompoundInit");
+
+                // if let Some(left_node) = self.lhs.as_ref() {
+                //     print!("{:?}", left_node);
+                // }
+
+                for i in 0..self.block_items.len() {
+                    let temp_node_id = self.block_items[i];
+                    // let temp_node = node_map.get(&temp_node_id).unwrap();
+                    print!("{:?}", temp_node_id);
+                }
+            }
+
             AstNodeType::Block => {
                 println!("Block");
                 for i in 0..self.block_items.len() {
@@ -352,12 +366,12 @@ impl fmt::Debug for AstNode {
             }
 
             AstNodeType::Array => {
-                println!("Array");
-                if let Some(left_node) = self.lhs.as_ref() {
-                    print!("LHS: {:?}", left_node);
+                println!("Array Node-Id:{}", self.id);
+                if let Some(left_node_id) = self.lhs.as_ref() {
+                    print!("LHS: {:?}", left_node_id);
                 }
-                if let Some(right_node) = self.rhs.as_ref() {
-                    print!("RHS: {:?}", right_node);
+                if let Some(right_node_id) = self.rhs.as_ref() {
+                    print!("RHS: {:?}", right_node_id);
                 }
             }
 
@@ -1114,7 +1128,6 @@ impl AstNode {
     fn pretty_print_ast_declaration_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Declaration\"]", ast_node_id, ast_node_id);
@@ -1130,8 +1143,12 @@ impl AstNode {
         ast_node_id
     }
 
-    fn pretty_print_ast_variable_declaration_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>, is_parameter: bool) -> usize {
-
+    fn pretty_print_ast_variable_declaration_dot(&self,
+        string_buffer: &mut String,
+        node_map: &Box<HashMap<usize, AstNode>>,
+        is_parameter: bool)
+        -> usize
+    {
         // data type
         let mut lhs_ast_node_id = 0;
         if let Some(left_node) = self.lhs.as_ref() {
@@ -1156,11 +1173,21 @@ impl AstNode {
         // create node for this AstNode
         let ast_node_id = self.id;
 
+        let ast_node = node_map.get(&ast_node_id).unwrap();
+
         // either print parameter or variable to the dot output
         if is_parameter {
             string_buffer.push_str(format!("{} [label=\"{} ParameterDeclaration [{}] \"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
         } else {
             string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration [{}] \"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+            // match ast_node.node_type {
+            //     AstNodeType::Array => {
+            //         string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration [Array-of-{}] \"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+            //     }
+            //     _ => {
+            //         string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration [{}] \"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+            //     }
+            // }
         }
 
         // connect parent and child
@@ -1245,8 +1272,11 @@ impl AstNode {
         ast_node_id
     }
 
-    // selection_statement -> IF OPENING_BRACKET expression CLOSING_BRACKET statement
     fn pretty_print_ast_if_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
+
+        // DESCRIPTION
+        //
+        // selection_statement -> IF OPENING_BRACKET expression CLOSING_BRACKET statement
 
         // create node for this AstNode
         // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -1889,7 +1919,7 @@ impl AstNode {
         ast_node_id
     }
 
-    pub fn pretty_print_ast_cast_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap::<usize, AstNode>>) -> usize {
+    fn pretty_print_ast_cast_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap::<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
         let ast_node_id = self.id;

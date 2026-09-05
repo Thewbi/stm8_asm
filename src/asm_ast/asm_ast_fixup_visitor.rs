@@ -1,5 +1,8 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
+use crate::common::symbol_table::SymbolTable;
 use crate::tacky::tacky::ValueElement;
 
 use crate::AsmAstProgram;
@@ -31,22 +34,119 @@ pub struct AsmAstFixupVisitor {
     pub replace_pseudo: bool,
     pub stack_offset: i32,
     pub stack_offset_map: HashMap::<String, i32>,
+    // chapter 15 - talks about a new backend symbol table that is create from the symbol table after TACKY generation
+    pub backend_symbol_table: Rc<RefCell<SymbolTable>>, // https://www.youtube.com/watch?v=8O0Nt9qY_vo
+    pub debug: bool,
 }
 
 impl AsmAstFixupVisitor {
 
-    pub fn new() -> AsmAstFixupVisitor {
+    pub fn new(backend_symbol_table_param: Rc<RefCell<SymbolTable>>) -> AsmAstFixupVisitor {
         AsmAstFixupVisitor {
             asm_ast_program: AsmAstProgram::new(),
             replace_pseudo: false,
             stack_offset: 0,
             stack_offset_map: HashMap::<String, i32>::new(),
+            backend_symbol_table: backend_symbol_table_param,
+            debug: false,
         }
     }
 
+    //
+    // Helper/Util Functions
+    //
+
+    #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
+    #[allow(unreachable_patterns)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
+    pub fn replace_pseudo_operand(&mut self, asm_ast_operand: &AsmAstOperand) -> AsmAstOperand {
+
+        // DESCRIPTION:
+        //
+        // This is where Nora Sandler, page 267 wants to check the backend symbol table for the size of each
+        // pseudo variable in order to correctly enlarge the stack frame with the size consumed by the pseudo
+        // variable
+
+        let mut stack_offset_value = 0i32;
+
+        match &asm_ast_operand.operand_type {
+
+            AsmAstOperandType::Memory(register, stack_offset) => {
+                // DEBUG
+                if self.debug {
+                    println!("Stack, offset:{}", stack_offset);
+                }
+
+                return asm_ast_operand.clone();
+            }
+
+            AsmAstOperandType::Pseudo(pseudo_name) => {
+                // DEBUG
+                if self.debug {
+                    println!("Pseudo");
+                }
+
+                if self.replace_pseudo {
+
+                    if self.stack_offset_map.contains_key(pseudo_name) {
+                        // variable with 'pseudo_name' has already been resolved. Reuse existing value.
+                        stack_offset_value = *self.stack_offset_map.get(pseudo_name).unwrap();
+                    } else {
+
+                        // panic!("Instead of using 4 always, check the backend symbol table!");
+
+                        // retrieve type
+                        if self.backend_symbol_table.borrow_mut().contains(&pseudo_name) {
+                            let symbol_table_entry = self.backend_symbol_table.borrow_mut().retrieve(&pseudo_name);
+
+                            let data_type = symbol_table_entry.data_type;
+
+                            self.stack_offset = self.stack_offset - data_type.get_size() as i32;
+                            self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
+
+                            stack_offset_value = self.stack_offset;
+                        } else {
+                            panic!("Cannot find {}", &pseudo_name);
+                        }
+                    }
+                }
+
+                return AsmAstOperand { operand_type: AsmAstOperandType::Memory(AsmAstReg::RBP, stack_offset_value) };
+            }
+
+            AsmAstOperandType::Imm(immediate_value) => {
+                // DEBUG
+                if self.debug {
+                    println!("Imm");
+                }
+            }
+
+            AsmAstOperandType::Reg(register_name) => {
+                // DEBUG
+                if self.debug {
+                    println!("Reg, register_name:{:?}", register_name);
+                }
+            }
+
+            _ => {
+                panic!("{}", format!("Unhandled InstructionType {:?}!\n", asm_ast_operand.operand_type ).as_str());
+
+                return asm_ast_operand.clone();
+            }
+        }
+
+        asm_ast_operand.clone()
+    }
+
+    //
+    // Member/Impl Functions
+    //
+
     pub fn visit_asm_ast_program(&mut self, asm_ast_program: &mut AsmAstProgram) {
-        // println!("[FixupAsmAstVisitor::visit_asm_ast_program()]");
-        // println!("  name = {}", asm_ast_program.name);
+        // DEBUG
+        if self.debug {
+            println!("[FixupAsmAstVisitor::visit_asm_ast_program()]");
+            println!("  name = {}", asm_ast_program.name);
+        }
 
         for i in 0..asm_ast_program.functions.len() {
             self.visit_asm_ast_function(&mut asm_ast_program.functions[i]);
@@ -54,12 +154,30 @@ impl AsmAstFixupVisitor {
     }
 
     pub fn visit_asm_ast_function(&mut self, asm_ast_function: &mut AsmAstFunction) {
-        // println!("[FixupAsmAstVisitor::visit_asm_ast_function()]");
-        // println!("  name = {}", asm_ast_function.name);
+
+        // DEBUG
+        if self.debug {
+            println!("[FixupAsmAstVisitor::visit_asm_ast_function()]");
+            println!("  name = {}", asm_ast_function.name);
+        }
 
         // reset stack offset to get rid of the stale value from the last function definition
         self.stack_offset = 0;
 
+        // iterate over all instructions in the body and visit each.
+        // Each visited element will potentially insert more statements to the statements in the body.
+        // To manage this feature of adding more nodes, a vector called new_body is inserted into the
+        // recursion and instead of mutating the original body vector, the statements along with the
+        // newly created statements are inserted in this 'new_body' statement.
+        //
+        // During iterating over all statements in the body, each statement is visited.
+        // If a visit encounters the use of a pseudo-variable, this pseudo-variable needs to be
+        // replaced by a stack address. When using more memory on the stack, the visited element
+        // needs to update the self.stack_offset member variable to exted the stack frame.
+        //
+        // To replace a pseudo variable, each visited element will call the function: replace_pseudo_operand().
+        // Check for the usage of replace_pseudo_operand() in this visitor to see where pseudo variables are
+        // replaced.
         let mut new_body = Vec::<Box<AsmAstInstruction>>::new();
         for i in 0..asm_ast_function.body.len() {
             self.visit_asm_ast_instruction(&mut new_body, asm_ast_function.body[i].as_ref().clone());
@@ -70,7 +188,6 @@ impl AsmAstFixupVisitor {
             // patch allocate stack because right now, the required stack size is readily available
             let asm_ast_allocate_stack = &mut new_body[0];
             asm_ast_allocate_stack.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(self.stack_offset * -1) };
-            // asm_ast_allocate_stack.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(self.stack_offset) };
 
             asm_ast_allocate_stack.comment.push_str("    ; + Updated in AsmAstFixupVisitor::visit_asm_ast_function()\n");
 
@@ -78,13 +195,15 @@ impl AsmAstFixupVisitor {
         }
 
         // DEBUG
-        let print_body = false;
-        if print_body {
-            println!("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-");
-            for i in 0..new_body.len() {
-                println!("{}", new_body[i]);
+        if self.debug {
+            let print_body = false;
+            if print_body {
+                println!("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-");
+                for i in 0..new_body.len() {
+                    println!("{}", new_body[i]);
+                }
+                println!("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-");
             }
-            println!("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-");
         }
 
         asm_ast_function.body = new_body;
@@ -92,19 +211,27 @@ impl AsmAstFixupVisitor {
 
     #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
     #[allow(unreachable_patterns)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
-    pub fn visit_asm_ast_instruction(&mut self, new_body: &mut Vec::<Box<AsmAstInstruction>>, mut asm_ast_instruction: AsmAstInstruction) {
+    pub fn visit_asm_ast_instruction(&mut self,
+        new_body: &mut Vec::<Box<AsmAstInstruction>>,
+        mut asm_ast_instruction: AsmAstInstruction) {
 
         match asm_ast_instruction.instruction_type {
 
             AsmAstInstructionType::Ret => {
-                // println!("Ret");
-                // println!("{:?}", asm_ast_instruction);
+                // DEBUG
+                if self.debug {
+                    println!("Ret");
+                    println!("{:?}", asm_ast_instruction);
+                }
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
 
             AsmAstInstructionType::Mov => {
-                // println!("Mov {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
+                // DEBUG
+                if self.debug {
+                    println!("Mov {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
+                }
 
                 // replace pseudo operand by relative address on stack
                 asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
@@ -146,7 +273,10 @@ impl AsmAstFixupVisitor {
              }
 
             AsmAstInstructionType::Unary => {
-                // println!("Unary {:?} {:?}", asm_ast_instruction.unary_operator, asm_ast_instruction.dst);
+                // DEBUG
+                if self.debug {
+                    println!("Unary {:?} {:?}", asm_ast_instruction.unary_operator, asm_ast_instruction.dst);
+                }
 
                 asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
@@ -154,13 +284,13 @@ impl AsmAstFixupVisitor {
             }
 
             AsmAstInstructionType::Binary => {
-                // println!("Binary {:?} {:?} {:?}", asm_ast_instruction.binary_operator, asm_ast_instruction.src_2, asm_ast_instruction.dst);
+                // DEBUG
+                if self.debug {
+                    println!("Binary {:?} {:?} {:?}", asm_ast_instruction.binary_operator, asm_ast_instruction.src_2, asm_ast_instruction.dst);
+                }
 
                 asm_ast_instruction.src_2 = self.replace_pseudo_operand(&mut asm_ast_instruction.src_2);
                 asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
-
-                // add dword ptr [ebp-8], dword ptr [rbp-4]
-                // new_body.push(Box::new(asm_ast_instruction));
 
                 match asm_ast_instruction.binary_operator {
 
@@ -193,7 +323,9 @@ impl AsmAstFixupVisitor {
                                 asm_ast_instruction.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
 
                                 // DEBUG
-                                // println!("{}", asm_ast_instruction.clone());
+                                if self.debug {
+                                    println!("{}", asm_ast_instruction.clone());
+                                }
 
                                 new_body.push(Box::new(asm_ast_instruction));
 
@@ -210,17 +342,22 @@ impl AsmAstFixupVisitor {
 
                     }
                 }
-
             }
 
             AsmAstInstructionType::Cdq => {
-                // println!("Cdq");
+                // DEBUG
+                if self.debug {
+                    println!("Cdq");
+                }
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
 
             AsmAstInstructionType::Idiv => {
-                // println!("Idiv {:?}", asm_ast_instruction.dst);
+                // DEBUG
+                if self.debug {
+                    println!("Idiv {:?}", asm_ast_instruction.dst);
+                }
 
                 asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
@@ -228,7 +365,10 @@ impl AsmAstFixupVisitor {
             }
 
             AsmAstInstructionType::Mod => {
-                // println!("Mod {:?}", asm_ast_instruction.dst);
+                // DEBUG
+                if self.debug {
+                    println!("Mod {:?}", asm_ast_instruction.dst);
+                }
 
                 asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
@@ -236,7 +376,10 @@ impl AsmAstFixupVisitor {
             }
 
             AsmAstInstructionType::Mul => {
-                // println!("Mul {:?}", asm_ast_instruction.dst);
+                // DEBUG
+                if self.debug {
+                    println!("Mul {:?}", asm_ast_instruction.dst);
+                }
 
                 asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
@@ -244,7 +387,10 @@ impl AsmAstFixupVisitor {
             }
 
             AsmAstInstructionType::Cmp => {
-                // println!("Cmp {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.src_2);
+                // DEBUG
+                if self.debug {
+                    println!("Cmp {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.src_2);
+                }
 
                 asm_ast_instruction.src_2 = self.replace_pseudo_operand(&mut asm_ast_instruction.src_2);
 
@@ -252,144 +398,94 @@ impl AsmAstFixupVisitor {
             }
 
             AsmAstInstructionType::Jmp => {
-                // println!("Jmp {:?} {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.src_2, asm_ast_instruction.dst);
+                // DEBUG
+                if self.debug {
+                    println!("Jmp {:?} {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.src_2, asm_ast_instruction.dst);
+                }
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
 
             AsmAstInstructionType::JmpCC => {
-                // println!("JmpCC {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.src_2);
+                // DEBUG
+                if self.debug {
+                    println!("JmpCC {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.src_2);
+                }
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
 
             AsmAstInstructionType::Label => {
-                // println!("Label {:?}", asm_ast_instruction.src);
+                // DEBUG
+                if self.debug {
+                    println!("Label {:?}", asm_ast_instruction.src);
+                }
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
 
             AsmAstInstructionType::SetCC => {
-                // println!("SetCC {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
+                // DEBUG
+                if self.debug {
+                    println!("SetCC {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
+                }
 
                 asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+
                 new_body.push(Box::new(asm_ast_instruction));
             }
 
             AsmAstInstructionType::Lea => {
+                // DEBUG
+                if self.debug {
+                    println!("Lea {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
+                }
 
                 asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
                 asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
-
-                // println!("Lea {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
 
                 // asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
                 new_body.push(Box::new(asm_ast_instruction));
             }
 
             AsmAstInstructionType::AllocateStack => {
-                // println!("AllocateStack({:?})", asm_ast_instruction.src);
+                // DEBUG
+                if self.debug {
+                    println!("AllocateStack({:?})", asm_ast_instruction.src);
+                    println!("{:?}", asm_ast_instruction);
+                }
 
-                // println!("{:?}", asm_ast_instruction);
                 new_body.push(Box::new(asm_ast_instruction));
             }
 
             AsmAstInstructionType::DeallocateStack => {
-                // println!("DeallocateStack({:?})", asm_ast_instruction.src);
+                // DEBUG
+                if self.debug {
+                    println!("DeallocateStack({:?})", asm_ast_instruction.src);
+                    println!("{:?}", asm_ast_instruction);
+                }
 
-                // println!("{:?}", asm_ast_instruction);
                 new_body.push(Box::new(asm_ast_instruction));
             }
 
             AsmAstInstructionType::Push => {
-                // println!("Push {:?}", asm_ast_instruction.dst);
-
-                // println!("{:?}", asm_ast_instruction);
+                // DEBUG
+                if self.debug {
+                    println!("Push {:?}", asm_ast_instruction.dst);
+                    println!("{:?}", asm_ast_instruction);
+                }
                 new_body.push(Box::new(asm_ast_instruction));
             }
 
             AsmAstInstructionType::FunctionCall => {
-                // println!("FunctionCall {:?}", asm_ast_instruction.dst);
+                // DEBUG
+                if self.debug {
+                    println!("FunctionCall {:?}", asm_ast_instruction.dst);
+                    println!("{:?}", asm_ast_instruction);
+                }
 
-                // println!("{:?}", asm_ast_instruction);
                 new_body.push(Box::new(asm_ast_instruction));
             }
         }
     }
-
-    #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
-    #[allow(unreachable_patterns)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
-    pub fn replace_pseudo_operand(&mut self, asm_ast_operand: &AsmAstOperand) -> AsmAstOperand {
-
-        let mut stack_offset_value = 0i32;
-
-        match &asm_ast_operand.operand_type {
-
-            AsmAstOperandType::Memory(register, stack_offset) => {
-                // println!("Stack, offset:{}", stack_offset);
-                return asm_ast_operand.clone();
-            }
-
-            AsmAstOperandType::Pseudo(pseudo_name) => {
-                // println!("Pseudo");
-
-                if self.replace_pseudo {
-
-                    if self.stack_offset_map.contains_key(pseudo_name) {
-
-                        stack_offset_value = *self.stack_offset_map.get(pseudo_name).unwrap();
-
-                    } else {
-
-                        self.stack_offset = self.stack_offset - 4;
-                        self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
-
-                        stack_offset_value = self.stack_offset;
-                    }
-                }
-
-                return AsmAstOperand { operand_type: AsmAstOperandType::Memory(AsmAstReg::RBP, stack_offset_value) };
-            }
-
-            AsmAstOperandType::Imm(immediate_value) => {
-                // println!("Imm");
-            }
-
-            AsmAstOperandType::Reg(register_name) => {
-                // println!("Reg, register_name:{:?}", register_name);
-            }
-
-            _ => {
-                // panic!("Test");
-                panic!("{}", format!("Unhandled InstructionType {:?}!\n", asm_ast_operand.operand_type ).as_str());
-
-                return asm_ast_operand.clone();
-            }
-        }
-
-        asm_ast_operand.clone()
-    }
 }
-
-
-
-
-// match asm_ast_instruction.binary_operator {
-
-                //     AsmAstBinaryOperator::Add => {
-                //         // write!(f, "{}", format!("Binary(ADD, {:?}, {:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
-                //         println!("add");
-                //     }
-
-                //     // AsmAstBinaryOperator::Subtract => {
-                //     //     write!(f, "{}", format!("Binary(SUB, {:?}, {:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
-                //     // }
-
-                //     // AsmAstBinaryOperator::Multiply => {
-                //     //     write!(f, "{}", format!("Binary(MUL, {:?}, {:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
-                //     // }
-
-                //     _ => {
-                //         todo!();
-                //     }
-                // }

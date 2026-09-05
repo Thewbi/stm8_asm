@@ -26,7 +26,6 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 use crate::c_ast::ast_node_id_counter::AST_NODE_ID_COUNTER;
-// use crate::parser::parser::AST_NODE_ID_COUNTER;
 use crate::parser::rule::read_rule_map;
 use crate::parser::rule::serialize_rules;
 
@@ -645,7 +644,6 @@ fn main() {
 
         let ast_stack_root_option = parser.ast_stack.pop();
 
-/*
         //
         // pretty print AST (pre semantic visitor)
         //
@@ -653,7 +651,7 @@ fn main() {
         if let Some(ref program_ast_node_id) = ast_stack_root_option {
             print_ast(program_ast_node_id, &node_map, "abstract_syntax_tree.dot");
         }
-*/
+
         //
         // Semantic Analysis Stage, page 103, 174ff
         //
@@ -694,13 +692,15 @@ fn main() {
             let mut identifier_resolution_visitor = IdentifierResolutionVisitor::new(variable_naming_source_rc_1);
             identifier_resolution_visitor.visit(program_ast_node_id, &mut node_map);
 
-/*
             //
             // Print AST to dot after Identifier Resolution
             //
 
-            print_ast(&program_ast_node_id, &node_map, "abstract_syntax_tree_post_identifier_resolution.dot");
-*/
+            let output_post_identifier_resolution_visitor = true;
+            if output_post_identifier_resolution_visitor {
+                print_ast(&program_ast_node_id, &node_map, "abstract_syntax_tree_post_identifier_resolution.dot");
+            }
+
             //
             // 2. Type Checking Phase - Nora Sandler, page 178ff
             //
@@ -708,6 +708,7 @@ fn main() {
             let symbol_table = SymbolTable::new();
             let symbol_table_rc_1 = Rc::new(RefCell::new(symbol_table));
             let symbol_table_rc_2 = symbol_table_rc_1.clone();
+            let symbol_table_rc_3 = symbol_table_rc_1.clone();
 
             let mut type_checking_visitor = TypeCheckingVisitor::new(symbol_table_rc_1);
             type_checking_visitor.visit(program_ast_node_id, &mut node_map);
@@ -715,8 +716,6 @@ fn main() {
             //
             // Print AST to dot after TypeChecking
             //
-
-            // let test = node_map.get(&program_ast_node_id).unwrap();
 
             print_ast(&program_ast_node_id, &node_map, "abstract_syntax_tree_post_type_checking.dot");
 
@@ -734,44 +733,47 @@ fn main() {
 
             variable_naming_source_rc_3.borrow_mut().exit_scope();
 
-/*
             //
-            // Output AST post IdentifierResolutionVisitor (replaces variables)
+            // Output AST post TypeChecking
             //
 
-            let mut ast_string_buffer = String::from("");
+            let output_post_type_checking_visitor = true;
+            if output_post_type_checking_visitor {
 
-            ast_string_buffer.push_str("digraph {\n");
-            program_ast_node.pretty_print_ast_dot(&mut ast_string_buffer, &node_map);
-            ast_string_buffer.push_str("}");
+                let mut ast_string_buffer = String::from("");
 
-            // DEBUG - print AST dot to console
-            // let output_ast_as_dot_to_console: bool = true;
-            let output_ast_as_dot_to_console: bool = false;
-            if output_ast_as_dot_to_console {
-                println!("{}", ast_string_buffer);
+                ast_string_buffer.push_str("digraph {\n");
+                let program_ast_node = node_map.get(&0).unwrap();
+                program_ast_node.pretty_print_ast_dot(&mut ast_string_buffer, &node_map);
+                ast_string_buffer.push_str("}");
+
+                // DEBUG - print AST dot to console
+                // let output_ast_as_dot_to_console: bool = true;
+                let output_ast_as_dot_to_console: bool = false;
+                if output_ast_as_dot_to_console {
+                    println!("{}", ast_string_buffer);
+                }
+
+                // DEBUG - print AST dot to dot file
+                let output_abstract_syntax_tree_as_dot_to_file: bool = true;
+                // let output_abstract_syntax_tree_as_dot_to_file: bool = false;
+                if output_abstract_syntax_tree_as_dot_to_file {
+
+                    // https://dreampuf.github.io/GraphvizOnline
+
+                    // 1. Create or overwrite the file
+                    let file = File::create("abstract_syntax_tree_post_semantic.dot").expect("Create file failed!");
+
+                    // 2. Wrap the file in a BufWriter
+                    let mut writer = BufWriter::new(file);
+
+                    // 3. Write data
+                    write!(writer, "{}", ast_string_buffer);
+
+                    // 4. Explicitly flush the remaining data to disk
+                    writer.flush().expect("flush failed!");
+                }
             }
-
-            // DEBUG - print AST dot to dot file
-            let output_abstract_syntax_tree_as_dot_to_file: bool = true;
-            // let output_abstract_syntax_tree_as_dot_to_file: bool = false;
-            if output_abstract_syntax_tree_as_dot_to_file {
-
-                // https://dreampuf.github.io/GraphvizOnline
-
-                // 1. Create or overwrite the file
-                let file = File::create("abstract_syntax_tree_post_semantic.dot").expect("Create file failed!");
-
-                // 2. Wrap the file in a BufWriter
-                let mut writer = BufWriter::new(file);
-
-                // 3. Write data
-                write!(writer, "{}", ast_string_buffer);
-
-                // 4. Explicitly flush the remaining data to disk
-                writer.flush().expect("flush failed!");
-            }
-*/
 
             //
             // Generate TACKY (from AST)
@@ -803,7 +805,6 @@ fn main() {
 
             // 4. Explicitly flush the remaining data to disk
             writer.flush().expect("flush failed!");
-
 
             //
             // Generate Assembler AST (from TACKY)
@@ -842,7 +843,7 @@ fn main() {
             // DEBUG
             // println!("------------------------- Fix up Pseudo Variable -------------------------------");
 
-            let mut asm_ast_fixup_visitor = AsmAstFixupVisitor::new();
+            let mut asm_ast_fixup_visitor = AsmAstFixupVisitor::new(symbol_table_rc_3);
 
             // replace pseudo variables (from TACKY) by addresses on the stack
             // replace illegal MOV (mem2mem) by a combination of mem2reg reg2mem

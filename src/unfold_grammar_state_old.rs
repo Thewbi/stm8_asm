@@ -2100,3 +2100,28 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
             //         panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_copy.dst).as_str());
             //     }
             // }
+
+
+
+
+
+
+// match asm_ast_instruction.binary_operator {
+
+                //     AsmAstBinaryOperator::Add => {
+                //         // write!(f, "{}", format!("Binary(ADD, {:?}, {:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                //         println!("add");
+                //     }
+
+                //     // AsmAstBinaryOperator::Subtract => {
+                //     //     write!(f, "{}", format!("Binary(SUB, {:?}, {:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                //     // }
+
+                //     // AsmAstBinaryOperator::Multiply => {
+                //     //     write!(f, "{}", format!("Binary(MUL, {:?}, {:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                //     // }
+
+                //     _ => {
+                //         todo!();
+                //     }
+                // }

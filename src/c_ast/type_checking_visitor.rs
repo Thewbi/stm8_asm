@@ -21,6 +21,7 @@ use crate::common::symbol_table::SymbolTableEntryType;
 // Nora Sandler, page 178
 //
 // Every variable identifier has a type (int, long, double, float, char, byte, ...)
+// A variable can also be an array or a struct.
 //
 // Every function identifier has a return type and a fixed number of arguments (exception: variadic functions)
 // A function cannot be declared with a function body more than once!
@@ -37,10 +38,11 @@ pub struct TypeCheckingVisitor {
 
 impl TypeCheckingVisitor {
 
-    pub fn new(symbol_table_param: Rc<RefCell<SymbolTable>>) -> TypeCheckingVisitor {
+    pub fn new(
+        symbol_table_param: Rc<RefCell<SymbolTable>>) -> TypeCheckingVisitor {
         TypeCheckingVisitor {
             symbol_table: symbol_table_param,
-            debug: false,
+            debug: true,
         }
     }
 
@@ -48,7 +50,11 @@ impl TypeCheckingVisitor {
         self.symbol_table.borrow_mut().print_symbol_table();
     }
 
-    pub fn retrieve_type(&self, ast_node: &AstNode) -> DataType {
+    pub fn retrieve_type(&self,
+        ast_node: &AstNode,
+        node_map: &Box<HashMap<usize, AstNode>>)
+        -> DataType
+    {
         match ast_node.node_type {
             AstNodeType::ConstInt => {
                 return DataType::DataTypeInt;
@@ -65,13 +71,59 @@ impl TypeCheckingVisitor {
             AstNodeType::Identifier => {
                 if self.symbol_table.borrow_mut().contains(&ast_node.string_val) {
                     let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&ast_node.string_val);
-                    // // DEBUG
-                    // println!("{:?}", symbol_table_entry);
+                    // DEBUG
+                    if self.debug {
+                        println!("{:?}", symbol_table_entry);
+                    }
                     return symbol_table_entry.data_type;
                 } else {
                     todo!("NodeType: {:?}", ast_node.node_type);
                 }
             }
+            AstNodeType::Unary => {
+
+                //
+                // Assumption: translate file pointers_5.c
+                // In pointers_5.c, the unary node contains a AddrOf() subnode
+                //
+
+                // RHS variable name
+                let mut pointer_data_type: DataType = DataTypeUnknown;
+                if let Some(right_node_id) = ast_node.rhs {
+                    let right_node = node_map.get(&right_node_id).unwrap();
+
+                    println!("Looking up '{}' in symbol table", right_node.string_val);
+
+                    if !self.symbol_table.borrow_mut().contains(&right_node.string_val) {
+                        panic!("Variable '{}' not contained!", &right_node.string_val);
+                    }
+
+                    let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&right_node.string_val);
+
+
+                    pointer_data_type = symbol_table_entry.data_type;
+                }
+
+                // LHS - this is the AddrOf node which shows that this is a pointer
+                if let Some(left_node_id) = ast_node.lhs {
+                    let left_node = node_map.get(&left_node_id).unwrap();
+                    // let lhs_type = self.retrieve_type(left_node, node_map);
+                    match left_node.operator_type {
+                        AstNodeOperatorType::AddrOf => {
+                            return DataType::DataTypePointer(Box::new(pointer_data_type));
+                        }
+                        AstNodeOperatorType::Dereference => {
+                            return pointer_data_type;
+                        }
+                        _ => {
+                            todo!("Unhandled: {}", left_node.operator_type);
+                        }
+                    }
+                }
+                todo!("Unary: {:?}", ast_node.node_type);
+            }
+            // AstNodeType::Deref => {
+            // }
             _ => {
                 todo!("NodeType: {:?}", ast_node.node_type);
             }
@@ -83,7 +135,7 @@ impl TypeCheckingVisitor {
         //
         // Nora Sandler, page 254
         if type1 == type2 {
-            return *type1;
+            return type1.clone();
         }
         return DataType::DataTypeLong;
     }
@@ -131,6 +183,7 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Array => {
+                panic!("test");
             }
 
             AstNodeType::Expression => {
@@ -149,7 +202,7 @@ impl TypeCheckingVisitor {
                     self.visit(left_node_id, node_map);
 
                     let left_node = node_map.get(&left_node_id).unwrap();
-                    lhs_type = self.retrieve_type(left_node);
+                    lhs_type = self.retrieve_type(left_node, node_map);
                 }
                 // RHS
                 let mut right_node = AstNode::new(0);
@@ -157,7 +210,7 @@ impl TypeCheckingVisitor {
                     self.visit(right_node_id, node_map);
 
                     right_node = node_map.get(&right_node_id).unwrap().clone();
-                    rhs_type = self.retrieve_type(&right_node);
+                    rhs_type = self.retrieve_type(&right_node, node_map);
                 }
 
                 // not all expressions have a RHS. If there is a RHS, check types and insert cast if needed
@@ -167,7 +220,10 @@ impl TypeCheckingVisitor {
                     assert_ne!(rhs_type, DataTypeUnknown);
 
                     if lhs_type != rhs_type {
-                        println!("lhs_type: {:?}, rhs_type: {:?}", lhs_type, rhs_type);
+                        // DEBUG
+                        if self.debug {
+                            println!("lhs_type: {:?}, rhs_type: {:?}", lhs_type, rhs_type);
+                        }
 
                         // insert a cast node into the AST!
                         let cast_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -294,7 +350,7 @@ impl TypeCheckingVisitor {
 
                     let left_node = node_map.get(&left_node_id).unwrap();
 
-                    lhs_type = self.retrieve_type(left_node);
+                    lhs_type = self.retrieve_type(left_node, node_map);
 
                     // check if a function name is used where a variable name should be used (e.g. b = foo + a)
                     if self.symbol_table.borrow_mut().contains(&left_node.string_val) {
@@ -324,7 +380,7 @@ impl TypeCheckingVisitor {
 
                     let right_node = node_map.get(&right_node_id).unwrap();
 
-                    rhs_type = self.retrieve_type(right_node);
+                    rhs_type = self.retrieve_type(right_node, node_map);
 
                     // check if a function name is used where a variable name should be used (e.g. b = a + foo)
                     if self.symbol_table.borrow_mut().contains(&right_node.string_val) {
@@ -332,7 +388,9 @@ impl TypeCheckingVisitor {
                         let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&right_node.string_val);
 
                         // DEBUG
-                        println!("{:?}", symbol_table_entry);
+                        if self.debug {
+                            println!("{:?}", symbol_table_entry);
+                        }
 
                         match symbol_table_entry.symbol_table_entry_type {
                             SymbolTableEntryType::Function => {
@@ -370,7 +428,7 @@ impl TypeCheckingVisitor {
                                 let mut cast_ast_node = AstNode::new(cast_ast_node_id);
                                 cast_ast_node.node_type = AstNodeType::Cast;
                                 cast_ast_node.lhs = Some(left_node.id); // LHS is the variable or literal (value element) which needs casting
-                                cast_ast_node.analyzed_data_type = common_data_type; // analyzed_data_type is the type to cast into
+                                cast_ast_node.analyzed_data_type = common_data_type.clone(); // analyzed_data_type is the type to cast into
                                 cast_ast_node.parent_id = Some(ast_node.id);
                                 node_map.insert(cast_ast_node_id, cast_ast_node);
 
@@ -501,25 +559,24 @@ impl TypeCheckingVisitor {
 
             AstNodeType::VariableDeclaration => {
 
+                let mut symbol_table_entry = SymbolTableEntry::new();
+                symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
+
                 // data type
-                let mut data_type = String::from("");
                 if let Some(left_node_id) = ast_node.lhs {
                     let left_node = node_map.get(&left_node_id).unwrap();
                     // DEBUG
                     if self.debug {
                         print!("{:?}", left_node);
                     }
-                    data_type = left_node.string_val.clone();
+                    let data_type = left_node.string_val.clone();
+                        let data_type_as_enum = match DataType::from_str(&data_type) {
+                        Ok(data_type_result) => data_type_result,
+                        Err(e) => panic!("should be valid DataType: {e}"),
+                    };
+                    symbol_table_entry.data_type = data_type_as_enum;
+                    symbol_table_entry.is_array = left_node.node_type == AstNodeType::Array;
                 }
-
-                let data_type_as_enum = match DataType::from_str(&data_type) {
-                    Ok(data_type_result) => data_type_result,
-                    Err(e) => panic!("should be valid DataType: {e}"),
-                };
-
-                let mut symbol_table_entry = SymbolTableEntry::new();
-                symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
-                symbol_table_entry.data_type = data_type_as_enum;
 
                 // identifier (RHS)
                 let mut varname = String::from("");
@@ -658,7 +715,9 @@ impl TypeCheckingVisitor {
                             panic!("[ERR] Symbol {} is called with incorrect amount of arguments! Arguments expected: {}. Found: {}.", &function_name, existing_symbol_table_entry.parameter_count, ast_node.parameters.len());
                         } else {
                             // DEBUG
-                            println!("[OK] Arguments to {} match! Arguments expected: {}. Found: {}.", &function_name, existing_symbol_table_entry.parameter_count, ast_node.parameters.len());
+                            if self.debug {
+                                println!("[OK] Arguments to {} match! Arguments expected: {}. Found: {}.", &function_name, existing_symbol_table_entry.parameter_count, ast_node.parameters.len());
+                            }
                             // TODO: type check each individual argument.
                             // the type of the actual argument has to match or be convertible to the formal parameter's data type!
                         }

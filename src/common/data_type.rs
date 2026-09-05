@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use std::error::Error;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DataType {
     DataTypeByte,
     DataTypeChar,
@@ -17,13 +17,14 @@ pub enum DataType {
 
     DataTypeVoid, // is it beneficial to treat void as a data type? (void-pointer?)
 
+    DataTypePointer(Box<DataType>),
+
     DataTypeUnknown,
 }
 
 impl fmt::Display for DataType {
-
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
+        match self {
             DataType::DataTypeByte => write!(f, "byte"),
             DataType::DataTypeChar => write!(f, "char"),
             DataType::DataTypeInt => write!(f, "int"),
@@ -34,6 +35,7 @@ impl fmt::Display for DataType {
             DataType::DataTypeFloat => write!(f, "float"),
             DataType::DataTypeDouble => write!(f, "double"),
             DataType::DataTypeVoid => write!(f, "void"),
+            DataType::DataTypePointer(data_type) => write!(f, "Pointer-To-{}", data_type),
             DataType::DataTypeUnknown => write!(f, "unknown"),
         }
     }
@@ -62,6 +64,27 @@ impl FromStr for DataType {
             Ok(DataType::DataTypeVoid)
         } else {
             Err(format!("Can not parse {}", s).into())
+        }
+    }
+}
+
+impl DataType {
+    pub fn get_size(&self) -> usize {
+        match self {
+            DataType::DataTypeByte => 1,
+            DataType::DataTypeChar => 1,
+            DataType::DataTypeShort => 2,
+            DataType::DataTypeInt => 4,
+            DataType::DataTypeUnsignedInt => 4,
+            DataType::DataTypeLong => 8,
+            DataType::DataTypeUnsignedLong => 8,
+            DataType::DataTypeFloat => 4,
+            DataType::DataTypeDouble => 8,
+            // DataType::DataTypeVoid => write!(f, "void"),
+            // DataType::DataTypeUnknown => write!(f, "unknown"),
+            _ => {
+                todo!();
+            }
         }
     }
 }

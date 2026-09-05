@@ -291,6 +291,10 @@ impl AsmAstConversionVisitor {
                     self.visit_tacky_truncate(&mut asm_ast_function, tacky_instruction);
                 }
 
+                InstructionType::CopyToOffset => {
+                    self.visit_tacky_copy_to_offset(&mut asm_ast_function, tacky_instruction);
+                }
+
                 _ => {
                     panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_instruction.instruction_type).as_str());
                 }
@@ -306,6 +310,12 @@ impl AsmAstConversionVisitor {
 
         // add the created function into the functions vector of the program
         self.asm_ast_program.functions.push(asm_ast_function);
+    }
+
+    pub fn visit_tacky_copy_to_offset(&mut self,
+        asm_ast_function: &mut AsmAstFunction,
+        tacky_node: &Instruction) {
+            println!("[asm_ast_conversion_visitor::visit_tacky_copy_to_offset()] TODO!");
     }
 
     pub fn visit_tacky_truncate(&mut self,
@@ -435,7 +445,6 @@ impl AsmAstConversionVisitor {
 
         asm_ast_function.body.push(Box::new(mov_1));
 
-
         //
         // 2. Mov = Mov(<dst_type>, Memory(AX, 0), dst)
         //
@@ -445,7 +454,6 @@ impl AsmAstConversionVisitor {
         mov_2.assembly_type = AstAstAssemblyType::Longword;
         match &tacky_node_store.src {
             ValueElement::Variable(var_name) => {
-                //mov_2.src = AsmAstOperand { operand_type: AsmAstOperandType::Memory(AsmAstReg::AX, 0) };
                 mov_2.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
             }
             ValueElement::Constant(constant_value) => {
@@ -457,7 +465,6 @@ impl AsmAstConversionVisitor {
         }
         match &tacky_node_store.dst {
             ValueElement::Variable(var_name) => {
-                //mov_2.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
                 mov_2.dst = AsmAstOperand { operand_type: AsmAstOperandType::Memory(AsmAstReg::AX, 0) };
             }
             _ => {

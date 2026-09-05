@@ -4820,10 +4820,10 @@ impl Parser<String> {
                                                 let array_element_data_type_ast_node_id = self.ast_stack.pop().unwrap();
                                                 let array_element_data_type_ast_node = node_map.get(&array_element_data_type_ast_node_id).unwrap();
 
-                                                let mut array_datatype_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
-                                                //array_datatype_ast_node.node_type = AstNodeType::DataType;
+                                                let node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                                let mut array_datatype_ast_node: AstNode = AstNode::new(node_id);
                                                 array_datatype_ast_node.node_type = AstNodeType::Array;
-                                                // this is where the dot printer takes the data type from
+                                                // this is where the dot printer (ast_node.rs) takes the data type from
                                                 array_datatype_ast_node.string_val = array_element_data_type_ast_node.string_val.clone();
                                                 array_datatype_ast_node.data_type = Some(array_element_data_type_ast_node.id);
                                                 array_datatype_ast_node.lhs = Some(size_ast_node);
@@ -5229,17 +5229,11 @@ impl Parser<String> {
                                             // AST - initializer -> assignment_expression
                                             //
 
-                                            // let mut direct_declarator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
-                                            // direct_declarator_ast_node.node_type = AstNodeType::VariableDeclaration;
-
-                                            // self.ast_stack.push(direct_declarator_ast_node);
-
                                             self.direct_declarator_counter = self.direct_declarator_counter + 1;
                                         }
 
                                         // initializer -> OPENING_CURLY_BRACKET initializer_list CLOSING_CURLY_BRACKET
                                         171 => {
-                                            // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("initializer"));
@@ -5247,7 +5241,6 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("initializer")).as_str());
 
                                             // {
-                                            // create new node id
                                             // create new node with node id and label
                                             let comma_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let comma_node = DebugNode::new(comma_node_id, String::from("{"));
@@ -5260,7 +5253,6 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
                                             // }
-                                            // create new node id
                                             // create new node with node id and label
                                             let comma_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let comma_node = DebugNode::new(comma_node_id, String::from("}"));
@@ -5278,7 +5270,6 @@ impl Parser<String> {
 
                                         // initializer_list -> initializer COMMA initializer_list
                                         174 => {
-                                            // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("initializer_list"));
@@ -5291,7 +5282,6 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
                                             // ,
-                                            // create new node id
                                             // create new node with node id and label
                                             let comma_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let comma_node = DebugNode::new(comma_node_id, String::from(","));
