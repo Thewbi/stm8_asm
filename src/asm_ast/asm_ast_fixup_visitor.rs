@@ -91,26 +91,65 @@ impl AsmAstFixupVisitor {
                         // variable with 'pseudo_name' has already been resolved. Reuse existing value.
                         stack_offset_value = *self.stack_offset_map.get(pseudo_name).unwrap();
                     } else {
-
-                        // panic!("Instead of using 4 always, check the backend symbol table!");
-
                         // retrieve type
                         if self.backend_symbol_table.borrow_mut().contains(&pseudo_name) {
+                            // first, determine the data type. This is needed in order to determine
+                            // the correct amount of bytes to increment the stack pointer with
                             let symbol_table_entry = self.backend_symbol_table.borrow_mut().retrieve(&pseudo_name);
-
                             let data_type = symbol_table_entry.data_type;
-
+                            // convert the data type into the offset in bytes
                             self.stack_offset = self.stack_offset - data_type.get_size() as i32;
                             self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
-
                             stack_offset_value = self.stack_offset;
                         } else {
-                            panic!("Cannot find {}", &pseudo_name);
+                            panic!("Cannot find symbol '{}' in backend_symbol_table", &pseudo_name);
                         }
                     }
                 }
 
                 return AsmAstOperand { operand_type: AsmAstOperandType::Memory(AsmAstReg::RBP, stack_offset_value) };
+            }
+
+            AsmAstOperandType::PseudoMem(pseudo_name, pseudo_offset) => {
+                // DEBUG
+                if self.debug {
+                    println!("PseudoMem");
+                }
+
+                if self.replace_pseudo {
+
+                    //
+                    // Here, replace the PseudoMem(pseudo_name, pseudo_offset) by a stack address
+                    // that is large enough to store the array with all it's elements
+                    //
+
+                    if self.stack_offset_map.contains_key(pseudo_name) {
+                        // variable with 'pseudo_name' has already been resolved. Reuse existing value.
+                        stack_offset_value = *self.stack_offset_map.get(pseudo_name).unwrap();
+                    } else {
+                        // retrieve type
+                        if self.backend_symbol_table.borrow_mut().contains(&pseudo_name) {
+                            // first, determine the data type. This is needed in order to determine
+                            // the correct amount of bytes to increment the stack pointer with
+                            let symbol_table_entry = self.backend_symbol_table.borrow_mut().retrieve(&pseudo_name);
+                            let data_type = symbol_table_entry.data_type;
+
+                            if symbol_table_entry.is_array {
+
+                                // DEBUG
+                                println!("is_array. ElementCount: {}", symbol_table_entry.array_element_count);
+                            }
+
+                            // convert the data type into the offset in bytes
+                            self.stack_offset = self.stack_offset - ( data_type.get_size() as i32 ) * symbol_table_entry.array_element_count;
+                            self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
+                            stack_offset_value = self.stack_offset;
+                        } else {
+                            panic!("Cannot find symbol '{}' in backend_symbol_table", &pseudo_name);
+                        }
+                    }
+
+                }
             }
 
             AsmAstOperandType::Imm(immediate_value) => {

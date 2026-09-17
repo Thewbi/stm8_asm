@@ -1,0 +1,70 @@
+# Links
+
+https://github.com/gurrenm3/x86_x64-Assembly-VSCode-Template
+https://programminghaven.home.blog/2020/02/16/setup-an-assembly-project-on-visual-studio-2019/
+
+# Instructions
+
+1. New Project > Create an Empty project (not console project) > Create
+
+2. Project Tree > Context Menu on Project > Build Dependencies > Build Customizations
+   Project Tree > Context Menu on Project > Build Anpassungen ...
+
+   From the list select masm(.targets, .props) and click OK.
+
+3. Hinzufügen > Neues Element > main.asm
+
+4. If your assembly code starts with .386, then in Visual Studio, you need to select
+the x86 option in the run toolbar section instead of x64.
+
+5. (Optional) Setup Listing File
+The listing file is useful for examining what the assembler has generated.
+
+To setup the listing file generation, right click the
+
+project name > Configuration Properties > Microsoft Macro Assembler > Listing File
+> Assembled Code Listing File : $(IntDir)$(ProjectName).lst
+
+C:\Users\U5353\source\repos\test_1\test_1\
+
+6. MenuBar > Tools > Options > Debugging > General >
+
+MenuBar > Extras > Optionen > Alle Einstellungen > Debugging > General / Allgemein
+   > Enable address-level debugging ("Debugging auf Addressebene aktivieren")
+
+   While debugging or while paused at a breakpoint, select
+   MenuBar > Debug > Windows > Registers, or press Alt+5.
+   MenuBar > Debuggen > Fenster > Register
+
+7. In the properties of the project go to
+
+```
+Configuration Properties > Linker > Advanced
+```
+
+In Advanced at the top should be Entry Point. Type in main.
+
+
+
+
+
+
+
+
+
+
+4. NOT WORKING: Context Menu on .asm file > Properties > Microsoft Macro Assembler > Command Line
+
+   Configuration: (Debug) > Additional Options:
+
+   ```
+   ml /c /Zi /Fo$(OutDir)\example.obj example.asm
+   ```
+
+
+
+   Configuration: (Release) > Additional Options:
+
+   ```
+   ml /c /Zi /Fo$(OutDir)\example.obj example.asm
+   ```

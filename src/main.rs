@@ -107,9 +107,9 @@ use crate::tacky::tacky::print_tacky_program;
 
 mod asm_ast;
 use crate::asm_ast::asm_ast::AsmAstProgram;
-use crate::asm_ast::asm_ast_conversion_visitor::AsmAstConversionVisitor;
+use crate::asm_ast::tacky_to_intermediate_asm_conversion_visitor::TackyToIntermediateAsmConversionVisitor;
 use crate::asm_ast::asm_ast_fixup_visitor::AsmAstFixupVisitor;
-use crate::asm_ast::asm_ast_emitter_visitor::AsmAstASEmitterVisitor;
+use crate::asm_ast::asm_ast_gas_emitter_visitor::AsmAstGASEmitterVisitor;
 use crate::asm_ast::asm_ast_masm_emitter_visitor::AsmAstMasmEmitterVisitor;
 use crate::asm_ast::asm_ast::print_asm_ast_program;
 
@@ -400,7 +400,7 @@ fn main() {
     if debug {
         println!("");
         println!("*********************************************************************************");
-        println!("Building the Lexer (This may take some time ...) or load from file.              ");
+        println!("Building the Lexer (This may take some time ...) or loading Lexer from file.     ");
         println!("*********************************************************************************");
     }
 
@@ -709,6 +709,7 @@ fn main() {
             let symbol_table_rc_1 = Rc::new(RefCell::new(symbol_table));
             let symbol_table_rc_2 = symbol_table_rc_1.clone();
             let symbol_table_rc_3 = symbol_table_rc_1.clone();
+            let symbol_table_rc_4 = symbol_table_rc_1.clone();
 
             let mut type_checking_visitor = TypeCheckingVisitor::new(symbol_table_rc_1);
             type_checking_visitor.visit(program_ast_node_id, &mut node_map);
@@ -807,20 +808,27 @@ fn main() {
             writer.flush().expect("flush failed!");
 
             //
-            // Generate Assembler AST (from TACKY)
+            // Generate Intermediate/Precursory Assembler AST (from TACKY)
+            //
+            // Before generating ASM for a real target, this step emits intermediate ASM!
             //
 
-            let mut asm_ast_conversion_visitor = AsmAstConversionVisitor::new();
-            asm_ast_conversion_visitor.visit_tacky_program(&tacky_visitor.program);
+            let mut tacky_to_intermediate_asm_conversion_visitor = TackyToIntermediateAsmConversionVisitor::new(
+                symbol_table_rc_4
+            );
+            tacky_to_intermediate_asm_conversion_visitor.visit_tacky_program(&tacky_visitor.program);
 
             //
             // DEBUG: output intermedate assembler code to file
             //
 
+            // DEBUG: print symbol table to console
+            symbol_table_rc_3.borrow_mut().print_symbol_table();
+
             let mut string_buffer = String::from("");
             let indent = 0usize;
 
-            print_asm_ast_program(&asm_ast_conversion_visitor.asm_ast_program, &mut string_buffer, indent);
+            print_asm_ast_program(&tacky_to_intermediate_asm_conversion_visitor.asm_ast_program, &mut string_buffer, indent);
 
             // 1. Create or overwrite the file
             // extension intasm == intermediate assembler code
@@ -848,11 +856,11 @@ fn main() {
             // replace pseudo variables (from TACKY) by addresses on the stack
             // replace illegal MOV (mem2mem) by a combination of mem2reg reg2mem
             asm_ast_fixup_visitor.replace_pseudo = true;
-            asm_ast_fixup_visitor.visit_asm_ast_program(&mut asm_ast_conversion_visitor.asm_ast_program);
+            asm_ast_fixup_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
 
             // output all statements
             asm_ast_fixup_visitor.replace_pseudo = false;
-            asm_ast_fixup_visitor.visit_asm_ast_program(&mut asm_ast_conversion_visitor.asm_ast_program);
+            asm_ast_fixup_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
 
             // DEBUG
             // println!("---------------------------------------------------------------------------------");
@@ -864,8 +872,8 @@ fn main() {
             let emit_gcc = false;
             if emit_gcc {
                 println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                let mut asm_ast_emitter_visitor = AsmAstASEmitterVisitor::new();
-                asm_ast_emitter_visitor.visit_asm_ast_program(&mut asm_ast_conversion_visitor.asm_ast_program);
+                let mut asm_ast_emitter_visitor = AsmAstGASEmitterVisitor::new();
+                asm_ast_emitter_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
                 println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                 println!("gcc -c temp.S -o temp.o");
                 println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
@@ -875,9 +883,23 @@ fn main() {
             // let emit_masm_visual_studio = false;
             if emit_masm_visual_studio {
 
+                let stack_offset_map = asm_ast_fixup_visitor.stack_offset_map.clone();
+
+                println!("print_symbol_table() ------------------------------------------------------------");
+                let mut index = 0;
+                for (key, value) in stack_offset_map.clone().into_iter() {
+                    println!("{}) {} / {:?}", index, key, value);
+                    // println!("{} / {:?}", key, value.data_type);
+                    println!("");
+                    index = index + 1;
+                }
+                println!("---------------------------------------------------------------------------------");
+
                 // println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                 let mut asm_ast_emitter_visitor = AsmAstMasmEmitterVisitor::new();
-                asm_ast_emitter_visitor.visit_asm_ast_program(&mut asm_ast_conversion_visitor.asm_ast_program);
+                asm_ast_emitter_visitor.stack_offset_map = stack_offset_map;
+                asm_ast_emitter_visitor.print_to_console = true;
+                asm_ast_emitter_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
                 // println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                 // println!("Use MASM from within Visual Studio (Community Edition)");
                 // println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");

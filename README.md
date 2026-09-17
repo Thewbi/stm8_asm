@@ -1,3 +1,51 @@
+# TODO
+
+Why does the symbol_table in type_checking_visitor need to be used via borrow_mut() instead of just borrow()?
+
+# Current Problems
+
+## The address / pointer size problem
+
+For this code:
+
+```
+int main() {
+    int my_array[3] = {1, 2, 3};
+    int *my_pointer = my_array;
+    //long *my_pointer = my_array;
+    return *my_pointer;
+}
+```
+
+for the second line in the main() function's body, when using the pointer-to-int datatype
+instead of the pointer-to-long datatype for the pointer, the datatype int
+is used as the AST node "int" is processed. For int a int-data type is inserted into the symbol_table_entry (and hence into the symbol table) by the type checking visitor as it directly
+looks at the AST node that carries the type.
+
+This is correct but then on the stack, a pseudo variable is created and the stack offset for
+that variable is determined or choosen to be 4 byte as the data type is pointer-to-int.
+This is not correct! Instead, as the variable is pointer-to-int, the value of that variable needs
+to be a 64-bit address and the stack-offset 8 has to be used since it takes 8 byte to store the
+64 bit address on the stack.
+
+This means that the code currently for pointers has a mis-match between the data type that the pointer
+points to and the pointer-type itself. For pointer-to-int the mismatch is 4 to 8 byte.
+4 Byte for the value pointed to and 8 byte for the pointer itself which is a 64-bit value.
+
+The code for pointer-to-int currently is broken! It shows when running the code in Visual Studio (MASM).
+A wrong memory location is dereferenced by the code and a random value is returned instead of the
+value of the first element in the array.
+
+Changing the code so that line two in the main function's body is pointer-to-long fixes the code!
+No the mismatch is gone. The data type the pointer points to is 64 bit and the pointer-to-long itself
+is also a 64-bit address. Now, on the stack, 8 bytes are reserved for the pointer and the address
+is handled correctly. The dereference now returns the value of the first array element to which the
+pointer points.
+
+The solution is ??? I am not sure. The symbol table entry needs to be pointer-to-xyz! Then the
+stack offset value for pointers needs to always return 64 bit (8 byte) for pointers no matter to
+which type the point to!
+
 # C Compiler build according to Nora Sandler's Book - Writing a C Compiler
 
 This is a C compiler written in Rust for the C programming language.
@@ -263,7 +311,7 @@ In order to test, what token the lexer will create using a given test input, use
 
 The reason for the dragon book LALR(1) parser is twofold.
 1. I got burned in the past pretty hard by investing days into writing my own C grammar just to eventually realize that I am not smart enough to come up with a working grammar for C! That is why I assume that I am not smart enough to create a hand-written compiler for the language which is even harder than formulating a grammar! If you want to hand-write a parser, be warned. My advice is it to find a way to perform rapid prototyping so failure is not too expensive! You will probably not get it right the first time around.
-2. I invested days in learning and using compiler generator crates for rust just to realize that even the ones with highest praise have major flaws. Some are so hard to understand and use that even after being advised by the author themselves you still do not understand how to write a working parser or some suffer from major performance issues when the grammar exhibits special characteristics that the parser generator is not able to handle well. In the end, i decided to just use the tried and tested methods from earlier.
+2. I invested days in learning and using compiler generator crates for Rust just to realize that even the ones with highest praise have major flaws. Some are so hard to understand and use that even after being advised by the author themselves you still do not understand how to write a working parser or some suffer from major performance issues when the grammar exhibits special characteristics that the parser generator is not able to handle well. In the end, i decided to just use the tried and tested methods from earlier.
 
 Here is what AI has to say about the Dragon Book's LALR(1) algorithm:
 
@@ -2429,12 +2477,26 @@ To assemble the output, you may use MASM from within Visual Studio.
 
 [MASM](MASM.md)
 
-
 ### FASM
 
 https://gpfault.net/posts/asm-tut-0.txt.html
 
 [FASM](FASM.md)
+
+### NASM
+
+https://cs.lmu.edu/~ray/notes/nasmtutorial/
+
+[NASM](NASM.md)
+
+# Debugger
+
+## dbgrs
+
+https://github.com/TimMisiak/dbgrs
+
+[dbgrs](dbgrs.md)
+
 
 
 

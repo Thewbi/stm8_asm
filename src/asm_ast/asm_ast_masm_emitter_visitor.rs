@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::tacky::tacky::Program;
 use crate::tacky::tacky::TopLevel;
 use crate::tacky::tacky::TopLevelType;
@@ -30,17 +32,18 @@ use crate::asm_ast::asm_ast_masm_emitter_visitor::AsmAstOperandType::ComparisonT
 // Irvine page 70 registers
 //
 
-pub struct AsmAstMasmEmitterVisitor {
-    pub stack_size: usize,
-    pub string_buffer: String,
-    pub print_to_console: bool,
-}
-
 pub enum DataTypeSize {
     Byte, // 1 Byte
     Word, // 2 Byte
     DWord, // 4 Byte
     QWord, // 8 Byte
+}
+
+pub struct AsmAstMasmEmitterVisitor {
+    pub stack_size: usize,
+    pub string_buffer: String,
+    pub stack_offset_map: HashMap::<String, i32>,
+    pub print_to_console: bool,
 }
 
 impl AsmAstMasmEmitterVisitor {
@@ -49,6 +52,7 @@ impl AsmAstMasmEmitterVisitor {
         AsmAstMasmEmitterVisitor {
             stack_size: 0,
             string_buffer: String::from(""),
+            stack_offset_map: HashMap::<String, i32>::new(),
             print_to_console: false,
         }
     }
@@ -57,6 +61,139 @@ impl AsmAstMasmEmitterVisitor {
     // util
     //
 
+    pub fn add_stack_variable(&self, data_type_size: DataTypeSize,
+        stack_val: &i32,
+        register: &AsmAstReg)
+        -> String
+    {
+        match data_type_size {
+
+            DataTypeSize::Byte => {
+                if *stack_val == 0 {
+                    if self.print_to_console {
+                        print!("byte ptr [rbp+{}]", stack_val);
+                    }
+                    format!("byte ptr [{}+{}]", register.to_string(), stack_val)
+                } else {
+                    if self.print_to_console {
+                        print!("byte ptr [rbp{}]", stack_val);
+                    }
+                    format!("byte ptr [{}{}]", register.to_string(), stack_val)
+                }
+            }
+
+            DataTypeSize::Word => {
+                if *stack_val == 0 {
+                    if self.print_to_console {
+                        print!("word ptr [rbp+{}]", stack_val);
+                    }
+                    format!("word ptr [{}+{}]", register.to_string(), stack_val)
+                } else {
+                    if self.print_to_console {
+                        print!("word ptr [rbp{}]", stack_val);
+                    }
+                    format!("word ptr [{}{}]", register.to_string(), stack_val)
+                }
+            }
+
+            DataTypeSize::DWord => {
+                if *stack_val == 0 {
+                    // DEBUG
+                    if self.print_to_console {
+                        print!("dword ptr [rbp+{}]", stack_val);
+                    }
+                    format!("dword ptr [{}+{}]", register.to_string(), stack_val)
+                } else {
+                    // DEBUG
+                    if self.print_to_console {
+                        print!("dword ptr [rbp{}]", stack_val);
+                    }
+                    format!("dword ptr [{}{}]", register.to_string(), stack_val)
+                }
+            }
+
+            DataTypeSize::QWord => {
+                if *stack_val == 0 {
+                    // DEBUG
+                    if self.print_to_console {
+                        print!("qword ptr [rbp+{}]", stack_val);
+                    }
+                    format!("qword ptr [{}+{}]", register.to_string(), stack_val)
+                } else {
+                    // DEBUG
+                    if self.print_to_console {
+                        print!("qword ptr [rbp{}]", stack_val);
+                    }
+                    format!("qword ptr [{}{}]", register.to_string(), stack_val)
+                }
+            }
+        }
+    }
+
+    pub fn add_stack_variable_with_offset(&self, data_type_size: DataTypeSize,
+        stack_val: &i32,
+        offset: &i32,
+        register: &AsmAstReg)
+        -> String
+    {
+        match data_type_size {
+            DataTypeSize::Byte => {
+                if *stack_val == 0 {
+                    if self.print_to_console {
+                        print!("byte ptr [rbp+{}+{}]", stack_val, offset);
+                    }
+                    format!("byte ptr [{}+{}+{}]", register.to_string(), stack_val, offset)
+                } else {
+                    if self.print_to_console {
+                        print!("byte ptr [rbp{}+{}]", stack_val, offset);
+                    }
+                    format!("byte ptr [{}{}+{}]", register.to_string(), stack_val, offset)
+                }
+            }
+            DataTypeSize::Word => {
+                if *stack_val == 0 {
+                    if self.print_to_console {
+                        print!("word ptr [rbp+{}+{}]", stack_val, offset);
+                    }
+                    format!("word ptr [{}+{}+{}]", register.to_string(), stack_val, offset)
+                } else {
+                    if self.print_to_console {
+                        print!("word ptr [rbp{}+{}]", stack_val, offset);
+                    }
+                    format!("word ptr [{}{}+{}]", register.to_string(), stack_val, offset)
+                }
+            }
+            DataTypeSize::DWord => {
+                if *stack_val == 0 {
+                    if self.print_to_console {
+                        print!("dword ptr [rbp+{}+{}]", stack_val, offset);
+                    }
+                    format!("dword ptr [{}+{}+{}]", register.to_string(), stack_val, offset)
+                } else {
+                    if self.print_to_console {
+                        print!("dword ptr [rbp{}+{}]", stack_val, offset);
+                    }
+                    format!("dword ptr [{}{}+{}]", register.to_string(), stack_val, offset)
+                }
+            }
+            DataTypeSize::QWord => {
+                if *stack_val == 0 {
+                    // DEBUG
+                    if self.print_to_console {
+                        print!("qword ptr [{}+{}+{}]", register.to_string(), stack_val, offset);
+                    }
+                    format!("qword ptr [{}+{}+{}]", register.to_string(), stack_val, offset)
+                } else {
+                    // DEBUG
+                    if self.print_to_console {
+                        print!("qword ptr [rbp{}+{}]", stack_val, offset);
+                    }
+                    format!("qword ptr [{}{}+{}]", register.to_string(), stack_val, offset)
+                }
+            }
+        }
+    }
+
     #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
     #[allow(unreachable_patterns)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
     pub fn emit_asm_ast_operand(&mut self, asm_ast_operand: &AsmAstOperand, data_type_size: DataTypeSize) {
@@ -64,88 +201,62 @@ impl AsmAstMasmEmitterVisitor {
         match &asm_ast_operand.operand_type {
 
             AsmAstOperandType::Imm(imm_val) => {
+                // DEBUG
                 if self.print_to_console {
-                    print!("{}", imm_val);
+                    println!("{}", imm_val);
                 }
                 self.string_buffer.push_str(format!("{}", imm_val).as_str());
             }
 
             AsmAstOperandType::Reg(asm_ast_reg_val) => {
                 // registers defined in asm_ast.rs
+
+                // DEBUG
                 if self.print_to_console {
-                    print!("{}", asm_ast_reg_val);
+                    println!("{}", asm_ast_reg_val);
                 }
                 self.string_buffer.push_str(&asm_ast_reg_val.to_string());
             }
 
             AsmAstOperandType::Pseudo(pseudo_val) => {
+                // DEBUG
                 if self.print_to_console {
-                    print!("{}", pseudo_val);
+                    println!("{}", pseudo_val);
                 }
                 self.string_buffer.push_str(format!("{}", pseudo_val).as_str());
             }
 
-            AsmAstOperandType::Memory(register, stack_val) => {
-                //print!("{}(ebp)", stack_val);
+            AsmAstOperandType::PseudoMem(pseudo_val, pseudo_offset) => {
 
-                match data_type_size {
-                    DataTypeSize::Byte => {
-                        if *stack_val == 0 {
-                            if self.print_to_console {
-                                print!("byte ptr [rbp+{}]", stack_val);
-                            }
-                            self.string_buffer.push_str(format!("byte ptr [{}+{}]", register.to_string(), stack_val).as_str());
-                        } else {
-                            if self.print_to_console {
-                                print!("byte ptr [rbp{}]", stack_val);
-                            }
-                            self.string_buffer.push_str(format!("byte ptr [{}{}]", register.to_string(), stack_val).as_str());
-                        }
-                    }
-                    DataTypeSize::Word => {
-                        if *stack_val == 0 {
-                            if self.print_to_console {
-                                print!("word ptr [rbp+{}]", stack_val);
-                            }
-                            self.string_buffer.push_str(format!("word ptr [{}+{}]", register.to_string(), stack_val).as_str());
-                        } else {
-                            if self.print_to_console {
-                                print!("word ptr [rbp{}]", stack_val);
-                            }
-                            self.string_buffer.push_str(format!("word ptr [{}{}]", register.to_string(), stack_val).as_str());
-                        }
-                    }
-                    DataTypeSize::DWord => {
-                        if *stack_val == 0 {
-                            if self.print_to_console {
-                                print!("dword ptr [rbp+{}]", stack_val);
-                            }
-                            self.string_buffer.push_str(format!("dword ptr [{}+{}]", register.to_string(), stack_val).as_str());
-                        } else {
-                            if self.print_to_console {
-                                print!("dword ptr [rbp{}]", stack_val);
-                            }
-                            self.string_buffer.push_str(format!("dword ptr [{}{}]", register.to_string(), stack_val).as_str());
-                        }
-                    }
-                    DataTypeSize::QWord => {
-                        if *stack_val == 0 {
-                            if self.print_to_console {
-                                print!("qword ptr [rbp+{}]", stack_val);
-                            }
-                            self.string_buffer.push_str(format!("qword ptr [{}+{}]", register.to_string(), stack_val).as_str());
-                        } else {
-                            if self.print_to_console {
-                                print!("qword ptr [rbp{}]", stack_val);
-                            }
-                            self.string_buffer.push_str(format!("qword ptr [{}{}]", register.to_string(), stack_val).as_str());
-                        }
-                    }
+                // DEBUG
+                if self.print_to_console {
+                //     //println!("pseudo_val: {}, pseudo_offset: {}", pseudo_val, pseudo_offset);
+                    println!("{}", format!("{}", pseudo_val).as_str());
                 }
 
+                // TODO
+                if self.stack_offset_map.contains_key(pseudo_val) {
+
+                    let stack_val = self.stack_offset_map.get(pseudo_val).unwrap();
+
+                    // DEBUG
+                    if self.print_to_console {
+                        println!("{} => {:?}", pseudo_val, stack_val);
+                    }
+                    //self.string_buffer.push_str(format!("{}", pseudo_val).as_str());
+                    //self.string_buffer.push_str(format!("{}", stack_val).as_str());
+                    // self.add_stack_variable(data_type_size, stack_val, &AsmAstReg::RBP);
+                    self.string_buffer.push_str(self.add_stack_variable_with_offset(data_type_size, stack_val, pseudo_offset, &AsmAstReg::RBP).as_str());
+                }
+            }
+
+            AsmAstOperandType::Memory(register, stack_val) => {
+                //print!("{}(ebp)", stack_val);
+                self.string_buffer.push_str(self.add_stack_variable(data_type_size, stack_val, register).as_str());
             }
 
             AsmAstOperandType::ComparisonType(comparison_type_val) => {
+                // DEBUG
                 if self.print_to_console {
                     print!("{}", comparison_type_val.to_lowercase());
                 }
@@ -153,6 +264,7 @@ impl AsmAstMasmEmitterVisitor {
             }
 
             AsmAstOperandType::Label(label_val) => {
+                // DEBUG
                 if self.print_to_console {
                     print!("{}", label_val);
                 }
@@ -166,7 +278,7 @@ impl AsmAstMasmEmitterVisitor {
     }
 
     //
-    // non-util
+    // non-util, implementation function
     //
 
     pub fn visit_asm_ast_program(&mut self, asm_ast_program: &mut AsmAstProgram) {

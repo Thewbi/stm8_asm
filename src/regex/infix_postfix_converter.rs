@@ -14,7 +14,8 @@ use crate::regex::regex_building_block::RegexBuildingBlock;
 use crate::regex::arena::Node;
 use crate::regex::arena::NodeId;
 
-pub fn recurse_postfix_debug_print(arena: &Arena<RegexBuildingBlock>, parent_node_id: &NodeId, current_root_id: &usize, indent: usize) {
+pub fn recurse_postfix_debug_print(arena: &Arena<RegexBuildingBlock>,
+    parent_node_id: &NodeId, current_root_id: &usize, indent: usize) {
 
     if arena.nodes.len() == 0 {
         return;
@@ -37,7 +38,7 @@ pub fn recurse_postfix_debug_print(arena: &Arena<RegexBuildingBlock>, parent_nod
                 '-' => { println!("\\-"); }
                 '*' => { println!("\\*"); }
                 '^' => { println!("\\^"); }
-                _ => { 
+                _ => {
                     print!("{} [{}] {}", indent_string, parent_node_id.index, format!("{:?}", parent_node.data).as_str());
                     if *current_root_id == parent_node_id.index {
                         print!(" <*>");
@@ -63,11 +64,11 @@ pub fn recurse_postfix_debug_print(arena: &Arena<RegexBuildingBlock>, parent_nod
             println!("");
         }
     }
-    
+
     //
     // print children
     //
-    
+
     match &parent_node.left {
         Some(_) => {
             recurse_postfix_debug_print(arena, parent_node.left.as_ref().unwrap(), &current_root_id, indent + 1);
@@ -84,7 +85,8 @@ pub fn recurse_postfix_debug_print(arena: &Arena<RegexBuildingBlock>, parent_nod
     }
 }
 
-pub fn recurse_postfix(arena: &Arena<RegexBuildingBlock>, parent_node_id: &NodeId, string_buffer: &mut String) {
+pub fn recurse_postfix(arena: &Arena<RegexBuildingBlock>,
+    parent_node_id: &NodeId, string_buffer: &mut String) {
     let parent_node: &Node<RegexBuildingBlock> = &arena.nodes[parent_node_id.index];
     match &parent_node.left {
         Some(_) => {
@@ -124,12 +126,13 @@ pub fn recurse_postfix(arena: &Arena<RegexBuildingBlock>, parent_node_id: &NodeI
             string_buffer.push_str(format!("{:?}", parent_node.data).as_str());
         }
     }
-    
+
     // output to string buffer
     //string_buffer.push_str(format!("{:?}", parent_node.data).as_str());
 }
 
-pub fn descend_into_concatenation_right_side(arena: &Arena<RegexBuildingBlock>, start_node_id: &NodeId) -> NodeId {
+pub fn descend_into_concatenation_right_side(arena: &Arena<RegexBuildingBlock>,
+    start_node_id: &NodeId) -> NodeId {
     let mut node_id = start_node_id.clone();
     loop {
         let node: &Node<RegexBuildingBlock> = &arena.nodes[node_id.index];
@@ -154,7 +157,8 @@ pub fn descend_into_concatenation_right_side(arena: &Arena<RegexBuildingBlock>, 
     node_id
 }
 
-pub fn replace_parent_of_right_child(arena: &mut Arena<RegexBuildingBlock>, node_id: &NodeId, regex_building_block: RegexBuildingBlock) {
+pub fn replace_parent_of_right_child(arena: &mut Arena<RegexBuildingBlock>,
+    node_id: &NodeId, regex_building_block: RegexBuildingBlock) {
 
     // get the next free index
     let next_index = arena.nodes.len();
@@ -177,8 +181,11 @@ pub fn replace_parent_of_right_child(arena: &mut Arena<RegexBuildingBlock>, node
     arena.nodes[next_index].left = Some ( NodeId { index: right_child_node_id } );
 }
 
-// add a new concatenation node as right child into node_id and place the old right child and the regex_building_block as left and right children into the concatenation
-pub fn concat_right_side(arena: &mut Arena<RegexBuildingBlock>, node_id: &NodeId, regex_building_block: RegexBuildingBlock) -> usize {
+// add a new concatenation node as right child into node_id and place
+// the old right child and the regex_building_block as left and right
+// children into the concatenation
+pub fn concat_right_side(arena: &mut Arena<RegexBuildingBlock>,
+    node_id: &NodeId, regex_building_block: RegexBuildingBlock) -> usize {
 
     // get the next free index
     let next_index = arena.nodes.len();
@@ -207,7 +214,7 @@ pub fn concat_right_side(arena: &mut Arena<RegexBuildingBlock>, node_id: &NodeId
 
     // insert the new concat into the right side
     arena.nodes[node_id.index].right = Some ( NodeId { index: concat_index } );
-    
+
     // insert old right side into left side of the new concat
     match old_right_option {
         Some(old_right_node_id) => {
@@ -224,10 +231,12 @@ pub fn concat_right_side(arena: &mut Arena<RegexBuildingBlock>, node_id: &NodeId
     next_index
 }
 
-// build a new concatenation node and return it's id as the first touple element
-// make that new concatenation the parent of the old node (left-child) and the specified RegexBuildingBlock, right side
+// build a new concatenation node and return it's id as the first touple element.
+// Make that new concatenation the parent of the old node (left-child) and the specified
+// RegexBuildingBlock, right side.
 // return the id of the new node for the regex building block as the second touple element
-pub fn new_concat_root(arena: &mut Arena<RegexBuildingBlock>, node_id: &NodeId, regex_building_block: RegexBuildingBlock) -> (usize, usize) {
+pub fn new_concat_root(arena: &mut Arena<RegexBuildingBlock>,
+    node_id: &NodeId, regex_building_block: RegexBuildingBlock) -> (usize, usize) {
 
     // get the next free index
     let next_index = arena.nodes.len();
@@ -287,7 +296,9 @@ impl InfixPostfixConverter {
         }
     }
 
-    pub fn find_root(&mut self) -> NodeId {
+    // private function
+    // This function is only used for debugging
+    fn find_root(&mut self) -> NodeId {
 
         if self.arena.nodes.len() == 0 {
             return NodeId { index: 0 };
@@ -326,7 +337,12 @@ impl InfixPostfixConverter {
         NodeId { index: not_pointed_list[0] }
     }
 
-    pub fn process_literal_character(&mut self, c: char) {
+    // private function
+    // takes care of inserting a literal character into the tree.
+    // This function is called by infix_to_postfix() in the catch-all case
+    // if the match statement over input characters, when the input character
+    // matches none of the special operators but is a character literal.
+    fn process_literal_character(&mut self, c: char) {
 
         // if in bracket_mode build up the character class operator with start and end node
         if self.character_class_mode { // e.g. [a-z]
@@ -338,7 +354,7 @@ impl InfixPostfixConverter {
             } else {
                 self.character_end_option = Some(c);
             }
-        } else if self.repeat_mode { // e.g {3}, {2,4}
+        } else if self.repeat_mode { // if in repeat mode, build up a repeat expression, e.g {3}, {2,4}
             if !c.is_numeric() && c != ',' {
                 panic!("Range border in repeat operator is not a numeric character!");
             }
@@ -353,86 +369,77 @@ impl InfixPostfixConverter {
             if self.arena.is_empty() {
                 self.root_node_id = self.arena.new_node(character_literal);
             } else {
-    
+
                 let mut inserted: bool = false;
                 let mut update_root_node_id: bool = true;
-    
+
                 let mut last_node_id: NodeId = self.root_node_id.clone();
                 let mut node_id: NodeId = self.root_node_id.clone();
-    
+
+                // make the character trickle down the tree from node to node
+                // until it finds it's correct location
                 while !inserted {
-                
+
                     let root_value = self.arena.get_payload(&node_id);
                     match root_value {
 
                         RegexBuildingBlock::Not => {
                             let node_id_option = self.arena.get_right_id(&node_id);
-    
+
                             match node_id_option {
                                 Some(right_child_node_id) => {
-                                    
-                                    // self.left = false;
-                                    // last_node_id = node_id.clone();
-                                    // node_id = right_child_node_id.clone();
-                                    // update_root_node_id = false;
-                                    // inserted = false;
 
                                     // concatenate instead of descend
                                     let res = new_concat_root(&mut self.arena, &node_id, character_literal);
                                     self.root_stack[self.root_index].index = res.0;
 
-                                    // self.root_index = self.root_index + 1;
-                                    // self.root_stack[self.root_index].index = res.1;
-
                                     inserted = true;
-
-                                    // panic!("test");
                                 }
                                 None => {
                                     self.arena.add_right(&node_id, character_literal);
-    
+
                                     inserted = true;
                                 }
                             }
                         }
-    
+
                         RegexBuildingBlock::OpeningBraces => {
-                            
+
                             let node_id_option = self.arena.get_right_id(&node_id);
-    
+
                             match node_id_option {
                                 Some(right_child_node_id) => {
-                                    
+
                                     self.left = false;
-    
+
                                     last_node_id = node_id.clone();
-    
+
                                     node_id = right_child_node_id.clone();
-    
+
                                     update_root_node_id = false;
                                     inserted = false;
                                 }
                                 None => {
                                     self.arena.add_right(&node_id, character_literal);
-    
+
                                     inserted = true;
                                 }
                             }
                         }
-    
+
                         RegexBuildingBlock::ClosingBraces => {}
-    
+
                         RegexBuildingBlock::ClosedBraces => {
                             // println!("ClosedBraces");
-    
+
                             let concat_node_id: NodeId = self.arena.new_node(RegexBuildingBlock::Concatenation);
-                            
+
                             // insert old node into the left side of new node
                             self.arena.insert_left(&concat_node_id, node_id.clone());
-    
+
                             // insert new literal into the right side
                             self.arena.add_right(&concat_node_id, character_literal);
-    
+
                             // new node becomes root node
                             if update_root_node_id {
                                 self.root_node_id.index = concat_node_id.index;
@@ -440,18 +447,18 @@ impl InfixPostfixConverter {
                             } else {
                                 self.arena.insert_right(&last_node_id, concat_node_id.clone());
                             }
-    
+
                             inserted = true;
                         }
-    
+
                         RegexBuildingBlock::Concatenation => {
                             let new_root_node_id: NodeId = self.arena.new_node(RegexBuildingBlock::Concatenation);
                             // insert old node into the left side of new node
                             self.arena.insert_left(&new_root_node_id, node_id.clone());
-    
+
                             // insert new literal into the right side
                             self.arena.add_right(&new_root_node_id, character_literal);
-    
+
                             // new node becomes root node
                             if update_root_node_id {
                                 self.root_node_id.index = new_root_node_id.index;
@@ -459,19 +466,19 @@ impl InfixPostfixConverter {
                             } else {
                                 self.arena.insert_right(&last_node_id, new_root_node_id.clone());
                             }
-    
+
                             inserted = true;
                         }
-    
+
                         RegexBuildingBlock::CharacterLiteral(_) | RegexBuildingBlock::CharacterClass(_, _) => {
-    
+
                             let concatenation_node_id: NodeId = self.arena.new_node(RegexBuildingBlock::Concatenation);
                             // insert old node into the left side of new node
                             self.arena.insert_left(&concatenation_node_id, node_id.clone());
-    
+
                             // insert new literal into the right side
                             self.arena.add_right(&concatenation_node_id, character_literal);
-                            
+
                             if update_root_node_id {
                                 // new node becomes root node
                                 self.root_node_id.index = concatenation_node_id.index;
@@ -483,19 +490,19 @@ impl InfixPostfixConverter {
                                     self.arena.insert_right(&last_node_id, concatenation_node_id.clone());
                                 }
                             }
-    
+
                             inserted = true;
                         }
-    
+
                         RegexBuildingBlock::Repeat(_min, _max) => {
-    
+
                             let new_root_node_id: NodeId = self.arena.new_node(RegexBuildingBlock::Concatenation);
                             // insert old node into the left side of new node
                             self.arena.insert_left(&new_root_node_id, node_id.clone());
-    
+
                             // insert new literal into the right side
                             self.arena.add_right(&new_root_node_id, character_literal);
-    
+
                             if node_id.index == self.root_node_id.index {
                                 // new node becomes root node
                                 self.root_node_id.index = new_root_node_id.index;
@@ -503,30 +510,30 @@ impl InfixPostfixConverter {
                             } else {
                                 self.arena.insert_right(&last_node_id, new_root_node_id.clone());
                             }
-    
+
                             inserted = true;
                         }
-    
+
                         RegexBuildingBlock::Or => {
-    
+
                             let node_id_option = self.arena.get_right_id(&node_id);
                             match node_id_option {
-    
+
                                 Some(right_child_node_id) => {
-                                    
+
                                     self.left = false;
-    
+
                                     last_node_id = node_id.clone();
-    
+
                                     node_id = right_child_node_id.clone();
-    
+
                                     update_root_node_id = false;
                                     inserted = false;
                                 }
                                 None => {
                                     // insert new literal into the right side
                                     self.arena.add_right(&node_id, character_literal);
-    
+
                                     inserted = true;
                                 }
                             }
@@ -537,12 +544,17 @@ impl InfixPostfixConverter {
         }
     }
 
+    // will convert a regex in infix notation to a regex in postfix notation
+    // and store the result in the state of this converter struct which is
+    // why it is advised to call  reset() on the struct before using it again.
     pub fn infix_to_postfix(&mut self, regex_infix: &str) -> String {
 
+        // DEBUG
         // println!("{:?}", regex_infix);
 
         let mut chars = regex_infix.chars().fuse();
-        
+
+        // DEBUG
         // let mut copy = chars.clone();
         // while let Some(c) = copy.next() {
         //     println!("{:?}", c);
@@ -552,7 +564,7 @@ impl InfixPostfixConverter {
 
             //
             // Escaped sequences
-            // 
+            //
 
             if c == '\\' {
                 self.escaped_sequence = true;
@@ -618,6 +630,7 @@ impl InfixPostfixConverter {
 
             match c {
 
+                // Not / Invert operator
                 '^' => {
 
                     if self.arena.is_empty() {
@@ -629,12 +642,12 @@ impl InfixPostfixConverter {
 
                         let mut inserted: bool = false;
                         let update_root_node_id: bool = true;
-            
+
                         let last_node_id: NodeId = self.root_node_id.clone();
                         let node_id: NodeId = self.root_node_id.clone();
-            
+
                         while !inserted {
-                        
+
                             let root_value = self.arena.get_payload(&node_id);
                             match root_value {
 
@@ -667,16 +680,18 @@ impl InfixPostfixConverter {
                                 }
 
                                 _ => { panic!("test: {} meets {:?}. Only allowed: character_class and concatenation and CharacterLiteral", c, root_value); }
-
                             }
-
                         }
-                        
                     }
                 }
 
                 // # not allowed in regex format
+                // The # character is output into the postfix notation as the concatenation operator
                 '#' => { panic!(); }
+
+                //
+                // Group of operators for repeating characters
+                //
 
                 '+' | '*' | '?' => {
 
@@ -812,7 +827,7 @@ impl InfixPostfixConverter {
                                     match node_id_option {
 
                                         Some(right_child_node_id) => {
-                                            
+
                                             self.left = false;
 
                                             last_node_id = node_id.clone();
@@ -849,7 +864,7 @@ impl InfixPostfixConverter {
                     }
 
                     let repeat = RegexBuildingBlock::Repeat(
-                        (self.character_start_option.unwrap() as u8 - 0x30) as u8, 
+                        (self.character_start_option.unwrap() as u8 - 0x30) as u8,
                         (self.character_end_option.unwrap() as u8 - 0x30) as u8
                     );
 
@@ -876,7 +891,7 @@ impl InfixPostfixConverter {
                             RegexBuildingBlock::CharacterLiteral(_) | RegexBuildingBlock::CharacterClass(_, _) => {
 
                                 let new_root_node_id: NodeId = self.arena.new_node(repeat);
-                                
+
                                 // insert old node into the left side of new node
                                 self.arena.insert_left(&new_root_node_id, self.root_node_id.clone());
 
@@ -913,13 +928,13 @@ impl InfixPostfixConverter {
                     }
                     self.character_class_mode = true;
                 }
-                ']' => { 
+                ']' => {
                     if !self.character_class_mode {
                         panic!("Illegal Syntax! ']' used without opening brackets!");
                     }
 
                     let character_class = RegexBuildingBlock::CharacterClass(self.character_start_option.unwrap(), self.character_end_option.unwrap());
-                    
+
                     if self.arena.is_empty() {
                         self.root_node_id = self.arena.new_node(character_class);
                     } else {
@@ -928,31 +943,18 @@ impl InfixPostfixConverter {
 
                             RegexBuildingBlock::Not => {
                                 let node_id_option = self.arena.get_right_id(&self.root_node_id);
-        
+
                                 match node_id_option {
                                     Some(right_child_node_id) => {
-                                        
-                                        // self.left = false;
-                                        // last_node_id = node_id.clone();
-                                        // node_id = right_child_node_id.clone();
-                                        // update_root_node_id = false;
-                                        // inserted = false;
-    
+
                                         // concatenate instead of descend
                                         let res = new_concat_root(&mut self.arena, &self.root_node_id, character_class);
                                         self.root_stack[self.root_index].index = res.0;
-    
+
                                         // ascend from not to old root
                                         if self.root_index > 0 {
                                             self.root_index = self.root_index - 1;
                                         }
-
-                                        //self.root_index = self.root_index + 1;
-                                        //self.root_stack[self.root_index].index = res.index;
-        
-                                        //inserted = true;
-    
-                                        // panic!("test");
                                     }
                                     None => {
                                         let res = self.arena.add_right(&self.root_node_id, character_class);
@@ -961,11 +963,6 @@ impl InfixPostfixConverter {
                                         if self.root_index > 0 {
                                             self.root_index = self.root_index - 1;
                                         }
-
-                                        // self.root_index = self.root_index + 1;
-                                        // self.root_stack[self.root_index].index = res.index;
-        
-                                        //inserted = true;
                                     }
                                 }
                             }
@@ -1009,24 +1006,24 @@ impl InfixPostfixConverter {
 
                                 while !inserted {
                                     let node_id_option = self.arena.get_right_id(&node_id);
-        
+
                                     match node_id_option {
 
                                         Some(right_child_node_id) => {
-                                            
+
                                             self.left = false;
 
                                             // update the pointers to the current tree node, move down one level
                                             last_node_id = node_id.clone();
                                             node_id = right_child_node_id.clone();
-            
+
                                             // keep descending into the tree
                                             update_root_node_id = false;
                                             inserted = false;
                                         }
                                         None => {
                                             self.arena.add_right(&node_id, character_class);
-            
+
                                             inserted = true;
                                         }
                                     }
@@ -1044,32 +1041,32 @@ impl InfixPostfixConverter {
 
                                 while !inserted {
                                     let node_id_option = self.arena.get_right_id(&node_id);
-        
+
                                     match node_id_option {
 
                                         Some(right_child_node_id) => {
-                                            
+
                                             self.left = false;
 
                                             // update the pointers to the current tree node, move down one level
                                             last_node_id = node_id.clone();
                                             node_id = right_child_node_id.clone();
-            
+
                                             // keep descending into the tree
                                             update_root_node_id = false;
                                             inserted = false;
                                         }
                                         None => {
                                             self.arena.add_right(&node_id, character_class);
-            
+
                                             inserted = true;
                                         }
                                     }
                                 }
                             }
 
-                            _ => { 
-                                panic!("NIY"); 
+                            _ => {
+                                panic!("NIY");
                             }
                         }
                     }
@@ -1080,7 +1077,7 @@ impl InfixPostfixConverter {
                 }
 
                 //
-                // braces
+                // braces - reorganize precedence or apply operators to grouped regexes.
                 //
 
                 '(' => {
@@ -1105,23 +1102,17 @@ impl InfixPostfixConverter {
 
                                 RegexBuildingBlock::Not => {
                                     let node_id_option = self.arena.get_right_id(&node_id);
-            
+
                                     match node_id_option {
                                         Some(right_child_node_id) => {
-                                            
-                                            // self.left = false;
-                                            // last_node_id = node_id.clone();
-                                            // node_id = right_child_node_id.clone();
-                                            // update_root_node_id = false;
-                                            // inserted = false;
-        
+
                                             // concatenate instead of descend
                                             let res = new_concat_root(&mut self.arena, &node_id, RegexBuildingBlock::OpeningBraces);
                                             self.root_stack[self.root_index].index = res.0;
-        
+
                                             self.root_index = self.root_index + 1;
                                             self.root_stack[self.root_index].index = res.1;
-        
+
                                             inserted = true;
                                         }
                                         None => {
@@ -1129,7 +1120,7 @@ impl InfixPostfixConverter {
 
                                             self.root_index = self.root_index + 1;
                                             self.root_stack[self.root_index].index = res.index;
-            
+
                                             inserted = true;
                                         }
                                     }
@@ -1190,7 +1181,7 @@ impl InfixPostfixConverter {
                                 RegexBuildingBlock::CharacterLiteral(_c) => {
 
                                     let concat_node_id: NodeId = self.arena.new_node(RegexBuildingBlock::Concatenation);
-                                    
+
                                     // insert old node into the left side of new node
                                     self.arena.insert_left(&concat_node_id, node_id.clone());
 
@@ -1216,7 +1207,7 @@ impl InfixPostfixConverter {
                                     match node_id_option {
 
                                         Some(right_child_node_id) => {
-                                            
+
                                             self.left = false;
 
                                             last_node_id = node_id.clone();
@@ -1248,7 +1239,7 @@ impl InfixPostfixConverter {
                                     // root_node_id.index = new_root_node_id.index;
 
                                     let concat_node_id: NodeId = self.arena.new_node(RegexBuildingBlock::Concatenation);
-                                    
+
                                     // insert old node into the left side of new node
                                     self.arena.insert_left(&concat_node_id, node_id.clone());
 
@@ -1274,7 +1265,7 @@ impl InfixPostfixConverter {
                 }
 
                 ')' => {
-                    
+
                     if self.arena.is_empty() {
                         panic!("invalid!");
                     } else {
@@ -1304,19 +1295,11 @@ impl InfixPostfixConverter {
 
                                 RegexBuildingBlock::OpeningBraces => {
 
-                                    // self.arena.change_payload(&node_id, RegexBuildingBlock::ClosedBraces);
-                                    // inserted = true;
-
                                     // descend into the deepest open braces and close them
-                                    
-                                    //while right child is also (
+
+                                    // while right child is also (
                                     let mut inner_inserted = false;
                                     let mut curr_node_id = node_id;
-                                    // let mut change_node_id: NodeId = NodeId {
-                                    //     left: None,
-                                    //     right: None,
-                                    //     data: RegexBuildingBlock::Concatenation,
-                                    // };
                                     let mut change_node_id: NodeId = NodeId { index:0 };
 
                                     while !inner_inserted {
@@ -1334,21 +1317,11 @@ impl InfixPostfixConverter {
                                                     }
 
                                                     _ => {
-                                                        // self.arena.change_payload(&right_child_node_id, RegexBuildingBlock::ClosedBraces);
                                                         change_node_id = curr_node_id;
                                                         inner_inserted = true;
                                                         inserted = true;
                                                     }
                                                 }
-                                                
-                                                // self.left = false;
-
-                                                // last_node_id = node_id.clone();
-
-                                                // node_id = right_child_node_id.clone();
-
-                                                // update_root_node_id = false;
-                                                // inserted = false;
                                             }
                                             None => {
                                                 panic!("error");
@@ -1382,8 +1355,8 @@ impl InfixPostfixConverter {
                                     }
                                 }
 
-                                _ => { 
-                                    panic!("invalid! root_value: '{:?}'", root_value); 
+                                _ => {
+                                    panic!("invalid! root_value: '{:?}'", root_value);
                                 }
                             }
                         }
@@ -1405,7 +1378,7 @@ impl InfixPostfixConverter {
                             RegexBuildingBlock::Repeat(_min, _max) => {
 
                                 let new_root_node_id: NodeId = self.arena.new_node(RegexBuildingBlock::Or);
-                                
+
                                 // insert old node into the left side of new node
                                 self.arena.insert_left(&new_root_node_id, self.root_node_id.clone());
 
@@ -1574,7 +1547,7 @@ impl InfixPostfixConverter {
     }
 
     pub fn reset(&mut self) {
-        
+
         // reset
         self.root_node_id.index = 0;
         self.character_class_mode = false;

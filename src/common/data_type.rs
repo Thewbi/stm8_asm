@@ -82,6 +82,14 @@ impl DataType {
             DataType::DataTypeDouble => 8,
             // DataType::DataTypeVoid => write!(f, "void"),
             // DataType::DataTypeUnknown => write!(f, "unknown"),
+            DataType::DataTypePointer(inner_data_type) => {
+                match **inner_data_type {
+                    DataType::DataTypeLong => 8,
+                    _ => {
+                        todo!();
+                    }
+                }
+            }
             _ => {
                 todo!();
             }

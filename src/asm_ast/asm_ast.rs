@@ -1,6 +1,7 @@
 use std::fmt;
 use std::fmt::Display;
 
+use crate::common::data_type;
 use crate::tacky::tacky::ValueElement;
 use crate::tacky::tacky::UnaryOperator;
 use crate::tacky::tacky::BinaryOperator;
@@ -45,6 +46,24 @@ pub enum AstAstAssemblyType {
     Longword,
     Quadword,
     Unknown
+}
+
+impl AstAstAssemblyType {
+    pub fn from_data_type(data_type: &DataType)
+        -> AstAstAssemblyType
+    {
+        match data_type {
+            DataType::DataTypeInt => {
+                AstAstAssemblyType::Longword
+            }
+            DataType::DataTypeLong => {
+                AstAstAssemblyType::Quadword
+            }
+            _ => {
+                unimplemented!()
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -255,6 +274,7 @@ pub enum AsmAstOperandType {
     Imm(i32),
     Reg(AsmAstReg),
     Pseudo(String),
+    PseudoMem(String, i32),
     // Stack(i32), // implicitly uses the RBP register as a base plus an i32 offset
     Memory(AsmAstReg, i32), // on page 375, the Stack Operand is replaced by a more
     // general Memory Operand that uses an explicit register instead of implicit RBP like Stack(i32) did.
@@ -297,7 +317,8 @@ impl fmt::Display for AsmAstReg {
 
             AsmAstReg::R8 => write!(f, "r8d"),
             AsmAstReg::R9 => write!(f, "r9d"),
-            AsmAstReg::R10 => write!(f, "r10d"),
+            // AsmAstReg::R10 => write!(f, "r10d"),
+            AsmAstReg::R10 => write!(f, "r10"),
 
             AsmAstReg::RBP => write!(f, "rbp"),
         }

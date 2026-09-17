@@ -17,6 +17,28 @@ pub const WHITESPACE_TOKEN_ID: usize = 46;
 pub const NEWLINE_TOKEN_ID: usize = 47;
 pub const IDENTIFIER_TOKEN_ID: usize = 500;
 
+// This class is a driver rather than real implementation of lexing and parsing.
+// Lexing is performed by a DFA. Parsing is performed by the parser struct.
+//
+// This Lexer contains DFA which accepts all token regular expressions.
+// It also contains the parser.
+//
+// The Lexer feeds input characters to the DFA.
+// Should the DFA enter a TrapState (which means a token has been accepted),
+// then a token variable is created from the DFA's inner state.
+// The created token variable is then forwarded to the parser.
+//
+// The parser keeps reducing the grammar rules until the start symbol is reduced
+// (which means the input applicatio is syntactically sound) or it will refuse input
+// by panicing!
+//
+// The DFA is implemented in regex/enfa.rs as a NFA which is actually a DFA. NFA's can be
+// used to represent DFA by just not having more than a single target state for a
+// alphabet symbol. You will not find an explicit DFA structure in the code base.
+//
+// The parser is implemented in parser/parser.rs
+//
+// The README.md documents the lexer and parser generation and implementation.
 pub struct Lexer {
     pub dfa: EpsilonNfa::<State, RegexBuildingBlock>,
     pub current_state_id: usize,
@@ -28,17 +50,17 @@ pub struct Lexer {
 impl Lexer {
 
     pub fn new(dfa_param: EpsilonNfa::<State, RegexBuildingBlock>,
-        lexer_debug_param: bool, lexer_token_debug_param: bool) -> Self {
-
-        let lexer = Lexer {
+        lexer_debug_param: bool,
+        lexer_token_debug_param: bool)
+    -> Self
+    {
+        Lexer {
             current_state_id: dfa_param.start_state_id,
             dfa: dfa_param,
             token_string_buffer: String::new(),
             lexer_debug: lexer_debug_param,
             lexer_token_debug: lexer_token_debug_param,
-        };
-
-        lexer
+        }
     }
 
     // TODO: the lookahead character is not used at all!
@@ -61,6 +83,8 @@ impl Lexer {
 
         // check if there is a valid transition for the next character
         // greedily consume it and do not directly feed a half finished token to the parser
+
+        // DEBUG
         if self.lexer_debug {
             println!("[LEXER.TRAP_STATE] Lookahead character is: '{}'", lookahead_character);
         }
@@ -84,6 +108,7 @@ impl Lexer {
             next_state_id = transition_dfa(&mut self.dfa,
                 self.current_state_id, &RegexBuildingBlock::CharacterLiteral(current_character));
 
+            // DEBUG
             if self.lexer_debug {
                 println!("[LEXER] From State: '{}', To State: '{}'", self.current_state_id, next_state_id);
             }
@@ -122,6 +147,8 @@ impl Lexer {
 
                     NEWLINE_TOKEN_ID | WHITESPACE_TOKEN_ID => {
                         // ignore NEWLINE and WHITESPACE
+
+                        // DEBUG
                         if self.lexer_debug {
                             println!("[LEXER.TRAP_STATE] NOT Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
                         }
@@ -129,6 +156,7 @@ impl Lexer {
 
                     IDENTIFIER_TOKEN_ID => {
 
+                        // DEBUG
                         if self.lexer_debug {
                             println!("[LEXER.TRAP_STATE] Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
                         }

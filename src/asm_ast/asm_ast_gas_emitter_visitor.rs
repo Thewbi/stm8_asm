@@ -17,26 +17,27 @@ use crate::asm_ast::asm_ast::AsmAstOperandType;
 use crate::asm_ast::asm_ast::AsmAstUnaryOperator;
 use crate::asm_ast::asm_ast::AsmAstBinaryOperator;
 
-// Emits mnemonics for the linux AS assembler
+// Emits mnemonics for the Linux AS assembler.
+// If you are looking for an emitter for the Microsoft MASM assembler, check out asm_ast_masm_emitter_visitor.rs
 //
 // 1. c_ast/IdentifierResolutionVisitor - checks for duplicate or undeclared variable names
 // 2. tacky/TackyVisitor - Generate TACKY (from AST)
 // 3. asm_ast/AsmAstConversionVisitor - Converts the AST into a ASM AST for assembly with a precursory form of mnenomics
 // 4. asm_ast/AsmAstFixupVisitor - replacing pseudo operands/variables with stack addresses
-// 5. asm_ast/AsmAstMasmEmitterVisitor / asm_ast/AsmAstASEmitterVisitor / ...
+// 5. asm_ast/AsmAstMasmEmitterVisitor / asm_ast/AsmAstGASEmitterVisitor / ...
 
-pub struct AsmAstASEmitterVisitor {
+pub struct AsmAstGASEmitterVisitor {
 }
 
-impl AsmAstASEmitterVisitor {
+impl AsmAstGASEmitterVisitor {
 
-    pub fn new() -> AsmAstASEmitterVisitor {
-        AsmAstASEmitterVisitor {
+    pub fn new() -> AsmAstGASEmitterVisitor {
+        AsmAstGASEmitterVisitor {
         }
     }
 
     pub fn visit_asm_ast_program(&mut self, asm_ast_program: &mut AsmAstProgram) {
-        // println!("[AsmAstASEmitterVisitor::visit_asm_ast_program()]");
+        // println!("[AsmAstGASEmitterVisitor::visit_asm_ast_program()]");
 
         // page 43
         println!(".section .note.GNU-stack,\"\",@progbits");
@@ -48,7 +49,7 @@ impl AsmAstASEmitterVisitor {
     }
 
     pub fn visit_asm_ast_function(&mut self, asm_ast_function: &mut AsmAstFunction) {
-        // println!("[AsmAstASEmitterVisitor::visit_asm_ast_function()] name={}", asm_ast_function.name);
+        // println!("[AsmAstGASEmitterVisitor::visit_asm_ast_function()] name={}", asm_ast_function.name);
 
         // page 43
         println!(".globl {}", asm_ast_function.name);
@@ -66,7 +67,7 @@ impl AsmAstASEmitterVisitor {
     #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
     #[allow(unreachable_patterns)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
     pub fn visit_asm_ast_instruction(&mut self, asm_ast_instruction: &AsmAstInstruction, stack_frame_size: i32) {
-        // println!("[AsmAstASEmitterVisitor::visit_asm_ast_instruction()] instruction={:?}", asm_ast_instruction);
+        // println!("[AsmAstGASEmitterVisitor::visit_asm_ast_instruction()] instruction={:?}", asm_ast_instruction);
 
         match asm_ast_instruction.instruction_type {
 

@@ -9,13 +9,14 @@ For clang, the compiler options:
 -S -mllvm --x86-asm-syntax=intel
 ```
 
-change to Intel syntax. But NASM cannot even compile this Intel syntax output since
-it is output for GAS.
+change to Intel syntax.
+
+But NASM cannot even compile this Intel syntax output since it is output for GAS.
 
 
 ## Converting AT&T to Intel syntax
 
-In AT&T, % indicates a register. NASM simply figures that out, so remove the %s. 
+In AT&T, % indicates a register. NASM simply figures that out, so remove the %s.
 AT&T has immediate values start with $, whereas NASM figures it out, so remove the $s.
 
 In AT&T, the order is instruction source, destination, whereas in NASM it is instruction destination, source, so swap them.
@@ -24,7 +25,7 @@ AT&T: movl (%ecx),%eax. NASM: `mov eax, [ecx]
 
 In AT&T, () is the memory operand. In NASM, [] is the memory operand.
 
-AT&T: %segreg:disp(base,index,scale) == disp + base + index*scale, where scale defaults to 1 if absent. 
+AT&T: %segreg:disp(base,index,scale) == disp + base + index*scale, where scale defaults to 1 if absent.
 NASM: [segreg:base+index*scale+disp]
 
 AT&T: subl -0x20(%ebx,%ecx,0x4),%eax
@@ -48,7 +49,7 @@ Instead of searching for “converting NASM to AT&T“, search for “converting
 ;
 ; Use commands below to assemble, link and run ($ is the prompt):
 ; $ "C:\Program Files\NASM\nasm.exe" -f elf32 helloworld.asm
-; $ "C:\Program Files\NASM\nasm.exe" -f win32 -o helloworld.obj helloworld.asm 
+; $ "C:\Program Files\NASM\nasm.exe" -f win32 -o helloworld.obj helloworld.asm
 ;
 ; Make sure the .o file is not opened in another application because windows locks files
 ; $ "C:\aaa_se\MyLinker\x64\Debug\MyLinker.exe" -entry "main" -out "helloworld.exe" helloworld.obj
@@ -70,6 +71,7 @@ Instead of searching for “converting NASM to AT&T“, search for “converting
 ;
 ; set PATH=%PATH%;C:\Users\U5353\Downloads\nasm-3.02-win64\nasm-3.02
 ; cd C:\aaa_se\asm\helloworld
+; del main.obj main.exe
 ; nasm -f win64 -o main.obj main.asm
 ; link main.obj /subsystem:console /out:main.exe kernel32.lib legacy_stdio_definitions.lib msvcrt.lib
 

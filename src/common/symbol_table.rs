@@ -16,6 +16,7 @@ pub struct SymbolTableEntry {
     pub parameter_count: usize,
     pub has_body: bool,
     pub is_array: bool,
+    pub array_element_count: i32,
 
     // TODO: add custom typedeffed types here somehow!
 }
@@ -26,9 +27,10 @@ impl SymbolTableEntry {
         let instance = SymbolTableEntry {
             symbol_table_entry_type: SymbolTableEntryType::Unknown,
             data_type: DataType::DataTypeUnknown, // data type of variable and return data type for functions
-            parameter_count: 0,
+            parameter_count: 0usize,
             has_body: false,
             is_array: false,
+            array_element_count: 0i32,
         };
         instance
     }
@@ -80,8 +82,8 @@ impl SymbolTable {
     }
 
     pub fn print_symbol_table(&self) {
-        let mut index = 0;
         println!("print_symbol_table() ------------------------------------------------------------");
+        let mut index = 0;
         for (key, value) in self.identifier_type_map.clone().into_iter() {
             println!("{}) {} / {:?}", index, key, value);
             // println!("{} / {:?}", key, value.data_type);
