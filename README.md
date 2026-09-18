@@ -36,8 +36,9 @@ The code for pointer-to-int currently is broken! It shows when running the code 
 A wrong memory location is dereferenced by the code and a random value is returned instead of the
 value of the first element in the array.
 
-Changing the code so that line two in the main function's body is pointer-to-long fixes the code!
-No the mismatch is gone. The data type the pointer points to is 64 bit and the pointer-to-long itself
+Changing the code so that line two in the example file's main function's body is pointer-to-long
+fixes the code/emitted result code!
+Now the mismatch is gone. The data type the pointer points to is 64 bit and the pointer-to-long itself
 is also a 64-bit address. Now, on the stack, 8 bytes are reserved for the pointer and the address
 is handled correctly. The dereference now returns the value of the first array element to which the
 pointer points.

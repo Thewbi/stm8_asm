@@ -493,17 +493,46 @@ impl TackyVisitor {
                     }
 
                     AstNodeOperatorType::AddrOf => {
+
+                        // A assignment of an address to a pointer in C such as
+                        //
+                        // int *my_pointer = my_array;
+                        // int *my_pointer = &my_int_variable;
+                        //
+                        // creates an AST node of AstNodeOperatorType AddrOf which is
+                        // converted to TACKY in this match-case.
+                        //
+                        // In TACKY, a assignment of an address to a pointer
+                        // is represented as a GetAddress() TACKY instruction:
+                        //
+                        // GetAddress(src:Variable(userdef_var.0), dst:Variable(userdef_var.1))
+                        //
+                        // The source variable is contained in the ASTNode.LHS
+                        // the destination variable name is passed in as a parameter to this function.
+
                         // DEBUG
                         println!("{:?}", ast_node);
 
                         let mut get_address_instruction: Instruction = Instruction::new();
                         get_address_instruction.instruction_type = InstructionType::GetAddress;
+
+                        // source variable name is retrieved from LHS
                         if let Some(lhs_node_id) = ast_node.lhs {
                             let lhs_node = node_map.get(&lhs_node_id).unwrap();
                             get_address_instruction.src = ValueElement::Variable(lhs_node.string_val.clone());
                         }
+
+                        // the destination variable name is passed in as a parameter to this functino
                         let dest_variable_element = ValueElement::Variable(dst_name.to_string());
                         get_address_instruction.dst = dest_variable_element.clone();
+
+                        // self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
+
+                        // make the destinatin variable a pointer by setting the is_pointer flag to true
+                        // in the symbol table
+                        let mut symbol_table_entry = self.symbol_table.borrow_mut().get(&dst_name);
+                        symbol_table_entry.is_pointer = true;
+                        self.symbol_table.borrow_mut().insert(dst_name.clone(), symbol_table_entry);
 
                         // append instruction to latest top-level element of the program
                         let last = self.program.top_level.len() - 1;
@@ -643,6 +672,10 @@ impl TackyVisitor {
                             symbol_table_entry.parameter_count = 0usize;
                             symbol_table_entry.has_body= false;
                             symbol_table_entry.is_array = false;
+                            symbol_table_entry.is_pointer = false;
+
+                            println!("[TackyVisitor] {:?}", symbol_table_entry);
+
                             self.symbol_table.borrow_mut().insert(dst_name.clone(), symbol_table_entry);
 
                             // append instruction to latest top-level element of the program
@@ -716,8 +749,6 @@ impl TackyVisitor {
                                         println!("AddrOf {:?}", ast_node);
                                         // unary_instruction.unary_operator = UnaryOperator::AddrOf;
                                         panic!("The addrof operator is turned into TACKY: GetAddress()");
-
-
                                     }
 
                                     _ => {
@@ -1213,7 +1244,7 @@ impl TackyVisitor {
                     }
                 }
 
-                let symbol_table_entry = self.symbol_table.borrow_mut().get(&variable_identifier);
+                // let symbol_table_entry = self.symbol_table.borrow_mut().get(&variable_identifier);
 
                 let mut array_element_count = 0;
 
@@ -1247,10 +1278,14 @@ impl TackyVisitor {
 
                 // create symbol table entry for temporary variable
                 let mut symbol_table_entry = SymbolTableEntry::new();
+                symbol_table_entry.name = variable_identifier.clone();
                 symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
                 symbol_table_entry.data_type = DataType::from_str(&data_type_as_string).expect("Need type");
                 symbol_table_entry.is_array = left_node.node_type == AstNodeType::Array;
                 symbol_table_entry.array_element_count = array_element_count;
+
+                // println!("[TackyVisitor] {:?}", symbol_table_entry);
+
                 self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
 
                 // append instruction to latest top-level element of the program

@@ -62,9 +62,13 @@ impl AsmAstFixupVisitor {
 
         // DESCRIPTION:
         //
-        // This is where Nora Sandler, page 267 wants to check the backend symbol table for the size of each
-        // pseudo variable in order to correctly enlarge the stack frame with the size consumed by the pseudo
-        // variable
+        // This is where Nora Sandler, page 267 wants to check the backend symbol
+        // table for the size of each pseudo variable in order to correctly enlarge
+        // the stack frame with the size consumed by the pseudo variable
+        //
+        // int - 4 Byte
+        // long - 8 Byte
+        // pointer to anyhting - 8 Byte
 
         let mut stack_offset_value = 0i32;
 
@@ -81,26 +85,51 @@ impl AsmAstFixupVisitor {
 
             AsmAstOperandType::Pseudo(pseudo_name) => {
                 // DEBUG
-                if self.debug {
-                    println!("Pseudo");
-                }
+                // if self.debug {
+                    println!("Pseudo. Pseudo-Name: '{}'", pseudo_name);
+                // }
 
                 if self.replace_pseudo {
 
                     if self.stack_offset_map.contains_key(pseudo_name) {
+
                         // variable with 'pseudo_name' has already been resolved. Reuse existing value.
                         stack_offset_value = *self.stack_offset_map.get(pseudo_name).unwrap();
+
                     } else {
+
                         // retrieve type
                         if self.backend_symbol_table.borrow_mut().contains(&pseudo_name) {
+
                             // first, determine the data type. This is needed in order to determine
                             // the correct amount of bytes to increment the stack pointer with
                             let symbol_table_entry = self.backend_symbol_table.borrow_mut().retrieve(&pseudo_name);
-                            let data_type = symbol_table_entry.data_type;
-                            // convert the data type into the offset in bytes
-                            self.stack_offset = self.stack_offset - data_type.get_size() as i32;
+
+                            // pointer or not a pointer?
+                            if symbol_table_entry.is_pointer {
+
+                                // if the variable is identified to be a pointer (to any type),
+                                // then the pointer will always use the same amount of bytes on the stack.
+                                // On 64-bit platform, a pointer/address is 8 Byte
+                                // On 32-bit platform, a pointer/address is 4 Byte
+
+                                self.stack_offset = self.stack_offset - 8; // hard coded assume 64-Bit right now!
+
+                            } else {
+
+                                // if the type is a normal data type, use the data types size
+                                // to store it on the stack
+
+                                let data_type = symbol_table_entry.data_type;
+
+                                // convert the data type into the offset in bytes
+                                self.stack_offset = self.stack_offset - data_type.get_size() as i32;
+
+                            }
+
                             self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
                             stack_offset_value = self.stack_offset;
+
                         } else {
                             panic!("Cannot find symbol '{}' in backend_symbol_table", &pseudo_name);
                         }
@@ -112,9 +141,9 @@ impl AsmAstFixupVisitor {
 
             AsmAstOperandType::PseudoMem(pseudo_name, pseudo_offset) => {
                 // DEBUG
-                if self.debug {
-                    println!("PseudoMem");
-                }
+                // if self.debug {
+                    println!("PseudoMem: pseudo_name: {}", pseudo_name.clone());
+                // }
 
                 if self.replace_pseudo {
 
@@ -129,16 +158,24 @@ impl AsmAstFixupVisitor {
                     } else {
                         // retrieve type
                         if self.backend_symbol_table.borrow_mut().contains(&pseudo_name) {
+
                             // first, determine the data type. This is needed in order to determine
                             // the correct amount of bytes to increment the stack pointer with
                             let symbol_table_entry = self.backend_symbol_table.borrow_mut().retrieve(&pseudo_name);
-                            let data_type = symbol_table_entry.data_type;
+
+                            // DEBUG
+                            println!("[AsmAstFixupVisitor] {:?}", symbol_table_entry);
+
+                            if symbol_table_entry.is_pointer {
+                                panic!("pointer!");
+                            }
 
                             if symbol_table_entry.is_array {
-
                                 // DEBUG
                                 println!("is_array. ElementCount: {}", symbol_table_entry.array_element_count);
                             }
+
+                            let data_type = symbol_table_entry.data_type;
 
                             // convert the data type into the offset in bytes
                             self.stack_offset = self.stack_offset - ( data_type.get_size() as i32 ) * symbol_table_entry.array_element_count;

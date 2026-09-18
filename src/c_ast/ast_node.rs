@@ -506,7 +506,7 @@ impl fmt::Debug for AstNode {
 
                 // RHS - user defined variable name
                 if let Some(right_node) = self.rhs.as_ref() {
-                    print!("User Choosen Variable Name: {:?}", right_node);
+                    print!("User Choosen Variable Name: {:?}. ", right_node);
                 }
 
                 println!("Replaced Variable Name: {:?}", self.string_val);

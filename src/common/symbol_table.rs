@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::{self, Display}};
 
 use crate::common::data_type::DataType;
 
@@ -9,14 +9,16 @@ pub enum SymbolTableEntryType {
     Unknown,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct SymbolTableEntry {
+    pub name: String,
     pub symbol_table_entry_type: SymbolTableEntryType,
     pub data_type: DataType,
     pub parameter_count: usize,
     pub has_body: bool,
     pub is_array: bool,
     pub array_element_count: i32,
+    pub is_pointer: bool,
 
     // TODO: add custom typedeffed types here somehow!
 }
@@ -25,14 +27,34 @@ impl SymbolTableEntry {
 
     pub fn new() -> SymbolTableEntry {
         let instance = SymbolTableEntry {
+            name: String::new(),
             symbol_table_entry_type: SymbolTableEntryType::Unknown,
             data_type: DataType::DataTypeUnknown, // data type of variable and return data type for functions
             parameter_count: 0usize,
             has_body: false,
             is_array: false,
             array_element_count: 0i32,
+            is_pointer: false,
         };
         instance
+    }
+}
+
+impl fmt::Debug for SymbolTableEntry {
+
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
+        write!(f, "SymbolTableEntry {{\n").expect("Write failed!");
+        write!(f, "  name: {}\n", &self.name).expect("Write failed!");
+        write!(f, "  symbol_table_entry_type: {:?}\n", &self.symbol_table_entry_type).expect("Write failed!");
+        write!(f, "  parameter_count: {}\n", &self.parameter_count).expect("Write failed!");
+        write!(f, "  has_body: {}\n", &self.has_body).expect("Write failed!");
+        write!(f, "  is_array: {}\n", &self.is_array).expect("Write failed!");
+        write!(f, "  array_element_count: {}\n", &self.array_element_count).expect("Write failed!");
+        write!(f, "  is_pointer: {}\n", &self.is_pointer).expect("Write failed!");
+        write!(f, "}}\n").expect("Write failed!");
+
+        Ok(())
     }
 }
 

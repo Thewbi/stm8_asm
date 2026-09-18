@@ -75,7 +75,7 @@ impl TypeCheckingVisitor {
                     let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&ast_node.string_val);
                     // DEBUG
                     if self.debug {
-                        println!("{:?}", symbol_table_entry);
+                        println!("[TypeCheckingVisitor] {:?}", symbol_table_entry);
                     }
                     return symbol_table_entry.data_type.clone();
                 } else {
@@ -418,7 +418,7 @@ impl TypeCheckingVisitor {
                         let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&left_node.string_val);
 
                         // DEBUG
-                        println!("{:?}", symbol_table_entry);
+                        println!("[TypeCheckingVisitor] {:?}", symbol_table_entry);
 
                         match symbol_table_entry.symbol_table_entry_type {
                             SymbolTableEntryType::Function => {
@@ -449,7 +449,7 @@ impl TypeCheckingVisitor {
 
                         // DEBUG
                         if self.debug {
-                            println!("{:?}", symbol_table_entry);
+                            println!("[TypeCheckingVisitor] {:?}", symbol_table_entry);
                         }
 
                         match symbol_table_entry.symbol_table_entry_type {
@@ -612,16 +612,28 @@ impl TypeCheckingVisitor {
                         panic!("[ERR] Two different function declarations for '{}' both having a body found! Only one body per declaration is allowed!", temp_function_name)
                     }
                 } else {
-                    // add identifier into symbol table
+                    // add identifier and respective entry into symbol table
                     self.symbol_table.borrow_mut().insert(temp_function_name.clone(), symbol_table_entry);
                 }
             }
 
             AstNodeType::VariableDeclaration => {
 
+                // DEBUG
+                if self.debug {
+                    print!("VARIABLE_DECLARATION: {}: {:?}", ast_node.id, ast_node);
+                }
+
                 let mut symbol_table_entry = SymbolTableEntry::new();
                 symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
-                // symbol_table_entry.data_type = DataType::DataTypeLong;
+
+                // if let Some(data_type_node_id) = ast_node.data_type {
+                //     let data_type_node = node_map.get(&data_type_node_id).unwrap();
+                //     // DEBUG
+                //     if self.debug {
+                //         print!("DATA_TYEP-NODE: {}: {:?}", data_type_node.id, data_type_node);
+                //     }
+                // }
 
                 // data type
                 if let Some(left_node_id) = ast_node.lhs {
@@ -630,7 +642,7 @@ impl TypeCheckingVisitor {
 
                     // DEBUG
                     if self.debug {
-                        print!("{}: {:?}", left_node.id, left_node);
+                        print!("LEFT-NODE: {}: {:?}", left_node.id, left_node);
                     }
 
                     // set the data type
@@ -642,7 +654,6 @@ impl TypeCheckingVisitor {
                     symbol_table_entry.data_type = data_type_as_enum;
 
                     symbol_table_entry.is_array = left_node.node_type == AstNodeType::Array;
-                    symbol_table_entry.array_element_count = 200;
                 }
 
                 // identifier (RHS)
@@ -651,17 +662,29 @@ impl TypeCheckingVisitor {
                     let right_node = node_map.get(&right_node_id).unwrap();
                     // DEBUG
                     if self.debug {
-                        print!("{:?}", right_node);
+                        print!("{}, {:?}", right_node.id, right_node);
                     }
                     varname = right_node.string_val.clone();
-                }
 
-                println!("DataType: {}", symbol_table_entry.data_type);
+                    // detect the fact that this variable is a pointer
+                    match &right_node.node_type {
+                        AstNodeType::Pointer => {
+                            symbol_table_entry.is_pointer = true;
+                        }
+                        _ => {
+
+                        }
+                    }
+                }
+                symbol_table_entry.name = varname.clone();
+
+                // println!("DataType: {}", symbol_table_entry.data_type);
+                println!("[TypeCheckingVisitor] symbol_table_entry:\n {:?}", symbol_table_entry);
 
                 // add identifier into symbol table
                 self.symbol_table.borrow_mut().insert(varname, symbol_table_entry);
 
-                // initialization expression
+                // initialization expression (initializer, variable is initialized at declaration)
                 //
                 // perform semantic analysis of the initialization expression
                 // replace variable names with the unique variable names from

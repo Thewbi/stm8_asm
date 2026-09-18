@@ -710,6 +710,7 @@ fn main() {
             let symbol_table_rc_2 = symbol_table_rc_1.clone();
             let symbol_table_rc_3 = symbol_table_rc_1.clone();
             let symbol_table_rc_4 = symbol_table_rc_1.clone();
+            let symbol_table_rc_5 = symbol_table_rc_1.clone();
 
             let mut type_checking_visitor = TypeCheckingVisitor::new(symbol_table_rc_1);
             type_checking_visitor.visit(program_ast_node_id, &mut node_map);
@@ -720,9 +721,16 @@ fn main() {
 
             print_ast(&program_ast_node_id, &node_map, "abstract_syntax_tree_post_type_checking.dot");
 
-            if debug {
+            //
+            // Print symbol table after TypeChecking
+            //
+
+            // if debug {
+                println!("\n\n");
+                println!("Symbol Table after Type Checking!");
                 type_checking_visitor.print_symbol_table();
-            }
+                println!("\n\n");
+            // }
 
             //
             // 3. Loop Labeling Phase
@@ -734,6 +742,7 @@ fn main() {
 
             variable_naming_source_rc_3.borrow_mut().exit_scope();
 
+            /*
             //
             // Output AST post TypeChecking
             //
@@ -775,6 +784,7 @@ fn main() {
                     writer.flush().expect("flush failed!");
                 }
             }
+            */
 
             //
             // Generate TACKY (from AST)
@@ -785,6 +795,17 @@ fn main() {
 
             let mut br_cnt = 0;
             tacky_visitor.visit(program_ast_node_id, &mut node_map, &String::from(""), &mut br_cnt);
+
+            //
+            // Print symbol table after TACKY conversion
+            //
+
+            // if debug {
+                println!("\n\n");
+                println!("Symbol Table after TACKY conversion!");
+                symbol_table_rc_5.borrow().print_symbol_table();
+                println!("\n\n");
+            // }
 
             //
             // DEBUG print TACKY statements to file
@@ -817,6 +838,17 @@ fn main() {
                 symbol_table_rc_4
             );
             tacky_to_intermediate_asm_conversion_visitor.visit_tacky_program(&tacky_visitor.program);
+
+             //
+            // Print symbol table after Intermediate ASM conversion
+            //
+
+            // if debug {
+                println!("\n\n");
+                println!("Symbol Table after Intermediate ASM conversion!");
+                symbol_table_rc_5.borrow().print_symbol_table();
+                println!("\n\n");
+            // }
 
             //
             // DEBUG: output intermedate assembler code to file
@@ -920,7 +952,6 @@ fn main() {
                 writer.flush().expect("flush failed!");
 
             }
-            /**/
         }
 
     } else {
