@@ -916,6 +916,10 @@ impl IdentifierResolutionVisitor {
                 }
             }
 
+            AstNodeType::AddAssignment => {
+                todo!();
+            }
+
             AstNodeType::Unknown => {
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);

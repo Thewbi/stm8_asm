@@ -44,7 +44,7 @@ impl TypeCheckingVisitor {
     {
         TypeCheckingVisitor {
             symbol_table: symbol_table_param,
-            debug: true,
+            debug: false,
         }
     }
 
@@ -52,7 +52,7 @@ impl TypeCheckingVisitor {
         self.symbol_table.borrow().print_symbol_table();
     }
 
-    pub fn retrieve_type(&self,
+    pub fn retrieve_data_type_from_node_type(&self,
         ast_node: &AstNode,
         node_map: &Box<HashMap<usize, AstNode>>)
         -> DataType
@@ -142,7 +142,10 @@ impl TypeCheckingVisitor {
         return DataType::DataTypeLong;
     }
 
-    pub fn visit(&mut self, ast_node_id: usize, node_map: &mut Box<HashMap<usize, AstNode>>) {
+    pub fn visit(&mut self,
+        ast_node_id: usize,
+        node_map: &mut Box<HashMap<usize, AstNode>>,
+        expected_return_data_type: &DataType) {
 
         let mut ast_node = AstNode::new(0);
 
@@ -162,7 +165,7 @@ impl TypeCheckingVisitor {
                 for i in 0..ast_node.block_items.len() {
                     let index = ast_node.block_items.len()-1-i;
                     let block_item_id = ast_node.block_items[index];
-                    self.visit(block_item_id, node_map);
+                    self.visit(block_item_id, node_map, expected_return_data_type);
                 }
             }
 
@@ -189,129 +192,143 @@ impl TypeCheckingVisitor {
 
             AstNodeType::Expression => {
                 // DEBUG
-                if self.debug {
-                    println!("{:?}", ast_node);
-                }
-
-                if ast_node.id == 27 {
-                    println!("test");
-                }
+                // if self.debug {
+                    println!("{} {:?}", ast_node.id, ast_node);
+                // }
 
                 assert!(ast_node.lhs.is_some());
 
                 let mut lhs_type = DataType::DataTypeUnknown;
                 let mut rhs_type = DataType::DataTypeUnknown;
 
-                // LHS
-                let mut lhs_variable_name = String::new();
+                // LHS - data type
                 let mut left_node = AstNode::new(0);
                 if let Some(left_node_id) = ast_node.lhs {
-                    self.visit(left_node_id, node_map);
+                    self.visit(left_node_id, node_map, expected_return_data_type);
 
+                    // retrieve
                     left_node = node_map.get(&left_node_id).unwrap().clone();
-                    lhs_type = self.retrieve_type(&left_node, node_map);
-                    lhs_variable_name = left_node.string_val.clone();
+                    lhs_type = self.retrieve_data_type_from_node_type(&left_node, node_map);
                 }
 
-                // RHS
+                // RHS - variable name
+                let mut rhs_variable_name = String::new();
                 let mut right_node = AstNode::new(0);
                 if let Some(right_node_id) = ast_node.rhs {
-                    self.visit(right_node_id, node_map);
+                    self.visit(right_node_id, node_map, expected_return_data_type);
 
                     right_node = node_map.get(&right_node_id).unwrap().clone();
-                    rhs_type = self.retrieve_type(&right_node, node_map);
+                    rhs_type = self.retrieve_data_type_from_node_type(&right_node, node_map);
 
-                    // not all expressions have a RHS. If there is a RHS, check types and insert cast if needed
-                    // if ast_node.rhs.is_some() {
+                    // process variable name and resolve it's data type
+                    rhs_variable_name = right_node.string_val.clone();
+                }
 
-                    assert_ne!(lhs_type, DataTypeUnknown);
-                    assert_ne!(rhs_type, DataTypeUnknown);
+                //
+                // check types and insert cast if needed
+                //
 
-                    if lhs_type != rhs_type {
-                        // DEBUG
-                        if self.debug {
-                            println!("lhs_type: {:?}, rhs_type: {:?}", lhs_type, rhs_type);
+                match lhs_type {
+
+                    DataType::DataTypeUnsignedInt => {
+                        //panic!("");
+                    }
+
+                    DataType::DataTypeInt => {
+                        //panic!("");
+                    }
+
+                    _ => {
+                        //panic!("");
+
+                        //assert_ne!(lhs_type, DataTypeUnknown);
+                        //assert_ne!(rhs_type, DataTypeUnknown);
+
+                        if rhs_type != DataTypeUnknown && lhs_type != rhs_type {
+
+                            // DEBUG
+                            if self.debug {
+                                println!("lhs_type: {:?}, rhs_type: {:?}", lhs_type, rhs_type);
+                            }
+
+                            // insert a cast node into the AST!
+                            let cast_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                            let mut cast_ast_node = AstNode::new(cast_ast_node_id);
+                            cast_ast_node.node_type = AstNodeType::Cast;
+                            cast_ast_node.lhs = Some(ast_node.rhs.unwrap()); // LHS is the variable or literal (value element) which needs casting
+                            cast_ast_node.analyzed_data_type = lhs_type; // analyzed_data_type is the type to cast into
+                            cast_ast_node.parent_id = Some(ast_node.id);
+                            node_map.insert(cast_ast_node_id, cast_ast_node);
+
+                            // the left node becomes child of the new middle node
+                            right_node.parent_id = Some(cast_ast_node_id);
+                            node_map.insert(right_node.id, right_node);
+
+                            // // DEBUG
+                            // if self.debug {
+                            //     println!("{}", cast_ast_node_id);
+                            //     println!("{:?}", ast_node); // parent
+                            //     println!("{:?}", cast_ast_node); // new middle
+                            //     println!("{:?}", left_node); // child
+                            // }
+
+                            // clone parent, insert new LHS, replace parent in hashmap
+                            let mut ast_node_clone = ast_node.clone();
+                            ast_node_clone.rhs = Some(cast_ast_node_id);
+                            node_map.insert(ast_node_clone.id, ast_node_clone);
                         }
 
-                        // insert a cast node into the AST!
-                        let cast_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-                        let mut cast_ast_node = AstNode::new(cast_ast_node_id);
-                        cast_ast_node.node_type = AstNodeType::Cast;
-                        cast_ast_node.lhs = Some(ast_node.rhs.unwrap()); // LHS is the variable or literal (value element) which needs casting
-                        cast_ast_node.analyzed_data_type = lhs_type; // analyzed_data_type is the type to cast into
-                        cast_ast_node.parent_id = Some(ast_node.id);
-                        node_map.insert(cast_ast_node_id, cast_ast_node);
+                        let symbol_table_entry_lhs = self.symbol_table.borrow_mut().get(&rhs_variable_name);
+                        println!("symbol_table_entry_lhs: {:?}", symbol_table_entry_lhs);
 
-                        // the left node becomes child of the new middle node
-                        right_node.parent_id = Some(cast_ast_node_id);
-                        node_map.insert(right_node.id, right_node);
+                        // Nora Sandler, page 399
+                        //
+                        // if the RHS of the assignment is an Array, then the type checker has to insert
+                        // a new AddrOf node into the AST!
+                        //
+                        // The AddrOf node has to have the type "Pointer to Array-Element-Type"
+                        // and the purpose of this node is to implicitly convert an array to a pointer to the first
+                        // element of said array, when the array is used in a pointer assignment like so:
+                        //
+                        // array_4.c
+                        // "int *my_pointer = my_array;"
 
-                        // // DEBUG
-                        // if self.debug {
-                        //     println!("{}", cast_ast_node_id);
-                        //     println!("{:?}", ast_node); // parent
-                        //     println!("{:?}", cast_ast_node); // new middle
-                        //     println!("{:?}", left_node); // child
-                        // }
+                        if symbol_table_entry_lhs.is_array {
 
-                        // clone parent, insert new LHS, replace parent in hashmap
-                        let mut ast_node_clone = ast_node.clone();
-                        ast_node_clone.rhs = Some(cast_ast_node_id);
-                        node_map.insert(ast_node_clone.id, ast_node_clone);
+                            let insert_node: bool = false;
+                            if insert_node {
+                                // insert a AddrOf node into the AST!
+                                let addrof_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                let mut addrof_ast_node = AstNode::new(addrof_ast_node_id);
+                                addrof_ast_node.node_type = AstNodeType::Expression;
+                                addrof_ast_node.operator_type = AstNodeOperatorType::AddrOf;
+                                addrof_ast_node.lhs = Some(ast_node.lhs.unwrap()); // LHS is the variable or literal (value element) which needs casting
+                                addrof_ast_node.analyzed_data_type = DataType::DataTypePointer(Box::new(symbol_table_entry_lhs.data_type)); // analyzed_data_type is the type to cast into
+                                addrof_ast_node.parent_id = Some(ast_node.id);
+                                node_map.insert(addrof_ast_node_id, addrof_ast_node);
+
+                                // the left node becomes child of the new middle node
+                                left_node.parent_id = Some(addrof_ast_node_id);
+                                node_map.insert(left_node.id, left_node);
+
+                                // clone parent, insert new LHS, replace parent in hashmap
+                                let mut ast_node_clone = ast_node.clone();
+                                ast_node_clone.lhs = Some(addrof_ast_node_id);
+
+                                // update changed, cloned node in node_map
+                                node_map.insert(ast_node_clone.id, ast_node_clone);
+
+                            } else {
+
+                                ast_node.operator_type = AstNodeOperatorType::AddrOf;
+                                ast_node.analyzed_data_type = DataType::DataTypePointer(Box::new(symbol_table_entry_lhs.data_type));
+
+                                // update changed, cloned node in node_map
+                                node_map.insert(ast_node.id, ast_node);
+                            }
+                        }
                     }
-                    // }
                 }
-
-                let symbol_table_entry_lhs = self.symbol_table.borrow_mut().get(&lhs_variable_name);
-                println!("symbol_table_entry_lhs: {:?}", symbol_table_entry_lhs);
-
-                // Nora Sandler, page 399
-                //
-                // if the RHS of the assignment is an Array, then the type checker has to insert
-                // a new AddrOf node into the AST!
-                //
-                // The AddrOf node has to have the type "Pointer to Array-Element-Type"
-                // and the purpose of this node is to implicitly convert an array to a pointer to the first
-                // element of said array, when the array is used in a pointer assignment like so:
-                //
-                // array_4.c
-                // "int *my_pointer = my_array;"
-
-                if symbol_table_entry_lhs.is_array {
-
-                    let insert_node: bool = false;
-                    if insert_node {
-                        // insert a AddrOf node into the AST!
-                        let addrof_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-                        let mut addrof_ast_node = AstNode::new(addrof_ast_node_id);
-                        addrof_ast_node.node_type = AstNodeType::Expression;
-                        addrof_ast_node.operator_type = AstNodeOperatorType::AddrOf;
-                        addrof_ast_node.lhs = Some(ast_node.lhs.unwrap()); // LHS is the variable or literal (value element) which needs casting
-                        addrof_ast_node.analyzed_data_type = DataType::DataTypePointer(Box::new(symbol_table_entry_lhs.data_type)); // analyzed_data_type is the type to cast into
-                        addrof_ast_node.parent_id = Some(ast_node.id);
-                        node_map.insert(addrof_ast_node_id, addrof_ast_node);
-
-                        // the left node becomes child of the new middle node
-                        left_node.parent_id = Some(addrof_ast_node_id);
-                        node_map.insert(left_node.id, left_node);
-
-                        // clone parent, insert new LHS, replace parent in hashmap
-                        let mut ast_node_clone = ast_node.clone();
-                        ast_node_clone.lhs = Some(addrof_ast_node_id);
-
-                        // update changed, cloned node in node_map
-                        node_map.insert(ast_node_clone.id, ast_node_clone);
-                    } else {
-                        ast_node.operator_type = AstNodeOperatorType::AddrOf;
-                        ast_node.analyzed_data_type = DataType::DataTypePointer(Box::new(symbol_table_entry_lhs.data_type));
-
-                        // update changed, cloned node in node_map
-                        node_map.insert(ast_node.id, ast_node);
-                    }
-
-                }
-
-                println!("end");
             }
 
             AstNodeType::Identifier => {
@@ -330,9 +347,12 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Return => {
+
+                // find the function which is terminated when this return executes
+
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
-                    self.visit(left_node_id, node_map);
+                    self.visit(left_node_id, node_map, expected_return_data_type);
 
                     let left_node = node_map.get(&left_node_id).unwrap();
 
@@ -342,6 +362,10 @@ impl TypeCheckingVisitor {
                     let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&left_node.string_val);
                     ast_node.analyzed_data_type = symbol_table_entry.data_type;
 
+                    if expected_return_data_type != &ast_node.analyzed_data_type {
+                        panic!("Return type of function does not match data type of the return statement!");
+                    }
+
                     // the cloned node has been changed. Replace the original node in the node_map to preserve the change
                     node_map.insert(ast_node.id, ast_node);
                 }
@@ -350,17 +374,17 @@ impl TypeCheckingVisitor {
             AstNodeType::If => {
                 // Expression
                 if let Some(expression_node_id) = ast_node.expression {
-                    self.visit(expression_node_id, node_map);
+                    self.visit(expression_node_id, node_map, expected_return_data_type);
                 }
 
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
-                    self.visit(left_node_id, node_map);
+                    self.visit(left_node_id, node_map, expected_return_data_type);
                 }
 
                 // RHS
                 if let Some(right_node_id) = ast_node.rhs {
-                    self.visit(right_node_id, node_map);
+                    self.visit(right_node_id, node_map, expected_return_data_type);
                 }
             }
 
@@ -369,7 +393,7 @@ impl TypeCheckingVisitor {
 
                 // RHS
                 if let Some(right_node_id) = ast_node.rhs {
-                    self.visit(right_node_id, node_map);
+                    self.visit(right_node_id, node_map, expected_return_data_type);
 
                     let right_node = node_map.get(&right_node_id).unwrap();
 
@@ -406,11 +430,11 @@ impl TypeCheckingVisitor {
 
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
-                    self.visit(left_node_id, node_map);
+                    self.visit(left_node_id, node_map, expected_return_data_type);
 
                     let left_node = node_map.get(&left_node_id).unwrap();
 
-                    lhs_type = self.retrieve_type(left_node, node_map);
+                    lhs_type = self.retrieve_data_type_from_node_type(left_node, node_map);
 
                     // check if a function name is used where a variable name should be used (e.g. b = foo + a)
                     if self.symbol_table.borrow_mut().contains(&left_node.string_val) {
@@ -418,7 +442,9 @@ impl TypeCheckingVisitor {
                         let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&left_node.string_val);
 
                         // DEBUG
-                        println!("[TypeCheckingVisitor] {:?}", symbol_table_entry);
+                        if self.debug {
+                            println!("[TypeCheckingVisitor] {:?}", symbol_table_entry);
+                        }
 
                         match symbol_table_entry.symbol_table_entry_type {
                             SymbolTableEntryType::Function => {
@@ -436,11 +462,11 @@ impl TypeCheckingVisitor {
 
                 // RHS
                 if let Some(right_node_id) = ast_node.rhs {
-                    self.visit(right_node_id, node_map);
+                    self.visit(right_node_id, node_map, expected_return_data_type);
 
                     let right_node = node_map.get(&right_node_id).unwrap();
 
-                    rhs_type = self.retrieve_type(right_node, node_map);
+                    rhs_type = self.retrieve_data_type_from_node_type(right_node, node_map);
 
                     // check if a function name is used where a variable name should be used (e.g. b = a + foo)
                     if self.symbol_table.borrow_mut().contains(&right_node.string_val) {
@@ -532,7 +558,7 @@ impl TypeCheckingVisitor {
             AstNodeType::Declaration => {
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
-                    self.visit(left_node_id, node_map);
+                    self.visit(left_node_id, node_map, expected_return_data_type);
                 }
             }
 
@@ -562,21 +588,13 @@ impl TypeCheckingVisitor {
                     temp_parameter_count = ast_node.parameters.len();
                     for i in 0..ast_node.parameters.len() {
                         let parameter_node_id = ast_node.parameters[i];
-                        self.visit(parameter_node_id, node_map);
-                    }
-                }
-
-                {
-                    // LHS - body of function == block with statements as block_items
-                    if let Some(left_node_id) = ast_node.lhs {
-                        self.visit(left_node_id, node_map);
-
-                        symbol_table_entry.has_body = true;
+                        self.visit(parameter_node_id, node_map, expected_return_data_type);
                     }
                 }
 
                 // RHS - Return type
                 let mut temp_data_type_as_string = String::new();
+                let mut data_type_as_enum = DataType::DataTypeUnknown;
                 if let Some(right_node_id) = ast_node.rhs {
 
                     let right_node = node_map.get(&right_node_id).unwrap();
@@ -589,13 +607,23 @@ impl TypeCheckingVisitor {
                     assert!(right_node.node_type == AstNodeType::DataType);
                     temp_data_type_as_string = right_node.string_val.clone();
 
-                    self.visit(right_node_id, node_map);
+                    // determine the data type that is assigned to this AST node
+                    data_type_as_enum = match DataType::from_str(&temp_data_type_as_string) {
+                        Ok(data_type_result) => data_type_result,
+                        Err(e) => panic!("should be valid DataType: {e}"),
+                    };
+
+                    self.visit(right_node_id, node_map, &data_type_as_enum);
                 }
 
-                let data_type_as_enum = match DataType::from_str(&temp_data_type_as_string) {
-                    Ok(data_type_result) => data_type_result,
-                    Err(e) => panic!("should be valid DataType: {e}"),
-                };
+                {
+                    // LHS - body of function == block with statements as block_items
+                    if let Some(left_node_id) = ast_node.lhs {
+                        self.visit(left_node_id, node_map, &data_type_as_enum);
+
+                        symbol_table_entry.has_body = true;
+                    }
+                }
 
                 symbol_table_entry.data_type = data_type_as_enum;
                 symbol_table_entry.parameter_count = temp_parameter_count;
@@ -678,8 +706,10 @@ impl TypeCheckingVisitor {
                 }
                 symbol_table_entry.name = varname.clone();
 
-                // println!("DataType: {}", symbol_table_entry.data_type);
-                println!("[TypeCheckingVisitor] symbol_table_entry:\n {:?}", symbol_table_entry);
+                if self.debug {
+                    // println!("DataType: {}", symbol_table_entry.data_type);
+                    println!("[TypeCheckingVisitor] symbol_table_entry:\n {:?}", symbol_table_entry);
+                }
 
                 // add identifier into symbol table
                 self.symbol_table.borrow_mut().insert(varname, symbol_table_entry);
@@ -695,7 +725,7 @@ impl TypeCheckingVisitor {
                     if self.debug {
                         print!("{:?}", expression_node);
                     }
-                    self.visit(expression_node_id, node_map);
+                    self.visit(expression_node_id, node_map, expected_return_data_type);
                 }
             }
 
@@ -708,7 +738,7 @@ impl TypeCheckingVisitor {
             AstNodeType::Statement => {
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
-                    self.visit(left_node_id, node_map);
+                    self.visit(left_node_id, node_map, expected_return_data_type);
                 }
             }
 
@@ -720,14 +750,14 @@ impl TypeCheckingVisitor {
                     }
                     let index = ast_node.block_items.len()-1-i;
                     let block_item_id = ast_node.block_items[index];
-                    self.visit(block_item_id, node_map);
+                    self.visit(block_item_id, node_map, expected_return_data_type);
                 }
             }
 
             AstNodeType::BlockItem => {
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
-                    self.visit(left_node_id, node_map);
+                    self.visit(left_node_id, node_map, expected_return_data_type);
                 }
             }
 
@@ -737,7 +767,7 @@ impl TypeCheckingVisitor {
             AstNodeType::Compound => {
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
-                    self.visit(left_node_id, node_map);
+                    self.visit(left_node_id, node_map, expected_return_data_type);
                 }
             }
 
@@ -750,24 +780,24 @@ impl TypeCheckingVisitor {
             AstNodeType::For => {
                 // LHS - initialization, e.g.: a = 0
                 if let Some(left_node_id) = ast_node.lhs {
-                    self.visit(left_node_id, node_map);
+                    self.visit(left_node_id, node_map, expected_return_data_type);
                 }
 
                 // Expression - expression_ast_node, condition, e.g. a < 10
                 if let Some(expression_node_id) = ast_node.expression {
-                    self.visit(expression_node_id, node_map);
+                    self.visit(expression_node_id, node_map, expected_return_data_type);
                 }
 
                 // RHS - post, e.g.: a = a + 1
                 if let Some(right_node_id) = ast_node.rhs {
-                    self.visit(right_node_id, node_map);
+                    self.visit(right_node_id, node_map, expected_return_data_type);
                 }
 
                 // BLOCK_ITEMS - instructions and declarations
                 for i in 0..ast_node.block_items.len() {
                     let idx = ast_node.block_items.len()-1-i;
                     let block_item_id = ast_node.block_items[idx];
-                    self.visit(block_item_id, node_map);
+                    self.visit(block_item_id, node_map, expected_return_data_type);
                 }
             }
 
@@ -846,7 +876,7 @@ impl TypeCheckingVisitor {
             AstNodeType::SingleInit => {
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
-                    self.visit(left_node_id, node_map);
+                    self.visit(left_node_id, node_map, expected_return_data_type);
                 }
             }
 
@@ -872,6 +902,10 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Unknown => {
+            }
+
+            AstNodeType::AddAssignment => {
+                todo!();
             }
         }
     }

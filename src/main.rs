@@ -26,6 +26,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 use crate::c_ast::ast_node_id_counter::AST_NODE_ID_COUNTER;
+use crate::common::data_type::DataType;
 use crate::parser::rule::read_rule_map;
 use crate::parser::rule::serialize_rules;
 
@@ -713,7 +714,7 @@ fn main() {
             let symbol_table_rc_5 = symbol_table_rc_1.clone();
 
             let mut type_checking_visitor = TypeCheckingVisitor::new(symbol_table_rc_1);
-            type_checking_visitor.visit(program_ast_node_id, &mut node_map);
+            type_checking_visitor.visit(program_ast_node_id, &mut node_map, &DataType::DataTypeVoid);
 
             //
             // Print AST to dot after TypeChecking

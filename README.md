@@ -1703,7 +1703,7 @@ The ASM_AST -> ASM conversion table is contained on page ?.
 
 
 
-## Page 234 File Scope Variable Declarations and Storage-Class Specifiers
+## Page 234 - File Scope Variable Declarations and Storage-Class Specifiers
 
 The TACKY definition is contained on page 234.
 
@@ -1721,7 +1721,7 @@ The ASM_AST -> ASM conversion table is contained on page ?.
 
 
 
-## Page ? Long Integers
+## Page ? - Long Integers
 
 The TACKY definition is contained on page 258, 259.
 
@@ -1751,7 +1751,7 @@ The ASM_AST -> ASM conversion table is contained on page ?.
 
 
 
-## Page ? Unsigned Integers
+## Page ? - Unsigned Integers
 
 The TACKY definition is contained on page 281 and page 289.
 

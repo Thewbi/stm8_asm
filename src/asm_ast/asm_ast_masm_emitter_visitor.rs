@@ -498,18 +498,21 @@ impl AsmAstMasmEmitterVisitor {
                     }
                     AsmAstUnaryOperator::Increment => {
                         mnemonic = "inc".to_string();
+                        self.string_buffer.push_str(format!("    {} ", mnemonic).as_str());
+                        self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::DWord);
+                    }
+                    AsmAstUnaryOperator::AddAssignment => {
+                        mnemonic = "add".to_string();
+                        self.string_buffer.push_str(format!("    {} ", mnemonic).as_str());
+                        self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::DWord);
+                        self.string_buffer.push_str(", ");
+                        self.emit_asm_ast_operand(&asm_ast_instruction.src, DataTypeSize::DWord);
                     }
                     _ => {
-                        println!("{}", format!("Unhandled AsmAstInstructionType {:?}!\n", asm_ast_instruction.unary_operator).as_str());
+                        panic!("{}", format!("Unhandled AsmAstInstructionType {:?}!\n", asm_ast_instruction.unary_operator).as_str());
                     }
                 }
 
-                // print!("    {} ", mnemonic);
-                self.string_buffer.push_str(format!("    {} ", mnemonic).as_str());
-
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::DWord);
-
-                // println!("");
                 self.string_buffer.push_str("\n");
             }
 

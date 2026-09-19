@@ -191,6 +191,7 @@ pub enum InstructionType {
     UIntToDouble,
     DoubleToUInt,
     VariableDeclaration,
+    AddAssignment,
 
     Comment, // artifically added
 }
@@ -203,6 +204,7 @@ pub enum UnaryOperator {
     Increment,
     Dereference,
     AddrOf,
+    AddAssignment,
 }
 
 #[derive(Debug, Clone)]
@@ -227,6 +229,8 @@ pub enum BinaryOperator {
 
     LogicalAnd,
     LogicalOr,
+
+    // AddAssignment,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -371,6 +375,10 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
 
         InstructionType::VariableDeclaration => {
             string_buffer.push_str(format!("VariableDeclaration(label:{:?}, data_type:{:?})\n", instruction.label, instruction.data_type).as_str());
+        }
+
+        InstructionType::AddAssignment => {
+            string_buffer.push_str(format!("AddAssignment(src:{:?}, dst:{:?})\n", instruction.src, instruction.dst).as_str());
         }
 
         // _ => {

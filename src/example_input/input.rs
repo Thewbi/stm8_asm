@@ -311,7 +311,7 @@ pub fn provide_sourcode_input() -> ( String, String ) {
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_0.c").expect("file cannot be read!");
     // let filename = "res/C/samples/nora_sandler/assignment_0.c";
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_1.c").expect("file cannot be read!");
-    // let filename = "res/C/samples/nora_sandler/assignment_1.c";
+    let filename = "res/C/samples/nora_sandler/assignment_1.c";
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_2.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_3.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_4.c").expect("file cannot be read!");
@@ -449,7 +449,7 @@ pub fn provide_sourcode_input() -> ( String, String ) {
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/array_1.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/array_2.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/array_3.c").expect("file cannot be read!");
-    let filename = "res/C/samples/nora_sandler/array_4.c"; // TODO
+    // let filename = "res/C/samples/nora_sandler/array_4.c"; // pointer problems due to stack usage (fixed)
 
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/struct_0.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/struct_1.c").expect("file cannot be read!");

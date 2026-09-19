@@ -67,6 +67,7 @@ pub enum AstNodeType {
     Arrow,
     AssignmentOperator,
     Cast,
+    AddAssignment,
     Unknown,
 }
 
@@ -786,11 +787,11 @@ impl AstNode {
         // println!("{} [label=\"{} FunctionDeclaration: {}\"]", ast_node_id, ast_node_id, self.string_val);
         string_buffer.push_str(format!("{} [label=\"{} FunctionDeclaration: {} [{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.analyzed_data_type).as_str());
 
-        // return type
+        // RHS - return type
         let mut rhs_ast_node_id = 0;
         if let Some(right_node) = self.rhs.as_ref() {
             rhs_ast_node_id = node_map.get(&right_node).unwrap().pretty_print_ast_dot(string_buffer, node_map);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"RHS\"];\n", ast_node_id, rhs_ast_node_id).as_str());
         }
 
         // create node for the function name
@@ -799,7 +800,7 @@ impl AstNode {
         // string_buffer.push_str(format!("{} -> {}\n", ast_node_id, identifier_ast_node_id).as_str());
         if let Some(function_name_ast_node) = self.function_name_ast_node.as_ref() {
             let function_name_ast_node_id = node_map.get(&function_name_ast_node).unwrap().pretty_print_ast_dot(string_buffer, node_map);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, function_name_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"FUNCTION_NAME\"];\n", ast_node_id, function_name_ast_node_id).as_str());
         }
 
         // // create node for the parameters
@@ -809,7 +810,7 @@ impl AstNode {
         // // println!("{} -> {}", ast_node_id, parameters_ast_node_id);
         // string_buffer.push_str(format!("{} -> {}\n", ast_node_id, parameters_ast_node_id).as_str());
 
-        // add parameters into parameters block
+        // parameters - add parameters into parameters block
         for i in 0..self.parameters.len() {
             let parameter_ast_node_id = node_map.get(&self.parameters[self.parameters.len()-1-i]).unwrap().pretty_print_ast_dot(string_buffer, node_map);
 
@@ -817,28 +818,28 @@ impl AstNode {
             // println!("{} -> {}", parameters_ast_node_id, parameter_ast_node_id);
             //string_buffer.push_str(format!("{} -> {}\n", parameters_ast_node_id, parameter_ast_node_id).as_str());
 
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, parameter_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"parameter\"];\n", ast_node_id, parameter_ast_node_id).as_str());
         }
 
-        if let Some(block) = self.lhs.as_ref() {
+        // LHS blocks
+        if let Some(block_ast_node_id) = self.lhs.as_ref() {
 
             // create node for the body/block
             // let block_ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-            let block = node_map.get(&block).unwrap();
-            let block_ast_node_id = block.id;
+            let block_ast_node = node_map.get(&block_ast_node_id).unwrap();
 
             // println!("{} [label=\"{} Body/Block: {}\"]", block_ast_node_id, block_ast_node_id, self.string_val);
             string_buffer.push_str(format!("{} [label=\"{} Body/Block: {}\"]\n", block_ast_node_id, block_ast_node_id, self.string_val).as_str());
             // connect parent and child
             // println!("{} -> {}", ast_node_id, block_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, block_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"LHS\"];\n", ast_node_id, block_ast_node_id).as_str());
 
             // add instructions and declarations into body/block
-            for i in 0..block.block_items.len() {
-                let block_item_ast_node_id = node_map.get(&block.block_items[block.block_items.len()-1-i]).unwrap().pretty_print_ast_dot(string_buffer, node_map);
+            for i in 0..block_ast_node.block_items.len() {
+                let block_item_ast_node_id = node_map.get(&block_ast_node.block_items[block_ast_node.block_items.len()-1-i]).unwrap().pretty_print_ast_dot(string_buffer, node_map);
                 // connect parent and child
                 // println!("{} -> {}", block_ast_node_id, block_item_ast_node_id);
-                string_buffer.push_str(format!("{} -> {}\n", block_ast_node_id, block_item_ast_node_id).as_str());
+                string_buffer.push_str(format!("{} -> {} [label=\"BLOCK_ITEM\"];\n", block_ast_node_id, block_item_ast_node_id).as_str());
             }
         }
 
@@ -852,7 +853,7 @@ impl AstNode {
             string_buffer.push_str(format!("{} [label=\"{} StorageClass: {}\"]\n", storage_class_ast_node_id, storage_class_ast_node_id, storage_class_node.string_val).as_str());
 
             // storage_class_ast_node_id = storage_class_node.pretty_print_ast_dot(string_buffer);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, storage_class_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"STORAGE_CLASS\"];\n", ast_node_id, storage_class_ast_node_id).as_str());
         }
 
         ast_node_id
@@ -952,7 +953,7 @@ impl AstNode {
 
             // connect parent and child
             // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"LHS\"]\n", ast_node_id, lhs_ast_node_id).as_str());
         }
 
         let mut rhs_ast_node_id = 0;
@@ -960,7 +961,7 @@ impl AstNode {
             rhs_ast_node_id = node_map.get(&right_node).unwrap().pretty_print_ast_dot(string_buffer, node_map);
             // connect parent and child
             // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"RHS\"]\n", ast_node_id, rhs_ast_node_id).as_str());
         }
 
         let mut data_type_ast_node_id = 0;
@@ -968,7 +969,7 @@ impl AstNode {
             data_type_ast_node_id = node_map.get(&data_type_ast_node).unwrap().pretty_print_ast_dot(string_buffer, node_map);
             // connect parent and child
             // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, data_type_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"data_type\"]\n", ast_node_id, data_type_ast_node_id).as_str());
         }
 
         ast_node_id
@@ -1191,20 +1192,20 @@ impl AstNode {
         }
 
         // connect parent and child
-        string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
+        string_buffer.push_str(format!("{} -> {} [label=\"LHS\"];\n", ast_node_id, lhs_ast_node_id).as_str());
 
         if rhs_ast_node_id != 0 {
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"RHS\"];\n", ast_node_id, rhs_ast_node_id).as_str());
         }
 
         if expression_ast_node_id != 0 {
             // println!("{} -> {}", ast_node_id, expression_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, expression_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"EXPRESSION\"];\n", ast_node_id, expression_ast_node_id).as_str());
         }
 
         if storage_class_ast_node_id != 0 {
             // println!("{} -> {}", ast_node_id, storage_class_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, storage_class_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"STORAGE_CLASS\"];\n", ast_node_id, storage_class_ast_node_id).as_str());
         }
 
         ast_node_id

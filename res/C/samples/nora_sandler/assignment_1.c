@@ -1,4 +1,6 @@
-void main() {
+int main() {
     int a = 0;
-    a += 1;
+    a += 123;
+
+    return a;
 }

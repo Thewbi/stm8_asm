@@ -121,24 +121,19 @@ impl fmt::Display for AsmAstInstruction {
 
             AsmAstInstructionType::Binary => {
                 match self.binary_operator {
-
                     AsmAstBinaryOperator::Add => {
                         write!(f, "{}", format!("Binary(ADD, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
                     }
-
                     AsmAstBinaryOperator::Subtract => {
                         write!(f, "{}", format!("Binary(SUB, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
                     }
-
                     AsmAstBinaryOperator::Multiply => {
                         write!(f, "{}", format!("Binary(MUL, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
                     }
-
                     _ => {
                         todo!();
                     }
                 }
-
             }
 
             AsmAstInstructionType::Cdq => {
@@ -264,7 +259,7 @@ pub struct AsmAstOperand {
 impl AsmAstOperand {
     pub fn new() -> AsmAstOperand {
         AsmAstOperand {
-            operand_type: AsmAstOperandType::Imm(0),
+            operand_type: AsmAstOperandType::Unknown,
         }
     }
 }
@@ -281,6 +276,7 @@ pub enum AsmAstOperandType {
     // The format is now BaseRegister (AsmAstReg) + offset (i32)
     ComparisonType(String), // (E)qual, (N)ot (E)qual, (L)essThan, (L)essThan or (E)qual, (G)reaterThan, (G)reaterThan or (E)qual
     Label(String),
+    Unknown,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -330,6 +326,7 @@ pub enum AsmAstUnaryOperator {
     Neg,
     Not,
     Increment,
+    AddAssignment,
 }
 
 #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
@@ -347,6 +344,9 @@ impl fmt::Display for AsmAstUnaryOperator {
             }
             AsmAstUnaryOperator::Increment => {
                 write!(f, "increment").expect("Write failed!");
+            }
+            AsmAstUnaryOperator::AddAssignment => {
+                write!(f, "add_assignment").expect("Write failed!");
             }
         }
 
@@ -376,6 +376,8 @@ pub enum AsmAstBinaryOperator {
 
     LogicalAnd,
     LogicalOr,
+
+    AddAssignment,
 }
 
 #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
@@ -457,6 +459,10 @@ impl fmt::Display for AsmAstBinaryOperator {
             AsmAstBinaryOperator::LogicalOr => {
                 write!(f, "LogicalOr").expect("Write failed!");
             }
+
+            AsmAstBinaryOperator::AddAssignment => {
+                write!(f, "AddAssignment").expect("Write failed!");
+            }
         }
 
         Ok(())
@@ -525,10 +531,23 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction, string
         }
 
         AsmAstInstructionType::Unary => {
-            string_buffer.push_str(format!("Unary(unary_operator:{:?}, assembly_type:{:?}, dst:{:?})",
-            asm_ast_instruction.unary_operator,
-            asm_ast_instruction.assembly_type,
-            asm_ast_instruction.dst).as_str());
+            match asm_ast_instruction.src.operand_type {
+                AsmAstOperandType::Unknown => {
+                    string_buffer.push_str(format!("Unary(unary_operator:{:?}, assembly_type:{:?}, dst:{:?})",
+                        asm_ast_instruction.unary_operator,
+                        asm_ast_instruction.assembly_type,
+                        asm_ast_instruction.dst
+                    ).as_str());
+                }
+                _ => {
+                    string_buffer.push_str(format!("Unary(unary_operator:{:?}, assembly_type:{:?}, dst:{:?}, src:{:?})",
+                        asm_ast_instruction.unary_operator,
+                        asm_ast_instruction.assembly_type,
+                        asm_ast_instruction.dst,
+                        asm_ast_instruction.src
+                    ).as_str());
+                }
+            }
         }
 
         AsmAstInstructionType::Binary => {

@@ -39,7 +39,7 @@ use crate::VariableNamingSource;
 // Generates TACKY from an AST
 //
 // 1. c_ast/IdentifierResolutionVisitor - checks for duplicate or undeclared variable names
-// 2. tacky/TackyVisitor - Generate TACKY (from AST)
+// 2. tacky/TackyVisitor (This file) - Generate TACKY (from AST)
 // 3. asm_ast/AsmAstConversionVisitor - Converts the AST into a ASM AST for assembly with a precursory form of mnenomics
 // 4. asm_ast/AsmAstFixupVisitor - replacing pseudo operands/variables with stack addresses
 // 5. asm_ast/AsmAstMasmEmitterVisitor / asm_ast/AsmAstASEmitterVisitor / ...
@@ -120,6 +120,15 @@ impl TackyVisitor {
             ast_node = node_map.get(&ast_node_id).unwrap().clone();
         }
 
+        // here, for each ASTNode type, create a TACKY instruction.
+        // The TACKY instruction needs to be of type struct Instruction defined in tacky.rs.
+        // Then when all necessary information is copied into the Instruction struct, insert
+        // that struct into the current body, using this line:
+        // ```
+        // // append instruction to latest top-level element of the program
+        // let last = self.program.top_level.len() - 1;
+        // self.program.top_level[last].body.push(Box::new(copy_instruction));
+        // ```
         match &ast_node.node_type {
 
             AstNodeType::Program => {
@@ -376,6 +385,7 @@ impl TackyVisitor {
 
                                     if let Some(lhs_sub_id) = ast_node.lhs {
                                         let lhs_sub = node_map.get(&lhs_sub_id).unwrap();
+                                        // DEBUG
                                         if self.debug {
                                             println!("LHS: {:?}", lhs_sub);
                                         }
@@ -541,6 +551,63 @@ impl TackyVisitor {
                         return dest_variable_element;
                     }
 
+                    AstNodeOperatorType::AddAssignment => {
+
+                        let mut add_assignment_instruction: Instruction = Instruction::new();
+                        add_assignment_instruction.instruction_type = InstructionType::AddAssignment;
+
+                        let mut dst_name = String::from("");
+
+                        // LHS - used as destination (the variable that is assigned to)
+                        if let Some(lhs_sub_id) = ast_node.lhs {
+                            let lhs_sub = node_map.get(&lhs_sub_id).unwrap();
+                            // DEBUG
+                            if self.debug {
+                                println!("LHS: {:?}", lhs_sub);
+                            }
+                            dst_name = lhs_sub.string_val.clone();
+                            add_assignment_instruction.dst = ValueElement::Variable(dst_name.clone());
+                        }
+
+                        // RHS - used as src (The value that is assigned)
+                        if let Some(rhs_sub_id) = ast_node.rhs {
+
+                            let mut br_cnt = 0;
+                            add_assignment_instruction.src = self.visit(rhs_sub_id, node_map, &dst_name, &mut br_cnt);
+
+                            // let rhs_sub = node_map.get(&rhs_sub_id).unwrap();
+
+                            // // DEBUG
+                            // if self.debug {
+                            //     println!("RHS: {:?}", rhs_sub);
+                            // }
+
+                            // // determine if the copy instruction is output or not
+                            // match rhs_sub.node_type {
+
+                            //     AstNodeType::Binary => {
+                            //         // DEBUG
+                            //         // println!("binary");
+                            //         //output_copy_instruction = false;
+                            //     }
+
+                            //     AstNodeType::Expression => {
+                            //         // DEBUG
+                            //         // println!("binary");
+                            //         //output_copy_instruction = false;
+                            //     }
+
+                            //     _ => {
+                            //         println!("NodeType: {:?}", rhs_sub.node_type);
+                            //     }
+                            // }
+                        }
+
+                        // append instruction to latest top-level element of the program
+                        let last = self.program.top_level.len() - 1;
+                        self.program.top_level[last].body.push(Box::new(add_assignment_instruction));
+                    }
+
                     _ => {
                         panic!("{}", format!("Unhandled AstNodeOperatorType {:?}!\n", ast_node.operator_type).as_str());
                     }
@@ -702,7 +769,7 @@ impl TackyVisitor {
                             // dst
                             //
 
-                            // RHS contains the source
+                            // RHS - contains the source
                             if let Some(rhs_id) = ast_node.rhs {
 
                                 let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
@@ -716,7 +783,7 @@ impl TackyVisitor {
                             }
 
                             //
-                            // operator
+                            // LHS - contains the operator operator
                             //
 
                             if let Some(operator_id) = ast_node.lhs {
@@ -772,7 +839,7 @@ impl TackyVisitor {
                 binary_instruction.instruction_type = InstructionType::Binary;
                 binary_instruction.dst = ValueElement::Variable(dst_name.to_string());
 
-                // LHS
+                // LHS - src 2
                 if let Some(lhs_id) = ast_node.lhs {
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
                     let mut br_cnt = 0;
@@ -780,7 +847,7 @@ impl TackyVisitor {
                     binary_instruction.src_2 = lhs_value_element;
                 }
 
-                // RHS
+                // RHS - src
                 if let Some(rhs_id) = ast_node.rhs {
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
                     let mut br_cnt = 0;
@@ -864,6 +931,10 @@ impl TackyVisitor {
                         AstNodeOperatorType::LogicalOr => {
                             binary_instruction.binary_operator = BinaryOperator::LogicalOr;
                         }
+
+                        // AstNodeOperatorType::AddAssignment => {
+                        //     binary_instruction.binary_operator = BinaryOperator::AddAssignment;
+                        // }
 
                         _ => {
                             panic!("{}", format!("Unhandled OperatorType {:?}!\n", operator.operator_type).as_str());
@@ -1552,6 +1623,18 @@ impl TackyVisitor {
 
             AstNodeType::EmptyStatement => {
                 // println!("{:?}", ast_node);
+            }
+
+            AstNodeType::AddAssignment => {
+
+                // DEBUG
+                if self.debug {
+                    println!("{}, {:?}", ast_node.id, ast_node);
+                }
+
+                let mut add_assignment: Instruction = Instruction::new();
+                add_assignment.instruction_type = InstructionType::AddAssignment;
+
             }
 
             _ => {

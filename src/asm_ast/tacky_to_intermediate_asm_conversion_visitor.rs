@@ -151,6 +151,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         // This instruction is later updated inside the AsmAstFixupVisitor::visit_asm_ast_function()
         let mut asm_ast_allocate_stack: AsmAstInstruction = AsmAstInstruction::new();
         asm_ast_allocate_stack.instruction_type = AsmAstInstructionType::AllocateStack;
+        asm_ast_allocate_stack.src.operand_type = AsmAstOperandType::Imm(0);
         asm_ast_allocate_stack.comment = String::from("    ; Function Preamble - save space on stack for all local variables - [AsmAstConversionVisitor::visit_tacky_function()]");
         asm_ast_function.body.push(Box::new(asm_ast_allocate_stack));
 
@@ -314,6 +315,10 @@ impl TackyToIntermediateAsmConversionVisitor {
                     self.visit_tacky_copy_to_offset(&mut asm_ast_function, tacky_instruction);
                 }
 
+                InstructionType::AddAssignment => {
+                    self.visit_tacky_add_assignment(&mut asm_ast_function, tacky_instruction);
+                }
+
                 _ => {
                     panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_instruction.instruction_type).as_str());
                 }
@@ -329,6 +334,68 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         // add the created function into the functions vector of the program
         self.asm_ast_program.functions.push(asm_ast_function);
+    }
+
+    //
+    // a += 123;
+    //
+    // Converted to
+    //
+    // mov rax, DWORD PTR [rsp+???]
+    // add 123
+    // mov DWORD PTR [rsp+???], rax
+    //
+    // It is allowed to immediately add a value to a memory location in x86-64
+    //
+    // add DWORD PTR [rbp-4], 123
+    //
+    pub fn visit_tacky_add_assignment(&mut self,
+        asm_ast_function: &mut AsmAstFunction,
+        tacky_instruction_add_assignment: &Instruction)
+    {
+        let mut add: AsmAstInstruction = AsmAstInstruction::new();
+
+        add.instruction_type = AsmAstInstructionType::Unary;
+        add.unary_operator = AsmAstUnaryOperator::AddAssignment;
+
+        // add.instruction_type = AsmAstInstructionType::Binary;
+        // add.binary_operator = AsmAstBinaryOperator::AddAssignment;
+
+        add.comment = String::from(format!("    ; add for AddAssignment (e.g. a += 123;)").to_string());
+
+        // source
+        // set data type and also set the object that is used as source
+        let mut src_data_type: DataType = DataType::DataTypeUnknown;
+        match &tacky_instruction_add_assignment.src {
+            ValueElement::Variable(var_name) => {
+                let symbol_table_entry = self.symbol_table.borrow_mut().get(var_name);
+                src_data_type = symbol_table_entry.data_type;
+                add.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+                add.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+            }
+            ValueElement::Constant(constant_value) => {
+                src_data_type = DataType::DataTypeInt; // TODO: how to determine the type of the constant?
+                add.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+                add.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+            }
+            _ => {
+                unimplemented!()
+            }
+        }
+        add.assembly_type = AstAstAssemblyType::from_data_type(&src_data_type);
+
+        // destination
+        match &tacky_instruction_add_assignment.dst {
+            ValueElement::Variable(var_name) => {
+                // add.dst = AsmAstOperand { operand_type: AsmAstOperandType::PseudoMem(var_name.clone(), offset) };
+                add.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+            }
+            _ => {
+                unimplemented!()
+            }
+        }
+
+        asm_ast_function.body.push(Box::new(add));
     }
 
     pub fn visit_tacky_copy_to_offset(&mut self,
@@ -1211,16 +1278,17 @@ impl TackyToIntermediateAsmConversionVisitor {
                     }
                     UnaryOperator::Dereference => {
                         // unary.unary_operator = AsmAstUnaryOperator::Dereference;
-
                         // Nora Sandler, page 376
                         //
                         // Mov(Quadword, ptr, Reg(AX))
                         // Mov(<dst type>, Memory(AX, 0), dst)
-
                         todo!();
                     }
                     UnaryOperator::AddrOf => {
                         todo!();
+                    }
+                    UnaryOperator::AddAssignment => {
+                        unary.unary_operator = AsmAstUnaryOperator::AddAssignment;
                     }
                     // _ => {
                     //     panic!("{}", format!("Unhandled unary_operator '{:?}'!\n", tacky_node_unary.unary_operator).as_str());
@@ -1278,14 +1346,28 @@ impl TackyToIntermediateAsmConversionVisitor {
             BinaryOperator::GreaterThanOrEqual => {
                 self.visit_tacky_binary_relational(asm_ast_function, tacky_instruction, &AstNodeOperatorType::GreaterThanOrEqual);
             }
+            // BinaryOperator::AddAssignment => {
+            //     self.visit_tacky_binary_assignment(asm_ast_function, tacky_instruction, &AstNodeOperatorType::AddAssignment);
+            // }
             _ => {
                 self.visit_tacky_binary_standard(asm_ast_function, tacky_instruction);
             }
         }
     }
 
-    pub fn visit_tacky_binary_relational(&mut self, asm_ast_function: &mut AsmAstFunction,
-        tacky_node_binary: &Instruction, operator_type_param: &AstNodeOperatorType) {
+    pub fn visit_tacky_binary_assignment(
+        &mut self, asm_ast_function: &mut AsmAstFunction,
+        tacky_node_binary: &Instruction,
+        operator_type_param: &AstNodeOperatorType)
+    {
+        todo!();
+    }
+
+    pub fn visit_tacky_binary_relational(
+        &mut self, asm_ast_function: &mut AsmAstFunction,
+        tacky_node_binary: &Instruction,
+        operator_type_param: &AstNodeOperatorType)
+    {
 
         // println!("[AsmAstConversionVisitor::visit_tacky_binary_relational()] {:?}", tacky_node_binary);
 
