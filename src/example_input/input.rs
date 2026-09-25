@@ -241,6 +241,7 @@ pub fn provide_sourcode_input() -> ( String, String ) {
     //
 
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/page_26.c").expect("file cannot be read!");
+    // let filename = "res/C/samples/nora_sandler/page_26.c";
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/listing_1_1_page_4.c").expect("file cannot be read!");
 
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/unary_0.c").expect("file cannot be read!"); // return -8; Result: "-8" (0xfffffff8)
@@ -311,7 +312,7 @@ pub fn provide_sourcode_input() -> ( String, String ) {
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_0.c").expect("file cannot be read!");
     // let filename = "res/C/samples/nora_sandler/assignment_0.c";
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_1.c").expect("file cannot be read!");
-    let filename = "res/C/samples/nora_sandler/assignment_1.c";
+    // let filename = "res/C/samples/nora_sandler/assignment_1.c";
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_2.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_3.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/nora_sandler/assignment_4.c").expect("file cannot be read!");
@@ -499,6 +500,11 @@ pub fn provide_sourcode_input() -> ( String, String ) {
 
     // let str: String = fs::read_to_string("res/C/samples/c_samples/switch_0.c").expect("file cannot be read!");
 
+    // let filename = "res/C/samples/c_samples/parameter_pointer.c";
+
+    // let filename = "res/C/samples/c_samples/array_declaration_with_size.c";
+    // let filename = "res/C/samples/c_samples/array_declaration_without_size.c";
+
     //
     // C Samples (larger units)
     //
@@ -507,6 +513,9 @@ pub fn provide_sourcode_input() -> ( String, String ) {
     // let str: String = fs::read_to_string("res/C/samples/c_samples/linked_list_without_malloc.c").expect("file cannot be read!");
 
     // let str: String = fs::read_to_string("res/C/samples/c_samples/scratchpad.c").expect("file cannot be read!");
+
+    let filename = "res/C/samples/c_samples/bubblesort.c";
+    // let filename = "res/C/samples/c_samples/bubblesort_broken.c";
 
     //
     // Preprocessor - step 1 - remove single-line comments
@@ -552,7 +561,7 @@ pub fn provide_sourcode_input() -> ( String, String ) {
         Err(e) => {
             // fallback in case of failure.
             // you could log the error, panic, or do anything else.
-            panic!("{}", e);
+            panic!("{} {}", e, filename);
         }
 
     };

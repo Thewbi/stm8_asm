@@ -64,7 +64,10 @@ impl AsmAstFixupVisitor {
         //
         // This is where Nora Sandler, page 267 wants to check the backend symbol
         // table for the size of each pseudo variable in order to correctly enlarge
-        // the stack frame with the size consumed by the pseudo variable
+        // the stack frame with the size consumed by the pseudo variable.
+        //
+        // Special Case: a function declaration defines pseudo variables for the
+        // parameters in it's prototype which do not neet to reserve space on the stack!
         //
         // int - 4 Byte
         // long - 8 Byte
@@ -85,9 +88,9 @@ impl AsmAstFixupVisitor {
 
             AsmAstOperandType::Pseudo(pseudo_name) => {
                 // DEBUG
-                // if self.debug {
+                if self.debug {
                     println!("Pseudo. Pseudo-Name: '{}'", pseudo_name);
-                // }
+                }
 
                 if self.replace_pseudo {
 
@@ -131,7 +134,9 @@ impl AsmAstFixupVisitor {
                             stack_offset_value = self.stack_offset;
 
                         } else {
+
                             panic!("Cannot find symbol '{}' in backend_symbol_table", &pseudo_name);
+
                         }
                     }
                 }
@@ -141,9 +146,9 @@ impl AsmAstFixupVisitor {
 
             AsmAstOperandType::PseudoMem(pseudo_name, pseudo_offset) => {
                 // DEBUG
-                // if self.debug {
+                if self.debug {
                     println!("PseudoMem: pseudo_name: {}", pseudo_name.clone());
-                // }
+                }
 
                 if self.replace_pseudo {
 
@@ -164,7 +169,9 @@ impl AsmAstFixupVisitor {
                             let symbol_table_entry = self.backend_symbol_table.borrow_mut().retrieve(&pseudo_name);
 
                             // DEBUG
-                            println!("[AsmAstFixupVisitor] {:?}", symbol_table_entry);
+                            if self.debug {
+                                println!("[AsmAstFixupVisitor] {:?}", symbol_table_entry);
+                            }
 
                             if symbol_table_entry.is_pointer {
                                 panic!("pointer!");
@@ -172,7 +179,9 @@ impl AsmAstFixupVisitor {
 
                             if symbol_table_entry.is_array {
                                 // DEBUG
-                                println!("is_array. ElementCount: {}", symbol_table_entry.array_element_count);
+                                if self.debug {
+                                    println!("is_array. ElementCount: {}", symbol_table_entry.array_element_count);
+                                }
                             }
 
                             let data_type = symbol_table_entry.data_type;
@@ -204,7 +213,7 @@ impl AsmAstFixupVisitor {
             }
 
             _ => {
-                panic!("{}", format!("Unhandled InstructionType {:?}!\n", asm_ast_operand.operand_type ).as_str());
+                panic!("{}", format!("Unhandled operand_type {:?}!\n", asm_ast_operand.operand_type ).as_str());
 
                 return asm_ast_operand.clone();
             }
@@ -229,18 +238,21 @@ impl AsmAstFixupVisitor {
         }
     }
 
+    // will iterate over all instructions in the function's body and visit them
     pub fn visit_asm_ast_function(&mut self, asm_ast_function: &mut AsmAstFunction) {
 
         // DEBUG
         if self.debug {
             println!("[FixupAsmAstVisitor::visit_asm_ast_function()]");
             println!("  name = {}", asm_ast_function.name);
+            println!("  body.len() = {}", asm_ast_function.body.len());
         }
 
         // reset stack offset to get rid of the stale value from the last function definition
         self.stack_offset = 0;
 
         // iterate over all instructions in the body and visit each.
+        //
         // Each visited element will potentially insert more statements to the statements in the body.
         // To manage this feature of adding more nodes, a vector called new_body is inserted into the
         // recursion and instead of mutating the original body vector, the statements along with the
@@ -256,7 +268,8 @@ impl AsmAstFixupVisitor {
         // replaced.
         let mut new_body = Vec::<Box<AsmAstInstruction>>::new();
         for i in 0..asm_ast_function.body.len() {
-            self.visit_asm_ast_instruction(&mut new_body, asm_ast_function.body[i].as_ref().clone());
+            let instruction = asm_ast_function.body[i].as_ref().clone();
+            self.visit_asm_ast_instruction(&mut new_body, instruction);
         }
 
         if self.replace_pseudo {
@@ -264,13 +277,12 @@ impl AsmAstFixupVisitor {
             // patch allocate stack because right now, the required stack size is readily available
             let asm_ast_allocate_stack = &mut new_body[0];
             asm_ast_allocate_stack.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(self.stack_offset * -1) };
-
             asm_ast_allocate_stack.comment.push_str("    ; + Updated in AsmAstFixupVisitor::visit_asm_ast_function()\n");
 
             asm_ast_function.stack_frame_size = self.stack_offset * -1;
         }
 
-        // DEBUG
+        // DEBUG - print the body
         if self.debug {
             let print_body = false;
             if print_body {
@@ -315,6 +327,7 @@ impl AsmAstFixupVisitor {
 
                 if self.replace_pseudo {
 
+                    // does this instruction require a fix?
                     let mut fix: bool = false;
 
                     // x86 mov cannot move from memory (stack or other memory) to memory directly!
@@ -324,6 +337,7 @@ impl AsmAstFixupVisitor {
                         }
                     }
 
+                    // if the operands won't assemble/compile, change them!
                     if fix {
 
                         let mut mov_1 = asm_ast_instruction.clone();
@@ -465,12 +479,48 @@ impl AsmAstFixupVisitor {
             AsmAstInstructionType::Cmp => {
                 // DEBUG
                 if self.debug {
-                    println!("Cmp {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.src_2);
+                    println!("Cmp {:?} {:?} {:?}",
+                        asm_ast_instruction.src,
+                        asm_ast_instruction.src_2,
+                        asm_ast_instruction.dst);
                 }
 
                 asm_ast_instruction.src_2 = self.replace_pseudo_operand(&mut asm_ast_instruction.src_2);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
-                new_body.push(Box::new(asm_ast_instruction));
+                // does this instruction require a fix?
+                let mut fix: bool = false;
+
+                // x86 mov cannot move from memory (stack or other memory) to memory directly!
+                if matches!(asm_ast_instruction.src_2.operand_type, AsmAstOperandType::Memory(_, _)) {
+                    if matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::Memory(_, _)) {
+                        fix = true;
+                    }
+                }
+
+                // if the operands won't assemble/compile, change them!
+                if fix {
+
+                    let mut mov_1 = asm_ast_instruction.clone();
+
+                    println!("{:?}", mov_1);
+
+                    mov_1.instruction_type = AsmAstInstructionType::Mov;
+                    mov_1.src = mov_1.src_2.clone();
+                    mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
+
+                    println!("{:?}", mov_1);
+
+                    new_body.push(Box::new(mov_1));
+
+                    asm_ast_instruction.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
+                    new_body.push(Box::new(asm_ast_instruction));
+
+                } else {
+
+                    new_body.push(Box::new(asm_ast_instruction));
+
+                }
             }
 
             AsmAstInstructionType::Jmp => {

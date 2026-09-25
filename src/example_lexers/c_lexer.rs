@@ -164,7 +164,7 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_identifier);
 
     // DEBUG dump the graph to .dot format for viewing using https://dreampuf.github.io/GraphvizOnline
-    //enfa_to_dot_directed_graph(&mut fragment_identifier.enfa, "fragment_identifier_automaton.dot");
+    //enfa_to_dot_directed_graph(&mut fragment_identifier.enfa, "dot\\fragment_identifier_automaton.dot");
 
     //
     // Float Numeric (token-id: 601) - {D}*"."{D}+({E})?{FS}?
@@ -199,13 +199,13 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     fragment_string_literal.enfa.states.get_mut(&fragment_string_literal.end_id).unwrap().token_id = 610;
     fragment_string_literal.enfa.states.get_mut(&fragment_string_literal.end_id).unwrap().token_name = String::from("STRING_LITERAL");
     // // DEBUG
-    // enfa_to_dot_directed_graph(&mut fragment_string_literal.enfa, "string_literal_enfa_automaton.dot");
+    // enfa_to_dot_directed_graph(&mut fragment_string_literal.enfa, "dot\\string_literal_enfa_automaton.dot");
     // insert into LEXER
     let (start_id_string_literal, end_id_string_literal) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_string_literal.enfa, fragment_string_literal.end_id);
     combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_string_literal);
 
     // DEBUG - print to dot file format for debugging with https://dreampuf.github.io/GraphvizOnline
-    //enfa_to_dot_directed_graph(&mut combined_fragment.enfa, "enfa_automaton.dot");
+    //enfa_to_dot_directed_graph(&mut combined_fragment.enfa, "dot\\enfa_automaton.dot");
 
     //
     // define operators
@@ -328,7 +328,7 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     let dfa = enfa_to_dfa(&mut combined_fragment.enfa, &mut alphabet);
 
     // DEBUG - print to dot file format for debugging with https://dreampuf.github.io/GraphvizOnline
-    // enfa_to_dot_directed_graph(&mut dfa, "dfa_automaton.dot");
+    // enfa_to_dot_directed_graph(&mut dfa, "dot\\dfa_automaton.dot");
 
     dfa
 }

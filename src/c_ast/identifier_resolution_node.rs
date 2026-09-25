@@ -4,6 +4,7 @@ use crate::AstNodeType;
 pub struct IdentifierResolutionNode {
     pub node_type: AstNodeType,
     pub string_val: String,
+    pub initial_string_val: String,
 }
 
 impl IdentifierResolutionNode {
@@ -12,6 +13,7 @@ impl IdentifierResolutionNode {
         IdentifierResolutionNode {
             node_type: AstNodeType::Unknown,
             string_val: String::new(),
+            initial_string_val: String::new(),
         }
     }
 

@@ -154,6 +154,7 @@ pub struct AstNode {
     pub operator: Option<usize>,
     pub operator_type: AstNodeOperatorType,
     pub string_val: String,
+    pub initial_string_val: String,
     pub block_items: Vec<usize>,
     pub parameters: Vec<usize>,
     pub storage_class: Option<usize>,
@@ -553,6 +554,7 @@ impl AstNode {
             operator: None,
             operator_type: AstNodeOperatorType::NotApplicable,
             string_val: String::from(""),
+            initial_string_val: String::from(""),
             block_items: Vec::<usize>::new(),
             parameters: Vec::<usize>::new(),
             storage_class: None,
@@ -567,7 +569,9 @@ impl AstNode {
     }
 
     pub fn serialize(&self, node_map: &Box<HashMap<usize, AstNode>>) -> String {
+
         let mut lhs_string = String::new();
+
         if let Some(left_node) = self.lhs.as_ref() {
             lhs_string = node_map.get(left_node).unwrap().serialize(node_map);
         }
@@ -600,6 +604,12 @@ impl AstNode {
 
         lhs_string.push_str(" ");
         lhs_string.push_str(&self.string_val);
+
+        println!("{}", self.initial_string_val);
+        if !self.initial_string_val.is_empty() {
+            lhs_string.push_str(" initial_string_val:");
+            lhs_string.push_str(&self.initial_string_val);
+        }
 
         lhs_string.push_str(" ");
         lhs_string.push_str(&rhs_string);

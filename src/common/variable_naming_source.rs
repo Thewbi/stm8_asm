@@ -24,6 +24,8 @@ static VAR_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 struct VarnameMapEntry {
 
+    initial_varname: String,
+
     varname: String,
 
     // If a variable was declared in the current scope, it is new by defintion.
@@ -39,6 +41,7 @@ struct VarnameMapEntry {
 impl Clone for VarnameMapEntry {
     fn clone(&self) -> Self {
         VarnameMapEntry {
+            initial_varname: self.initial_varname.clone(),
             varname: self.varname.clone(),
             is_new: false, // make the clone an old instance by default
             is_external_linkage: false,
@@ -165,6 +168,7 @@ impl VariableNamingSource {
         if let Some(varname_map) = self.varname_map_stack.last() {
 
             let varname_map_entry: VarnameMapEntry = VarnameMapEntry {
+                initial_varname: varname.clone(),
                 varname: new_unique_varname.clone(),
                 is_new: true, // new define
                 is_external_linkage: false, // a variable is NOT external linkage by default
@@ -192,6 +196,7 @@ impl VariableNamingSource {
         if let Some(varname_map) = self.varname_map_stack.last() {
 
             let varname_map_entry: VarnameMapEntry = VarnameMapEntry {
+                initial_varname: func_name.clone(),
                 varname: func_name.clone(),
                 is_new: true, // new define
                 is_external_linkage: true, // a function is external linkage by default

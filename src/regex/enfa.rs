@@ -762,10 +762,10 @@ fn add_concatenation(fragment_stack: &mut FragmentStack) {
         let mut bottom_fragment = fragment_stack.stack.pop().unwrap();
 
         // DEBUG
-        // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "top_automaton.dot");
+        // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "dot\\top_automaton.dot");
 
         // DEBUG
-        // enfa_to_dot_directed_graph(&mut bottom_fragment.enfa, "bottom_automaton.dot");
+        // enfa_to_dot_directed_graph(&mut bottom_fragment.enfa, "dot\\bottom_automaton.dot");
 
         let top_end_id = top_fragment.end_id;
 
@@ -773,7 +773,7 @@ fn add_concatenation(fragment_stack: &mut FragmentStack) {
         let result_touple = enfa_copy(&mut bottom_fragment.enfa, &mut top_fragment.enfa, top_end_id);
 
         // // DEBUG
-        // enfa_to_dot_directed_graph(&mut bottom_fragment.enfa, "merged_automaton.dot");
+        // enfa_to_dot_directed_graph(&mut bottom_fragment.enfa, "dot\\merged_automaton.dot");
 
         let copied_start_id = result_touple.0;
         let copied_end_id = result_touple.1;
@@ -784,7 +784,7 @@ fn add_concatenation(fragment_stack: &mut FragmentStack) {
         bottom_fragment.end_id = copied_end_id;
 
         // // DEBUG
-        // enfa_to_dot_directed_graph(&mut bottom_fragment.enfa, "merged_automaton.dot");
+        // enfa_to_dot_directed_graph(&mut bottom_fragment.enfa, "dot\\merged_automaton.dot");
 
         assert!(0 != bottom_fragment.end_id);
 
@@ -834,7 +834,7 @@ fn add_or(fragment_stack: &mut FragmentStack) {
             bottom_fragment.end_id = end_state_id;
 
             // // DEBUG
-            // enfa_to_dot_directed_graph(&mut bottom_fragment.enfa, "atomic_to_atomic_automaton.dot");
+            // enfa_to_dot_directed_graph(&mut bottom_fragment.enfa, "dot\\atomic_to_atomic_automaton.dot");
 
             fragment_stack.stack.push(bottom_fragment);
 
@@ -1084,7 +1084,7 @@ fn add_not_single_character_interpretation(fragment_stack: &mut FragmentStack, a
     let mut top_fragment = fragment_stack.stack.pop().unwrap();
 
     // // DEBUG
-    // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "top_fragment.dot");
+    // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "dot\\top_fragment.dot");
 
     if top_fragment.enfa.transitions.len() == 0 {
 
@@ -1143,7 +1143,7 @@ fn add_not_single_character_interpretation(fragment_stack: &mut FragmentStack, a
     }
 
     // // DEBUG
-    // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "top_fragment.dot");
+    // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "dot\\top_fragment.dot");
 }
 
 // ^ Not / Inversion
@@ -1160,7 +1160,7 @@ fn add_not_extended_interpretation(fragment_stack: &mut FragmentStack, alphabet:
     let mut top_fragment = fragment_stack.stack.pop().unwrap();
 
     // // DEBUG
-    // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "top_fragment.dot");
+    // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "dot\\top_fragment.dot");
 
     // check if the current fragment consists of a atomic or a complex automaton
     if top_fragment.start_id == top_fragment.end_id {
@@ -1179,7 +1179,7 @@ fn add_not_extended_interpretation(fragment_stack: &mut FragmentStack, alphabet:
         top_fragment.end_id = end_state_id;
 
         // // DEBUG
-        // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "not_enfa_automaton.dot");
+        // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "dot\\not_enfa_automaton.dot");
 
         //
         // convert eNFA to DFA
@@ -1192,7 +1192,7 @@ fn add_not_extended_interpretation(fragment_stack: &mut FragmentStack, alphabet:
         let mut dfa = enfa_to_dfa(&mut top_fragment.enfa, alphabet);
 
         // // DEBUG -- DFA from initial eNFA
-        // enfa_to_dot_directed_graph(&mut dfa, "dfa_automaton.dot");
+        // enfa_to_dot_directed_graph(&mut dfa, "dot\\dfa_automaton.dot");
 
         // invert end states
         for (_state_id, state) in dfa.states.iter_mut() {
@@ -1228,7 +1228,7 @@ fn add_not_extended_interpretation(fragment_stack: &mut FragmentStack, alphabet:
         }
 
         // // DEBUG - DFA with additional final state
-        // enfa_to_dot_directed_graph(&mut dfa, "inverted_dfa_automaton.dot");
+        // enfa_to_dot_directed_graph(&mut dfa, "dot\\inverted_dfa_automaton.dot");
 
         top_fragment.start_id = dfa.start_state_id;
         top_fragment.end_id = new_end_state_id;
@@ -1272,13 +1272,13 @@ fn add_not_extended_interpretation(fragment_stack: &mut FragmentStack, alphabet:
         top_fragment.enfa.states.get_mut(&top_fragment.end_id).unwrap().end_state = true;
 
         // DEBUG -- initial eNFA
-        // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "enfa_automaton.dot");
+        // enfa_to_dot_directed_graph(&mut top_fragment.enfa, "dot\\enfa_automaton.dot");
 
         // convert from eNFA to DFA
         let mut dfa = enfa_to_dfa(&mut top_fragment.enfa, alphabet);
 
         // // DEBUG -- DFA from initial eNFA
-        // enfa_to_dot_directed_graph(&mut dfa, "dfa_automaton.dot");
+        // enfa_to_dot_directed_graph(&mut dfa, "dot\\dfa_automaton.dot");
 
         // // DEBUG
         // for (state_id, state) in dfa.states.iter_mut() {
@@ -1295,7 +1295,7 @@ fn add_not_extended_interpretation(fragment_stack: &mut FragmentStack, alphabet:
         }
 
         // // DEBUG - DFA with states inverted
-        // enfa_to_dot_directed_graph(&mut dfa, "dfa_automaton.dot");
+        // enfa_to_dot_directed_graph(&mut dfa, "dot\\dfa_automaton.dot");
 
         // now invert the graph
 
@@ -1332,7 +1332,7 @@ fn add_not_extended_interpretation(fragment_stack: &mut FragmentStack, alphabet:
         // }
 
         // // DEBUG - DFA with additional final state
-        // enfa_to_dot_directed_graph(&mut dfa, "dfa_automaton.dot");
+        // enfa_to_dot_directed_graph(&mut dfa, "dot\\dfa_automaton.dot");
 
         // build a new fragment
         let mut fragment = Fragment::new(RegexBuildingBlock::Not);
@@ -1409,8 +1409,8 @@ pub fn enfa_copy(dest: &mut EpsilonNfa::<State, RegexBuildingBlock>, src: &mut E
     // println!("enfa_copy start >>>   end_id: {}", end_id);
 
     // // DEBUG
-    // enfa_to_dot_directed_graph(dest, "dest_automaton.dot");
-    // enfa_to_dot_directed_graph(src, "src_automaton.dot");
+    // enfa_to_dot_directed_graph(dest, "dot\\dest_automaton.dot");
+    // enfa_to_dot_directed_graph(src, "dot\\src_automaton.dot");
 
     let mut copied_start_id = 0;
     let mut copied_end_id = 0;

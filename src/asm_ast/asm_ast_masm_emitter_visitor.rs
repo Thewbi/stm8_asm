@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::asm_ast::asm_ast::AstAstAssemblyType;
 use crate::tacky::tacky::Program;
 use crate::tacky::tacky::TopLevel;
 use crate::tacky::tacky::TopLevelType;
@@ -61,14 +62,17 @@ impl AsmAstMasmEmitterVisitor {
     // util
     //
 
-    pub fn add_stack_variable(&self, data_type_size: DataTypeSize,
+    pub fn add_stack_variable(&self,
+        // data_type_size: DataTypeSize,
+        data_type_size: &AstAstAssemblyType,
         stack_val: &i32,
         register: &AsmAstReg)
         -> String
     {
         match data_type_size {
 
-            DataTypeSize::Byte => {
+            // DataTypeSize::Byte => {
+            AstAstAssemblyType::Byte => {
                 if *stack_val == 0 {
                     if self.print_to_console {
                         print!("byte ptr [rbp+{}]", stack_val);
@@ -82,7 +86,8 @@ impl AsmAstMasmEmitterVisitor {
                 }
             }
 
-            DataTypeSize::Word => {
+            // DataTypeSize::Word => {
+            AstAstAssemblyType::Word => {
                 if *stack_val == 0 {
                     if self.print_to_console {
                         print!("word ptr [rbp+{}]", stack_val);
@@ -96,7 +101,8 @@ impl AsmAstMasmEmitterVisitor {
                 }
             }
 
-            DataTypeSize::DWord => {
+            // DataTypeSize::DWord => {
+            AstAstAssemblyType::Doubleword => {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
@@ -112,7 +118,8 @@ impl AsmAstMasmEmitterVisitor {
                 }
             }
 
-            DataTypeSize::QWord => {
+            // DataTypeSize::QWord => {
+            AstAstAssemblyType::Quadword => {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
@@ -127,17 +134,24 @@ impl AsmAstMasmEmitterVisitor {
                     format!("qword ptr [{}{}]", register.to_string(), stack_val)
                 }
             }
+
+            _ => {
+                unimplemented!("Unimplemented type: {:?}", &data_type_size);
+            }
         }
     }
 
-    pub fn add_stack_variable_with_offset(&self, data_type_size: DataTypeSize,
+    pub fn add_stack_variable_with_offset(&self,
+        // data_type_size: DataTypeSize,
+        data_type_size: &AstAstAssemblyType,
         stack_val: &i32,
         offset: &i32,
         register: &AsmAstReg)
         -> String
     {
         match data_type_size {
-            DataTypeSize::Byte => {
+            // DataTypeSize::Byte => {
+            AstAstAssemblyType::Byte => {
                 if *stack_val == 0 {
                     if self.print_to_console {
                         print!("byte ptr [rbp+{}+{}]", stack_val, offset);
@@ -150,7 +164,8 @@ impl AsmAstMasmEmitterVisitor {
                     format!("byte ptr [{}{}+{}]", register.to_string(), stack_val, offset)
                 }
             }
-            DataTypeSize::Word => {
+            // DataTypeSize::Word => {
+            AstAstAssemblyType::Word => {
                 if *stack_val == 0 {
                     if self.print_to_console {
                         print!("word ptr [rbp+{}+{}]", stack_val, offset);
@@ -163,7 +178,8 @@ impl AsmAstMasmEmitterVisitor {
                     format!("word ptr [{}{}+{}]", register.to_string(), stack_val, offset)
                 }
             }
-            DataTypeSize::DWord => {
+            // DataTypeSize::DWord => {
+            AstAstAssemblyType::Doubleword => {
                 if *stack_val == 0 {
                     if self.print_to_console {
                         print!("dword ptr [rbp+{}+{}]", stack_val, offset);
@@ -176,7 +192,8 @@ impl AsmAstMasmEmitterVisitor {
                     format!("dword ptr [{}{}+{}]", register.to_string(), stack_val, offset)
                 }
             }
-            DataTypeSize::QWord => {
+            // DataTypeSize::QWord => {
+            AstAstAssemblyType::Quadword => {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
@@ -191,12 +208,20 @@ impl AsmAstMasmEmitterVisitor {
                     format!("qword ptr [{}{}+{}]", register.to_string(), stack_val, offset)
                 }
             }
+
+            _ => {
+                unimplemented!("Unimplemented type: {:?}", &data_type_size);
+            }
         }
     }
 
     #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
     #[allow(unreachable_patterns)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
-    pub fn emit_asm_ast_operand(&mut self, asm_ast_operand: &AsmAstOperand, data_type_size: DataTypeSize) {
+    pub fn emit_asm_ast_operand(&mut self,
+        asm_ast_operand: &AsmAstOperand,
+        // data_type_size: DataTypeSize
+        data_type_size: &AstAstAssemblyType,
+    ) {
 
         match &asm_ast_operand.operand_type {
 
@@ -209,13 +234,26 @@ impl AsmAstMasmEmitterVisitor {
             }
 
             AsmAstOperandType::Reg(asm_ast_reg_val) => {
-                // registers defined in asm_ast.rs
+                // HINT: registers defined in asm_ast.rs
 
                 // DEBUG
                 if self.print_to_console {
                     println!("{}", asm_ast_reg_val);
                 }
-                self.string_buffer.push_str(&asm_ast_reg_val.to_string());
+
+
+
+                // TODO: This is a big problem: Cannot just convert a register enum to a string
+                // since the register needs to fit the data type!
+                // e.g.
+                // r10 for Quadword
+                // r10d for Doubleword
+
+                // WRONG:
+                //self.string_buffer.push_str(&asm_ast_reg_val.to_string());
+
+                let register_for_data_type = asm_ast_reg_val.output_register_matching_datatype(&data_type_size);
+                self.string_buffer.push_str(&register_for_data_type);
             }
 
             AsmAstOperandType::Pseudo(pseudo_val) => {
@@ -230,7 +268,6 @@ impl AsmAstMasmEmitterVisitor {
 
                 // DEBUG
                 if self.print_to_console {
-                //     //println!("pseudo_val: {}, pseudo_offset: {}", pseudo_val, pseudo_offset);
                     println!("{}", format!("{}", pseudo_val).as_str());
                 }
 
@@ -243,15 +280,11 @@ impl AsmAstMasmEmitterVisitor {
                     if self.print_to_console {
                         println!("{} => {:?}", pseudo_val, stack_val);
                     }
-                    //self.string_buffer.push_str(format!("{}", pseudo_val).as_str());
-                    //self.string_buffer.push_str(format!("{}", stack_val).as_str());
-                    // self.add_stack_variable(data_type_size, stack_val, &AsmAstReg::RBP);
                     self.string_buffer.push_str(self.add_stack_variable_with_offset(data_type_size, stack_val, pseudo_offset, &AsmAstReg::RBP).as_str());
                 }
             }
 
             AsmAstOperandType::Memory(register, stack_val) => {
-                //print!("{}(ebp)", stack_val);
                 self.string_buffer.push_str(self.add_stack_variable(data_type_size, stack_val, register).as_str());
             }
 
@@ -293,11 +326,11 @@ impl AsmAstMasmEmitterVisitor {
         if use_32_bit {
 
             // 32_BIT
-            println!("    .386");
+            // println!("    .386");
             self.string_buffer.push_str("    .386\n");
-            println!("    .model flat, stdcall");
+            // println!("    .model flat, stdcall");
             self.string_buffer.push_str("    .model flat, stdcall\n");
-            println!("    .stack 4096");
+            // println!("    .stack 4096");
             self.string_buffer.push_str("    .stack 4096\n");
         }
 
@@ -306,7 +339,7 @@ impl AsmAstMasmEmitterVisitor {
         //
 
         // insert empty line
-        println!("");
+        // println!("");
         self.string_buffer.push_str("\n");
 
         // 32_BIT
@@ -351,7 +384,7 @@ impl AsmAstMasmEmitterVisitor {
         // self.string_buffer.push_str("\n");
         // self.string_buffer.push_str("END main ; specify the program's entry point\n");
 
-        // 64_BIT 64-BIT (END of application without specifying any main entry point)
+        // 64_BIT 64-BIT (END of application (without specifying any main entry point because this has nothing to do with main but is the end of the compilation unit))
         // println!("END");
         self.string_buffer.push_str("\n");
         self.string_buffer.push_str("END\n");
@@ -378,23 +411,17 @@ impl AsmAstMasmEmitterVisitor {
         // Prelude
         //
 
-        // println!("\n    ; prelude - create stack frame and shadow area");
         self.string_buffer.push_str("\n    ; prelude - create stack frame and shadow area\n");
 
         // 32_BIT
-        // println!("    push ebp ; save base of current stack frame to restore it later"); // save base of current stack frame to restore it later
         // self.string_buffer.push_str("    push ebp ; save base of current stack frame to restore it later\n"); // save base of current stack frame to restore it later
 
         // 64_BIT
-        // println!("    push rbp ; save base of current stack frame to restore it later"); // save base of current stack frame to restore it later
         self.string_buffer.push_str("    push rbp ; save base of current stack frame to restore it later\n"); // save base of current stack frame to restore it later
-        // println!("    mov rbp, rsp ; set new base of new stack frame (to current stack pointer)"); // set new base of new stack frame (to current stack pointer)
         self.string_buffer.push_str("    mov rbp, rsp ; set new base of new stack frame (to current stack pointer)\n"); // set new base of new stack frame (to current stack pointer)
 
         // 64_BIT shadow register area so that Win32, Win64 functions can be called
-        // println!("    sub rsp, 8 * (4 + 2) ; allocate shadow register area + 2 QWORDs for stack alignment");
-        self.string_buffer.push_str("    sub rsp, 8 * (4 + 2) ; allocate shadow register area + 2 QWORDs for stack alignment");
-        // println!("    sub rsp, 8 * 7 ; allocate shadow register area + 2 QWORDs for stack alignment");
+        // self.string_buffer.push_str("    sub rsp, 8*32 ; allocate shadow register area (32 Byte)");
         // self.string_buffer.push_str("    sub rsp, 8 * 7 ; allocate shadow register area + 2 QWORDs for stack alignment");
 
         for i in 0..asm_ast_function.body.len() {
@@ -434,6 +461,8 @@ impl AsmAstMasmEmitterVisitor {
     #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
     #[allow(unreachable_patterns)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
     pub fn visit_asm_ast_instruction(&mut self, asm_ast_instruction: &AsmAstInstruction, stack_frame_size: i32) {
+
+        // DEBUG
         // println!("[AsmAstMasmEmitterVisitor::visit_asm_ast_instruction()] instruction={:?}", asm_ast_instruction);
 
         match asm_ast_instruction.instruction_type {
@@ -443,10 +472,10 @@ impl AsmAstMasmEmitterVisitor {
 
                 // print!("    mov ");
                 self.string_buffer.push_str("    mov ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::QWord);
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &asm_ast_instruction.assembly_type);
                 // print!(", ");
                 self.string_buffer.push_str(", ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.src, DataTypeSize::QWord);
+                self.emit_asm_ast_operand(&asm_ast_instruction.src, &asm_ast_instruction.assembly_type);
 
                 // comment
                 // print!("{}", asm_ast_instruction.comment);
@@ -460,9 +489,9 @@ impl AsmAstMasmEmitterVisitor {
             AsmAstInstructionType::Movsx => {
                 // statement
                 self.string_buffer.push_str("    movsx ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::QWord);
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(", ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.src, DataTypeSize::QWord);
+                self.emit_asm_ast_operand(&asm_ast_instruction.src, &asm_ast_instruction.assembly_type);
 
                 // comment
                 self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
@@ -474,7 +503,7 @@ impl AsmAstMasmEmitterVisitor {
             AsmAstInstructionType::Push => {
                 // print!("    push ");
                 self.string_buffer.push_str("    push ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.src, DataTypeSize::DWord);
+                self.emit_asm_ast_operand(&asm_ast_instruction.src, &asm_ast_instruction.assembly_type);
 
                 // comment
                 // print!("{}", asm_ast_instruction.comment);
@@ -499,14 +528,14 @@ impl AsmAstMasmEmitterVisitor {
                     AsmAstUnaryOperator::Increment => {
                         mnemonic = "inc".to_string();
                         self.string_buffer.push_str(format!("    {} ", mnemonic).as_str());
-                        self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::DWord);
+                        self.emit_asm_ast_operand(&asm_ast_instruction.dst, &asm_ast_instruction.assembly_type);
                     }
                     AsmAstUnaryOperator::AddAssignment => {
                         mnemonic = "add".to_string();
                         self.string_buffer.push_str(format!("    {} ", mnemonic).as_str());
-                        self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::DWord);
+                        self.emit_asm_ast_operand(&asm_ast_instruction.dst, &asm_ast_instruction.assembly_type);
                         self.string_buffer.push_str(", ");
-                        self.emit_asm_ast_operand(&asm_ast_instruction.src, DataTypeSize::DWord);
+                        self.emit_asm_ast_operand(&asm_ast_instruction.src, &asm_ast_instruction.assembly_type);
                     }
                     _ => {
                         panic!("{}", format!("Unhandled AsmAstInstructionType {:?}!\n", asm_ast_instruction.unary_operator).as_str());
@@ -520,13 +549,10 @@ impl AsmAstMasmEmitterVisitor {
             //
             // This binary was generated inside: asm_ast_conversion_visitor
             AsmAstInstructionType::Binary => {
-                // print!("    {} ", asm_ast_instruction.binary_operator.to_string());
                 self.string_buffer.push_str(format!("    {} ", asm_ast_instruction.binary_operator.to_string()).as_str());
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::DWord);
-                // print!(", ");
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(", ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.src_2, DataTypeSize::DWord);
-                // println!("");
+                self.emit_asm_ast_operand(&asm_ast_instruction.src_2, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str("\n");
             }
 
@@ -567,96 +593,73 @@ impl AsmAstMasmEmitterVisitor {
                 // self.string_buffer.push_str("    pop rbp ; restore old base pointer of old stack frame\n");
 
                 // ; epilog - restore stack pointer
-                // println!("\n    ; epilog - restore stack pointer\n");
                 self.string_buffer.push_str("\n    ; epilog - restore stack pointer\n");
-                // println!("    mov rsp, rbp\n");
                 self.string_buffer.push_str("    mov rsp, rbp\n");
-                // println!("    pop rbp\n");
                 self.string_buffer.push_str("    pop rbp\n");
 
                 // from the main function (where self.stack_size is 0), do not execute a ret instruction
                 // so that the generated line "INVOKE ExitProcess, eax" will execute for save process termination
                 if self.stack_size != 0 {
-                    // println!("\n    ; pops the return address from the top of the stack into the instruction pointer (EIP/RIP)\n");
-                    // println!("    ret");
-
                     self.string_buffer.push_str("\n    ; pops the return address from the top of the stack into the instruction pointer (EIP/RIP)\n");
                     self.string_buffer.push_str("    ret\n");
                 }
             }
 
             AsmAstInstructionType::Cdq => {
-                // println!("    cdq");
                 self.string_buffer.push_str("    cdq\n");
             }
 
             AsmAstInstructionType::Idiv | AsmAstInstructionType::Mod => {
-                // print!("    idiv ");
                 self.string_buffer.push_str("    idiv ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::DWord);
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str("\n");
-                // println!("");
             }
 
             AsmAstInstructionType::Mul => {
-                // print!("    mul ");
                 self.string_buffer.push_str("    mul ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::DWord);
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str("\n");
-                // println!("");
             }
 
             AsmAstInstructionType::Cmp => {
-                // print!("    cmp ");
                 self.string_buffer.push_str("    cmp ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.src_2, DataTypeSize::DWord);
-
-                // print!(", ");
+                self.emit_asm_ast_operand(&asm_ast_instruction.src_2, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(", ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::DWord);
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &asm_ast_instruction.assembly_type);
 
-                // println!("");
+                // comment
+                // print!("{}", asm_ast_instruction.comment);
+                self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
+
                 self.string_buffer.push_str("\n");
             }
 
             AsmAstInstructionType::Jmp => {
-                // print!("    jmp");
                 self.string_buffer.push_str("    jmp");
-                // print!(" ");
                 self.string_buffer.push_str(" ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::DWord);
-                // println!("");
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str("\n");
             }
 
             AsmAstInstructionType::JmpCC => {
-                // print!("    j");
                 self.string_buffer.push_str("    j");
-                self.emit_asm_ast_operand(&asm_ast_instruction.src, DataTypeSize::DWord);
-                // print!(" ");
+                self.emit_asm_ast_operand(&asm_ast_instruction.src, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(" ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::DWord);
-                // println!("");
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str("\n");
             }
 
             AsmAstInstructionType::Label => {
-                // print!("{:?}", asm_ast_instruction.src);
-
-                self.emit_asm_ast_operand(&asm_ast_instruction.src, DataTypeSize::DWord);
-                // println!(":");
+                self.emit_asm_ast_operand(&asm_ast_instruction.src, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(":");
                 self.string_buffer.push_str("\n");
             }
 
             AsmAstInstructionType::SetCC => {
-                // print!("    set");
                 self.string_buffer.push_str("    set");
-                self.emit_asm_ast_operand(&asm_ast_instruction.src, DataTypeSize::Byte);
-                // print!(" ");
+                self.emit_asm_ast_operand(&asm_ast_instruction.src, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(" ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::Byte);
-                // println!("");
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str("\n");
             }
 
@@ -665,11 +668,9 @@ impl AsmAstMasmEmitterVisitor {
                     AsmAstOperandType::Imm(imm_value) => {
 
                         // comment
-                        // println!("{}", asm_ast_instruction.comment);
                         self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
 
                         // instruction
-                        // println!("    sub rsp, {:?}", imm_value); // save space on stack for all local variables
                         self.string_buffer.push_str(format!("    sub rsp, {:?}\n", imm_value).as_str()); // save space on stack for all local variables
 
                         // println!("\n    ; prelude - create stack frame and shadow area");
@@ -695,7 +696,6 @@ impl AsmAstMasmEmitterVisitor {
                 match asm_ast_instruction.src.operand_type {
                     AsmAstOperandType::Imm(imm_value) => {
                         // remove stack frame
-                        // println!("    add rsp, {:?}   ; remove stack frame", imm_value);
                         self.string_buffer.push_str(format!("    add rsp, {:?}  ; remove stack frame\n", imm_value).as_str());
 
                         // // ; epilog - restore stack pointer
@@ -713,22 +713,14 @@ impl AsmAstMasmEmitterVisitor {
             }
 
             AsmAstInstructionType::FunctionCall => {
-                // println!("    call {}", asm_ast_instruction.identifier);
                 self.string_buffer.push_str(format!("    call {}\n", asm_ast_instruction.identifier).as_str());
             }
 
             AsmAstInstructionType::Lea => {
-                // println!("{:?}", asm_ast_instruction);
-
-                // print!("    lea ");
                 self.string_buffer.push_str("    lea ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, DataTypeSize::QWord);
-
-                // print!(", ");
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(", ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.src, DataTypeSize::QWord);
-
-                // println!("");
+                self.emit_asm_ast_operand(&asm_ast_instruction.src, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str("\n");
             }
 

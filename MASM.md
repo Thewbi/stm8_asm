@@ -42,6 +42,17 @@ Create a MASM project: See [VISUAL_STUDIO_AND_MASM](VISUAL_STUDIO_AND_MASM.md)
 | R14    | R14D   | R14W   | N/A, R14B |                                        |
 | R15    | R15D   | R15W   | N/A, R15B |                                        |
 
+
+FLAGS - Visual Studio
+| Overflow  | OV |	1 = Overflow	| 0 = No Overflow
+| Direction | UP |	1 = Down	    | 0 = Up
+| Interrupt | EI |	1 = Enabled	    | 0 = Disabled
+| Sign      | PL |	1 = Negative	| 0 = Positive
+| Zero      | ZR |	1 = Zero	    | 0 = Not Zero
+| Auxiliary | AC |                  |
+| Parity    | PE |	1 = Even	    | 0 = Odd
+| Carry     | CY |	1 = Carry	    | 0 = No Carry
+
 ## Show Memory
 
 Debuggen > Fenster > Arbeitsspeicher > Arbeitsspeicher 1 (Strg + Alt + M, 1)
@@ -426,6 +437,37 @@ main PROC
 
 END
 ```
+
+
+### Why Use EBP Instead of ESP to access values on the stack / within stack frame?
+
+1. Stability: ESP (Stack Pointer) changes constantly during push and pop operations.
+2. Fixed Offsets: EBP remains static throughout the function's execution, making variable addressing reliable.
+3. Debugging: Compilers and debuggers use EBP to unwind the stack and trace function calls.
+
+### Layout of a Stack Frame via EBP
+
+1. [ebp + 8] and above: Function parameters (arguments passed to the function)
+2. [ebp + 4]: Return address (EIP saved during the call)
+3. [ebp + 0]: Saved frame pointer (caller's old EBP)
+4. [ebp - 4] and below: Local variables defined inside the function
+
+### Shadow Space
+
+https://stackoverflow.com/questions/30190132/what-is-the-shadow-space-in-x64-assembly
+
+The Shadow space (also sometimes called Spill space or Home space) is 32 bytes above the return address which the called function owns (and can use as scratch space), below stack args if any. The caller has to reserve space for their callee's shadow space before running a call instruction.
+
+### Tipps
+
+* In x86_64 assembly, always use rbp (not ebp) to access the stack because the stack's addresses might be 64 bit long and using ebp instead of rbp might cut of bits to a 32 Bit address which causes an exception when that truncated memory location is used! I do not know why an exception is thrown because I thought a process own's it's entire virtual address space but maybe a part of that virtual address space is read-only and causes an exception on write?
+
+Use this:
+
+```
+mov dword ptr [rbp+0-28], 7
+```
+
 
 ## Stack Frame Alignment
 

@@ -394,6 +394,10 @@ impl Parser<String> {
                     match &stack_top_element.element_type {
 
                         ParseStackElementType::StateId(current_state_id) => {
+                            // if a StateId is encountered and this match branch is entered,
+                            // the input does not comply with the grammar!
+                            // The grammar used is: https://www.lysator.liu.se/c/ANSI-C-grammar-y.html
+                            // Check the application for syntax errors or update the grammar!
                             panic!("[Parser::consume] StateId: {}", current_state_id);
                         }
 
@@ -3826,14 +3830,26 @@ impl Parser<String> {
                                                     let mut compound_init_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                     compound_init_ast_node.node_type = AstNodeType::CompoundInit;
 
+                                                    // DEBUG
+                                                    if debug {
+                                                        println!("direct_declarator_counter: {}", self.direct_declarator_counter);
+                                                    }
+
                                                     for i in 0..self.direct_declarator_counter {
 
-                                                        let initializer_ast_node = self.ast_stack.pop().unwrap();
+                                                        let initializer_ast_node_id = self.ast_stack.pop().unwrap();
 
-                                                        let mut expr_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                        // DEBUG
+                                                        if debug {
+                                                            println!("{:?}", initializer_ast_node_id);
+                                                        }
+
+                                                        let node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                                        let mut expr_ast_node: AstNode = AstNode::new(node_id);
                                                         expr_ast_node.node_type = AstNodeType::Expression;
-                                                        expr_ast_node.lhs = Some(initializer_ast_node);
-                                                        // println!("{:?}", expr_ast_node);
+                                                        expr_ast_node.lhs = Some(initializer_ast_node_id);
+
+
 
                                                         compound_init_ast_node.block_items.push(expr_ast_node.id);
 
@@ -4811,7 +4827,103 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 // array size
-                                                let size_ast_node = self.ast_stack.pop().unwrap();
+                                                let size_ast_node_id = self.ast_stack.pop().unwrap();
+
+                                                // array name
+                                                let identifier_ast_node_id = self.ast_stack.pop().unwrap();
+
+                                                // array element data type
+                                                let array_element_data_type_ast_node_id = self.ast_stack.pop().unwrap();
+                                                let array_element_data_type_ast_node = node_map.get(&array_element_data_type_ast_node_id).unwrap();
+
+                                                let node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                                let mut array_datatype_ast_node: AstNode = AstNode::new(node_id);
+                                                array_datatype_ast_node.node_type = AstNodeType::Array;
+                                                // this is where the dot printer (ast_node.rs) takes the data type from
+                                                array_datatype_ast_node.string_val = array_element_data_type_ast_node.string_val.clone();
+                                                array_datatype_ast_node.data_type = Some(array_element_data_type_ast_node.id);
+                                                array_datatype_ast_node.lhs = Some(size_ast_node_id);
+
+                                                // Format:
+                                                // 1st pop: identifier
+                                                // 2nd pop: data type of function return or variable
+                                                // 3rd pop: initializer SingleInit or CompoundInit
+
+                                                self.ast_stack.push(array_datatype_ast_node.id);
+                                                self.ast_stack.push(identifier_ast_node_id);
+
+                                                node_map.insert(array_datatype_ast_node.id, array_datatype_ast_node);
+                                            }
+                                        }
+
+                                        // direct_declarator -> direct_declarator OPENING_ANGULAR_BRACKET CLOSING_ANGULAR_BRACKET
+                                        137 => {
+
+                                            // direct_declarator - create new node with node id and label
+                                            let direct_declarator_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let direct_declarator_node = DebugNode::new(direct_declarator_node_id, String::from("direct_declarator"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", direct_declarator_node_id, direct_declarator_node_id, found_rule.original_id, String::from("direct_declarator")).as_str());
+
+                                            // take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", direct_declarator_node_id, old_debug_node.id).as_str());
+
+                                            // [
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let comma_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let comma_node = DebugNode::new(comma_node_id, String::from("["));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("[")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", direct_declarator_node_id, comma_node.id).as_str());
+
+                                            // ]
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let comma_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let comma_node = DebugNode::new(comma_node_id, String::from("]"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("]")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", direct_declarator_node_id, comma_node.id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(direct_declarator_node);
+
+                                            //
+                                            // AST - direct_declarator -> direct_declarator OPENING_ANGULAR_BRACKET CLOSING_ANGULAR_BRACKET
+                                            //
+
+                                            if self.construct_ast {
+
+                                                // let node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+
+                                                // println!("node_id: {}", node_id);
+
+                                                // let mut direct_declarator_ast_node: AstNode = AstNode::new(node_id);
+                                                // direct_declarator_ast_node.node_type = AstNodeType::VariableDeclaration;
+                                                // // TODO: a random datatype is hard-coded here! Add logic for proper datatype!
+                                                // direct_declarator_ast_node.analyzed_data_type = DataType::from_str("double").unwrap();
+
+                                                // // this works if an array size is given:
+                                                // // int arr[2] = { 64, 34 };
+                                                // // But it does not work if the array size is omitted
+                                                // // int arr[] = { 64, 34 };
+                                                // self.ast_stack.push(direct_declarator_ast_node.id);
+                                                // self.direct_declarator_counter = self.direct_declarator_counter + 1;
+
+                                                // node_map.insert(direct_declarator_ast_node.id, direct_declarator_ast_node);
+
+                                                //
+                                                // Case: (array size is omitted)
+                                                // int arr[] = { 64, 34 };
+                                                //
+                                                // as opposed to case with array size:
+                                                // int arr[2] = { 64, 34 };
+                                                //
+
+                                                // array size -- there is no array size in this case!
+                                                //let size_ast_node = self.ast_stack.pop().unwrap();
+                                                // let size_ast_node_id =
 
                                                 // array name
                                                 let identifier_ast_node = self.ast_stack.pop().unwrap();
@@ -4826,7 +4938,7 @@ impl Parser<String> {
                                                 // this is where the dot printer (ast_node.rs) takes the data type from
                                                 array_datatype_ast_node.string_val = array_element_data_type_ast_node.string_val.clone();
                                                 array_datatype_ast_node.data_type = Some(array_element_data_type_ast_node.id);
-                                                array_datatype_ast_node.lhs = Some(size_ast_node);
+                                                // array_datatype_ast_node.lhs = Some(size_ast_node);
 
                                                 // Format:
                                                 // 1st pop: identifier
@@ -4837,62 +4949,6 @@ impl Parser<String> {
                                                 self.ast_stack.push(identifier_ast_node);
 
                                                 node_map.insert(array_datatype_ast_node.id, array_datatype_ast_node);
-                                            }
-                                        }
-
-                                        // direct_declarator -> direct_declarator OPENING_ANGULAR_BRACKET CLOSING_ANGULAR_BRACKET
-                                        137 => {
-
-                                            // direct_declarator
-                                            //
-                                            // create new node id
-                                            // create new node with node id and label
-                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("direct_declarator"));
-                                            // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("direct_declarator")).as_str());
-
-                                            // take old node from stack
-                                            let old_debug_node = debug_node_stack.pop().unwrap();
-                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-                                            // [
-                                            // create new node id
-                                            // create new node with node id and label
-                                            let comma_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let comma_node = DebugNode::new(comma_node_id, String::from("["));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("[")).as_str());
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
-
-                                            // ]
-                                            // create new node id
-                                            // create new node with node id and label
-                                            let comma_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let comma_node = DebugNode::new(comma_node_id, String::from("]"));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from("]")).as_str());
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
-
-                                            // push new node to stack
-                                            debug_node_stack.push(debug_node);
-
-                                            //
-                                            // AST - direct_declarator -> direct_declarator OPENING_ANGULAR_BRACKET CLOSING_ANGULAR_BRACKET
-                                            //
-
-                                            if self.construct_ast {
-
-                                                let mut direct_declarator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
-                                                direct_declarator_ast_node.node_type = AstNodeType::VariableDeclaration;
-
-                                                // TODO
-                                                direct_declarator_ast_node.analyzed_data_type = DataType::from_str("double").unwrap();
-
-                                                self.ast_stack.push(direct_declarator_ast_node.id);
-
-                                                self.direct_declarator_counter = self.direct_declarator_counter + 1;
-
-                                                node_map.insert(direct_declarator_ast_node.id, direct_declarator_ast_node);
                                             }
                                         }
 
@@ -6666,7 +6722,7 @@ impl Parser<String> {
                                                 //
 
                                                 // there should be a non-empty name for the function to call
-                                                assert!(function_name.len() > 0);
+                                                // assert!(function_name.len() > 0);
 
                                                 let mut function_name_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 function_name_ast_node.string_val = function_name.clone();

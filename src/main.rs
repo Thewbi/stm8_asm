@@ -604,7 +604,7 @@ fn main() {
     if output_parse_tree_as_dot_to_file {
 
         // 1. Create or overwrite the file
-        let file = File::create("parse_tree.dot").expect("Create file failed!");
+        let file = File::create("dot\\parse_tree.dot").expect("Create file failed!");
 
         // 2. Wrap the file in a BufWriter
         let mut writer = BufWriter::new(file);
@@ -650,309 +650,325 @@ fn main() {
         //
 
         if let Some(ref program_ast_node_id) = ast_stack_root_option {
-            print_ast(program_ast_node_id, &node_map, "abstract_syntax_tree.dot");
+            print_ast(program_ast_node_id, &node_map, "dot\\abstract_syntax_tree.dot");
         }
 
-        //
-        // Semantic Analysis Stage, page 103, 174ff
-        //
-
-        if let Some(program_ast_node_id) = ast_stack_root_option {
-
-            // rc - refcell VariableNamingSource so that the IdentifierResolutionVisitor
-            // and the TackyVisitor can both use the same object
-            let variable_naming_source = VariableNamingSource::new();
-
-            // duplicate the reference counting smart pointer so it can distributed to all users
-            let variable_naming_source_rc_1 = Rc::new(RefCell::new(variable_naming_source));
-            let variable_naming_source_rc_2 = variable_naming_source_rc_1.clone();
-            let variable_naming_source_rc_3 = variable_naming_source_rc_1.clone();
+        let perform_identifier_resolution_type_checking_emit_code = true;
+        // let perform_identifier_resolution_type_checking_emit_code = false;
+        if perform_identifier_resolution_type_checking_emit_code {
 
             //
-            // add initial scope for global namespace
+            // Semantic Analysis Stage, page 103, 174ff
             //
 
-            variable_naming_source_rc_3.borrow_mut().enter_scope();
+            if let Some(program_ast_node_id) = ast_stack_root_option {
 
-            //
-            // 1. Identifier Resolution Phase
-            //
-            // IdentifierResolutionVisitor
-            //
-            // has a reference to the VariableNamingSource which is used to
-            // output unique variable names and maintains a map from user choosen
-            // varible name to unique variable name.
-            //
-            // The VariableNamingSource also maintains a STACK of mappings
-            // between user choosen varible name to unique variable name.
-            // This stack of mappings is used to implement block scopes in which
-            // variables can be defined and are valid only within the scope they
-            // are defined in.
-            //
+                // rc - refcell VariableNamingSource so that the IdentifierResolutionVisitor
+                // and the TackyVisitor can both use the same object
+                let variable_naming_source = VariableNamingSource::new();
 
-            let mut identifier_resolution_visitor = IdentifierResolutionVisitor::new(variable_naming_source_rc_1);
-            identifier_resolution_visitor.visit(program_ast_node_id, &mut node_map);
+                // duplicate the reference counting smart pointer so it can distributed to all users
+                let variable_naming_source_rc_1 = Rc::new(RefCell::new(variable_naming_source));
+                let variable_naming_source_rc_2 = variable_naming_source_rc_1.clone();
+                let variable_naming_source_rc_3 = variable_naming_source_rc_1.clone();
 
-            //
-            // Print AST to dot after Identifier Resolution
-            //
+                //
+                // add initial scope for global namespace
+                //
 
-            let output_post_identifier_resolution_visitor = true;
-            if output_post_identifier_resolution_visitor {
-                print_ast(&program_ast_node_id, &node_map, "abstract_syntax_tree_post_identifier_resolution.dot");
-            }
+                variable_naming_source_rc_3.borrow_mut().enter_scope();
 
-            //
-            // 2. Type Checking Phase - Nora Sandler, page 178ff
-            //
+                //
+                // 1. Identifier Resolution Phase
+                //
+                // IdentifierResolutionVisitor
+                //
+                // Instead of dealing with a stack of scopes, the approach is to
+                // have unique variable names in a linear namespace. To create unique
+                // variable names, the compiler replaces user-defined variable names
+                // by a custom string that uses an id which is incremented to create
+                // unique names.
+                //
+                // has a reference to the VariableNamingSource which is used to
+                // output unique variable names and maintains a map from user choosen
+                // varible name to unique variable name.
+                //
+                // The VariableNamingSource also maintains a STACK of mappings
+                // between user choosen varible name to unique variable name.
+                // This stack of mappings is used to implement block scopes in which
+                // variables can be defined and are valid only within the scope they
+                // are defined in.
+                //
 
-            let symbol_table = SymbolTable::new();
-            let symbol_table_rc_1 = Rc::new(RefCell::new(symbol_table));
-            let symbol_table_rc_2 = symbol_table_rc_1.clone();
-            let symbol_table_rc_3 = symbol_table_rc_1.clone();
-            let symbol_table_rc_4 = symbol_table_rc_1.clone();
-            let symbol_table_rc_5 = symbol_table_rc_1.clone();
+                let mut identifier_resolution_visitor = IdentifierResolutionVisitor::new(variable_naming_source_rc_1);
+                identifier_resolution_visitor.visit(program_ast_node_id, &mut node_map);
 
-            let mut type_checking_visitor = TypeCheckingVisitor::new(symbol_table_rc_1);
-            type_checking_visitor.visit(program_ast_node_id, &mut node_map, &DataType::DataTypeVoid);
+                //
+                // Print AST to dot after Identifier Resolution
+                //
 
-            //
-            // Print AST to dot after TypeChecking
-            //
-
-            print_ast(&program_ast_node_id, &node_map, "abstract_syntax_tree_post_type_checking.dot");
-
-            //
-            // Print symbol table after TypeChecking
-            //
-
-            // if debug {
-                println!("\n\n");
-                println!("Symbol Table after Type Checking!");
-                type_checking_visitor.print_symbol_table();
-                println!("\n\n");
-            // }
-
-            //
-            // 3. Loop Labeling Phase
-            //
-
-            //
-            // remove initial scope for global namespace
-            //
-
-            variable_naming_source_rc_3.borrow_mut().exit_scope();
-
-            /*
-            //
-            // Output AST post TypeChecking
-            //
-
-            let output_post_type_checking_visitor = true;
-            if output_post_type_checking_visitor {
-
-                let mut ast_string_buffer = String::from("");
-
-                ast_string_buffer.push_str("digraph {\n");
-                let program_ast_node = node_map.get(&0).unwrap();
-                program_ast_node.pretty_print_ast_dot(&mut ast_string_buffer, &node_map);
-                ast_string_buffer.push_str("}");
-
-                // DEBUG - print AST dot to console
-                // let output_ast_as_dot_to_console: bool = true;
-                let output_ast_as_dot_to_console: bool = false;
-                if output_ast_as_dot_to_console {
-                    println!("{}", ast_string_buffer);
+                let output_post_identifier_resolution_visitor = true;
+                if output_post_identifier_resolution_visitor {
+                    print_ast(&program_ast_node_id, &node_map, "dot\\abstract_syntax_tree_post_identifier_resolution.dot");
                 }
 
-                // DEBUG - print AST dot to dot file
-                let output_abstract_syntax_tree_as_dot_to_file: bool = true;
-                // let output_abstract_syntax_tree_as_dot_to_file: bool = false;
-                if output_abstract_syntax_tree_as_dot_to_file {
+                //
+                // 2. Type Checking Phase - Nora Sandler, page 178ff
+                //
 
-                    // https://dreampuf.github.io/GraphvizOnline
+                let symbol_table = SymbolTable::new();
+                let symbol_table_rc_1 = Rc::new(RefCell::new(symbol_table));
+                let symbol_table_rc_2 = symbol_table_rc_1.clone();
+                let symbol_table_rc_3 = symbol_table_rc_1.clone();
+                let symbol_table_rc_4 = symbol_table_rc_1.clone();
+                let symbol_table_rc_5 = symbol_table_rc_1.clone();
 
-                    // 1. Create or overwrite the file
-                    let file = File::create("abstract_syntax_tree_post_semantic.dot").expect("Create file failed!");
+                let mut type_checking_visitor = TypeCheckingVisitor::new(symbol_table_rc_1);
+                type_checking_visitor.visit(program_ast_node_id, &mut node_map, &DataType::DataTypeVoid);
 
-                    // 2. Wrap the file in a BufWriter
-                    let mut writer = BufWriter::new(file);
+                //
+                // Print AST to dot after TypeChecking
+                //
 
-                    // 3. Write data
-                    write!(writer, "{}", ast_string_buffer);
+                print_ast(&program_ast_node_id, &node_map, "dot\\abstract_syntax_tree_post_type_checking.dot");
 
-                    // 4. Explicitly flush the remaining data to disk
-                    writer.flush().expect("flush failed!");
+                //
+                // Print symbol table after TypeChecking
+                //
+
+                if debug {
+                    println!("\n\n");
+                    println!("Symbol Table after Type Checking!");
+                    type_checking_visitor.print_symbol_table();
+                    println!("\n\n");
                 }
-            }
-            */
 
-            //
-            // Generate TACKY (from AST)
-            //
+                //
+                // 3. Loop Labeling Phase
+                //
 
-            let mut tacky_visitor = TackyVisitor::new(variable_naming_source_rc_2, symbol_table_rc_2);
-            tacky_visitor.program.name = String::from(input_tuple.1);
+                //
+                // remove initial scope for global namespace
+                //
 
-            let mut br_cnt = 0;
-            tacky_visitor.visit(program_ast_node_id, &mut node_map, &String::from(""), &mut br_cnt);
+                variable_naming_source_rc_3.borrow_mut().exit_scope();
 
-            //
-            // Print symbol table after TACKY conversion
-            //
+                /*
+                //
+                // Output AST post TypeChecking
+                //
 
-            // if debug {
-                println!("\n\n");
-                println!("Symbol Table after TACKY conversion!");
-                symbol_table_rc_5.borrow().print_symbol_table();
-                println!("\n\n");
-            // }
+                let output_post_type_checking_visitor = true;
+                if output_post_type_checking_visitor {
 
-            //
-            // DEBUG print TACKY statements to file
-            //
+                    let mut ast_string_buffer = String::from("");
 
-            let mut string_buffer = String::from("");
-            let indent = 0usize;
+                    ast_string_buffer.push_str("digraph {\n");
+                    let program_ast_node = node_map.get(&0).unwrap();
+                    program_ast_node.pretty_print_ast_dot(&mut ast_string_buffer, &node_map);
+                    ast_string_buffer.push_str("}");
 
-            print_tacky_program(&tacky_visitor.program, &mut string_buffer, indent);
+                    // DEBUG - print AST dot to console
+                    // let output_ast_as_dot_to_console: bool = true;
+                    let output_ast_as_dot_to_console: bool = false;
+                    if output_ast_as_dot_to_console {
+                        println!("{}", ast_string_buffer);
+                    }
 
-            // 1. Create or overwrite the file
-            let file = File::create("tacky.tky").expect("Create file failed!");
+                    // DEBUG - print AST dot to dot file
+                    let output_abstract_syntax_tree_as_dot_to_file: bool = true;
+                    // let output_abstract_syntax_tree_as_dot_to_file: bool = false;
+                    if output_abstract_syntax_tree_as_dot_to_file {
 
-            // 2. Wrap the file in a BufWriter
-            let mut writer = BufWriter::new(file);
+                        // https://dreampuf.github.io/GraphvizOnline
 
-            // 3. Write data
-            write!(writer, "{}", string_buffer);
+                        // 1. Create or overwrite the file
+                        let file = File::create("dot\\abstract_syntax_tree_post_semantic.dot").expect("Create file failed!");
 
-            // 4. Explicitly flush the remaining data to disk
-            writer.flush().expect("flush failed!");
+                        // 2. Wrap the file in a BufWriter
+                        let mut writer = BufWriter::new(file);
 
-            //
-            // Generate Intermediate/Precursory Assembler AST (from TACKY)
-            //
-            // Before generating ASM for a real target, this step emits intermediate ASM!
-            //
+                        // 3. Write data
+                        write!(writer, "{}", ast_string_buffer);
 
-            let mut tacky_to_intermediate_asm_conversion_visitor = TackyToIntermediateAsmConversionVisitor::new(
-                symbol_table_rc_4
-            );
-            tacky_to_intermediate_asm_conversion_visitor.visit_tacky_program(&tacky_visitor.program);
-
-             //
-            // Print symbol table after Intermediate ASM conversion
-            //
-
-            // if debug {
-                println!("\n\n");
-                println!("Symbol Table after Intermediate ASM conversion!");
-                symbol_table_rc_5.borrow().print_symbol_table();
-                println!("\n\n");
-            // }
-
-            //
-            // DEBUG: output intermedate assembler code to file
-            //
-
-            // DEBUG: print symbol table to console
-            symbol_table_rc_3.borrow_mut().print_symbol_table();
-
-            let mut string_buffer = String::from("");
-            let indent = 0usize;
-
-            print_asm_ast_program(&tacky_to_intermediate_asm_conversion_visitor.asm_ast_program, &mut string_buffer, indent);
-
-            // 1. Create or overwrite the file
-            // extension intasm == intermediate assembler code
-            let file = File::create("asm_ast.intasm").expect("Create file failed!");
-
-            // 2. Wrap the file in a BufWriter
-            let mut writer = BufWriter::new(file);
-
-            // 3. Write data
-            write!(writer, "{}", string_buffer);
-
-            // 4. Explicitly flush the remaining data to disk
-            writer.flush().expect("flush failed!");
-
-            /**/
-            //
-            // Fixup
-            //
-
-            // DEBUG
-            // println!("------------------------- Fix up Pseudo Variable -------------------------------");
-
-            let mut asm_ast_fixup_visitor = AsmAstFixupVisitor::new(symbol_table_rc_3);
-
-            // replace pseudo variables (from TACKY) by addresses on the stack
-            // replace illegal MOV (mem2mem) by a combination of mem2reg reg2mem
-            asm_ast_fixup_visitor.replace_pseudo = true;
-            asm_ast_fixup_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
-
-            // output all statements
-            asm_ast_fixup_visitor.replace_pseudo = false;
-            asm_ast_fixup_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
-
-            // DEBUG
-            // println!("---------------------------------------------------------------------------------");
-
-            //
-            // emit assembler instructions
-            //
-
-            let emit_gcc = false;
-            if emit_gcc {
-                println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                let mut asm_ast_emitter_visitor = AsmAstGASEmitterVisitor::new();
-                asm_ast_emitter_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
-                println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                println!("gcc -c temp.S -o temp.o");
-                println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-            }
-
-            let emit_masm_visual_studio = true;
-            // let emit_masm_visual_studio = false;
-            if emit_masm_visual_studio {
-
-                let stack_offset_map = asm_ast_fixup_visitor.stack_offset_map.clone();
-
-                println!("print_symbol_table() ------------------------------------------------------------");
-                let mut index = 0;
-                for (key, value) in stack_offset_map.clone().into_iter() {
-                    println!("{}) {} / {:?}", index, key, value);
-                    // println!("{} / {:?}", key, value.data_type);
-                    println!("");
-                    index = index + 1;
+                        // 4. Explicitly flush the remaining data to disk
+                        writer.flush().expect("flush failed!");
+                    }
                 }
-                println!("---------------------------------------------------------------------------------");
+                */
 
-                // println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                let mut asm_ast_emitter_visitor = AsmAstMasmEmitterVisitor::new();
-                asm_ast_emitter_visitor.stack_offset_map = stack_offset_map;
-                asm_ast_emitter_visitor.print_to_console = true;
-                asm_ast_emitter_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
-                // println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                // println!("Use MASM from within Visual Studio (Community Edition)");
-                // println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                //
+                // Generate TACKY (from AST)
+                //
+
+                let mut tacky_visitor = TackyVisitor::new(variable_naming_source_rc_2, symbol_table_rc_2);
+                tacky_visitor.program.name = String::from(input_tuple.1);
+
+                let mut br_cnt = 0;
+                tacky_visitor.visit(program_ast_node_id, &mut node_map, &String::from(""), &mut br_cnt);
+
+                //
+                // Print symbol table after TACKY conversion
+                //
+
+                if debug {
+                    println!("\n\n");
+                    println!("Symbol Table after TACKY conversion!");
+                    symbol_table_rc_5.borrow().print_symbol_table();
+                    println!("\n\n");
+                }
+
+                //
+                // DEBUG print TACKY statements to file
+                //
+
+                let mut string_buffer = String::from("");
+                let indent = 0usize;
+
+                print_tacky_program(&tacky_visitor.program, &mut string_buffer, indent);
 
                 // 1. Create or overwrite the file
-                // let file = File::create("main.asm").expect("Create file failed!");
-                //let file = File::create("C:\\Users\\U5353\\source\\repos\\test_1\\test_1\\main.asm").expect("Create file failed!");
-                //let file = File::create("C:\\Users\\U5353\\source\\repos\\x64_test\\main.asm").expect("Create file failed!");
-                let file = File::create(BASE_PATH.to_owned() + "main.asm").expect("Create file failed!");
+                let file = File::create("tacky.tky").expect("Create file failed!");
 
                 // 2. Wrap the file in a BufWriter
                 let mut writer = BufWriter::new(file);
 
                 // 3. Write data
-                write!(writer, "{}", asm_ast_emitter_visitor.string_buffer);
+                write!(writer, "{}", string_buffer);
 
                 // 4. Explicitly flush the remaining data to disk
                 writer.flush().expect("flush failed!");
 
+                //
+                // Generate Intermediate/Precursory Assembler AST (from TACKY)
+                //
+                // Before generating ASM for a real target, this step emits intermediate ASM!
+                //
+
+                let mut tacky_to_intermediate_asm_conversion_visitor = TackyToIntermediateAsmConversionVisitor::new(
+                    symbol_table_rc_4
+                );
+                tacky_to_intermediate_asm_conversion_visitor.visit_tacky_program(&tacky_visitor.program);
+
+                //
+                // Print symbol table after Intermediate ASM conversion
+                //
+
+                if debug {
+                    println!("\n\n");
+                    println!("Symbol Table after Intermediate ASM conversion!");
+                    symbol_table_rc_5.borrow().print_symbol_table();
+                    println!("\n\n");
+                }
+
+                //
+                // DEBUG: output intermedate assembler code to file
+                //
+
+                // DEBUG: print symbol table to console
+                if debug {
+                    symbol_table_rc_3.borrow_mut().print_symbol_table();
+                }
+
+                let mut string_buffer = String::from("");
+                let indent = 0usize;
+
+                print_asm_ast_program(&tacky_to_intermediate_asm_conversion_visitor.asm_ast_program, &mut string_buffer, indent);
+
+                // 1. Create or overwrite the file
+                // extension intasm == intermediate assembler code
+                let file = File::create("asm_ast.intasm").expect("Create file failed!");
+
+                // 2. Wrap the file in a BufWriter
+                let mut writer = BufWriter::new(file);
+
+                // 3. Write data
+                write!(writer, "{}", string_buffer);
+
+                // 4. Explicitly flush the remaining data to disk
+                writer.flush().expect("flush failed!");
+
+                /**/
+                //
+                // Fixup
+                //
+
+                // DEBUG
+                // println!("------------------------- Fix up Pseudo Variable -------------------------------");
+
+                let mut asm_ast_fixup_visitor = AsmAstFixupVisitor::new(symbol_table_rc_3);
+
+                // replace pseudo variables (from TACKY) by addresses on the stack
+                // replace illegal MOV (mem2mem) by a combination of mem2reg reg2mem
+                asm_ast_fixup_visitor.replace_pseudo = true;
+                asm_ast_fixup_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
+
+                // output all statements
+                asm_ast_fixup_visitor.replace_pseudo = false;
+                asm_ast_fixup_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
+
+                // DEBUG
+                // println!("---------------------------------------------------------------------------------");
+
+                //
+                // emit assembler instructions
+                //
+
+                let emit_gcc = false;
+                if emit_gcc {
+                    println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                    let mut asm_ast_emitter_visitor = AsmAstGASEmitterVisitor::new();
+                    asm_ast_emitter_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
+                    println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                    println!("gcc -c temp.S -o temp.o");
+                    println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                }
+
+                let emit_masm_visual_studio = true;
+                // let emit_masm_visual_studio = false;
+                if emit_masm_visual_studio {
+
+                    let stack_offset_map = asm_ast_fixup_visitor.stack_offset_map.clone();
+
+                    // DEBUG
+                    // if debug {
+                        println!("print_symbol_table() ------------------------------------------------------------");
+                        let mut index = 0;
+                        for (key, value) in stack_offset_map.clone().into_iter() {
+                            println!("{}) {} / {:?}", index, key, value);
+                            // println!("{} / {:?}", key, value.data_type);
+                            index = index + 1;
+                        }
+                        println!("---------------------------------------------------------------------------------");
+                    // }
+
+                    // println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                    let mut asm_ast_emitter_visitor = AsmAstMasmEmitterVisitor::new();
+                    asm_ast_emitter_visitor.stack_offset_map = stack_offset_map;
+                    asm_ast_emitter_visitor.print_to_console = false;
+                    asm_ast_emitter_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
+                    // println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                    // println!("Use MASM from within Visual Studio (Community Edition)");
+                    // println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+
+                    // 1. Create or overwrite the file
+                    // let file = File::create("main.asm").expect("Create file failed!");
+                    //let file = File::create("C:\\Users\\U5353\\source\\repos\\test_1\\test_1\\main.asm").expect("Create file failed!");
+                    //let file = File::create("C:\\Users\\U5353\\source\\repos\\x64_test\\main.asm").expect("Create file failed!");
+                    let file = File::create(BASE_PATH.to_owned() + "main.asm").expect("Create file failed!");
+
+                    // 2. Wrap the file in a BufWriter
+                    let mut writer = BufWriter::new(file);
+
+                    // 3. Write data
+                    write!(writer, "{}", asm_ast_emitter_visitor.string_buffer);
+
+                    // 4. Explicitly flush the remaining data to disk
+                    writer.flush().expect("flush failed!");
+
+                }
             }
+
         }
 
     } else {

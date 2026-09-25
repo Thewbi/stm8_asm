@@ -559,7 +559,7 @@
     fragment_inc_op.enfa.states.get_mut(&fragment_inc_op.end_id).unwrap().token_name = String::from("INC_OP");
 
     // // DEBUG
-    // enfa_to_dot_directed_graph(&mut fragment_fragment_whitespace.enfa, "fragment_hitespace_automaton.dot");
+    // enfa_to_dot_directed_graph(&mut fragment_fragment_whitespace.enfa, "dot\\fragment_hitespace_automaton.dot");
 
     //
     // Phase 2 - Combine all eNFA into a large eNFA
@@ -2125,3 +2125,151 @@ let temp_rule_element_1 = RuleElement::<String>::Terminal(String::from("abc"));
                 //         todo!();
                 //     }
                 // }
+
+
+
+// match self.src.operand_type {
+                //     AsmAstOperandType::Imm(imm_value) => {
+                //         write!(f, "{}", format!("Mov({:?})", imm_value).as_str()).expect("Write failed!");
+                //     }
+                //     _ => {
+                //         todo!();
+                //     }
+                // }
+
+                // match self.dst.operand_type {
+                //     AsmAstOperandType::Imm(imm_value) => {
+                //         write!(f, "{}", format!("Mov({:?})", imm_value).as_str()).expect("Write failed!");
+                //     }
+                //     _ => {
+                //         todo!();
+                //     }
+                // }
+
+                //match self.unary_operator {
+                    // AsmAstUnaryOperator::Neg => {
+                    //     write!(f, "{}", format!("Unary(assembly_type:{:?}, dst:{:?})", self.assembly_type, self.dst).as_str()).expect("Write failed!");
+                    // }
+                    // AsmAstUnaryOperator::Not => {
+                    //     write!(f, "{}", format!("Unary(dst:{:?})", self.dst).as_str()).expect("Write failed!");
+                    // }
+                    // AsmAstUnaryOperator::Increment => {
+                    //     write!(f, "{}", format!("Unary(dst:{:?})", self.dst).as_str()).expect("Write failed!");
+                    // }
+                //}
+
+                /*
+        AsmAstInstructionType::Push => {
+            write!(f, "{}", format!("Push(operand:{:?})", self.dst).as_str()).expect("Write failed!");
+            string_buffer.push_str(format!().as_str());
+        }
+*/
+/*
+match asm_ast_instruction.binary_operator {
+
+                AsmAstBinaryOperator::Add => {
+                    // write!(f, "{}", format!("Binary(ADD, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("Binary(ADD,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::Subtract => {
+                    // write!(f, "{}", format!("Binary(SUB, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("Binary(SUB,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::Multiply => {
+                    // write!(f, "{}", format!("Binary(MUL, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("Binary(MUL,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::And => {
+                    // write!(f, "{}", format!("Binary(AND, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("Binary(AND,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::Or => {
+                    // write!(f, "{}", format!("Binary(Or, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("Binary(Or,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::Xor => {
+                    // write!(f, "{}", format!("Binary(Xor, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("Binary(Xor,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::LeftShift => {
+                    // write!(f, "{}", format!("LeftShift(Xor, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("LeftShift(Xor,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::RightShift => {
+                    // write!(f, "{}", format!("RightShift(Xor, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("RightShift(Xor,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::LogicalAnd => {
+                    // write!(f, "{}", format!("Binary(LOGICAL_AND, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("Binary(LOGICAL_AND,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                AsmAstBinaryOperator::LogicalOr => {
+                    // write!(f, "{}", format!("Binary(LOGICAL_OR, src_2:{:?}, dst:{:?})", self.src_2, self.dst).as_str()).expect("Write failed!");
+                    string_buffer.push_str(format!("Binary(LOGICAL_OR,\n{}src_2:{:?},\n{}dst:{:?})\n", double_indent_string, asm_ast_instruction.src_2, double_indent_string, asm_ast_instruction.dst).as_str());
+                }
+
+                _ => {
+                    todo!();
+                }
+            }
+            */
+            /*
+        AsmAstInstructionType::Cdq => {
+            write!(f, "Cdq").expect("Write failed!");
+            string_buffer.push_str(format!().as_str());
+        }
+
+        AsmAstInstructionType::Idiv => {
+            write!(f, "{}", format!("Idiv(dst:{:?})", self.dst).as_str()).expect("Write failed!");
+            string_buffer.push_str(format!().as_str());
+        }
+
+        AsmAstInstructionType::Mod => {
+            write!(f, "{}", format!("Mod(dst:{:?})", self.dst).as_str()).expect("Write failed!");
+            string_buffer.push_str(format!().as_str());
+        }
+
+        AsmAstInstructionType::Mul => {
+            write!(f, "{}", format!("Mul(dst:{:?})", self.dst).as_str()).expect("Write failed!");
+            string_buffer.push_str(format!().as_str());
+        }
+
+        AsmAstInstructionType::Cmp => {
+            write!(f, "{}", format!("Cmp(src:{:?}, src_2:{:?})", self.src, self.src_2).as_str()).expect("Write failed!");
+            string_buffer.push_str(format!().as_str());
+        }
+
+        AsmAstInstructionType::Jmp => {
+            write!(f, "{}", format!("Jmp(src:{:?}, src_2:{:?}, dst:{:?})", self.src, self.src_2, self.dst).as_str()).expect("Write failed!");
+            string_buffer.push_str(format!().as_str());
+        }
+
+        AsmAstInstructionType::JmpCC => {
+            write!(f, "{}", format!("JmpCC(src:{:?}, src_2:{:?})", self.src, self.src_2).as_str()).expect("Write failed!");
+            string_buffer.push_str(format!().as_str());
+        }
+
+        AsmAstInstructionType::Label => {
+            write!(f, "{}", format!("Label(src:{:?})", self.src).as_str()).expect("Write failed!");
+            string_buffer.push_str(format!().as_str());
+        }
+
+        AsmAstInstructionType::SetCC => {
+            write!(f, "{}", format!("SetCC(src:{:?}, dst:{:?})", self.src, self.dst).as_str()).expect("Write failed!");
+            string_buffer.push_str(format!().as_str());
+        }
+
+        AsmAstInstructionType::FunctionCall => {
+            write!(f, "{}", format!("FunctionCall(identifier:{:?})", self.identifier).as_str()).expect("Write failed!");
+            string_buffer.push_str(format!().as_str());
+        }
+*/

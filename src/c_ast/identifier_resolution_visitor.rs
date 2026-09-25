@@ -175,15 +175,23 @@ impl IdentifierResolutionVisitor {
 
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
+
                     // replace user-choosen variable name by unique variable name
                     let replaced_var_name_node: IdentifierResolutionNode = self.visit(left_node_id, node_map);
-                    let replaced_var_name = replaced_var_name_node.string_val;
-                    // DEBUG
-                    if self.debug {
-                        println!("{:?}", replaced_var_name);
-                    }
+
+                    let initial_var_name = replaced_var_name_node.initial_string_val.clone();
+                    let replaced_var_name = replaced_var_name_node.string_val.clone();
+
                     let mut left_node = node_map.get(&left_node_id).unwrap().clone();
                     left_node.string_val = replaced_var_name;
+                    left_node.initial_string_val = initial_var_name;
+
+                    // DEBUG
+                    // if self.debug {
+                        println!("[IdentifierResolutionVisitor] NodeId: {}, Initial:{:?}, Replaced:{:?}",
+                            &left_node.id, &replaced_var_name_node.initial_string_val, &replaced_var_name_node.string_val);
+                    // }
+
                     node_map.insert(left_node.id, left_node);
                 }
 
@@ -212,15 +220,19 @@ impl IdentifierResolutionVisitor {
 
                 let user_choosen_variable_name = ast_node.string_val.clone();
 
-                // DEBUG
-                // println!("user_choosen_variable_name: {:?}", user_choosen_variable_name);
-
                 node.string_val = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
                     Ok(var_name) => var_name,
                     Err(e) => {
                         panic!("{}", e);
                     }
                 };
+
+                // remember original name for convenient debugging
+                node.initial_string_val = user_choosen_variable_name;
+
+                // DEBUG
+                //println!("user_choosen_variable_name: {:?}", user_choosen_variable_name);
+                println!("node.initial_string_val: {:?} replaced_variable_name: {:?}", &node.initial_string_val, &node.string_val);
 
                 return node;
             }
@@ -556,12 +568,13 @@ impl IdentifierResolutionVisitor {
 
                     // DEBUG
                     if self.debug {
-                        println!("Test {}", user_define_varname);
+                        println!("Name replaced: old: {}, new: {}", varname, user_define_varname);
                     }
 
                     // replace the variable name by the unique variable name from the scope
                     // Subsequent steps such as TACKY generation will use unique names instead
                     // of duplicate names separated by scopes
+                    right_node.initial_string_val = varname.clone();
                     right_node.string_val = user_define_varname.clone();
 
                     node_map.insert(right_node.id, right_node);
@@ -612,9 +625,6 @@ impl IdentifierResolutionVisitor {
                     // data type
                     let right_node = node_map.get(&right_node_id).unwrap();
                     let data_type = right_node.string_val.clone();
-
-                    // DEBUG
-                    // println!("DataType: '{:?}'", data_type);
 
                     // void parameters are not inserted into the name map
                     if data_type == "void" {
