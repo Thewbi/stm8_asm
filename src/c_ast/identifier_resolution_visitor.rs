@@ -187,10 +187,10 @@ impl IdentifierResolutionVisitor {
                     left_node.initial_string_val = initial_var_name;
 
                     // DEBUG
-                    // if self.debug {
+                    if self.debug {
                         println!("[IdentifierResolutionVisitor] NodeId: {}, Initial:{:?}, Replaced:{:?}",
                             &left_node.id, &replaced_var_name_node.initial_string_val, &replaced_var_name_node.string_val);
-                    // }
+                    }
 
                     node_map.insert(left_node.id, left_node);
                 }
@@ -203,8 +203,12 @@ impl IdentifierResolutionVisitor {
                     if self.debug {
                         println!("{:?}", replaced_var_name);
                     }
+
+                    // update the node
                     let mut right_node = node_map.get(&right_node_id).unwrap().clone();
                     right_node.string_val = replaced_var_name;
+
+                    // node has changed, replace it in the node map
                     node_map.insert(right_node.id, right_node);
                 }
             }
@@ -231,8 +235,16 @@ impl IdentifierResolutionVisitor {
                 node.initial_string_val = user_choosen_variable_name;
 
                 // DEBUG
-                //println!("user_choosen_variable_name: {:?}", user_choosen_variable_name);
-                println!("node.initial_string_val: {:?} replaced_variable_name: {:?}", &node.initial_string_val, &node.string_val);
+                if self.debug {
+                    //println!("user_choosen_variable_name: {:?}", user_choosen_variable_name);
+                    println!("node.initial_string_val: {:?} replaced_variable_name: {:?}", &node.initial_string_val, &node.string_val);
+                }
+
+                // node_map.insert(node.id, node);
+
+                // let mut ast_node = node_map.get(&ast_node.id).unwrap().clone();
+                // ast_node.string_val = node.string_val.clone();
+                // node_map.insert(ast_node.id, ast_node);
 
                 return node;
             }
@@ -336,17 +348,39 @@ impl IdentifierResolutionVisitor {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
 
-                // LHS
+                // LHS - this part will replace the original LHS name by a unique name
+                // LHS is the LHS of the binary operation
                 if let Some(left_node_id) = ast_node.lhs {
 
+                    // DEBUG
+                    if self.debug {
+                        println!("left_node_id: {:?}", left_node_id);
+                    }
+
+                    // naming map before
+                    if self.debug {
+                        self.variable_naming_source.borrow_mut().print_variable_naming_source();
+                    }
+
                     let lhs_result = self.visit(left_node_id, node_map);
+
+                    // DEBUG
+                    if self.debug {
+                        println!("[IdentifierResolutionVisitor] NodeId: {}, Initial:{:?}, Replaced:{:?}",
+                            &left_node_id, &lhs_result.initial_string_val, &lhs_result.string_val);
+                    }
+
+                    // naming map after
+                    if self.debug {
+                        self.variable_naming_source.borrow_mut().print_variable_naming_source();
+                    }
 
                     let mut left_node = node_map.get(&left_node_id).unwrap().clone();
 
                     // DEBUG
                     if self.debug {
-                        println!("{:?}", left_node);
-                        println!("{:?}", left_node.string_val);
+                        println!("left_node: {:?}", left_node);
+                        println!("left_node.string_val: {:?}", left_node.string_val);
                     }
 
                     // DEBUG
@@ -357,22 +391,32 @@ impl IdentifierResolutionVisitor {
                     match lhs_result.node_type {
 
                         AstNodeType::Identifier => {
+
+                            if self.debug {
+                                println!("123: {}", left_node.string_val);
+                            }
+
                             // check the original user-choosen variable name
                             let is_defined = self.variable_naming_source.borrow_mut().is_variable_name_defined(&left_node.string_val);
                             if !is_defined {
-                                panic!("Variable \"{}\" is not defined!", &lhs_result.string_val);
+                                panic!("Variable \"{}\" is not defined!", &left_node.string_val);
                             }
+
                             let new_name = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&left_node.string_val) {
                                 Ok(var_name) => var_name,
                                 Err(e) => {
                                     panic!("{}", e);
                                 }
                             };
+
                             // DEBUG
                             if self.debug {
                                 println!("{:?}", new_name);
                             }
+
                             left_node.string_val = new_name;
+
+                            // node has changed, replace the node in the node map
                             node_map.insert(left_node.id, left_node);
                         }
                         _ => {
@@ -381,7 +425,8 @@ impl IdentifierResolutionVisitor {
                     }
                 }
 
-                // RHS
+                // RHS - this part will replace the original LHS name by a unique name
+                // RHS is the LHS of the binary operation
                 if let Some(right_node_id) = ast_node.rhs {
 
                     let rhs_result = self.visit(right_node_id, node_map);
@@ -396,6 +441,8 @@ impl IdentifierResolutionVisitor {
                         AstNodeType::Identifier => {
                             let mut right_node = node_map.get(&right_node_id).unwrap().clone();
                             right_node.string_val = rhs_result.string_val.clone();
+
+                            // the node has changed, update the node
                             node_map.insert(right_node.id, right_node);
                         }
                         _ => {
@@ -880,6 +927,48 @@ impl IdentifierResolutionVisitor {
                 // DEBUG
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
+                }
+
+                println!("{:?}", ast_node);
+
+                // LHS
+                if let Some(left_node_id) = ast_node.lhs {
+                    let replaced_var_name_node: IdentifierResolutionNode = self.visit(left_node_id, node_map);
+
+                    let initial_var_name = replaced_var_name_node.initial_string_val.clone();
+                    let replaced_var_name = replaced_var_name_node.string_val.clone();
+
+                    let mut left_node = node_map.get(&left_node_id).unwrap().clone();
+                    left_node.string_val = replaced_var_name;
+                    left_node.initial_string_val = initial_var_name;
+
+                    // DEBUG
+                    if self.debug {
+                        println!("[IdentifierResolutionVisitor] NodeId: {}, Initial:{:?}, Replaced:{:?}",
+                            &left_node.id, &replaced_var_name_node.initial_string_val, &replaced_var_name_node.string_val);
+                    }
+
+                    node_map.insert(left_node.id, left_node);
+                }
+
+                // RHS
+                if let Some(right_node_id) = ast_node.rhs {
+                    let replaced_var_name_node: IdentifierResolutionNode = self.visit(right_node_id, node_map);
+
+                    let initial_var_name = replaced_var_name_node.initial_string_val.clone();
+                    let replaced_var_name = replaced_var_name_node.string_val.clone();
+
+                    let mut right_node = node_map.get(&right_node_id).unwrap().clone();
+                    right_node.string_val = replaced_var_name;
+                    right_node.initial_string_val = initial_var_name;
+
+                    // DEBUG
+                    if self.debug {
+                        println!("[IdentifierResolutionVisitor] NodeId: {}, Initial:{:?}, Replaced:{:?}",
+                            &right_node.id, &replaced_var_name_node.initial_string_val, &replaced_var_name_node.string_val);
+                    }
+
+                    node_map.insert(right_node.id, right_node);
                 }
             }
 

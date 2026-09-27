@@ -1,5 +1,7 @@
 use std::cell::RefCell;
 
+use std::fmt::{self, Display};
+
 use std::sync::atomic::AtomicUsize;
 use crate::Ordering;
 
@@ -49,6 +51,20 @@ impl Clone for VarnameMapEntry {
     }
 }
 
+impl fmt::Debug for VarnameMapEntry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
+        write!(f, "VarnameMapEntry {{\n").expect("Write failed!");
+        write!(f, "  initial_varname: {:?}\n", &self.initial_varname).expect("Write failed!");
+        write!(f, "  varname: {:?}\n", &self.varname).expect("Write failed!");
+        write!(f, "  is_new: {}\n", &self.is_new).expect("Write failed!");
+        write!(f, "  is_external_linkage: {}\n", &self.is_external_linkage).expect("Write failed!");
+        write!(f, "}}\n").expect("Write failed!");
+
+        Ok(())
+    }
+}
+
 pub struct VariableNamingSource {
     varname_map_stack: Vec::<RefCell<HashMap::<String, VarnameMapEntry>>>, // vector/stack of varname maps
 }
@@ -64,13 +80,16 @@ impl VariableNamingSource {
         instance
     }
 
+    // creates a copy of the current varname_map, sets all variable to new = false
+    // and pushes the new varname_map onto the stack
     pub fn enter_scope(&mut self) {
         // DEBUG
         // println!("[VariableNamingSource::enter_scope]");
 
         let mut varname_map = HashMap::<String, VarnameMapEntry>::new();
 
-        // adding a new scope means copying the current scope and setting all variables to the state is_new = false
+        // adding a new scope means copying the current scope and setting
+        // all variables to the state is_new = false
         let stack_size = self.varname_map_stack.len();
         if stack_size > 0 {
             let varname_map_old = self.varname_map_stack[stack_size - 1].borrow();
@@ -88,8 +107,8 @@ impl VariableNamingSource {
         self.varname_map_stack.pop();
     }
 
-    // checks a user-choosen varname if there is an entry inside the varname_map or if
-    // this identifier has never been processed before.
+    // checks a user-choosen varname if contained inside the varname_map
+    // or if the user-choosen varname has never been processed before
     pub fn is_variable_name_defined(&mut self, varname: &String) -> bool {
 
         // look into the topmost map
@@ -99,13 +118,23 @@ impl VariableNamingSource {
             let varname_map = varname_map_refcell.borrow_mut();
             if varname_map.contains_key(varname) {
 
-                let entry = varname_map.get(varname).unwrap();
+                if let Some(entry) = varname_map.get(varname) {
 
-                // conflict if the identifier was newly defined in this scope and at the same time has no external linkage
-                // (= this means it refers to another object which has that name already!)
-                //
-                // More information: Nora Sandler, page 174ff
-                return entry.is_new && !entry.is_external_linkage;
+                    // I do not understand this any more! Re-read the chapter (Nora Sandler) about
+                    // external variables
+                    //
+                    // // CONFLICT:
+                    // // A variable name is checked.
+                    // // if the variable name is newly defined in this scope and
+                    // // at the same time has no external linkage
+                    // // (= this means it refers to another object which has that name already!)
+                    // //
+                    // // More information: Nora Sandler, page 174ff
+                    // return entry.is_new && !entry.is_external_linkage;
+
+                    // variable is defined
+                    return true;
+                }
             }
         }
 
@@ -205,5 +234,16 @@ impl VariableNamingSource {
         }
 
         func_name.clone()
+    }
+
+    pub fn print_variable_naming_source(&mut self) {
+
+
+        for varname_map_entry_ref_cell in self.varname_map_stack.iter_mut() {
+
+            let varname_map_entry = varname_map_entry_ref_cell.borrow_mut();
+
+            println!("{:?}", &varname_map_entry);
+        }
     }
 }

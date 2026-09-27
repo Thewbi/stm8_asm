@@ -514,7 +514,10 @@ pub fn provide_sourcode_input() -> ( String, String ) {
 
     // let str: String = fs::read_to_string("res/C/samples/c_samples/scratchpad.c").expect("file cannot be read!");
 
-    let filename = "res/C/samples/c_samples/bubblesort.c";
+    let filename = "res/C/samples/c_samples/binary_0.c";
+
+    // let filename = "res/C/samples/c_samples/bubblesort.c";
+    // let filename = "res/C/samples/c_samples/bubblesort_1.c";
     // let filename = "res/C/samples/c_samples/bubblesort_broken.c";
 
     //

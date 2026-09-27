@@ -55,6 +55,9 @@ impl AstAstAssemblyType {
         -> AstAstAssemblyType
     {
         match data_type {
+            DataType::DataTypeUnsignedInt => {
+                AstAstAssemblyType::Doubleword // dword, 32 bit
+            }
             DataType::DataTypeInt => {
                 AstAstAssemblyType::Doubleword // dword, 32 bit
             }
@@ -62,14 +65,19 @@ impl AstAstAssemblyType {
                 AstAstAssemblyType::Quadword // qword, 64 bit
             }
             _ => {
-                unimplemented!()
+                unimplemented!("No implementation for {}", data_type);
             }
         }
     }
 }
 
+// Type for a intermediate ASM instruction.
+// Intermediate means that this is not final MASM, TASM, FASM, GAS, ...
+// but it is an abstract, intermediate assembly language
 #[derive(Clone, Debug)]
 pub struct AsmAstInstruction {
+    pub(crate) id: i32,
+
     pub instruction_type: AsmAstInstructionType,
     pub unary_operator: AsmAstUnaryOperator,
     pub binary_operator: AsmAstBinaryOperator,
@@ -79,11 +87,14 @@ pub struct AsmAstInstruction {
     pub identifier: String,
     pub comment: String,
     pub assembly_type: AstAstAssemblyType,
+    pub offset: AsmAstOperand,
 }
 
 impl AsmAstInstruction {
     pub fn new() -> AsmAstInstruction {
         AsmAstInstruction {
+            id: 0,
+
             instruction_type: AsmAstInstructionType::Ret,
             unary_operator: AsmAstUnaryOperator::Not,
             binary_operator: AsmAstBinaryOperator::Add,
@@ -93,6 +104,7 @@ impl AsmAstInstruction {
             identifier: String::new(),
             comment: String::new(),
             assembly_type: AstAstAssemblyType::Unknown,
+            offset: AsmAstOperand::new(),
         }
     }
 }
@@ -284,6 +296,8 @@ pub enum AsmAstOperandType {
 #[derive(Clone, Debug, PartialEq)]
 pub enum AsmAstReg {
     AX, // -> EAX
+    EAX,
+    RAX,
     BX, // -> EBX
     DX, // -> EDX
     CX,
@@ -297,7 +311,10 @@ pub enum AsmAstReg {
 }
 
 impl AsmAstReg {
-    pub(crate) fn output_register_matching_datatype(&self, data_type_size: &AstAstAssemblyType) -> String {
+    pub(crate) fn output_register_matching_datatype(&self,
+        data_type: &AstAstAssemblyType
+    ) -> String
+    {
 
         let mut string_buffer = String::from("");
 
@@ -306,7 +323,7 @@ impl AsmAstReg {
                 // panic!("Unhandled: {}", self);
 
                 // append suffix for data type
-                match data_type_size {
+                match data_type {
                     AstAstAssemblyType::Doubleword => {
                         string_buffer.push_str("rax");
                     }
@@ -315,16 +332,49 @@ impl AsmAstReg {
                     }
                 }
             }
+            AsmAstReg::EAX => {
+                // panic!("Unhandled: {}", self);
+
+                // append suffix for data type
+                match data_type {
+                    AstAstAssemblyType::Doubleword => {
+                        string_buffer.push_str("eax");
+                    }
+                    _ => {
+                        panic!("");
+                    }
+                }
+            }
+            AsmAstReg::RAX => {
+                // // panic!("Unhandled: {}", self);
+
+                // // append suffix for data type
+                // match data_type_size {
+                //     AstAstAssemblyType::Doubleword => {
+                //         string_buffer.push_str("rax");
+                //     }
+                //     _ => {
+                //         panic!("");
+                //     }
+                // }
+                string_buffer.push_str("rax");
+            }
             AsmAstReg::R10 => {
                 string_buffer.push_str("r10");
 
                 // append suffix for data type
-                match data_type_size {
+                match data_type {
+                    // AstAstAssemblyType::Doubleword => {
+                    //     string_buffer.push_str("d");
+                    // }
                     AstAstAssemblyType::Doubleword => {
                         string_buffer.push_str("d");
                     }
+                    AstAstAssemblyType::Unknown => {
+                        panic!("Has no type! Found: {:?}", data_type);
+                    }
                     _ => {
-                        panic!("");
+                        panic!("Unknown Type: {:?}", data_type);
                     }
                 }
             }
@@ -348,7 +398,10 @@ impl fmt::Display for AsmAstReg {
             // AsmAstReg::DI => write!(f, "edi"),
             // AsmAstReg::SI => write!(f, "esi"),
 
-            AsmAstReg::AX => write!(f, "rax"),
+            AsmAstReg::AX => write!(f, "ax"),
+            AsmAstReg::EAX => write!(f, "eax"),
+            AsmAstReg::RAX => write!(f, "rax"),
+
             AsmAstReg::BX => write!(f, "rbx"),
             AsmAstReg::DX => write!(f, "rdx"),
             AsmAstReg::CX => write!(f, "rcx"),

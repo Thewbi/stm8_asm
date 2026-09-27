@@ -169,6 +169,8 @@ impl fmt::Debug for AstNode {
 
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 
+        println!("AST-NODE {{");
+
         match &self.node_type {
 
             AstNodeType::Compound => {
@@ -335,14 +337,26 @@ impl fmt::Debug for AstNode {
             }
 
             AstNodeType::Binary => {
-                print!("Binary: ");
+
+                let mut has_left: bool = false;
+                let mut has_right: bool = false;
+
+                println!("Binary {{");
+                println!("  id: {}", self.id);
                 println!("  Binary.OperatorType: {:?}", self.operator_type);
                 if let Some(left_node) = self.lhs.as_ref() {
-                    print!("LHS: {:?}", left_node);
+                    println!("  LHS-id: {:?}", left_node);
+                    has_left = true;
                 }
                 if let Some(right_node) = self.rhs.as_ref() {
-                    print!("RHS: {:?}", right_node);
+                    println!("  RHS-id: {:?}", right_node);
+                    has_right = true;
                 }
+
+                assert!(has_left);
+                assert!(has_right);
+
+                println!("}}");
             }
 
             AstNodeType::Operator => {
@@ -520,11 +534,11 @@ impl fmt::Debug for AstNode {
                 // type
                 if let Some(left_node_id) = self.lhs {
                     // let left_node = node_map.get(left_node_id).unwrap();
-                    print!("{:?}", left_node_id);
+                    println!("left_node_id: {:?}", left_node_id);
                 }
                 // identifier
                 if let Some(right_node) = self.rhs.as_ref() {
-                    print!("{:?}", right_node);
+                    println!("right_node: {:?}", right_node);
                 }
             }
 
@@ -532,6 +546,8 @@ impl fmt::Debug for AstNode {
                 panic!("Unhandled node type: {:?}", self.node_type);
             }
         }
+
+        println!("}}");
 
         Ok(())
     }

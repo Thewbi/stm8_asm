@@ -16,7 +16,10 @@ use crate::asm_ast::asm_ast::AsmAstBinaryOperator;
 use crate::asm_ast::asm_ast::AsmAstReg;
 
 //
-// Fixes up the Asm AST by
+// Fixes up the intermediate Asm AST before the intermediate AST
+// goes into the Assembly Generation (AsmAstMasmEmitterVisitor, GASEmitter... )
+//
+// The intermediate ASM is fixed by:
 //
 // - replacing pseudo variables/operands with stack addresses
 // - replacing mov instructions which move from memory to memory
@@ -321,6 +324,10 @@ impl AsmAstFixupVisitor {
                     println!("Mov {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
                 }
 
+                // if asm_ast_instruction.id == 123 {
+                //     println!("test");
+                // }
+
                 // replace pseudo operand by relative address on stack
                 asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
                 asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
@@ -503,13 +510,13 @@ impl AsmAstFixupVisitor {
 
                     let mut mov_1 = asm_ast_instruction.clone();
 
-                    println!("{:?}", mov_1);
+                    // println!("{:?}", mov_1);
 
                     mov_1.instruction_type = AsmAstInstructionType::Mov;
                     mov_1.src = mov_1.src_2.clone();
                     mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
 
-                    println!("{:?}", mov_1);
+                    // println!("{:?}", mov_1);
 
                     new_body.push(Box::new(mov_1));
 

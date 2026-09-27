@@ -375,6 +375,7 @@ impl TackyVisitor {
 
                                     // if a binary instruction is executed, a value is correctly assigned
                                     // to the target variable by the binary instruction itself.
+                                    // Same goes for array subscript instructions.
                                     //
                                     // During assignments, binary executions are wrapped in assignment AstNodes.
                                     // As the TACKY visitor will generate a copy for the assignment AstNode,
@@ -408,11 +409,13 @@ impl TackyVisitor {
                                         copy_instruction.src = self.visit(rhs_sub_id, node_map, &dst_name, &mut br_cnt);
 
                                         let rhs_sub = node_map.get(&rhs_sub_id).unwrap();
+
+                                        // DEBUG
                                         if self.debug {
                                             println!("RHS: {:?}", rhs_sub);
                                         }
 
-                                        // determine if the copy instruction is output or not
+                                        // determine if the copy instruction needs to be output or not
                                         match rhs_sub.node_type {
 
                                             AstNodeType::Binary => {
@@ -427,6 +430,12 @@ impl TackyVisitor {
                                                 output_copy_instruction = false;
                                             }
 
+                                            AstNodeType::Subscript => {
+                                                // DEBUG
+                                                // println!("Subscript");
+                                                output_copy_instruction = false;
+                                            }
+
                                             _ => {
                                                 // println!("NodeType: {:?}", rhs_sub.node_type);
                                             }
@@ -435,6 +444,16 @@ impl TackyVisitor {
 
                                     // to understand this check, read large comment above
                                     if output_copy_instruction {
+
+                                        // add a comment
+                                        let mut comment: Instruction = Instruction::new();
+                                        comment.instruction_type = InstructionType::Comment;
+                                        comment.label = "Copy for expression/assignment".to_string();
+
+                                        // append comment to latest top-level element of the program
+                                        let last = self.program.top_level.len() - 1;
+                                        self.program.top_level[last].body.push(Box::new(comment));
+
                                         // append instruction to latest top-level element of the program
                                         let last = self.program.top_level.len() - 1;
                                         self.program.top_level[last].body.push(Box::new(copy_instruction));
@@ -720,11 +739,11 @@ impl TackyVisitor {
                             //
                             // The C dereference operation is implemented as a TACKY LOAD instruction
 
-                            println!("{:?}", ast_node);
+                            // println!("{:?}", ast_node);
 
-                            // DEBUG
-                            println!("{:?}", ast_node.lhs);
-                            println!("{:?}", ast_node.rhs);
+                            // // DEBUG
+                            // println!("{:?}", ast_node.lhs);
+                            // println!("{:?}", ast_node.rhs);
 
                             // add a comment
                             let mut comment_declaration: Instruction = Instruction::new();
@@ -961,6 +980,9 @@ impl TackyVisitor {
                         }
                     }
                 }
+
+                // copy data type from type-checked ast node into the TACKY instruction
+                binary_instruction.data_type = ast_node.analyzed_data_type.clone();
 
                 // append instruction to latest top-level element of the program
                 let last = self.program.top_level.len() - 1;
@@ -1753,7 +1775,6 @@ impl TackyVisitor {
             }
 
             AstNodeType::AddAssignment => {
-
                 // DEBUG
                 if self.debug {
                     println!("{}, {:?}", ast_node.id, ast_node);
@@ -1761,7 +1782,66 @@ impl TackyVisitor {
 
                 let mut add_assignment: Instruction = Instruction::new();
                 add_assignment.instruction_type = InstructionType::AddAssignment;
+            }
 
+            AstNodeType::Subscript => {
+                // DEBUG
+                if self.debug {
+                    println!("{}, {:?}", ast_node.id, ast_node);
+                }
+
+                println!("[TackyVisitor::visit::subscript] dst_name: {}", dst_name);
+
+                // add a comment
+                let mut comment: Instruction = Instruction::new();
+                comment.instruction_type = InstructionType::Comment;
+                comment.label = "Subscript for array access".to_string();
+
+                // append comment to latest top-level element of the program
+                let last = self.program.top_level.len() - 1;
+                self.program.top_level[last].body.push(Box::new(comment));
+
+                let mut subscript_instruction: Instruction = Instruction::new();
+                subscript_instruction.instruction_type = InstructionType::Subscript;
+
+                //
+                // src
+                //
+
+                // determine the type and name of the variable which is assigned
+                if let Some(left_node_id) = ast_node.lhs {
+
+                    let left_node = node_map.get(&left_node_id).unwrap();
+
+                    // data type of the array
+                    let symbol_table_entry: SymbolTableEntry = self.symbol_table.borrow_mut().get(&left_node.string_val);
+                    subscript_instruction.data_type = symbol_table_entry.data_type.clone();
+
+                    // variable name of the object / array that is subscripted
+                    let src_value_element: ValueElement = ValueElement::Variable(left_node.string_val.clone());
+                    subscript_instruction.src = src_value_element;
+                }
+
+                // RHS - index into the array subscript / might also be a variable
+                if let Some(right_node_id) = ast_node.rhs {
+                    let mut br_cnt = 0;
+                    subscript_instruction.index = self.visit(right_node_id, node_map, &dst_name, &mut br_cnt);
+                }
+
+                //
+                // dst
+                //
+
+                subscript_instruction.dst = ValueElement::Variable(dst_name.clone());
+
+                // DEBUG
+                if self.debug {
+                    println!("{:?}", subscript_instruction);
+                }
+
+                // append instruction to latest top-level element of the program
+                let last = self.program.top_level.len() - 1;
+                self.program.top_level[last].body.push(Box::new(subscript_instruction));
             }
 
             _ => {

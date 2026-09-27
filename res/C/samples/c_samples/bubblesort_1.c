@@ -58,8 +58,14 @@ int main() {
     // for (i = 0; i < n - 1; i++) {
     for (i = 0; i < n; i++) {
         // Optimierung: Pruefen, ob ein Tausch stattgefunden hat
-        swapped = arr[i];
+        //swapped = arr[i];
+
+        //for (j = 0; j < n - i - 1; j++) {
+        //for (j = 0; j < n; j++) {
+            temp = temp + 1;
+        //}
     }
 
-    return swapped;
+    //return swapped;
+    return 0;
 }

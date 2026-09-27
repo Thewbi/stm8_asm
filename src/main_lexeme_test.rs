@@ -99,7 +99,7 @@ fn main() {
 
 /**/
     //
-    // Phase 0 - 
+    // Phase 0 -
     //
 
     let mut combined_fragment = Fragment::new(RegexBuildingBlock::Or);
@@ -375,7 +375,7 @@ fn main() {
 
     let mut current_state_id = dfa.start_state_id;
     // let mut last_state_id = dfa.start_state_id;
-    
+
     let lexer_debug: bool = true;
     let mut lexer: Lexer = Lexer::new(dfa);
 
@@ -406,32 +406,32 @@ fn main() {
             continue;
         }
 
-        // current_state_id = consume_character(&mut dfa, 
-        //     current_state_id, 
-        //     &mut token_string_buffer, 
-        //     current_character, 
-        //     lookahead_character, 
-        //     &mut step, 
-        //     &mut parser, 
-        //     &grammar_state_hashmap, 
-        //     &mut string_buffer, 
+        // current_state_id = consume_character(&mut dfa,
+        //     current_state_id,
+        //     &mut token_string_buffer,
+        //     current_character,
+        //     lookahead_character,
+        //     &mut step,
+        //     &mut parser,
+        //     &grammar_state_hashmap,
+        //     &mut string_buffer,
         //     &mut debug_node_stack);
-       current_state_id = lexer.consume_character(current_character, 
-            lookahead_character, 
-            &mut step, 
-            &mut parser, 
+       current_state_id = lexer.consume_character(current_character,
+            lookahead_character,
+            &mut step,
+            &mut parser,
             &rule_map,
-            &mut debug_node_string_buffer, 
+            &mut debug_node_string_buffer,
             &mut debug_node_stack);
     }
 
     current_state_id = lexer.consume_character(
-        lookahead_character, 
-        'x', 
-        &mut step, 
-        &mut parser, 
-        &rule_map, 
-        &mut debug_node_string_buffer, 
+        lookahead_character,
+        'x',
+        &mut step,
+        &mut parser,
+        &rule_map,
+        &mut debug_node_string_buffer,
         &mut debug_node_stack);
 
     // if lexer_debug {
@@ -446,7 +446,7 @@ fn main() {
         panic!("DECLINED!");
     }
 
-    println!("test");
+    // println!("test");
 
     ///////////////////////////////////////////////////////////////////////////////////
 /*
@@ -456,7 +456,7 @@ fn main() {
     //
     // Select one of the grammars
     //
-    
+
     // let g_result = produce_grammar_1(&mut grammar_rules); // has epsilon rules (wont work)
     // let g_result = produce_grammar_2(&mut grammar_rules);
     // let g_result = produce_grammar_3(&mut grammar_rules); // shows # is not propagated
@@ -597,9 +597,9 @@ fn main() {
         start_state_id = grammar_state.id;
     }
 
-    // the e_set is a set of states that still need to be processed. 
+    // the e_set is a set of states that still need to be processed.
     // The letter e in e set has no special meaning.
-    // The name e set is choosen as another d set exists and e comes after d in the alphabet. 
+    // The name e set is choosen as another d set exists and e comes after d in the alphabet.
     // The term d-set stems from a eNFA-to-DFA conversion algorithm. I used it as a convention
     let mut e_set = Vec::<usize>::new();
     let mut processed_set = Vec::<usize>::new();
@@ -630,7 +630,7 @@ fn main() {
 
         // unfold node (retrieve state given state id, then call unfold_grammar_state())
         if let Some(grammar_state) = grammar_state_hashmap.get_mut(&current_grammar_state_id) {
-            
+
             if unfold_debug {
                 println!("Before: {:?}", grammar_state);
             }
@@ -712,7 +712,7 @@ fn main() {
             //     RuleElement::Epsilon => { continue; }
             //     _ => {}
             // }
-            
+
             // // DEBUG - output the symbol and the rules activated by it
             // println!("{:?} {:?}", &current_symbol, &rules_for_symbol);
             // println!("");
@@ -720,7 +720,7 @@ fn main() {
             // TODO
             // iterate over each rule in rules_for_symbol
             //      - advance the dot in the collected rules
-            //      - look for states globally in grammar_state_hashmap, that have ALL the collected, 
+            //      - look for states globally in grammar_state_hashmap, that have ALL the collected,
             //        modified rules in their identifying set AT THE SAME TIME! OF UTMOST IMPORTANT!!!!!
             //          - if no such state exists yet, create one
             //              - insert newly created state into e_set
@@ -775,7 +775,7 @@ fn main() {
                     state_id = *loop_state_id;
 
                     // the copied rules have new id's that will not match the id's
-                    // for rules in the existing state. Match the rules to match 
+                    // for rules in the existing state. Match the rules to match
                     // and reuse the existing rule id's to build a valid channel network
                     let mut iter_index: usize = 0;
                     for rule_copy in &mut rules_for_symbol_copy {
@@ -807,7 +807,7 @@ fn main() {
                                 // retrieve the vector of first symbols for the nonterminal and extend it
                                 let channel_ends = &mut rule_channel_map.get_mut(&src_rule_id[iter_index]).unwrap();
 
-                                // add the channel                                
+                                // add the channel
                                 channel_ends.push(Transition(rrule.id, current_symbol.clone()));
                             }
                         }
@@ -927,7 +927,7 @@ fn main() {
             rule_ids.push(rule_id);
         }
     }
-    
+
     // DEBUG - output all channels
     let output_channels = false;
     if output_channels {
@@ -958,7 +958,7 @@ fn main() {
     // i propagates its lookaheads. We continue making passes over the kernel
     // items until no more new lookaheads are propagated."
 
-    
+
 
     println!("");
     println!("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
@@ -997,7 +997,7 @@ fn main() {
 
             // if the rule has no channel attached to it, continue because no propagation is necessary
             if !rule_channel_map.contains_key(src_rule_id) {
-                continue;                
+                continue;
             }
 
             // println!("Source-Rule-Id: {}", src_rule_id);
@@ -1067,7 +1067,7 @@ fn main() {
                 // If one or more identification rules are not empty beta, the entire state is not empty beta and
                 // hence no external propagated lookaheads will propagate into the state!
                 //
-                
+
                 let mut empty_beta = true;
                 for i in 0..dest_state.identification_rules.len() {
                     if dest_state.identification_rules[i].dot_idx + 1 >= dest_state.identification_rules[i].rhs.len() {
@@ -1090,7 +1090,7 @@ fn main() {
                             //     println!("test");
                             // }
 
-                            // if a lookahead is inserted into the identification rules where it 
+                            // if a lookahead is inserted into the identification rules where it
                             // has not been contained already, the state becomes dirty
                             if !dest_state.identification_rules[i].lookahead.contains(&la) {
                             // if !dest_state.identification_rules[i].external_lookahead.contains(&la) {
@@ -1105,7 +1105,7 @@ fn main() {
                                 // TODO TODO TODO
                                 // TODO TODO TODO
                                 // TODO TODO TODO
-                                // 
+                                //
                                 // insert lookahead into identification rule
                                 dest_state.identification_rules[i].lookahead.push(la.clone());
                                 // dest_state.identification_rules[i].external_lookahead.push(la.clone());
@@ -1218,7 +1218,7 @@ fn main() {
                 // println!("Rule id:{:?}", src_rule_id);
 
                 local_rule_ids.drain(0..1);
-                
+
                 // CHANGED
                 if !processed_rule_ids.contains(&src_rule_id) {
                     processed_rule_ids.push(src_rule_id);
@@ -1268,10 +1268,10 @@ fn main() {
                     }
 
                 //}
-            
+
                 done = local_rule_ids.len() == 0;
             }
-                
+
             // if state.id == 50 {
             //     println!("{:?}", state);
             // }
@@ -1288,7 +1288,7 @@ fn main() {
 
     println!("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
 
-    
+
 
     // DEBUG
     // rust iterate over hashmap
@@ -1309,7 +1309,7 @@ fn main() {
             println!("");
         }
     }
-    
+
     if !found_start_state {
         panic!("DFA no start state detected!");
     } else {
@@ -1327,9 +1327,9 @@ fn main() {
 
     let mut parse_table = HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>::new();
 
-    build_parse_table(&mut parse_table, &mut grammar_state_hashmap, &rule_channel_map, &augmented_start_symbol, &rule_id_to_state_id_map);    
+    build_parse_table(&mut parse_table, &mut grammar_state_hashmap, &rule_channel_map, &augmented_start_symbol, &rule_id_to_state_id_map);
 
-    
+
 
 
     //
@@ -1337,7 +1337,7 @@ fn main() {
     //
 
     //
-    // Phase 0 - 
+    // Phase 0 -
     //
 
     let mut combined_fragment = Fragment::new(RegexBuildingBlock::Or);
@@ -1446,7 +1446,7 @@ fn main() {
     // "\n" | "\r\n" | "\r"
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\n'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\r'));
-    
+
 
     //
     // Phase 1 - build all regexes
@@ -1460,7 +1460,7 @@ fn main() {
     let mut converter = InfixPostfixConverter::new();
     //converter.infix_to_postfix("(_|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z)(_|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z)+");
     converter.infix_to_postfix("(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z)|(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z)(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z|0|1|2|3|4|5|6|7|8|9)+");
-    
+
     // next, from the regex-items in the postfix notation, construct a eNFA
     // This function will go through the infix character by character and extend a eNFA as it goes.
     // Once done, the eNFA will accept all input described by the regex infix notation
@@ -1476,7 +1476,7 @@ fn main() {
     // insert into LEXER
     let (start_id_identifier, end_id_identifier) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_identifier.enfa, fragment_identifier.end_id);
     combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_identifier);
-    
+
     // DEBUG dump the graph to .dot format for viewing using https://dreampuf.github.io/GraphvizOnline
     //enfa_to_dot_directed_graph(&mut fragment_identifier.enfa, "fragment_identifier_automaton.dot");
 
@@ -1503,7 +1503,7 @@ fn main() {
     // insert into LEXER
     let (start_id_numeric, end_id_numeric) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_numeric.enfa, fragment_numeric.end_id);
     combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_numeric);
-    
+
     //
     // string_literal (token-id: 610)
     //converter.infix_to_postfix("\"(a|A|b|B|c|C|d|D)+\"");
@@ -1608,13 +1608,13 @@ fn main() {
     // define keywords last so they have precedence over identifiers!
     //
 
-    // auto        break       case        char 
-    // const       continue    default     do 
-    // double      else        enum        extern 
-    // float       for         goto        if 
-    // int         long        register    return 
-    // short       signed      sizeof      static 
-    // struct      switch      typedef     union 
+    // auto        break       case        char
+    // const       continue    default     do
+    // double      else        enum        extern
+    // float       for         goto        if
+    // int         long        register    return
+    // short       signed      sizeof      static
+    // struct      switch      typedef     union
     // unsigned    void        volatile    while
 
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "auto", "AUTO", 100);
@@ -1622,32 +1622,32 @@ fn main() {
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "case", "CASE", 102);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "char", "CHAR", 103);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "const", "CONST", 104);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "continue", "CONTINUE", 105); // continue  // 105  
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "default", "DEFAULT", 106); // default     
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "do", "DO", 107); // do  
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "double", "DOUBLE", 108); // double      
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "else", "ELSE", 109);        
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "enum", "ENUM", 110); // enum      // 110  
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "extern", "EXTERN", 111); // extern 
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "float", "FLOAT", 112); // float       
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "for", "FOR", 113); // for         
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "goto", "GOTO", 114); // goto        
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "continue", "CONTINUE", 105); // continue  // 105
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "default", "DEFAULT", 106); // default
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "do", "DO", 107); // do
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "double", "DOUBLE", 108); // double
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "else", "ELSE", 109);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "enum", "ENUM", 110); // enum      // 110
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "extern", "EXTERN", 111); // extern
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "float", "FLOAT", 112); // float
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "for", "FOR", 113); // for
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "goto", "GOTO", 114); // goto
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "if", "IF", 115);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "int", "INT", 116);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "long", "LONG", 117);  // long        
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "register", "REGISTER", 118); // register   
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "long", "LONG", 117);  // long
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "register", "REGISTER", 118); // register
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "return", "RETURN", 119);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "short", "SHORT", 120); // short   // 120    
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "signed", "SIGNED", 121); // signed      
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "sizeof", "SIZEOF", 122); // sizeof      
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "static", "STATIC", 123); // static 
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "struct", "STRUCT", 124); // struct      
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "short", "SHORT", 120); // short   // 120
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "signed", "SIGNED", 121); // signed
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "sizeof", "SIZEOF", 122); // sizeof
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "static", "STATIC", 123); // static
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "struct", "STRUCT", 124); // struct
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "switch", "SWITCH", 125); // switch      // 125
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "typedef", "TYPEDEF", 126); // typedef     
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "union", "UNION", 127); // union 
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "unsigned", "UNSIGNED", 128); // unsigned    
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "void", "VOID", 129);    
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "volatile", "VOLATILE", 130); // volatile    
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "typedef", "TYPEDEF", 126); // typedef
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "union", "UNION", 127); // union
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "unsigned", "UNSIGNED", 128); // unsigned
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "void", "VOID", 129);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "volatile", "VOLATILE", 130); // volatile
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "while", "WHILE", 131); // while
 
     //
@@ -1702,7 +1702,7 @@ fn main() {
 
     // let str = "int main() { if (1 < 2) return 2; }";
     // let str = "int main() { if (1 < 2) { return 2; } }";
-    
+
     // INT IDENTIFIER OPENING_BRACKET CLOSING_BRACKET OPENING_CURLY_BRACKET IF OPENING_BRACKET NUMERIC LT NUMERIC CLOSING_BRACKET OPENING_CURLY_BRACKET RETURN NUMERIC SEMICOLON CLOSING_CURLY_BRACKET RETURN NUMERIC SEMICOLON CLOSING_CURLY_BRACKET
     // let str = "int main() { if (1 < 2) { return 2; } return 0; }";
 
@@ -1710,7 +1710,7 @@ fn main() {
     // let str = "int main() { if (1 < 2) { return 2; } else { return 3; } }";
     // let str = "int main() { if (1 < 2) { return; } else { return; } }";
     // let str = "int main() { if (1 < 2) {} else {} }";
- 
+
     // VOID IDENTIFIER OPENING_BRACKET CLOSING_BRACKET OPENING_CURLY_BRACKET IF OPENING_BRACKET VOID CLOSING_BRACKET OPENING_CURLY_BRACKET CLOSING_CURLY_BRACKET ELSE OPENING_CURLY_BRACKET CLOSING_CURLY_BRACKET CLOSING_CURLY_BRACKET
     // let str = "void main() { if (void) {} else {} }";
     // let str = "void main() { if (1) {} else {} }";
@@ -1892,7 +1892,7 @@ fn main() {
     // let str: String = fs::read_to_string("res/C/samples/c_samples/if_0.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/c_samples/if_1.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/c_samples/if_else_if_0.c").expect("file cannot be read!");
-    
+
     // let str: String = fs::read_to_string("res/C/samples/c_samples/function_call_0.c").expect("file cannot be read!");
 
     // let str: String = fs::read_to_string("res/C/samples/c_samples/for_loop_0.c").expect("file cannot be read!");
@@ -1924,8 +1924,8 @@ fn main() {
     // The parser starts in the start state S' (= state-id 0)
     // When the parser sees a nonterminal in a state, it will consult the parse table.
     // If the ACTION is shift(x), the nonterminal is placed on to the stack and the parser enters state-id x
-    // If the ACTION is a reduce(x), 
-    //      - the rule is retrieved, 
+    // If the ACTION is a reduce(x),
+    //      - the rule is retrieved,
     //      - the symbols on the RHS of the rule are popped from the stack
     //      - the rule's LHS is pushed onto the stack
     //      - the parser enters state-id x
@@ -1978,7 +1978,7 @@ fn main() {
         println!("[LEXER] Emitting '{}'. Token-Id: {}, Token-Name: {}", token_string_buffer, dfa.states[&current_state_id].token_id, dfa.states[&current_state_id].token_name);
         println!("");
     }
-    
+
     // provide the last token to the parser
     provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Terminal(dfa.states[&current_state_id].token_name.clone()), &token_string_buffer, &mut string_buffer, &mut debug_node_stack);
     provide_input(&mut parser, &grammar_state_hashmap, &mut step, &RuleElement::Closure, &token_string_buffer, &mut string_buffer, &mut debug_node_stack);
@@ -1993,7 +1993,7 @@ fn main() {
 
     // 1. Create or overwrite the file
     let file = File::create("parse_tree.dot").expect("Create file failed!");
-    
+
     // 2. Wrap the file in a BufWriter
     let mut writer = BufWriter::new(file);
 
@@ -2005,6 +2005,6 @@ fn main() {
     // 4. Explicitly flush the remaining data to disk
     writer.flush().expect("flush failed!");
     */
-    
+
     println!("end");
 }

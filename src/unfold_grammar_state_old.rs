@@ -2273,3 +2273,40 @@ match asm_ast_instruction.binary_operator {
             string_buffer.push_str(format!().as_str());
         }
 */
+
+// match param.as_ref() {
+            //     ValueElement::Constant(constant_value) => {
+            //         mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+            //     }
+            //     ValueElement::Variable(variable_name) => {
+            //         mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+            //     }
+            //     _ => {
+            //         panic!("{}", format!("Unhandled InstructionType {:?}!\n", param).as_str());
+            //     }
+            // }
+
+            // match &tacky_node_copy.dst {
+            //     ValueElement::Variable(variable_name) => {
+            //         mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+            //     }
+            //     _ => {
+            //         panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_copy.dst).as_str());
+            //     }
+            // }
+
+            // mov.dst = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(SYSTEM_V_ABI_REGISTER_ORDER[index].clone()) };
+
+            // Nora Sandler, page 196 says to use Pseudo("param")
+            // mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(String::from("param")) };
+
+            // mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(new_param_variable_name) };
+
+            // // mul needs a register or memory operand to function.
+                // // It cannot work with immediate values
+                // let mut mov: AsmAstInstruction = AsmAstInstruction::new();
+                // mov.instruction_type = AsmAstInstructionType::Mov;
+                // mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+                // mov.dst = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(AsmAstReg::BX) };
+                // mov.comment = String::from("    ; binary_relational (1)");
+                // asm_ast_function.body.push(Box::new(mov));
