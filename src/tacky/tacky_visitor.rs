@@ -658,7 +658,27 @@ impl TackyVisitor {
                     // Case: return with value
                     //
 
-                    let dst_name = self.variable_naming_source.borrow_mut().new_temp_var();
+                    // let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+
+                    // // create symbol table entry for temporary variable
+                    // let mut symbol_table_entry = SymbolTableEntry::new();
+                    // symbol_table_entry.name = temp_var_name.clone();
+                    // symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
+                    // symbol_table_entry.data_type = DataType::DataTypeInt;
+                    // symbol_table_entry.is_array = false;
+                    // symbol_table_entry.array_element_count = 0;
+
+                    // self.symbol_table.borrow_mut().insert(temp_var_name.clone(), symbol_table_entry);
+
+                    // // create temporary variable to cast into
+                    // let mut dest_var_declaration: Instruction = Instruction::new();
+                    // dest_var_declaration.instruction_type = InstructionType::VariableDeclaration;
+                    // dest_var_declaration.data_type = DataType::DataTypeInt;
+                    // dest_var_declaration.label = temp_var_name.clone();
+
+                    // // append instruction to latest top-level element of the program
+                    // let last = self.program.top_level.len() - 1;
+                    // self.program.top_level[last].body.push(Box::new(dest_var_declaration));
 
                     // DEBUG
                     if self.debug {
@@ -811,6 +831,8 @@ impl TackyVisitor {
 
                                 let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
 
+                                // asdf
+
                                 let mut br_cnt = 0;
                                 let rhs_value_element = self.visit(rhs_id, node_map, &temp_var_name, &mut br_cnt);
 
@@ -881,6 +903,9 @@ impl TackyVisitor {
                 // LHS - src 2
                 if let Some(lhs_id) = ast_node.lhs {
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+
+                    // asdf
+
                     let mut br_cnt = 0;
                     let lhs_value_element = self.visit(lhs_id, node_map, &temp_var_name, &mut br_cnt);
                     binary_instruction.src_2 = lhs_value_element;
@@ -889,6 +914,9 @@ impl TackyVisitor {
                 // RHS - src
                 if let Some(rhs_id) = ast_node.rhs {
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+
+                    // asdf
+
                     let mut br_cnt = 0;
                     let rhs_value_element = self.visit(rhs_id, node_map, &temp_var_name, &mut br_cnt);
                     binary_instruction.src = rhs_value_element;
@@ -1006,6 +1034,9 @@ impl TackyVisitor {
                 if let Some(lhs_id) = ast_node.expression {
 
                     exp_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+
+                    // asdf
+
                     let lhs_value_element = self.visit(lhs_id, node_map, &exp_result_var_name, branch_counter);
 
                     // DEBUG
@@ -1048,6 +1079,9 @@ impl TackyVisitor {
                 if let Some(lhs_id) = ast_node.lhs {
 
                     stmt_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+
+                    // asdf
+
                     let lhs_value_element = self.visit(lhs_id, node_map, &stmt_result_var_name, branch_counter);
 
                     if !ast_node.rhs.is_none() {
@@ -1056,9 +1090,7 @@ impl TackyVisitor {
                         // unless there is no else branch in which case, no jump is necessary
                         let mut jump_instruction: Instruction = Instruction::new();
                         jump_instruction.instruction_type = InstructionType::Jump;
-                        // jump_instruction.label = String::from("end_label");
                         jump_instruction.label = self.final_end_label(&ast_node, "if_");
-                        // jump_instruction.label = self.new_end_label(/*&mut*/ branch_counter);
                         // append instruction to latest top-level element of the program
                         let last = self.program.top_level.len() - 1;
                         self.program.top_level[last].body.push(Box::new(jump_instruction));
@@ -1066,8 +1098,7 @@ impl TackyVisitor {
                         // Label
                         let mut label_instruction: Instruction = Instruction::new();
                         label_instruction.instruction_type = InstructionType::Label;
-                        // label_instruction.label = String::from("end_label");
-                        label_instruction.label = self.new_end_label(/*&mut*/ &ast_node, "if_", branch_counter);
+                        label_instruction.label = self.new_end_label(&ast_node, "if_", branch_counter);
 
                         // append instruction to latest top-level element of the program
                         let last = self.program.top_level.len() - 1;
@@ -1082,6 +1113,8 @@ impl TackyVisitor {
 
                     // RHS
                     stmt_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+
+                    // asdf
 
                     // let mut br_cnt = 0;
                     let rhs_value_element = self.visit(rhs_id, node_map, &stmt_result_var_name, branch_counter);
@@ -1128,11 +1161,32 @@ impl TackyVisitor {
                 binary_instruction.instruction_type = InstructionType::Binary;
                 binary_instruction.dst = ValueElement::Variable(dst_name.to_string());
 
-                // LHS
+                // LHS - expression
                 if let Some(lhs_id) = ast_node.lhs {
 
-                    // let temp_var_name = self.new_temp_var();
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+
+                    // asdf
+
+                    // create symbol table entry for temporary variable
+                    let mut symbol_table_entry = SymbolTableEntry::new();
+                    symbol_table_entry.name = temp_var_name.clone();
+                    symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
+                    symbol_table_entry.data_type = DataType::DataTypeInt;
+                    symbol_table_entry.is_array = false;
+                    symbol_table_entry.array_element_count = 0;
+
+                    self.symbol_table.borrow_mut().insert(temp_var_name.clone(), symbol_table_entry);
+
+                    // create temporary variable to cast into
+                    let mut dest_var_declaration: Instruction = Instruction::new();
+                    dest_var_declaration.instruction_type = InstructionType::VariableDeclaration;
+                    dest_var_declaration.data_type = DataType::DataTypeInt;
+                    dest_var_declaration.label = temp_var_name.clone();
+
+                    // append instruction to latest top-level element of the program
+                    let last = self.program.top_level.len() - 1;
+                    self.program.top_level[last].body.push(Box::new(dest_var_declaration));
 
                     let mut br_cnt = 0;
                     let lhs_value_element = self.visit(lhs_id, node_map, &temp_var_name, &mut br_cnt);
@@ -1151,13 +1205,15 @@ impl TackyVisitor {
 
                 // RHS - body/statement
                 if let Some(rhs_id) = ast_node.rhs {
-                    // let temp_var_name = self.new_temp_var();
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+
+                    // asdf
+
                     let mut br_cnt = 0;
                     let rhs_value_element = self.visit(rhs_id, node_map, &temp_var_name, &mut br_cnt);
                 }
 
-                // Jump to continue label
+                // jump to continue label
                 let mut jump_instruction: Instruction = Instruction::new();
                 jump_instruction.instruction_type = InstructionType::Jump;
                 jump_instruction.label = continue_label_name.clone();
@@ -1211,6 +1267,9 @@ impl TackyVisitor {
                         println!("{:?}", lhs_id);
                     }
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+
+                    // asdf
+
                     let mut br_cnt = 0;
                     let lhs_value_element = self.visit(lhs_id, node_map, &temp_var_name, &mut br_cnt);
                 }
@@ -1237,9 +1296,6 @@ impl TackyVisitor {
 
                     // add new temporary variable into the symbol table as otherwise the
                     // AsmAstFixupVisitor fails later when it retrieves the variable from the symbol table
-
-                    // destination type
-                    // let target_type = ast_node.analyzed_data_type.clone();
 
                     // create symbol table entry for temporary variable
                     let mut symbol_table_entry = SymbolTableEntry::new();
@@ -1291,17 +1347,12 @@ impl TackyVisitor {
 
                 if let Some(rhs_id) = ast_node.rhs {
 
-                    // println!("{:?}", rhs);
-
-                    // let temp_var_name = self.new_temp_var();
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+
+                    // asdf
 
                     let mut br_cnt = 0;
                     let rhs_value_element = self.visit(rhs_id, node_map, &temp_var_name, &mut br_cnt);
-
-                    // // append instruction to latest top-level element of the program
-                    // let last = self.program.top_level.len() - 1;
-                    // self.program.top_level[last].body.push(Box::new(binary_instruction));
                 }
 
                 // Jump

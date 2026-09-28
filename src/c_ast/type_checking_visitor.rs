@@ -251,10 +251,10 @@ impl TypeCheckingVisitor {
     pub fn get_common_type(&self, lhs_type: &DataType, rhs_type: &DataType) -> DataType {
 
         // DEBUG
-        // if self.debug {
+        if self.debug {
             println!("LHS-Type: {}", lhs_type);
             println!("RHS-Type: {}", rhs_type);
-        // }
+        }
 
         // DESCRIPTION:
         //
@@ -277,7 +277,8 @@ impl TypeCheckingVisitor {
     pub fn visit(&mut self,
         ast_node_id: usize,
         node_map: &mut Box<HashMap<usize, AstNode>>,
-        expected_return_data_type: &DataType) {
+        expected_return_data_type: &DataType)
+    {
 
         let mut ast_node = AstNode::new(0);
 
@@ -611,9 +612,9 @@ impl TypeCheckingVisitor {
             AstNodeType::Binary => {
 
                 // DEBUG
-                // if self.debug {
-                //    println!("{:?}", ast_node);
-                // }
+                if self.debug {
+                   println!("{:?}", ast_node);
+                }
 
                 let mut lhs_type = DataType::DataTypeUnknown;
                 let mut rhs_type = DataType::DataTypeUnknown;
@@ -692,21 +693,22 @@ impl TypeCheckingVisitor {
                     println!("RHS-Type: {}", rhs_type);
                 }
 
+                let common_data_type;
+
                 match ast_node.operator_type {
 
                     // Nora Sandler, page 255. Binary Logical-AND/OR has type int (1 == true, 0 == false)
                     AstNodeOperatorType::LogicalAnd | AstNodeOperatorType::LogicalOr => {
                         ast_node.analyzed_data_type = DataType::DataTypeInt;
+                        common_data_type = DataType::DataTypeInt;
                     }
 
                     _ => {
-                        let common_data_type = self.get_common_type(&lhs_type, &rhs_type);
+                        common_data_type = self.get_common_type(&lhs_type, &rhs_type);
 
                         ast_node.analyzed_data_type = common_data_type.clone();
 
                         let ast_node_parent_id = ast_node.id;
-
-
 
                         // if the types differ, insert a cast in order to align
                         // the type of the LHS with the common type
@@ -803,12 +805,16 @@ impl TypeCheckingVisitor {
                             }
                         }
 
-
-
-                        // the cloned node has been changed. Replace the original node in the node_map to preserve the change
+                        // the cloned node has been changed.
+                        // Replace the original node in the node_map to preserve the change
                         node_map.insert(ast_node.id, ast_node);
                     }
                 }
+
+                let temp_node = node_map.get(&ast_node_id).unwrap().clone();
+                let mut ast_node_clone = temp_node.clone();
+                ast_node_clone.analyzed_data_type = common_data_type;
+                node_map.insert(ast_node_clone.id, ast_node_clone);
             }
 
             AstNodeType::Operator => {
@@ -1036,6 +1042,15 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::While => {
+                // LHS - expression_ast_node, condition, e.g. a < 10
+                if let Some(expression_node_id) = ast_node.lhs {
+                    self.visit(expression_node_id, node_map, expected_return_data_type);
+                }
+
+                // RHS - statement
+                if let Some(statement_node_id) = ast_node.rhs {
+                    self.visit(statement_node_id, node_map, expected_return_data_type);
+                }
             }
 
             AstNodeType::DoWhile => {
@@ -1047,7 +1062,7 @@ impl TypeCheckingVisitor {
                     self.visit(left_node_id, node_map, expected_return_data_type);
                 }
 
-                // Expression - expression_ast_node, condition, e.g. a < 10
+                // expression - expression_ast_node, condition, e.g. a < 10
                 if let Some(expression_node_id) = ast_node.expression {
                     self.visit(expression_node_id, node_map, expected_return_data_type);
                 }

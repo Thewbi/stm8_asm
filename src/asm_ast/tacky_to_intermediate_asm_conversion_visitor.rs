@@ -1567,7 +1567,8 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         // nora sandler, page 87
         //
-        // Cmp(src2, src1) <----------- Cannot compare two immedites, needs at least one memory address or temp register.
+        // Cmp(src2, src1) <----------- Cannot compare two immediates!
+        //                 <----------- Needs at least one memory address or temp register.
         //                 <----------- See visit_tacky_binary_division() or visit_tacky_binary_multiplication()
         // Mov(Imm(0), dst)
         // SetCC(relational_operator, dst)
@@ -1579,14 +1580,18 @@ impl TackyToIntermediateAsmConversionVisitor {
         let mut cmp: AsmAstInstruction = AsmAstInstruction::new();
         cmp.instruction_type = AsmAstInstructionType::Cmp;
         cmp.assembly_type = AstAstAssemblyType::Doubleword;
+        // add a comment that is output to the intermediate assembly and the final assembly
+        // in order to debug assembly generation
+        cmp.comment = String::from("    ; binary_relational (2)");
 
         match &tacky_node_binary.src {
             ValueElement::Constant(constant_value) => {
-                //cmp.src_2 = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(AsmAstReg::BX) };
-                cmp.dst = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(AsmAstReg::BX) };
+                // why is dst used here?
+                // cmp.dst = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(AsmAstReg::BX) };
+                cmp.dst = AsmAstOperand{ operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
             }
             ValueElement::Variable(variable_name) => {
-                //cmp.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+                // why is dst used here?
                 cmp.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
             }
             _ => {
@@ -1607,10 +1612,6 @@ impl TackyToIntermediateAsmConversionVisitor {
                 panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_binary.src_2).as_str());
             }
         }
-
-        // add a comment that is output to the intermediate assembly and the final assembly
-        // in order to debug assembly generation
-        cmp.comment = String::from("    ; binary_relational (2)");
 
         assert_ne!(cmp.assembly_type, AstAstAssemblyType::Unknown);
 

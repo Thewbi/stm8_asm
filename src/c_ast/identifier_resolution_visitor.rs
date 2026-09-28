@@ -803,7 +803,18 @@ impl IdentifierResolutionVisitor {
 
                 // LHS - initialization, e.g.: a = 0
                 if let Some(left_node_id) = ast_node.lhs {
-                    self.visit(left_node_id, node_map);
+                    let replaced_var_name_node = self.visit(left_node_id, node_map);
+                    let replaced_var_name = replaced_var_name_node.string_val;
+
+                    // DEBUG
+                    if self.debug {
+                        println!("{:?}", replaced_var_name);
+                    }
+
+                    let mut left_node = node_map.get(&left_node_id).unwrap().clone();
+                    left_node.string_val = replaced_var_name;
+
+                    node_map.insert(left_node.id, left_node);
                 }
 
                 // Expression - expression_ast_node, condition, e.g. a < 10
