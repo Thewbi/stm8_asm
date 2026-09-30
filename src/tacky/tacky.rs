@@ -192,7 +192,8 @@ pub enum InstructionType {
     DoubleToUInt,
     VariableDeclaration,
     AddAssignment,
-    Subscript,
+    SubscriptSrc,
+    SubscriptDst,
 
     Comment, // artifically added
 }
@@ -382,9 +383,9 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
             string_buffer.push_str(format!("AddAssignment(src:{:?}, dst:{:?})\n", instruction.src, instruction.dst).as_str());
         }
 
-        InstructionType::Subscript => {
+        InstructionType::SubscriptSrc => {
             string_buffer.push_str(
-                format!("Subscript(src:{:?}, dst:{:?}, data_type:{:?}, index:{:?})\n",
+                format!("SubscriptSrc(src:{:?}, dst:{:?}, data_type:{:?}, index:{:?})\n",
                     instruction.src,
                     instruction.dst,
                     instruction.data_type,
@@ -392,9 +393,15 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
             .as_str());
         }
 
-        // _ => {
-        //     panic!("{}", format!("unknown instruction! {:?}", instruction.instruction_type));
-        // }
+        InstructionType::SubscriptDst => {
+            string_buffer.push_str(
+                format!("SubscriptDst(src:{:?}, dst:{:?}, data_type:{:?}, index:{:?})\n",
+                    instruction.src,
+                    instruction.dst,
+                    instruction.data_type,
+                    instruction.index)
+            .as_str());
+        }
     }
 }
 

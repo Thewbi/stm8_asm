@@ -565,41 +565,23 @@ impl AsmAstMasmEmitterVisitor {
         match asm_ast_instruction.instruction_type {
 
             AsmAstInstructionType::Mov => {
-                // DEBUG
-                // println!("movl {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
 
-                // // DEBUG
-                // if asm_ast_instruction.id == 123 {
-                //     println!("test");
-                // }
-
-                // match &asm_ast_instruction.offset.operand_type {
-                //     AsmAstOperandType::Unknown => {
-                //         // no offset specified
-                //         //self.emit_asm_ast_operand(&asm_ast_instruction.src, &asm_ast_instruction.assembly_type);
-                //     }
-                //     AsmAstOperandType::Reg(register_name) => {
-                //         // println!("test");
-                //         panic!();
-                //     }
-                //     _ => {
-                //         panic!();
-                //     }
-                // }
-
-                // print!("    mov ");
                 self.string_buffer.push_str("    mov ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
-                // print!(", ");
+                self.emit_asm_ast_operand(
+                    &asm_ast_instruction.dst,
+                    //&AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                    &asm_ast_instruction.offset,
+                    &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(", ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.src, &asm_ast_instruction.offset, &asm_ast_instruction.assembly_type);
+                self.emit_asm_ast_operand(
+                    &asm_ast_instruction.src,
+                    &asm_ast_instruction.offset,
+                    &asm_ast_instruction.assembly_type);
 
                 // comment
-                // print!("{}", asm_ast_instruction.comment);
                 self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
 
                 // newline
-                // println!("");
                 self.string_buffer.push_str("\n");
             }
 
@@ -847,3 +829,28 @@ impl AsmAstMasmEmitterVisitor {
         }
     }
 }
+
+
+// DEBUG
+                // println!("movl {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
+
+                // // DEBUG
+                // if asm_ast_instruction.id == 123 {
+                //     println!("test");
+                // }
+
+                // match &asm_ast_instruction.offset.operand_type {
+                //     AsmAstOperandType::Unknown => {
+                //         // no offset specified
+                //         //self.emit_asm_ast_operand(&asm_ast_instruction.src, &asm_ast_instruction.assembly_type);
+                //     }
+                //     AsmAstOperandType::Reg(register_name) => {
+                //         // println!("test");
+                //         panic!();
+                //     }
+                //     _ => {
+                //         panic!();
+                //     }
+                // }
+
+                // print!("    mov ");

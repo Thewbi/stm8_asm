@@ -308,9 +308,12 @@ impl TackyToIntermediateAsmConversionVisitor {
                     self.visit_tacky_add_assignment(&mut asm_ast_function, tacky_instruction);
                 }
 
-                InstructionType::Subscript => {
-                    self.visit_tacky_subscript(&mut asm_ast_function, tacky_instruction);
-                    // self.visit_tacky_load(&mut asm_ast_function, tacky_instruction);
+                InstructionType::SubscriptSrc => {
+                    self.visit_tacky_subscript_src(&mut asm_ast_function, tacky_instruction);
+                }
+
+                InstructionType::SubscriptDst => {
+                    self.visit_tacky_subscript_dst(&mut asm_ast_function, tacky_instruction);
                 }
 
                 _ => {
@@ -330,16 +333,17 @@ impl TackyToIntermediateAsmConversionVisitor {
         self.asm_ast_program.functions.push(asm_ast_function);
     }
 
-    pub fn visit_tacky_subscript(&mut self,
+    pub fn visit_tacky_subscript_src(&mut self,
         asm_ast_function: &mut AsmAstFunction,
         tacky_instruction_subscript: &Instruction)
     {
-        // let mut subscript: AsmAstInstruction = AsmAstInstruction::new();
-        // // subscript.instruction_type = AsmAstInstructionType::Deref;
-        // // subscript.unary_operator = AsmAstUnaryOperator::AddAssignment;
-        // subscript.comment = String::from(format!("    ; for subscript (applying an index to an array)").to_string());
-
-        // asm_ast_function.body.push(Box::new(subscript));
+        //
+        // CASE 1 - subscript is src of assignment:
+        // EXAMPLE: i = arr[1];
+        //
+        // CASE 2 - subscript is dst of assignment
+        // EXAMPLE: arr[0] = 123;
+        //
 
         // DEBUG
         if self.debug {
@@ -349,7 +353,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         let offset_register = AsmAstReg::RAX;
 
         //
-        // If the variable is subscripted using a index variable (such as i for for loops)
+        // if the variable is subscripted using a index variable (such as i for for loops)
         // then this index variable i needs to be part of the subscript address computation.
         // Therefore the variable needs to be transferred into a register in order to formulate
         // asm instructions such as: mov eax, dword ptr [rbp-28+rax*4]
@@ -358,11 +362,12 @@ impl TackyToIntermediateAsmConversionVisitor {
         let mut mov_index: AsmAstInstruction = AsmAstInstruction::new();
         mov_index.instruction_type = AsmAstInstructionType::Mov;
         mov_index.assembly_type = AstAstAssemblyType::Doubleword;
-        mov_index.comment = String::from("    ; [Subscript 1] Mov Index into RAX");
+        mov_index.comment = String::from("    ; [Subscript 1] Mov Index/Offset into RAX");
         let src_data_type:DataType;
-        // the index into the array is stored in index.
+        // the index into the array is stored in tacky_instruction_subscript.index.
         // move this index into EAX
         match &tacky_instruction_subscript.index {
+
             ValueElement::Variable(var_name) => {
                 // retrieve address
                 let symbol_table_entry = self.symbol_table.borrow_mut().get(var_name);
@@ -370,8 +375,18 @@ impl TackyToIntermediateAsmConversionVisitor {
                 mov_index.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
                 mov_index.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
             }
+
+            ValueElement::Constant(literal_value) => {
+                src_data_type = DataType::DataTypeInt;
+
+                // TODO: convert base on number system (binary, octal, decimal, hexadecimal! Currently hard-coded!)
+                let val = i32::from_str_radix(&literal_value, 10).expect("REASON");
+                mov_index.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(val.clone()) };
+                mov_index.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Imm(val.clone()) };
+            }
+
             _ => {
-                panic!();
+                panic!("[ERR] Unhandled type: {:?}", &tacky_instruction_subscript.index);
             }
         }
         mov_index.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::EAX) };
@@ -384,14 +399,26 @@ impl TackyToIntermediateAsmConversionVisitor {
         //
         // 1. Mov = Mov(Quadword, ptr, Reg(AX))
         //
+        // This is where the array is accessed using a base pointer and an index!
+        // The pointer-index/offset is expected in EAX and the result of the
+        // array subscript access is then written into EAX.
+        // If you treat this mov as a function, then the function has a parameter
+        // which is EAX and it places the return value into EAX!
+        //
         // Write the basepointer into register A because register A is used
         // in register relative addressing in the second mov instruction later
+        //
+        // Perform register relative addressing relativ to the base address
+        // stored inside the register A
         //
 
         let mut mov_1: AsmAstInstruction = AsmAstInstruction::new();
         mov_1.instruction_type = AsmAstInstructionType::Mov;
         mov_1.assembly_type = AstAstAssemblyType::Doubleword;
         mov_1.comment = String::from(format!("    ; [Subscript 2] for subscript (applying an index to an array)").to_string());
+
+/* for array-subscript is source */
+
         match &tacky_instruction_subscript.src {
             ValueElement::Variable(var_name) => {
                 // DEBUG
@@ -411,6 +438,7 @@ impl TackyToIntermediateAsmConversionVisitor {
                 panic!("Need variable or constant! Got {:?}", &tacky_instruction_subscript.src);
             }
         }
+
         match &tacky_instruction_subscript.dst {
             ValueElement::Variable(var_name) => {
                 // DEBUG
@@ -424,15 +452,64 @@ impl TackyToIntermediateAsmConversionVisitor {
             }
         }
 
+
+
+
+/* for array-subscript is destination
+        // int main() {
+        //     int arr[3];
+        //     arr[0] = 1;
+        //     return 0;
+        // }
+
+        match &tacky_instruction_subscript.src {
+            ValueElement::Variable(var_name) => {
+                // DEBUG
+                if self.debug {
+                    println!("{:?}", var_name);
+                }
+                mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::EAX) };
+            }
+            ValueElement::Constant(literal_value) => {
+                // TODO: convert base on number system (binary, octal, decimal, hexadecimal! Currently hard-coded!)
+                let val = i32::from_str_radix(&literal_value, 10).expect("REASON");
+                mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(val) };
+            }
+            _ => {
+                panic!("Need variable! Got {:?}", &tacky_instruction_subscript.src);
+            }
+        }
+
+        match &tacky_instruction_subscript.dst {
+            ValueElement::Variable(var_name) => {
+                // DEBUG
+                if self.debug {
+                    println!("{:?}", var_name);
+                }
+                mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+
+                // when the src has a base address and an offset! such as in 'int x = arr[i];'
+                // Here i is the offset applied to the base address which is the address of arr.
+                mov_1.offset = AsmAstOperand { operand_type: AsmAstOperandType::Reg(offset_register.clone()) };
+            }
+            ValueElement::Constant(constant_value) => {
+                mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+            }
+            _ => {
+                panic!("Need variable or constant! Got {:?}", &tacky_instruction_subscript.src);
+            }
+        }
+*/
         assert_ne!(mov_1.assembly_type, AstAstAssemblyType::Unknown);
 
         asm_ast_function.body.push(Box::new(mov_1));
 
+/* for array-subscript is source */
         //
         // 2. Mov = Mov(<dst_type>, Memory(AX, 0), dst)
         //
-        // Perform register relative addressing relativ to the base address
-        // stored inside the register A
+        // Move the value retrieved from the array which is located in register A
+        // into the destination memory location
         //
 
         let mut mov_2: AsmAstInstruction = AsmAstInstruction::new();
@@ -440,14 +517,8 @@ impl TackyToIntermediateAsmConversionVisitor {
         mov_2.instruction_type = AsmAstInstructionType::Mov;
         mov_2.assembly_type = AstAstAssemblyType::Doubleword;
         mov_2.comment = String::from("    ; [Subscript 3] mov_2");
-        match &tacky_instruction_subscript.dst { // changed to dst for array_4.c
-            ValueElement::Variable(var_name) => {
-                mov_2.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
-            }
-            _ => {
-                panic!("Need variable!");
-            }
-        }
+
+        // determine src of mov
         match &tacky_instruction_subscript.dst {
             ValueElement::Variable(var_name) => {
                 mov_2.src = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::EAX) };
@@ -461,9 +532,254 @@ impl TackyToIntermediateAsmConversionVisitor {
             }
         }
 
+        // determine destination of mov
+        match &tacky_instruction_subscript.dst { // changed to dst for array_4.c
+            ValueElement::Variable(var_name) => {
+                mov_2.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+            }
+            _ => {
+                panic!("[ERR] Need variable!");
+            }
+        }
+
         assert_ne!(mov_2.assembly_type, AstAstAssemblyType::Unknown);
 
         asm_ast_function.body.push(Box::new(mov_2));
+
+    }
+
+    // the destination of the instruction is a subscripted array
+    // e.g. arr[0] = 123;
+    // e.g. arr[0] = a;
+    pub fn visit_tacky_subscript_dst(&mut self,
+        asm_ast_function: &mut AsmAstFunction,
+        tacky_instruction_subscript: &Instruction)
+    {
+        //
+        // CASE 2 - subscript is dst of assignment
+        // EXAMPLE: arr[0] = 123;
+        // EXAMPLE: arr[0] = a;
+        //
+
+        // DEBUG
+        if self.debug {
+            println!("{:?}", tacky_instruction_subscript);
+        }
+
+        let offset_register = AsmAstReg::RAX;
+
+        //
+        // if the variable is subscripted using a index variable (such as i for for loops)
+        // then this index variable i needs to be part of the subscript address computation.
+        // Therefore the variable needs to be transferred into a register in order to formulate
+        // asm instructions such as: mov eax, dword ptr [rbp-28+rax*4]
+        //
+
+        let mut mov_index: AsmAstInstruction = AsmAstInstruction::new();
+        mov_index.instruction_type = AsmAstInstructionType::Mov;
+        mov_index.assembly_type = AstAstAssemblyType::Doubleword;
+        mov_index.comment = String::from("    ; [Subscript 1] Mov Index/Offset into RAX");
+        let src_data_type:DataType;
+        // the index into the array is stored in tacky_instruction_subscript.index.
+        // move this index into EAX
+        match &tacky_instruction_subscript.index {
+
+            ValueElement::Variable(var_name) => {
+                // retrieve address
+                let symbol_table_entry = self.symbol_table.borrow_mut().get(var_name);
+                src_data_type = symbol_table_entry.data_type;
+                mov_index.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+                mov_index.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+            }
+
+            ValueElement::Constant(literal_value) => {
+                src_data_type = DataType::DataTypeInt;
+
+                println!("literal_value: {:?}", literal_value);
+
+                // TODO: convert base on number system (binary, octal, decimal, hexadecimal! Currently hard-coded!)
+                let val = i32::from_str_radix(&literal_value, 10).expect("REASON");
+                mov_index.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(val.clone()) };
+                mov_index.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Imm(val.clone()) };
+            }
+
+            _ => {
+                panic!("[ERR] Unhandled type: {:?}", &tacky_instruction_subscript.index);
+            }
+        }
+        mov_index.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::EAX) };
+        mov_index.assembly_type = AstAstAssemblyType::from_data_type(&src_data_type);
+
+        assert_ne!(mov_index.assembly_type, AstAstAssemblyType::Unknown);
+
+        asm_ast_function.body.push(Box::new(mov_index));
+
+        //
+        // 1. Mov = Mov(Quadword, ptr, Reg(AX))
+        //
+        // This is where the array is accessed using a base pointer and an index!
+        // The pointer-index/offset is expected in EAX and the result of the
+        // array subscript access is then written into EAX.
+        // If you treat this mov as a function, then the function has a parameter
+        // which is EAX and it places the return value into EAX!
+        //
+        // Write the basepointer into register A because register A is used
+        // in register relative addressing in the second mov instruction later
+        //
+        // Perform register relative addressing relativ to the base address
+        // stored inside the register A
+        //
+
+        let mut mov_1: AsmAstInstruction = AsmAstInstruction::new();
+        mov_1.instruction_type = AsmAstInstructionType::Mov;
+        mov_1.assembly_type = AstAstAssemblyType::Doubleword;
+        mov_1.comment = String::from(format!("    ; [Subscript 2] for subscript (applying an index to an array)").to_string());
+
+/* for array-subscript is source
+
+        match &tacky_instruction_subscript.src {
+            ValueElement::Variable(var_name) => {
+                // DEBUG
+                if self.debug {
+                    println!("{:?}", var_name);
+                }
+                mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+
+                // when the src has a base address and an offset! such as in 'int x = arr[i];'
+                // Here i is the offset applied to the base address which is the address of arr.
+                mov_1.offset = AsmAstOperand { operand_type: AsmAstOperandType::Reg(offset_register.clone()) };
+            }
+            ValueElement::Constant(constant_value) => {
+                mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+            }
+            _ => {
+                panic!("Need variable or constant! Got {:?}", &tacky_instruction_subscript.src);
+            }
+        }
+
+        match &tacky_instruction_subscript.dst {
+            ValueElement::Variable(var_name) => {
+                // DEBUG
+                if self.debug {
+                    println!("{:?}", var_name);
+                }
+                mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::EAX) };
+            }
+            _ => {
+                panic!("Need variable! Got {:?}", &tacky_instruction_subscript.src);
+            }
+        }
+*/
+
+/* for array-subscript is destination */
+
+        // int main() {
+        //     int arr[3];
+        //     arr[0] = 1;
+        //     return 0;
+        // }
+
+        match &tacky_instruction_subscript.src {
+
+            ValueElement::Variable(var_name) => {
+                // DEBUG
+                if self.debug {
+                    println!("{:?}", var_name);
+                }
+
+                // add a mov instruction which moves the variable's value into ECX
+                // mov ecx, dword ptr [rbp-48]
+
+                let mut mov_4: AsmAstInstruction = AsmAstInstruction::new();
+                mov_4.instruction_type = AsmAstInstructionType::Mov;
+                mov_4.assembly_type = AstAstAssemblyType::Doubleword;
+                mov_4.comment = String::from(format!("    ; [Subscript 4] mov src variable's value into dst!").to_string());
+                // ECX was choosen at random. There is no reason. Could use any free register.
+                mov_4.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+                mov_4.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::ECX) };
+                assert_ne!(mov_4.assembly_type, AstAstAssemblyType::Unknown);
+                asm_ast_function.body.push(Box::new(mov_4));
+
+                mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::ECX) };
+            }
+
+            ValueElement::Constant(literal_value) => {
+                // TODO: convert base on number system (binary, octal, decimal, hexadecimal! Currently hard-coded!)
+                let val = i32::from_str_radix(&literal_value, 10).expect("REASON");
+                mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(val) };
+            }
+            _ => {
+                panic!("Need variable! Got {:?}", &tacky_instruction_subscript.src);
+            }
+        }
+
+        match &tacky_instruction_subscript.dst {
+            ValueElement::Variable(var_name) => {
+                // DEBUG
+                if self.debug {
+                    println!("{:?}", var_name);
+                }
+                mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+
+                // when the src has a base address and an offset! such as in 'int x = arr[i];'
+                // Here i is the offset applied to the base address which is the address of arr.
+                mov_1.offset = AsmAstOperand { operand_type: AsmAstOperandType::Reg(offset_register.clone()) };
+            }
+            ValueElement::Constant(constant_value) => {
+                mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+            }
+            _ => {
+                panic!("Need variable or constant! Got {:?}", &tacky_instruction_subscript.src);
+            }
+        }
+
+        assert_ne!(mov_1.assembly_type, AstAstAssemblyType::Unknown);
+
+        asm_ast_function.body.push(Box::new(mov_1));
+
+/* for array-subscript is source
+        //
+        // 2. Mov = Mov(<dst_type>, Memory(AX, 0), dst)
+        //
+        // Move the value retrieved from the array which is located in register A
+        // into the destination memory location
+        //
+
+        let mut mov_2: AsmAstInstruction = AsmAstInstruction::new();
+        mov_2.id = 123;
+        mov_2.instruction_type = AsmAstInstructionType::Mov;
+        mov_2.assembly_type = AstAstAssemblyType::Doubleword;
+        mov_2.comment = String::from("    ; [Subscript 3] mov_2");
+
+        // determine src of mov
+        match &tacky_instruction_subscript.dst {
+            ValueElement::Variable(var_name) => {
+                mov_2.src = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::EAX) };
+                // mov_2.src = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX) };
+            }
+            ValueElement::Constant(constant_value) => {
+                mov_2.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+            }
+            _ => {
+                panic!("Need variable or Constant! Got {:?}", &tacky_instruction_subscript.src);
+            }
+        }
+
+        // determine destination of mov
+        match &tacky_instruction_subscript.dst { // changed to dst for array_4.c
+            ValueElement::Variable(var_name) => {
+                mov_2.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+            }
+            _ => {
+                panic!("[ERR] Need variable!");
+            }
+        }
+
+        assert_ne!(mov_2.assembly_type, AstAstAssemblyType::Unknown);
+
+        asm_ast_function.body.push(Box::new(mov_2));
+*/
+
     }
 
     //

@@ -295,14 +295,21 @@ pub enum AsmAstOperandType {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum AsmAstReg {
+
     AX, // -> AX
     EAX,
     RAX,
+
     BX, // -> BX
     EBX,
     RBX,
-    DX, // -> EDX
+
     CX,
+    ECX,
+    RCX,
+
+    DX, // -> EDX
+
     DI,
     SI,
     R8,
@@ -380,6 +387,28 @@ impl AsmAstReg {
             AsmAstReg::RBX => {
                 string_buffer.push_str("rbx");
             }
+
+            AsmAstReg::CX => {
+                match data_type {
+                    AstAstAssemblyType::Doubleword => {
+                        string_buffer.push_str("ecx");
+                    }
+                    AstAstAssemblyType::Quadword => {
+                        string_buffer.push_str("rcx");
+                    }
+                    _ => {
+                        panic!("");
+                    }
+                }
+            }
+            AsmAstReg::ECX => {
+                string_buffer.push_str("ecx");
+            }
+            AsmAstReg::RCX => {
+                string_buffer.push_str("rcx");
+            }
+
+
             AsmAstReg::R10 => {
                 string_buffer.push_str("r10");
 
@@ -427,8 +456,12 @@ impl fmt::Display for AsmAstReg {
             AsmAstReg::EBX => write!(f, "ebx"),
             AsmAstReg::RBX => write!(f, "rbx"),
 
+            AsmAstReg::CX => write!(f, "cx"),
+            AsmAstReg::ECX => write!(f, "ecx"),
+            AsmAstReg::RCX => write!(f, "rcx"),
+
             AsmAstReg::DX => write!(f, "rdx"),
-            AsmAstReg::CX => write!(f, "rcx"),
+
             AsmAstReg::DI => write!(f, "rdi"),
             AsmAstReg::SI => write!(f, "rsi"),
 

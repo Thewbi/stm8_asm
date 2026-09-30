@@ -632,7 +632,6 @@ fn main() {
         while !done {
 
             let body_ast_node_id = parser.ast_stack.pop().unwrap();
-            // let body_ast_node = node_map.get(&body_ast_node_id);
             program_ast_node.block_items.push(body_ast_node_id);
 
             done = parser.ast_stack.len() == 0;
@@ -731,8 +730,6 @@ fn main() {
                 //
 
                 print_ast(&program_ast_node_id, &node_map, "dot\\abstract_syntax_tree_post_type_checking.dot");
-
-                println!("test");
 
                 //
                 // Print symbol table after TypeChecking

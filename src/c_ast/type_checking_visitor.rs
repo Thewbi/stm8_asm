@@ -166,8 +166,10 @@ impl TypeCheckingVisitor {
                 // .dot file on your hard drive is stale and only contains data from the last
                 // successfull run, but not from the current debugging session!
 
-                println!("ast_node.id: {:?}", ast_node.id);
-                println!("{:?}", ast_node);
+                if self.debug {
+                    println!("ast_node.id: {:?}", ast_node.id);
+                    println!("{:?}", ast_node);
+                }
 
                 // LHS
                 let mut lhs_data_type = DataType::DataTypeUnknown;
@@ -190,6 +192,10 @@ impl TypeCheckingVisitor {
                         AstNodeType::Identifier => {
                             let lhs_symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&left_node.string_val);
                             lhs_data_type = lhs_symbol_table_entry.data_type;
+                        }
+
+                        AstNodeType::Subscript => {
+                            lhs_data_type = left_node.analyzed_data_type.clone();
                         }
 
                         _ => {
@@ -814,6 +820,8 @@ impl TypeCheckingVisitor {
                 let temp_node = node_map.get(&ast_node_id).unwrap().clone();
                 let mut ast_node_clone = temp_node.clone();
                 ast_node_clone.analyzed_data_type = common_data_type;
+
+                // update changed node
                 node_map.insert(ast_node_clone.id, ast_node_clone);
             }
 
@@ -1163,6 +1171,20 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Subscript => {
+
+                // RHS contains the type
+                if let Some(right_node_id) = ast_node.rhs {
+                    self.visit(right_node_id, node_map, expected_return_data_type);
+
+                    let right_node = node_map.get(&right_node_id).unwrap();
+
+                    let rhs_type = self.retrieve_data_type_from_node_type(right_node, node_map);
+
+                    ast_node.analyzed_data_type = rhs_type;
+
+                    // update changed node
+                    node_map.insert(ast_node.id, ast_node);
+                }
             }
 
             AstNodeType::MemberDeclaration => {
@@ -1176,9 +1198,6 @@ impl TypeCheckingVisitor {
 
             AstNodeType::AssignmentOperator => {
             }
-
-            // AstNodeType::Cast => {
-            // }
 
             AstNodeType::Unknown => {
             }

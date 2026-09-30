@@ -67,5 +67,6 @@ int main() {
     }
 
     //return swapped;
-    return 0;
+    return temp;
+    //return 0;
 }

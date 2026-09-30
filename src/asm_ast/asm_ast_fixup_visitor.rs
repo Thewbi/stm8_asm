@@ -19,6 +19,8 @@ use crate::asm_ast::asm_ast::AsmAstReg;
 // Fixes up the intermediate Asm AST before the intermediate AST
 // goes into the Assembly Generation (AsmAstMasmEmitterVisitor, GASEmitter... )
 //
+// Before this struct runs, there is naming replacement, type checking, TACKY generation.
+//
 // The intermediate ASM is fixed by:
 //
 // - replacing pseudo variables/operands with stack addresses
@@ -94,6 +96,8 @@ impl AsmAstFixupVisitor {
                 if self.debug {
                     println!("Pseudo. Pseudo-Name: '{}'", pseudo_name);
                 }
+
+                assert!(pseudo_name.len() != 0, "[ERR] [asm_ast_fixup_visitor] PseudoVariable has no name! Need a name to replace!");
 
                 if self.replace_pseudo {
 
@@ -324,10 +328,6 @@ impl AsmAstFixupVisitor {
                     println!("Mov {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
                 }
 
-                // if asm_ast_instruction.id == 123 {
-                //     println!("test");
-                // }
-
                 // replace pseudo operand by relative address on stack
                 asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
                 asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
@@ -340,6 +340,13 @@ impl AsmAstFixupVisitor {
                     // x86 mov cannot move from memory (stack or other memory) to memory directly!
                     if matches!(asm_ast_instruction.src.operand_type, AsmAstOperandType::Memory(_, _)) {
                         if matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::Memory(_, _)) {
+                            fix = true;
+                        }
+                    }
+
+                    // x86 cmp cannot compare immediate to immediate directly!
+                    if matches!(asm_ast_instruction.src_2.operand_type, AsmAstOperandType::Imm(_)) {
+                        if matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::Imm(_)) {
                             fix = true;
                         }
                     }

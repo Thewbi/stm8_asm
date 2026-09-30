@@ -480,6 +480,7 @@ pub fn provide_sourcode_input() -> ( String, String ) {
     // let str: String = fs::read_to_string("res/C/samples/c_samples/expression_2.c").expect("file cannot be read!");
 
     // let str: String = fs::read_to_string("res/C/samples/c_samples/if_0.c").expect("file cannot be read!");
+    // let filename = "res/C/samples/c_samples/if_0.c";
     // let str: String = fs::read_to_string("res/C/samples/c_samples/if_1.c").expect("file cannot be read!");
     // let str: String = fs::read_to_string("res/C/samples/c_samples/if_else_if_0.c").expect("file cannot be read!");
 
@@ -487,6 +488,7 @@ pub fn provide_sourcode_input() -> ( String, String ) {
     // let str: String = fs::read_to_string("res/C/samples/c_samples/function_call_3.c").expect("file cannot be read!");
 
     // let str: String = fs::read_to_string("res/C/samples/c_samples/for_loop_0.c").expect("file cannot be read!");
+    // let filename = "res/C/samples/c_samples/for_loop_0.c";
     // let str: String = fs::read_to_string("res/C/samples/c_samples/for_loop_1.c").expect("file cannot be read!");
 
     // let str: String = fs::read_to_string("res/C/samples/c_samples/do_loop_0.c").expect("file cannot be read!");
@@ -494,7 +496,7 @@ pub fn provide_sourcode_input() -> ( String, String ) {
     // let filename = "res/C/samples/c_samples/while_loop_0.c";
     // let filename = "res/C/samples/c_samples/while_loop_1.c";
     // let filename = "res/C/samples/c_samples/while_loop_2.c";
-    let filename = "res/C/samples/c_samples/while_loop_3.c";
+    // let filename = "res/C/samples/c_samples/while_loop_3.c";
 
     // let str: String = fs::read_to_string("res/C/samples/c_samples/main_0.c").expect("file cannot be read!");
 
@@ -507,6 +509,9 @@ pub fn provide_sourcode_input() -> ( String, String ) {
 
     // let filename = "res/C/samples/c_samples/parameter_pointer.c";
 
+    // let filename = "res/C/samples/c_samples/array_0.c"; // FIX: compiler does not reserve memory on the stack
+    // let filename = "res/C/samples/c_samples/array_1.c"; // TODO // subscript as dest
+    // let filename = "res/C/samples/c_samples/array_2.c"; // subscript as source
     // let filename = "res/C/samples/c_samples/array_declaration_with_size.c";
     // let filename = "res/C/samples/c_samples/array_declaration_without_size.c";
 
@@ -523,7 +528,11 @@ pub fn provide_sourcode_input() -> ( String, String ) {
 
     // let filename = "res/C/samples/c_samples/bubblesort_1.c";
     // let filename = "res/C/samples/c_samples/bubblesort_2.c";
+    let filename = "res/C/samples/c_samples/bubblesort_3.c";
     // let filename = "res/C/samples/c_samples/bubblesort_broken.c";
+
+    // let filename = "res/C/samples/c_samples/subscript_0.c";
+    // let filename = "res/C/samples/c_samples/subscript_1.c";
 
     //
     // Preprocessor - step 1 - remove single-line comments

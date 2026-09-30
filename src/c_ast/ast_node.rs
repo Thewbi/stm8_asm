@@ -62,6 +62,8 @@ pub enum AstNodeType {
     SingleInit,
     CompoundInit,
     Subscript,
+    // SubscriptSrc,
+    // SubscriptDst,
     MemberDeclaration,
     Dot,
     Arrow,
@@ -183,13 +185,8 @@ impl fmt::Debug for AstNode {
             AstNodeType::CompoundInit => {
                 println!("CompoundInit");
 
-                // if let Some(left_node) = self.lhs.as_ref() {
-                //     print!("{:?}", left_node);
-                // }
-
                 for i in 0..self.block_items.len() {
                     let temp_node_id = self.block_items[i];
-                    // let temp_node = node_map.get(&temp_node_id).unwrap();
                     print!("{:?}", temp_node_id);
                 }
             }
@@ -621,7 +618,7 @@ impl AstNode {
         lhs_string.push_str(" ");
         lhs_string.push_str(&self.string_val);
 
-        println!("{}", self.initial_string_val);
+        // println!("{}", self.initial_string_val);
         if !self.initial_string_val.is_empty() {
             lhs_string.push_str(" initial_string_val:");
             lhs_string.push_str(&self.initial_string_val);
@@ -1470,7 +1467,7 @@ impl AstNode {
 
             // connect parent and child
             // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"LHS\"]\n", ast_node_id, lhs_ast_node_id).as_str());
         }
         // Expression - expression_ast_node, condition, e.g. a < 10
         let mut expression_ast_node_id = 0;
@@ -1479,7 +1476,7 @@ impl AstNode {
 
             // connect parent and child
             // println!("{} -> {}", ast_node_id, expression_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, expression_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"expression\"]\n", ast_node_id, expression_ast_node_id).as_str());
         }
         // RHS - post, e.g.: a = a + 1
         let mut rhs_ast_node_id = 0;
@@ -1488,7 +1485,7 @@ impl AstNode {
 
             // connect parent and child
             // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"RHS\"]\n", ast_node_id, rhs_ast_node_id).as_str());
         }
 
         // BLOCK_ITEMS - instructions and declarations
@@ -1498,7 +1495,7 @@ impl AstNode {
 
             // connect parent and child
             // println!("{} -> {}", ast_node_id, block_item_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, block_item_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"block_items\"]\n", ast_node_id, block_item_ast_node_id).as_str());
         }
 
         ast_node_id
@@ -1743,11 +1740,10 @@ impl AstNode {
     fn pretty_print_ast_subscript_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Subscript: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        string_buffer.push_str(format!("{} [label=\"{} Subscript: {} [{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.analyzed_data_type).as_str());
 
         // lhs - pointer
         let mut lhs_ast_node_id = 0;
@@ -1755,8 +1751,8 @@ impl AstNode {
             lhs_ast_node_id = node_map.get(&left_node).unwrap().pretty_print_ast_dot_ex(string_buffer, node_map, "pointer:");
 
             // connect parent and child
-            // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
+            // println!("{} -> {} [label=\"LHS\"]", ast_node_id, lhs_ast_node_id);
+            string_buffer.push_str(format!("{} -> {} [label=\"LHS\"]\n", ast_node_id, lhs_ast_node_id).as_str());
         }
 
         // rhs - index
@@ -1765,8 +1761,8 @@ impl AstNode {
             rhs_ast_node_id = node_map.get(&right_node).unwrap().pretty_print_ast_dot_ex(string_buffer, node_map, "index:");
 
             // connect parent and child
-            // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
+            // println!("{} -> {} [label=\"RHS\"]", ast_node_id, rhs_ast_node_id);
+            string_buffer.push_str(format!("{} -> {} [label=\"RHS\"]\n", ast_node_id, rhs_ast_node_id).as_str());
         }
 
         ast_node_id

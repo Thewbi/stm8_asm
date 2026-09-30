@@ -938,9 +938,8 @@ impl IdentifierResolutionVisitor {
                 // DEBUG
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
+                    println!("{:?}", ast_node);
                 }
-
-                println!("{:?}", ast_node);
 
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
