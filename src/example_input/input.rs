@@ -1,5 +1,4 @@
 use std::fs;
-
 use std::fs::File;
 
 use std::io::BufRead;
@@ -7,6 +6,11 @@ use std::io::BufReader;
 
 use std::io::BufWriter;
 use std::io::Write;
+
+enum PreprocessorOperatingMode {
+    Normal,
+    MultilineComment,
+}
 
 // first element: text data
 // second element: filename which is the source of the text data
@@ -528,11 +532,15 @@ pub fn provide_sourcode_input() -> ( String, String ) {
 
     // let filename = "res/C/samples/c_samples/bubblesort_1.c";
     // let filename = "res/C/samples/c_samples/bubblesort_2.c";
-    let filename = "res/C/samples/c_samples/bubblesort_3.c";
+    // let filename = "res/C/samples/c_samples/bubblesort_3.c";
     // let filename = "res/C/samples/c_samples/bubblesort_broken.c";
 
     // let filename = "res/C/samples/c_samples/subscript_0.c";
     // let filename = "res/C/samples/c_samples/subscript_1.c";
+
+    // let filename = "res/C/samples/c_samples/printf_0.c";
+
+    let filename = "res/C/samples/c_samples/test_0.c";
 
     //
     // Preprocessor - step 1 - remove single-line comments
@@ -543,6 +551,10 @@ pub fn provide_sourcode_input() -> ( String, String ) {
 
     // 2. Wrap the file in a BufWriter
     let mut writer = BufWriter::new(preprocessed_file);
+
+    // C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\ucrt
+
+
 
     // 3. Write data
     let f = match File::open(filename) {
@@ -556,21 +568,105 @@ pub fn provide_sourcode_input() -> ( String, String ) {
 
                 let curr_line = line.unwrap();
 
-                // // DEBUG
-                // println!("{}", l);
-
-                // start adding linebreaks after the first line
                 if line_num > 0 {
                     write!(writer, "{}", "\n");
                 }
 
-                // remove single-line comments by a space
-                if curr_line.trim().starts_with("//") {
-                    write!(writer, "{}", " ");
-                } else {
-                    write!(writer, "{}", curr_line);
+                write!(writer, "{}", curr_line);
+
+                line_num = line_num + 1;
+
+            }
+        }
+
+        Err(e) => {
+            // fallback in case of failure.
+            // you could log the error, panic, or do anything else.
+            panic!("{} {}", e, filename);
+        }
+    };
+
+/*
+    let mut pp_op_mode: PreprocessorOperatingMode = PreprocessorOperatingMode::Normal;
+
+    // 3. Write data
+    let f = match File::open(filename) {
+        Ok(f) => {
+
+            let mut line_num = 0;
+
+            let file = BufReader::new(&f);
+            for line in file.lines() {
+
+                let mut curr_line = line.unwrap();
+
+                // DEBUG
+                //println!("{}) {}", line_num, &curr_line);
+
+                // start adding linebreaks after the first line
+                // the first line will not get a linebreak
+                if line_num > 0 {
+                    write!(writer, "{}", "\n");
                 }
 
+                let mut done = false;
+                while !done {
+
+                    // DEBUG
+                    // println!("Data: {}", &curr_line);
+
+                    match pp_op_mode {
+                        PreprocessorOperatingMode::Normal => {
+                            // replace single-line comments by a space
+                            // currently multiline comments are not supported
+                            if curr_line.trim().starts_with("//") {
+                                write!(writer, "{}", " ");
+                            } else if curr_line.contains("//") {
+                                // replace single line comments that are suffixed to a code line
+                                let mut split = curr_line.split("//");
+                                if let Some(first_split) = split.nth(0) {
+                                    write!(writer, "{}", first_split); // write the first half into the file
+                                    write!(writer, "{}", " "); // replace the second comment by a space
+                                }
+                            } else if curr_line.contains("/*") {
+                                // start multiline comment
+                                let mut split = curr_line.split("/*");
+                                if let Some(first_split) = split.nth(0) {
+                                    write!(writer, "{}", first_split); // write the first half into the file
+                                    write!(writer, "{}", " "); // replace the second comment by a space
+                                }
+                                if let Some(second_split) = split.nth(0) {
+                                    if second_split.contains("*/") {
+                                        // multiline comment ends within the same line!
+                                        write!(writer, "{}", " "); // replace the second comment by a space
+                                        pp_op_mode = PreprocessorOperatingMode::MultilineComment;
+                                        done = false;
+                                        let mut temp_curr_line = String::from(second_split.clone());
+                                        split.for_each(|item| {
+                                            temp_curr_line.push_str(item);
+                                        });
+                                        curr_line = temp_curr_line;
+                                        continue;
+                                    }
+                                }
+                                pp_op_mode = PreprocessorOperatingMode::MultilineComment;
+                            } else {
+                                write!(writer, "{}", curr_line);
+                            }
+                        }
+                        PreprocessorOperatingMode::MultilineComment => {
+                            if curr_line.contains("*/") {
+                                let mut split = curr_line.split("* /");
+                                if let Some(second_split) = split.nth(1) {
+                                     write!(writer, "{}", " "); // replace the second comment by a space
+                                     write!(writer, "{}", second_split); // write the first half into the file
+                                }
+                                pp_op_mode = PreprocessorOperatingMode::Normal;
+                            }
+                        }
+                    }
+                    done = true;
+                }
                 line_num = line_num + 1;
             }
         }
@@ -580,9 +676,8 @@ pub fn provide_sourcode_input() -> ( String, String ) {
             // you could log the error, panic, or do anything else.
             panic!("{} {}", e, filename);
         }
-
     };
-
+ */
     // 4. Explicitly flush the remaining data to disk
     writer.flush().expect("flush failed!");
 
@@ -592,3 +687,8 @@ pub fn provide_sourcode_input() -> ( String, String ) {
 
     return ( str.to_string(), filename.to_string() )
 }
+
+// // DEBUG
+// split.for_each(|item| {
+//     println!("text: {:?}", &item);
+// });

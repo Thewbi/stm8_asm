@@ -149,6 +149,14 @@ impl IdentifierResolutionVisitor {
                 return semantic_analysis_node;
             }
 
+            AstNodeType::ConstString => {
+                let mut semantic_analysis_node: IdentifierResolutionNode = IdentifierResolutionNode::new();
+                semantic_analysis_node.node_type = ast_node.node_type.clone();
+                semantic_analysis_node.string_val = ast_node.string_val.clone();
+
+                return semantic_analysis_node;
+            }
+
             AstNodeType::Structure => {
                 // DEBUG
                 if self.debug {

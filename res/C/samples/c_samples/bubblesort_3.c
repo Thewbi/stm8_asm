@@ -1,20 +1,16 @@
 int main() {
-    //int arr[7] = { 64, 34, 25, 12, 22, 11, 90 };
+    // int arr[7] = { 64, 34, 25, 12, 22, 11, 90 };
     int arr[] = { 64, 34, 25, 12, 22, 11, 90 };
 
     int n = 6;
 
-    // int i;
-    int j;
-    // int temp;
+    int i;
 
     int swapped;
     swapped = 1;
 
     int a;
-    // int a = 0;
     int b;
-    // int b = 0;
 
     int next_idx;
     next_idx = 0;
@@ -23,62 +19,43 @@ int main() {
 
          swapped = 0;
 
-         for (j = 0; j < n; j++) {
+         for (i = 0; i < n; i++) {
 
-            //arr[j] = 123;
-
-             a = arr[j];
-             next_idx = j + 1;
+             a = arr[i];
+             next_idx = i + 1;
              b = arr[next_idx];
 
-    //         // FIX
-    //         //b = arr[j+1];
-
-    //         // FIX
              if (a > b)
              {
-    //             // FIX
-    //             //arr[j] = 1;
-                 arr[j] = b;
-                 //arr[j] = 123;
-
-    //             // FIX
+                 arr[i] = b;
                  arr[next_idx] = a;
 
-    //             // OK
                  swapped = 1;
              }
          }
     }
 
-
     if (arr[0] != 11) {
-        return 611;
+        return 11;
     }
     if (arr[1] != 12) {
-        return 612;
+        return 12;
     }
     if (arr[2] != 22) {
-        return 622;
+        return 22;
     }
     if (arr[3] != 25) {
-        return 625;
+        return 25;
     }
     if (arr[4] != 34) {
-        return 634;
+        return 34;
     }
     if (arr[5] != 64) {
-        return 664;
+        return 64;
     }
     if (arr[6] != 90) {
-        return 690;
+        return 90;
     }
-
-
-    // int result;
-    // result = arr[0];
-
-    // return result;
 
     return 0;
 }

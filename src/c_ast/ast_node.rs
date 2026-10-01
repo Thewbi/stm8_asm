@@ -26,6 +26,7 @@ pub enum AstNodeType {
     ConstUInt,
     ConstULong,
     ConstDouble,
+    ConstString,
     Structure,
     Array,
     Expression,
@@ -597,9 +598,6 @@ impl AstNode {
            expression_string = node_map.get(expression_node).unwrap().serialize(node_map);
         }
 
-        // lhs_string.push_str(" ");
-        // lhs_string.push_str(&self.id.to_string());
-
         match self.operator_type {
 
             AstNodeOperatorType::AddrOf => {
@@ -660,7 +658,8 @@ impl AstNode {
             | AstNodeType::ConstLong
             | AstNodeType::ConstUInt
             | AstNodeType::ConstULong
-            | AstNodeType::ConstDouble => {
+            | AstNodeType::ConstDouble
+            | AstNodeType::ConstString => {
                 self.pretty_print_ast_constant_dot_ex(string_buffer, node_map, extended_string)
             }
             AstNodeType::Expression => {
@@ -782,7 +781,6 @@ impl AstNode {
 
     fn pretty_print_ast_program_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Program: {}\"]", ast_node_id, ast_node_id, self.string_val);
@@ -801,10 +799,10 @@ impl AstNode {
         ast_node_id
     }
 
-    fn pretty_print_ast_function_declaration_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
+    fn pretty_print_ast_function_declaration_dot(&self,
+        string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode and also output the name into the label
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} FunctionDeclaration: {}\"]", ast_node_id, ast_node_id, self.string_val);
@@ -848,7 +846,6 @@ impl AstNode {
         if let Some(block_ast_node_id) = self.lhs.as_ref() {
 
             // create node for the body/block
-            // let block_ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
             let block_ast_node = node_map.get(&block_ast_node_id).unwrap();
 
             // println!("{} [label=\"{} Body/Block: {}\"]", block_ast_node_id, block_ast_node_id, self.string_val);
@@ -907,7 +904,6 @@ impl AstNode {
 
     fn pretty_print_ast_constant_dot_ex(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>, extended_string: &str) -> usize {
 
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         match self.node_type {
@@ -933,6 +929,11 @@ impl AstNode {
                 string_buffer.push_str(format!("{} [label=\"{} {} ConstDouble({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
             }
 
+            AstNodeType::ConstString => {
+                let without_quotes = str::replace(&self.string_val, "\"", "\'");
+                string_buffer.push_str(format!("{} [label=\"{} {} ConstString({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, without_quotes, self.analyzed_data_type).as_str());
+            }
+
             _ => {
                 panic!("Unhandled case!");
             }
@@ -951,7 +952,6 @@ impl AstNode {
 
     fn pretty_print_ast_expression_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Exp ({:?})\"]", ast_node_id, ast_node_id, self.operator_type);
@@ -1021,7 +1021,6 @@ impl AstNode {
         }
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Unary\"]", ast_node_id, ast_node_id);
@@ -1066,7 +1065,6 @@ impl AstNode {
         }
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Binary\"]", ast_node_id, ast_node_id);
@@ -1092,7 +1090,6 @@ impl AstNode {
         }
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} {:?}\"]", ast_node_id, ast_node_id, self.operator_type);
@@ -1125,7 +1122,6 @@ impl AstNode {
         }
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} {:?}\"]", ast_node_id, ast_node_id, self.operator_type);
@@ -1137,7 +1133,6 @@ impl AstNode {
     fn pretty_print_ast_block_item_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>, extended_string: &str) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} BlockItem\"]", ast_node_id, ast_node_id);
@@ -1246,7 +1241,6 @@ impl AstNode {
         }
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Statement: {} {}\"]", ast_node_id, ast_node_id, extended_string, self.string_val);
@@ -1262,7 +1256,6 @@ impl AstNode {
     fn pretty_print_ast_datatype_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>, extended_string: &str) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} DataType: {}\"]", ast_node_id, ast_node_id, self.string_val);
@@ -1291,7 +1284,6 @@ impl AstNode {
     fn pretty_print_ast_identifier_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Identifier: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1307,7 +1299,6 @@ impl AstNode {
         // selection_statement -> IF OPENING_BRACKET expression CLOSING_BRACKET statement
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} If: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1347,7 +1338,6 @@ impl AstNode {
     fn pretty_print_ast_compound_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Compound: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1368,7 +1358,6 @@ impl AstNode {
     fn pretty_print_ast_block_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Block: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1390,7 +1379,6 @@ impl AstNode {
     fn pretty_print_ast_while_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} While: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1422,7 +1410,6 @@ impl AstNode {
     fn pretty_print_ast_do_while_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} DoWhile: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1454,7 +1441,6 @@ impl AstNode {
     fn pretty_print_ast_for_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} For: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1504,7 +1490,6 @@ impl AstNode {
     fn pretty_print_ast_conditional_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1546,7 +1531,6 @@ impl AstNode {
     fn pretty_print_ast_function_call_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         string_buffer.push_str(format!("{} [label=\"{} FunctionCall: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
@@ -1555,10 +1539,27 @@ impl AstNode {
         let parameter_ast_node_id = 0;
         for i in 0..self.parameters.len() {
 
-            let parameter_ast_node_id = node_map.get(&self.parameters[self.parameters.len()-1-i]).unwrap().pretty_print_ast_dot(string_buffer, node_map);
+            let mut parameter_ast_node_id = 0usize;
+
+            // create an ast node for the parameter and retrieve the id of this ast node
+            if let Some(parameter_ast_node) = node_map.get(&self.parameters[self.parameters.len()-1-i]) {
+
+                println!("test");
+
+                parameter_ast_node_id =
+                    parameter_ast_node.pretty_print_ast_dot(string_buffer, node_map);
+
+                println!("Result: {}", parameter_ast_node_id);
+            }
+
+            // asdf node_map.get(&parameter_ast_node_id);
+
+            //let parameter_ast_node_id_result = node_map.get(&parameter_ast_node_id).unwrap().pretty_print_ast_dot_ex(string_buffer, node_map, "TRUE-Statement:");
+
+            // string_buffer.push_str(format!("{} [label=\"{} Parameter: {}\"]\n", parameter_ast_node_id_result, parameter_ast_node_id_result, self.string_val).as_str());
 
             // connect parent and child
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, parameter_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"parameter\"]\n", ast_node_id, parameter_ast_node_id).as_str());
         }
 
         ast_node_id
@@ -1567,7 +1568,6 @@ impl AstNode {
     fn pretty_print_ast_storage_class_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1579,7 +1579,6 @@ impl AstNode {
     fn pretty_print_ast_pointer_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1591,7 +1590,6 @@ impl AstNode {
     fn pretty_print_ast_switch_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1612,7 +1610,6 @@ impl AstNode {
     fn pretty_print_ast_case_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1649,7 +1646,6 @@ impl AstNode {
     fn pretty_print_ast_default_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1676,7 +1672,6 @@ impl AstNode {
     fn pretty_print_ast_break_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Break\"]\n", ast_node_id, ast_node_id);
@@ -1688,7 +1683,6 @@ impl AstNode {
     fn pretty_print_ast_empty_statement_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1700,7 +1694,6 @@ impl AstNode {
     fn pretty_print_ast_single_init_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1721,7 +1714,6 @@ impl AstNode {
     fn pretty_print_ast_compound_init_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1771,7 +1763,6 @@ impl AstNode {
     fn pretty_print_ast_structure_declaration_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1790,7 +1781,6 @@ impl AstNode {
     fn pretty_print_ast_member_declaration_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1822,7 +1812,6 @@ impl AstNode {
     fn pretty_print_ast_array_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1854,7 +1843,6 @@ impl AstNode {
     fn pretty_print_ast_structure_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1886,7 +1874,6 @@ impl AstNode {
     fn pretty_print_ast_dot_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
@@ -1918,7 +1905,6 @@ impl AstNode {
     fn pretty_print_ast_arrow_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
-        // let ast_node_id = DOT_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);

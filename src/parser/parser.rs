@@ -150,12 +150,73 @@ pub struct Parser<T> {
     pub switch_case_default_counter: usize,
     pub direct_declarator_counter: usize,
     pub struct_field_counter: usize,
+
+    pub disabled: bool,
+}
+
+pub trait ParserTrait<T> {
+
+    // passes a token (parameter: terminal_token_rule_element) to the parser.
+    // The parser will now perform one or more steps until it is ready for the next token.
+    // it will consume the token which completes a production rule.
+    // Then it will potentially perform many reduction operations because one rule reduction
+    // may lead to another and so on ...
+    fn provide_input(&mut self,
+        rule_map: &BTreeMap<usize, Rule<String>>,
+        step: &mut usize,
+        terminal_token_rule_element: &RuleElement<String>,
+        terminal_value: &String,
+        string_buffer: &mut String,
+        debug_node_stack: &mut Vec::<DebugNode>,
+        node_map: &mut Box<HashMap::<usize, AstNode>>
+    ) -> usize;
+
+    // removes the current node from the stack and replaces it by a new node,
+    // inserting a transition line and a line for the new node.
+    fn node_to_node(&mut self,
+        label: &str,
+        rule_id: usize,
+        string_buffer: &mut String,
+        debug_node_stack: &mut Vec::<DebugNode>
+    ) -> usize;
+
+    // Given some input symbol, the current stack of parse elements looks at the topmost stack element.
+    // A stack element can either can either be a rule or a state id.
+    //
+    // If the topmost stack element is a state_id, retrieves the parse table row for that state from the parse table.
+    // Retrieve the entry that the parse table row stores for the current input.
+    // The entry can either be GOTO, SHIFT, REDUCE or no entry is available in the parse table row!
+    // SHIFT:   the old stack elements remain unchanged but the input is pushed.
+    //          Afterwards the new state id is pushed. The SHIFT stack element internally stores that next state id.
+    // REDUCE:  the stack entry of type reduce contains the id of the production rule to reduce.
+    //          For each element on the RHS of the production rule a pair of { state id and terminal } is removed from the
+    //          parse stack and the LHS of the reduced rule is pushed. (no state id is pushed!)
+    //
+    // If the topmost stack element is a production rule, then the state id stored below that production rule on the stack
+    // is retrieved. Starting with this state id, a parse trable row is retrieved from the parse table and the rule,
+    // from the top of the stack, is resolved from within the parse table row. This means the new input is not consumed at all!
+    //
+    // If the parse table row contains no entry for the current input, ???
+    //
+    // ...
+    fn consume(&mut self,
+        input: RuleElement<String>,
+        terminal_value: &String,
+        rule_map: &BTreeMap<usize, Rule<String>>,
+        string_buffer: &mut String,
+        debug_node_stack: &mut Vec::<DebugNode>,
+        step: usize,
+        node_map: &mut Box<HashMap<usize, AstNode>>
+    ) -> bool;
 }
 
 impl Parser<String> {
 
-    pub fn new(parse_table_param: HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>) -> Self {
-
+    pub fn new(
+        parse_table_param: HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>
+    )
+    -> Self
+    {
         let mut parser = Parser {
             parse_table: parse_table_param,
             stack: Vec::<ParseStackElement<String>>::new(),
@@ -183,6 +244,9 @@ impl Parser<String> {
             switch_case_default_counter: 0,
             direct_declarator_counter: 0,
             struct_field_counter: 0,
+
+            // DEBUG
+            disabled: false,
         };
 
         let t1 = ParseStackElementType::<String>::StateId(0);
@@ -192,7 +256,10 @@ impl Parser<String> {
         parser
     }
 
-    // removes the current node from the stack and replaces it by a new node, inserting a transition line and a line for the new node.
+
+
+    // removes the current node from the stack and replaces it by a new node,
+    // inserting a transition line and a line for the new node.
     pub fn node_to_node(&mut self,
         label: &str,
         rule_id: usize,
@@ -229,18 +296,24 @@ impl Parser<String> {
     // Given some input symbol, the current stack of parse elements looks at the topmost stack element.
     // A stack element can either can either be a rule or a state id.
     //
-    // If the topmost stack element is a state_id, retrieves the parse table row for that state from the parse table.
+    // RETURNS: true if something has been consumed
+    //
+    // If the topmost stack element is a state_id, retrieves the parse table row for that state
+    // from the parse table.
     // Retrieve the entry that the parse table row stores for the current input.
     // The entry can either be GOTO, SHIFT, REDUCE or no entry is available in the parse table row!
     // SHIFT:   the old stack elements remain unchanged but the input is pushed.
-    //          Afterwards the new state id is pushed. The SHIFT stack element internally stores that next state id.
+    //          Afterwards the new state id is pushed. The SHIFT stack element internally stores that
+    //          next state id.
     // REDUCE:  the stack entry of type reduce contains the id of the production rule to reduce.
-    //          For each element on the RHS of the production rule a pair of { state id and terminal } is removed from the
+    //          For each element on the RHS of the production rule a pair of { state id and terminal }
+    //          is removed from the
     //          parse stack and the LHS of the reduced rule is pushed. (no state id is pushed!)
     //
-    // If the topmost stack element is a production rule, then the state id stored below that production rule on the stack
-    // is retrieved. Starting with this state id, a parse trable row is retrieved from the parse table and the rule,
-    // from the top of the stack, is resolved from within the parse table row. This means the new input is not consumed at all!
+    // If the topmost stack element is a production rule, then the state id stored below that production
+    // rule on the stack is retrieved. Starting with this state id, a parse trable row is retrieved from
+    // the parse table and the rule, from the top of the stack, is resolved from within the parse table
+    // row. This means the new input is not consumed at all!
     //
     // If the parse table row contains no entry for the current input, ???
     //
@@ -254,6 +327,12 @@ impl Parser<String> {
         step: usize,
         node_map: &mut Box<HashMap<usize, AstNode>>
     ) -> bool {
+
+        // DEBUG for testint the preprocessor, because the API is not flexible enough and
+        // always needs a parser, this parser can be disabled
+        if self.disabled {
+            return true;
+        }
 
         // let debug = true;
         let debug = false;
@@ -307,7 +386,8 @@ impl Parser<String> {
 
                         // DEBUG
                         // let contains_key: bool = parse_table_row.contains_key(&rule_element);
-                        // println!("State: {}, parse_table_row: {:?}, input: {:?}, contains_key: {:?}", current_state_id, parse_table_row, input, contains_key);
+                        // println!("State: {}, parse_table_row: {:?}, input: {:?}, contains_key: {:?}",
+                        // current_state_id, parse_table_row, input, contains_key);
 
                         let idk = parse_table_row.get(&rule_element).unwrap();
                         match idk {
@@ -468,6 +548,8 @@ impl Parser<String> {
                     match parser_step {
 
                         ParseTableCell::Shift(next_state_id) => {
+
+                            // DEBUG
                             if debug {
                                 println!("[Parser::consume] shift {}", next_state_id);
                             }
@@ -482,6 +564,7 @@ impl Parser<String> {
                             let e2 = ParseStackElement { element_type: t2, data: String::from("") };
                             self.stack.push(e2);
 
+                            // DEBUG
                             if debug {
                                 println!(".:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.");
                                 println!("[Parser::consume] Step: {}", step);
@@ -489,6 +572,7 @@ impl Parser<String> {
                                 println!(".:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.");
                             }
 
+                            // a token has been consumed, return true
                             true
                         }
 
@@ -505,13 +589,14 @@ impl Parser<String> {
                                     println!("[Parser::consume] rule: {:?}", found_rule);
                                 }
 
-                                //if debug {
-                                if self.print_rule_reduction {
-                                    print!("[Parser::consume()] REDUCING RULE: ");
-                                    found_rule.print_rule_simple();
-                                    println!("");
+                                // DEBUG
+                                if debug {
+                                    if self.print_rule_reduction {
+                                        print!("[Parser::consume()] REDUCING RULE: ");
+                                        found_rule.print_rule_simple();
+                                        println!("");
+                                    }
                                 }
-                                //}
 
                                 //
                                 // pop elements from the stack and transfer them into another array for inspection later
@@ -743,7 +828,7 @@ impl Parser<String> {
                                                 // println!("TerminalValue: '{}'", value);
                                             }
 
-                                            // do not pop from the stack as this is a leave for a int numeric literal value
+                                            // do not pop from the stack as this is a leaf for a int numeric literal value
 
                                             // create new node id
                                             // create new node with node id and label
@@ -791,15 +876,29 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // primary_expression -> STRING_LITERAL
+                                        // Rule 5: primary_expression -> STRING_LITERAL
                                         5 => {
                                             let mut value = String::from("");
+                                            let mut original_value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
                                                 value = terminal_rev.clone().unwrap().data;
-                                                // println!("TerminalValue: '{}'", value);
+                                                original_value = value.clone();
+
+                                                // DEBUG
+                                                // if self.debug {
+                                                //    println!("TerminalValue: '{}'", value);
+                                                // }
+
+                                                // outputting to dot file format causes issues when
+                                                // using quotes in dot-labels! Quotes within quotes
+                                                // are not allowed! Therefore replace quote occurences
+                                                // by single ticks
+                                                value = str::replace(&value, "\"", "\'");
                                             }
 
-                                            // do not pop from the stack as this is a leave for a int numeric literal value
+                                            println!("TerminalValue: '{}'", value);
+
+                                            // do not pop from the stack as this is a leaf for a int numeric literal value
 
                                             // create new node id
                                             // create new node with node id and label
@@ -810,6 +909,26 @@ impl Parser<String> {
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - primary_expression -> STRING_LITERAL
+                                            //
+                                            // push literal to stack so that it can be retrieved while processing
+                                            // parameters to function calls for example (see Rule 10)
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut literal_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                literal_ast_node.node_type = AstNodeType::ConstString;
+                                                //literal_ast_node.operator_type = AstNodeOperatorType::FunctionCall;
+                                                //literal_ast_node.lhs = Some(function_call_ast_node.id);
+                                                literal_ast_node.string_val = original_value;
+
+                                                self.ast_stack.push(literal_ast_node.id);
+
+                                                node_map.insert(literal_ast_node.id, literal_ast_node);
+                                            }
                                         }
 
                                         // primary_expression -> OPENING_BRACKET expression CLOSING_BRACKET
@@ -900,7 +1019,7 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                // see also rule 10
+                                                // see also rule 10 for function calls with parameters
 
                                                 let primary_ast_node = self.ast_stack.pop().unwrap();
 
@@ -949,7 +1068,7 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                // see also rule 9
+                                                // see also rule 9 for function calls without parameters
 
                                                 let mut function_call_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 function_call_ast_node.node_type = AstNodeType::FunctionCall;
@@ -963,8 +1082,11 @@ impl Parser<String> {
                                                     // one parameter is processed
                                                     self.parameter_counter = self.parameter_counter - 1;
 
-                                                    let parameter_ast_node = self.ast_stack.pop().unwrap();
-                                                    function_call_ast_node.parameters.push(parameter_ast_node);
+                                                    let parameter_ast_node_id = self.ast_stack.pop().unwrap();
+
+                                                    println!("[Parser] ast-node-id: {}", parameter_ast_node_id);
+
+                                                    function_call_ast_node.parameters.push(parameter_ast_node_id);
                                                 }
 
                                                 // identifier
@@ -6806,6 +6928,12 @@ impl Parser<String> {
         debug_node_stack: &mut Vec::<DebugNode>,
         node_map: &mut Box<HashMap::<usize, AstNode>>
     ) -> usize {
+
+        // DEBUG for testint the preprocessor, because the API is not flexible enough and
+        // always needs a parser, this parser can be disabled
+        if self.disabled {
+            return 0;
+        }
 
         // let debug = true;
         let debug = false;

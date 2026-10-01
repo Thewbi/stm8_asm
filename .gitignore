@@ -44,3 +44,5 @@ tacky.tky
 asm_ast.intasm
 main.asm
 preprocessed.c
+*.obj
+*.exe

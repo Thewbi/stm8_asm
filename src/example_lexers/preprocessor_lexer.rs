@@ -19,7 +19,7 @@ use crate::NEWLINE_TOKEN_ID;
 
 // Defines token for a lexer.
 // The grammar is defined in produce_grammar_c_full_if_else_4(); (c_full_if_else_4.rs)
-pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
+pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
 
     //
     // Phase 0 -
@@ -28,7 +28,7 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     let mut combined_fragment = Fragment::new(RegexBuildingBlock::Or);
 
     //
-    // Pre-Build alphabet
+    // Pre-Build alphabet - The alphabet is not TOKEN!!!!
     //
 
     // complete alphabet has to be known in advance
@@ -127,6 +127,7 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('"'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral(':'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\\'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('/'));
 
     // "\n" | "\r\n" | "\r"
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\n'));
@@ -141,13 +142,22 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // There is not difference. It does not matter.
     //
 
+    let mut converter = InfixPostfixConverter::new();
+
+    //
+    // Comments
+    //
+
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "//", "SINGLELINE_COMMENT_START", 800);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "/*", "MULTILINE_COMMENT_START", 801);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "*/", "MULTILINE_COMMENT_END", 802);
+
     //
     // identifier (token-id: 500)
+    //
 
     // provide a regex in infix notation and let the converter produce a postfix notation
     // The result is stored within the state of the converter instance, this is why the converter can be reset
-    let mut converter = InfixPostfixConverter::new();
-    //converter.infix_to_postfix("(_|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z)(_|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z)+");
     converter.infix_to_postfix("(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z)|(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z)(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z|0|1|2|3|4|5|6|7|8|9)+");
     // next, from the regex-items in the postfix notation, construct a eNFA
     // This function will go through the infix character by character and extend a eNFA as it goes.
@@ -162,7 +172,8 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     fragment_identifier.enfa.states.get_mut(&fragment_identifier.end_id).unwrap().token_id = IDENTIFIER_TOKEN_ID;
     fragment_identifier.enfa.states.get_mut(&fragment_identifier.end_id).unwrap().token_name = String::from("IDENTIFIER");
     // insert into LEXER
-    let (start_id_identifier, end_id_identifier) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_identifier.enfa, fragment_identifier.end_id);
+    let (start_id_identifier, end_id_identifier)
+        = enfa_copy(&mut combined_fragment.enfa, &mut fragment_identifier.enfa, fragment_identifier.end_id);
     combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_identifier);
 
     // DEBUG dump the graph to .dot format for viewing using https://dreampuf.github.io/GraphvizOnline
@@ -170,16 +181,33 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
 
     //
     // Float Numeric (token-id: 601) - {D}*"."{D}+({E})?{FS}?
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "(0|1|2|3|4|5|6|7|8|9)*.(0|1|2|3|4|5|6|7|8|9)+((e|E)(\\+|\\-)?(0|1|2|3|4|5|6|7|8|9)+)?(f|F|l|L)?", "FLOAT_NUMERIC", 601);
+    //
 
+    add_token_definition(&mut converter,
+        &mut combined_fragment,
+        &mut alphabet,
+        "(0|1|2|3|4|5|6|7|8|9)*.(0|1|2|3|4|5|6|7|8|9)+((e|E)(\\+|\\-)?(0|1|2|3|4|5|6|7|8|9)+)?(f|F|l|L)?", "FLOAT_NUMERIC",
+        601);
+
+    //
+    // Hex Numeric (token-id: 602)
     //
     // IS			(u|U|l|L)*
     // H			[a-fA-F0-9]
     // Hex Numeric - 0[xX]{H}+{IS}?
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "0(x|X)(0|1|2|3|4|5|6|7|8|9|a|A|b|B|c|C|d|D|e|E|f|F)+(u|U|l|L)?", "HEX_NUMERIC", 602);
+    //
+
+    add_token_definition(&mut converter,
+        &mut combined_fragment,
+        &mut alphabet,
+        "0(x|X)(0|1|2|3|4|5|6|7|8|9|a|A|b|B|c|C|d|D|e|E|f|F)+(u|U|l|L)?",
+        "HEX_NUMERIC",
+        602);
 
     //
     // numeric (token-id: 600)
+    //
+
     converter.infix_to_postfix("(0|1|2|3|4|5|6|7|8|9)+");
     let mut fragment_stack_numeric = FragmentStack::new();
     recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_numeric, &mut alphabet);
@@ -188,11 +216,14 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     fragment_numeric.enfa.states.get_mut(&fragment_numeric.end_id).unwrap().token_id = 600;
     fragment_numeric.enfa.states.get_mut(&fragment_numeric.end_id).unwrap().token_name = String::from("NUMERIC");
     // insert into LEXER
-    let (start_id_numeric, end_id_numeric) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_numeric.enfa, fragment_numeric.end_id);
+    let (start_id_numeric, end_id_numeric)
+        = enfa_copy(&mut combined_fragment.enfa, &mut fragment_numeric.enfa, fragment_numeric.end_id);
     combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_numeric);
 
     //
     // string_literal (token-id: 610)
+    //
+
     converter.infix_to_postfix("\"^\""); // start with a quote. Consume everything that is not a quote
     let mut fragment_stack_string_literal = FragmentStack::new();
     recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_string_literal, &mut alphabet);
@@ -203,7 +234,8 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // // DEBUG
     // enfa_to_dot_directed_graph(&mut fragment_string_literal.enfa, "dot\\string_literal_enfa_automaton.dot");
     // insert into LEXER
-    let (start_id_string_literal, end_id_string_literal) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_string_literal.enfa, fragment_string_literal.end_id);
+    let (start_id_string_literal, end_id_string_literal)
+        = enfa_copy(&mut combined_fragment.enfa, &mut fragment_string_literal.enfa, fragment_string_literal.end_id);
     combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_string_literal);
 
     // DEBUG - print to dot file format for debugging with https://dreampuf.github.io/GraphvizOnline
@@ -290,38 +322,38 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // struct      switch      typedef     union
     // unsigned    void        volatile    while
 
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "auto", "AUTO", 100);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "break", "BREAK", 101);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "case", "CASE", 102);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "char", "CHAR", 103);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "const", "CONST", 104);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "continue", "CONTINUE", 105); // continue  // 105
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "default", "DEFAULT", 106); // default
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "do", "DO", 107); // do
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "double", "DOUBLE", 108); // double
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "else", "ELSE", 109);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "enum", "ENUM", 110); // enum      // 110
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "extern", "EXTERN", 111); // extern
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "float", "FLOAT", 112); // float
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "for", "FOR", 113); // for
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "goto", "GOTO", 114); // goto
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "if", "IF", 115);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "int", "INT", 116);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "long", "LONG", 117);  // long
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "register", "REGISTER", 118); // register
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "return", "RETURN", 119);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "short", "SHORT", 120); // short   // 120
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "signed", "SIGNED", 121); // signed
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "sizeof", "SIZEOF", 122); // sizeof
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "static", "STATIC", 123); // static
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "struct", "STRUCT", 124); // struct
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "switch", "SWITCH", 125); // switch      // 125
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "typedef", "TYPEDEF", 126); // typedef
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "union", "UNION", 127); // union
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "unsigned", "UNSIGNED", 128); // unsigned
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "void", "VOID", 129);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "volatile", "VOLATILE", 130); // volatile
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "while", "WHILE", 131); // while
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "auto", "AUTO", 100);
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "break", "BREAK", 101);
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "case", "CASE", 102);
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "char", "CHAR", 103);
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "const", "CONST", 104);
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "continue", "CONTINUE", 105); // continue  // 105
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "default", "DEFAULT", 106); // default
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "do", "DO", 107); // do
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "double", "DOUBLE", 108); // double
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "else", "ELSE", 109);
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "enum", "ENUM", 110); // enum      // 110
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "extern", "EXTERN", 111); // extern
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "float", "FLOAT", 112); // float
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "for", "FOR", 113); // for
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "goto", "GOTO", 114); // goto
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "if", "IF", 115);
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "int", "INT", 116);
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "long", "LONG", 117);  // long
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "register", "REGISTER", 118); // register
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "return", "RETURN", 119);
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "short", "SHORT", 120); // short   // 120
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "signed", "SIGNED", 121); // signed
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "sizeof", "SIZEOF", 122); // sizeof
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "static", "STATIC", 123); // static
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "struct", "STRUCT", 124); // struct
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "switch", "SWITCH", 125); // switch      // 125
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "typedef", "TYPEDEF", 126); // typedef
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "union", "UNION", 127); // union
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "unsigned", "UNSIGNED", 128); // unsigned
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "void", "VOID", 129);
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "volatile", "VOLATILE", 130); // volatile
+    // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "while", "WHILE", 131); // while
 
     //
     // Phase 3 - Convert eNFA to DFA

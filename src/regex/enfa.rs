@@ -208,6 +208,8 @@ where
 // nth cell - All the ids of the target states to transition to
 pub fn enfa_serialize(enfa: &mut EpsilonNfa<State, RegexBuildingBlock>, filename: &str) {
 
+    let debug: bool = false;
+
     let mut string_buffer = String::new();
 
     // 1. Create or overwrite the file
@@ -222,7 +224,10 @@ pub fn enfa_serialize(enfa: &mut EpsilonNfa<State, RegexBuildingBlock>, filename
     // 1200 State { id: 1200, copy_id: 0, token_id: 37, token_name: "PLUS", start_state: false, end_state: true, trap_state: false }
     for (state_id, state) in enfa.states.iter_mut() {
 
-        println!("{:?} {:?}", state_id, state);
+        // DEBUG
+        if debug {
+            println!("{:?} {:?}", state_id, state);
+        }
 
         // code
         string_buffer.push_str("S;");

@@ -1101,8 +1101,10 @@ impl TypeCheckingVisitor {
                     println!("FunctionCall to function using identifier: {:?}", function_name);
                 }
 
-                // make sure, the identifier is a function call and not a variable
+                // make sure, the identifier is a function name/call and not a variable
+                // Check argument count
                 if self.symbol_table.borrow_mut().contains(&function_name) {
+
                     let existing_symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&function_name);
                     if existing_symbol_table_entry.symbol_table_entry_type == SymbolTableEntryType::Variable {
                         panic!("[ERR] Symbol {} is not a function but a variable! Cannot call variable!", &function_name);
@@ -1131,8 +1133,9 @@ impl TypeCheckingVisitor {
                             // the type of the actual argument has to match or be convertible to the formal parameter's data type!
                         }
                     }
+
                 } else {
-                    panic!("[ERR] Symbol {} is not contained in the symbol table! Cannot call undefined symbol!", &function_name);
+                    panic!("[ERR] Symbol '{}' is not contained in the symbol table! Cannot call undefined symbol!", &function_name);
                 }
             }
 

@@ -73,6 +73,7 @@ use crate::lexer::lexer::NEWLINE_TOKEN_ID;
 
 mod example_lexers;
 use crate::example_lexers::c_lexer::produce_c_lexer;
+use crate::example_lexers::preprocessor_lexer::produce_preprocessor_lexer;
 
 mod example_grammars;
 use crate::example_grammars::c_full::produce_grammar_c_full;
@@ -406,22 +407,123 @@ fn main() {
     }
 
     let temp_q0 = State::new(0);
-    let mut dfa = EpsilonNfa::new(temp_q0);
+    let mut lexer_dfa = EpsilonNfa::new(temp_q0);
 
     // let generate_lexer = true;
     let generate_lexer = false;
     if generate_lexer {
-        dfa = produce_c_lexer();
+        lexer_dfa = produce_c_lexer();
         // store into file
-        enfa_serialize(&mut dfa, "enfa.txt");
+        enfa_serialize(&mut lexer_dfa, "enfa.txt");
     } else {
         // load from file
-        enfa_deserialize(&mut dfa, "enfa.txt");
+        enfa_deserialize(&mut lexer_dfa, "enfa.txt");
     }
 
     if debug {
         println!("*********************************************************************************");
     }
+
+
+
+
+/**/
+    //
+    // Build the Preprocessor Lexer
+    //
+
+    if debug {
+        println!("");
+        println!("*********************************************************************************");
+        println!("Building the Preprocessor Lexer (This may take some time ...).                   ");
+        println!("Or loading the Preprocessor Lexer from file.                                     ");
+        println!("*********************************************************************************");
+    }
+
+    let preprocessor_temp_q0 = State::new(0);
+    let mut preprocessor_dfa = EpsilonNfa::new(preprocessor_temp_q0);
+
+    let generate_preprocessor_lexer = true;
+    // let generate_preprocessor_lexer = false;
+    if generate_preprocessor_lexer {
+        preprocessor_dfa = produce_preprocessor_lexer();
+        // store into file
+        enfa_serialize(&mut preprocessor_dfa, "preprocessor_enfa.txt");
+    } else {
+        // load from file
+        enfa_deserialize(&mut preprocessor_dfa, "preprocessor_enfa.txt");
+    }
+
+    if debug {
+        println!("*********************************************************************************");
+    }
+
+    //
+    // Process some input
+    //
+
+    // ( str, filename )
+    let input_tuple = provide_sourcode_input();
+
+    // DEBUG
+    if debug {
+        println!("");
+        println!("");
+        println!("Input:\n{}", input_tuple.0); // text data
+        println!("Filename:\n{}", input_tuple.1); // filename
+    }
+
+    //
+    // Driving the preprocessor against input
+    //
+
+    if debug {
+        println!("");
+        println!("*********************************************************************************");
+        println!("Driving the preprocessor against input                                                 ");
+        println!("*********************************************************************************");
+    }
+
+    let lexer_debug: bool = false;
+    let lexer_token_debug: bool = true;
+    let mut preprocessor_lexer: Lexer = Lexer::new(preprocessor_dfa, lexer_debug, lexer_token_debug);
+
+    let mut step: usize = 1;
+
+    let mut parser: Parser<String> = Parser::<String>::new(parse_table.clone());
+    // TODO: improve the parser/lexer API. Currently the lexer always needs a parser to function
+    parser.disabled = true; // do not take real parser action
+
+    let mut debug_node_string_buffer = String::from("");
+    let mut debug_node_stack = Vec::<DebugNode>::new();
+
+    let mut line_number: usize = 1;
+
+    let mut node_map = Box::new(HashMap::<usize, AstNode>::new());
+
+    for character in input_tuple.0.chars() {
+
+        preprocessor_lexer.consume_character(
+            character,
+            &mut step,
+            // &mut Option::None,
+            &mut parser,
+            &rule_map,
+            &mut debug_node_string_buffer,
+            &mut debug_node_stack,
+            &input_tuple.1,
+            line_number,
+            &mut node_map
+        );
+
+        if character == '\n' {
+            line_number = line_number + 1;
+        }
+    }
+
+
+
+
 
     //
     // Process some input
@@ -470,13 +572,13 @@ fn main() {
 
     let lexer_debug: bool = false;
     let lexer_token_debug: bool = false;
-    let mut lexer: Lexer = Lexer::new(dfa, lexer_debug, lexer_token_debug);
+    let mut lexer: Lexer = Lexer::new(lexer_dfa, lexer_debug, lexer_token_debug);
 
     let mut step: usize = 1;
 
     let mut current_character: char = 'x';
-    let mut lookahead_character: char = 'y';
-    let mut has_lookahead_character = false;
+    // let mut lookahead_character: char = 'y';
+    // let mut has_lookahead_character = false;
 
     let mut node_map = Box::new(HashMap::<usize, AstNode>::new());
 
@@ -501,21 +603,24 @@ fn main() {
 
     for character in input_tuple.0.chars() {
 
-        current_character = lookahead_character;
-        lookahead_character = character;
+        // current_character = lookahead_character;
+        // lookahead_character = character;
 
-        // the very first iteration is here to load the lookahead character
-        if !has_lookahead_character {
-            has_lookahead_character = true;
-            continue;
-        }
+        // // the very first iteration is here to load the lookahead character
+        // if !has_lookahead_character {
+        //     has_lookahead_character = true;
+        //     continue;
+        // }
+
+        current_character = character;
 
         // TODO: the lookahead character is not used at all!
         // Remove it! It makes the parser loop more complicated
         lexer.consume_character(
             current_character,
-            lookahead_character,
+            // lookahead_character,
             &mut step,
+            //&mut Option::Some(parser),
             &mut parser,
             &rule_map,
             &mut debug_node_string_buffer,
@@ -530,19 +635,24 @@ fn main() {
         }
     }
 
-    // consume the lookahead from the very last cycle as a normal input. Specify dummy lookahead character.
-    lexer.consume_character(
-        lookahead_character,
-        'x',
-        &mut step,
-        &mut parser,
-        &mut rule_map,
-        &mut debug_node_string_buffer,
-        &mut debug_node_stack,
-        &input_tuple.1,
-        line_number,
-        &mut node_map
-    );
+    // // consume the lookahead from the very last cycle as a normal input. Specify dummy lookahead character.
+    // lexer.consume_character(
+    //     lookahead_character,
+    //     'x',
+    //     &mut step,
+    //     &mut parser,
+    //     &mut rule_map,
+    //     &mut debug_node_string_buffer,
+    //     &mut debug_node_stack,
+    //     &input_tuple.1,
+    //     line_number,
+    //     &mut node_map
+    // );
+
+
+
+
+
 
     // // DEBUG
     // let lexer_debug: bool = false;
@@ -551,18 +661,19 @@ fn main() {
     //     println!("");
     // }
 
-    // TODO: write line and file into the token before passing it to the parser so that the parser has line and file information
+    // TODO: write line and file into the token before passing it to the parser
+    // so that the parser has line and file information
 
-    // DEBUG - this outputs the string and the token generated from the string
-    // This is a good starting point for debugging
-    if lexer_token_debug {
-        println!("[LEXER.TRAP_STATE] {:?} ---> {:?} | File: {:?}, Line: {:?}",
-            lookahead_character,
-            RuleElement::Terminal(lexer.dfa.states[&lexer.current_state_id].token_name.clone()),
-            &input_tuple.1,
-            line_number
-        );
-    }
+    // // DEBUG - this outputs the string and the token generated from the string
+    // // This is a good starting point for debugging
+    // if lexer_token_debug {
+    //     println!("[LEXER.TRAP_STATE] {:?} ---> {:?} | File: {:?}, Line: {:?}",
+    //         lookahead_character,
+    //         RuleElement::Terminal(lexer.dfa.states[&lexer.current_state_id].token_name.clone()),
+    //         &input_tuple.1,
+    //         line_number
+    //     );
+    // }
 
     // provide the last token to the parser
     lexer.parser_provide_input(
@@ -628,14 +739,17 @@ fn main() {
         program_ast_node.node_type = AstNodeType::Program;
 
         // insert all nodes into program node
-        let mut done = false;
-        while !done {
+        // if let Some(parser_unrwapped) = parser {
 
-            let body_ast_node_id = parser.ast_stack.pop().unwrap();
-            program_ast_node.block_items.push(body_ast_node_id);
+            let mut done = false;
+            while !done {
 
-            done = parser.ast_stack.len() == 0;
-        }
+                let body_ast_node_id = &parser.ast_stack.pop().unwrap();
+                program_ast_node.block_items.push(body_ast_node_id.clone());
+
+                done = parser.ast_stack.len() == 0;
+            }
+        // }
 
         // place the root-program node onto the stack
         parser.ast_stack.push(program_ast_node_id);

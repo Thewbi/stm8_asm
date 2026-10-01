@@ -2,6 +2,8 @@ use crate::example_grammars::common::create_rule;
 use crate::Rule;
 use crate::RuleElement;
 
+// Defines a grammar.
+// The token are defined in produce_c_lexer(); (c_lexer.rs)
 pub fn produce_grammar_c_full_if_else_4(grammar_rules: &mut Vec::<Rule<String>>) -> (Rule<String>, crate::RuleElement<String>) {
 
     // https://cyberzhg.github.io/toolbox/lr0
@@ -11,7 +13,7 @@ pub fn produce_grammar_c_full_if_else_4(grammar_rules: &mut Vec::<Rule<String>>)
     // https://www.lysator.liu.se/c/ANSI-C-grammar-y.html
 
     // VALID INPUT:
-    
+
     // void main () {}
     // VOID IDENTIFIER OPENING_BRACKET CLOSING_BRACKET OPENING_CURLY_BRACKET CLOSING_CURLY_BRACKET
 
@@ -74,7 +76,7 @@ pub fn produce_grammar_c_full_if_else_4(grammar_rules: &mut Vec::<Rule<String>>)
     create_rule(grammar_rules, String::from("primary_expression -> FLOAT_NUMERIC"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("primary_expression -> STRING_LITERAL"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("primary_expression -> OPENING_BRACKET expression CLOSING_BRACKET"), treat_nonterminal_lowercase);
-    
+
     // postfix_expression
     //     : primary_expression
     //     | postfix_expression '[' expression ']'
@@ -171,7 +173,7 @@ pub fn produce_grammar_c_full_if_else_4(grammar_rules: &mut Vec::<Rule<String>>)
 
     create_rule(grammar_rules, String::from("logical_or_expression -> logical_and_expression OR_OP logical_or_expression"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("logical_or_expression -> logical_and_expression"), treat_nonterminal_lowercase);
-    
+
     // conditional_expression
 	//      : logical_or_expression
 	//      | logical_or_expression '?' expression ':' conditional_expression
@@ -210,7 +212,7 @@ pub fn produce_grammar_c_full_if_else_4(grammar_rules: &mut Vec::<Rule<String>>)
     create_rule(grammar_rules, String::from("assignment_operator -> AND_ASSIGN"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("assignment_operator -> XOR_ASSIGN"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("assignment_operator -> OR_ASSIGN"), treat_nonterminal_lowercase);
-    
+
     // expression
     //     : assignment_expression
     //     | expression ',' assignment_expression
@@ -501,7 +503,7 @@ pub fn produce_grammar_c_full_if_else_4(grammar_rules: &mut Vec::<Rule<String>>)
 	//      ;
     create_rule(grammar_rules, String::from("initializer_list -> initializer"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("initializer_list -> initializer COMMA initializer_list"), treat_nonterminal_lowercase);
-    
+
     // statement
 	//      : labeled_statement
 	//      | compound_statement
