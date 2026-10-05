@@ -1,1 +1,2 @@
-// test
+/* comment_1 */
+// comment_2 comment_3

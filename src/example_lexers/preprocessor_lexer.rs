@@ -149,8 +149,8 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     //
 
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "//", "SINGLELINE_COMMENT_START", 800);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "/*", "MULTILINE_COMMENT_START", 801);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "*/", "MULTILINE_COMMENT_END", 802);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "/\\*", "MULTILINE_COMMENT_START", 801);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\*/", "MULTILINE_COMMENT_END", 802);
 
     //
     // identifier (token-id: 500)

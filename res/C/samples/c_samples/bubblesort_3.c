@@ -1,5 +1,5 @@
 int main() {
-    // int arr[7] = { 64, 34, 25, 12, 22, 11, 90 };
+
     int arr[] = { 64, 34, 25, 12, 22, 11, 90 };
 
     int n = 6;
@@ -25,13 +25,13 @@ int main() {
              next_idx = i + 1;
              b = arr[next_idx];
 
-             if (a > b)
-             {
+             if (a > b) {
                  arr[i] = b;
                  arr[next_idx] = a;
 
                  swapped = 1;
              }
+
          }
     }
 

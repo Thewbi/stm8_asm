@@ -540,7 +540,8 @@ pub fn provide_sourcode_input() -> ( String, String ) {
 
     // let filename = "res/C/samples/c_samples/printf_0.c";
 
-    let filename = "res/C/samples/c_samples/test_0.c";
+    // let filename = "res/C/samples/c_samples/test_0.c";
+    let filename = "res/C/samples/c_samples/test_1.c";
 
     //
     // Preprocessor - step 1 - remove single-line comments

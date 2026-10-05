@@ -443,8 +443,8 @@ fn main() {
     let preprocessor_temp_q0 = State::new(0);
     let mut preprocessor_dfa = EpsilonNfa::new(preprocessor_temp_q0);
 
-    let generate_preprocessor_lexer = true;
-    // let generate_preprocessor_lexer = false;
+    // let generate_preprocessor_lexer = true;
+    let generate_preprocessor_lexer = false;
     if generate_preprocessor_lexer {
         preprocessor_dfa = produce_preprocessor_lexer();
         // store into file
@@ -480,7 +480,7 @@ fn main() {
     if debug {
         println!("");
         println!("*********************************************************************************");
-        println!("Driving the preprocessor against input                                                 ");
+        println!("Driving the preprocessor against input                                           ");
         println!("*********************************************************************************");
     }
 
@@ -503,10 +503,14 @@ fn main() {
 
     for character in input_tuple.0.chars() {
 
+        // DEBUG
+        if debug {
+            println!("CHAR: {}", character);
+        }
+
         preprocessor_lexer.consume_character(
             character,
             &mut step,
-            // &mut Option::None,
             &mut parser,
             &rule_map,
             &mut debug_node_string_buffer,
@@ -521,9 +525,25 @@ fn main() {
         }
     }
 
+    // Consume a last EOF character to flush out the last token
+    preprocessor_lexer.consume_character(
+        '\n', // dummy character
+        &mut step,
+        &mut parser,
+        &rule_map,
+        &mut debug_node_string_buffer,
+        &mut debug_node_stack,
+        &input_tuple.1,
+        line_number,
+        &mut node_map
+    );
+
+/**/
 
 
 
+
+    println!("*********************************************************************************");
 
     //
     // Process some input
@@ -571,7 +591,7 @@ fn main() {
     let mut parser: Parser<String> = Parser::<String>::new(parse_table);
 
     let lexer_debug: bool = false;
-    let lexer_token_debug: bool = false;
+    let lexer_token_debug: bool = true;
     let mut lexer: Lexer = Lexer::new(lexer_dfa, lexer_debug, lexer_token_debug);
 
     let mut step: usize = 1;
@@ -618,9 +638,7 @@ fn main() {
         // Remove it! It makes the parser loop more complicated
         lexer.consume_character(
             current_character,
-            // lookahead_character,
             &mut step,
-            //&mut Option::Some(parser),
             &mut parser,
             &rule_map,
             &mut debug_node_string_buffer,
@@ -635,10 +653,10 @@ fn main() {
         }
     }
 
-    // // consume the lookahead from the very last cycle as a normal input. Specify dummy lookahead character.
+    // // consume the lookahead from the very last cycle as a normal input.
+    // // Specify dummy lookahead character.
     // lexer.consume_character(
-    //     lookahead_character,
-    //     'x',
+    //     'x', // dummy character
     //     &mut step,
     //     &mut parser,
     //     &mut rule_map,
@@ -691,7 +709,7 @@ fn main() {
         &mut parser,
         &mut step,
         &rule_map,
-        &RuleElement::Closure,
+        &RuleElement::Closure, // EOF
         &mut debug_node_string_buffer,
         &mut debug_node_stack,
         &mut node_map

@@ -92,7 +92,8 @@ impl Lexer {
         //     println!("[LEXER.TRAP_STATE] Lookahead character is: '{}'", lookahead_character);
         // }
 
-        println!("[LEXER.consume_character()] Character is: '{}'", current_character);
+        // // DEBUG
+        // println!("[LEXER.consume_character()] Character is: '{}'", current_character);
 
         let mut next_state_id = self.current_state_id;
 
@@ -295,7 +296,6 @@ impl Lexer {
         debug_node_stack: &mut Vec::<DebugNode>,
         node_map: &mut Box<HashMap::<usize, AstNode>>
     ) {
-
         parser.provide_input(
             &rule_map,
             step,
