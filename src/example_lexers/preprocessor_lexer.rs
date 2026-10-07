@@ -13,9 +13,34 @@ use crate::regex::enfa::recurse_postfix_build_fragment_stack;
 use crate::Input;
 use crate::example_lexers::common::add_token_definition;
 
-use crate::IDENTIFIER_TOKEN_ID;
-use crate::WHITESPACE_TOKEN_ID;
-use crate::NEWLINE_TOKEN_ID;
+pub const PP_AND_OP_TOKEN_ID: usize = 16;
+pub const PP_OR_OP_TOKEN_ID: usize = 17;
+pub const PP_GE_OP_TOKEN_ID: usize = 19;
+pub const PP_COMMA_TOKEN_ID: usize = 25;
+
+pub const PP_COLON_TOKEN_ID: usize = 26;
+pub const PP_OPENING_BRACKET_TOKEN_ID: usize = 28;
+pub const PP_CLOSING_BRACKET_TOKEN_ID: usize = 29;
+
+pub const PP_QUESTION_MARK_TOKEN_ID: usize = 45;
+pub const PP_WHITESPACE_TOKEN_ID: usize = 46;
+pub const PP_NEWLINE_TOKEN_ID: usize = 47;
+pub const PP_HASHTAG_TOKEN_ID: usize = 48;
+
+pub const PP_PPF_DEFINED_TOKEN_ID: usize = 100;
+
+pub const PP_DEFINE_TOKEN_ID: usize = 200;
+
+pub const PP_IDENTIFIER_TOKEN_ID: usize = 500;
+
+pub const PP_NUMERIC_TOKEN_ID: usize = 600;
+pub const PP_FLOAT_NUMERIC_TOKEN_ID: usize = 601;
+pub const PP_HEX_NUMERIC_TOKEN_ID: usize = 602;
+pub const PP_STRING_LITERAL_TOKEN_ID: usize = 610;
+
+pub const PP_SINGLELINE_COMMENT_START_TOKEN_ID: usize = 800;
+pub const PP_MULTILINE_COMMENT_START_TOKEN_ID: usize = 801;
+pub const PP_MULTILINE_COMMENT_END_TOKEN_ID: usize = 802;
 
 // Defines token for a lexer.
 // The grammar is defined in produce_grammar_c_full_if_else_4(); (c_full_if_else_4.rs)
@@ -128,6 +153,7 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     alphabet.insert(RegexBuildingBlock::CharacterLiteral(':'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\\'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('/'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('#'));
 
     // "\n" | "\r\n" | "\r"
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\n'));
@@ -148,9 +174,9 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // Comments
     //
 
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "//", "SINGLELINE_COMMENT_START", 800);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "/\\*", "MULTILINE_COMMENT_START", 801);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\*/", "MULTILINE_COMMENT_END", 802);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "//", "SINGLELINE_COMMENT_START", PP_SINGLELINE_COMMENT_START_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "/\\*", "MULTILINE_COMMENT_START", PP_MULTILINE_COMMENT_START_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\*/", "MULTILINE_COMMENT_END", PP_MULTILINE_COMMENT_END_TOKEN_ID);
 
     //
     // identifier (token-id: 500)
@@ -169,7 +195,7 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // the top fragment on the fragment stack contains the root of the eNFA
     let mut fragment_identifier = fragment_stack_identifier.stack.pop().unwrap();
     // assign a token id to eNFA so it will assign that token id to all token it accepts
-    fragment_identifier.enfa.states.get_mut(&fragment_identifier.end_id).unwrap().token_id = IDENTIFIER_TOKEN_ID;
+    fragment_identifier.enfa.states.get_mut(&fragment_identifier.end_id).unwrap().token_id = PP_IDENTIFIER_TOKEN_ID;
     fragment_identifier.enfa.states.get_mut(&fragment_identifier.end_id).unwrap().token_name = String::from("IDENTIFIER");
     // insert into LEXER
     let (start_id_identifier, end_id_identifier)
@@ -182,12 +208,11 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     //
     // Float Numeric (token-id: 601) - {D}*"."{D}+({E})?{FS}?
     //
-
     add_token_definition(&mut converter,
         &mut combined_fragment,
         &mut alphabet,
         "(0|1|2|3|4|5|6|7|8|9)*.(0|1|2|3|4|5|6|7|8|9)+((e|E)(\\+|\\-)?(0|1|2|3|4|5|6|7|8|9)+)?(f|F|l|L)?", "FLOAT_NUMERIC",
-        601);
+        PP_FLOAT_NUMERIC_TOKEN_ID);
 
     //
     // Hex Numeric (token-id: 602)
@@ -196,24 +221,22 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // H			[a-fA-F0-9]
     // Hex Numeric - 0[xX]{H}+{IS}?
     //
-
     add_token_definition(&mut converter,
         &mut combined_fragment,
         &mut alphabet,
         "0(x|X)(0|1|2|3|4|5|6|7|8|9|a|A|b|B|c|C|d|D|e|E|f|F)+(u|U|l|L)?",
         "HEX_NUMERIC",
-        602);
+        PP_HEX_NUMERIC_TOKEN_ID);
 
     //
     // numeric (token-id: 600)
     //
-
     converter.infix_to_postfix("(0|1|2|3|4|5|6|7|8|9)+");
     let mut fragment_stack_numeric = FragmentStack::new();
     recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_numeric, &mut alphabet);
     converter.reset();
     let mut fragment_numeric = fragment_stack_numeric.stack.pop().unwrap();
-    fragment_numeric.enfa.states.get_mut(&fragment_numeric.end_id).unwrap().token_id = 600;
+    fragment_numeric.enfa.states.get_mut(&fragment_numeric.end_id).unwrap().token_id = PP_NUMERIC_TOKEN_ID;
     fragment_numeric.enfa.states.get_mut(&fragment_numeric.end_id).unwrap().token_name = String::from("NUMERIC");
     // insert into LEXER
     let (start_id_numeric, end_id_numeric)
@@ -223,13 +246,12 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     //
     // string_literal (token-id: 610)
     //
-
     converter.infix_to_postfix("\"^\""); // start with a quote. Consume everything that is not a quote
     let mut fragment_stack_string_literal = FragmentStack::new();
     recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_string_literal, &mut alphabet);
     converter.reset();
     let mut fragment_string_literal = fragment_stack_string_literal.stack.pop().unwrap();
-    fragment_string_literal.enfa.states.get_mut(&fragment_string_literal.end_id).unwrap().token_id = 610;
+    fragment_string_literal.enfa.states.get_mut(&fragment_string_literal.end_id).unwrap().token_id = PP_STRING_LITERAL_TOKEN_ID;
     fragment_string_literal.enfa.states.get_mut(&fragment_string_literal.end_id).unwrap().token_name = String::from("STRING_LITERAL");
     // // DEBUG
     // enfa_to_dot_directed_graph(&mut fragment_string_literal.enfa, "dot\\string_literal_enfa_automaton.dot");
@@ -244,7 +266,6 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     //
     // define operators
     //
-
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "...", "ELLIPSIS", 0);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ">>=", "RIGHT_ASSIGN", 1);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "<<=", "LEFT_ASSIGN", 2);
@@ -261,20 +282,20 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\+\\+", "INC_OP", 13); // used in Regex as Repeat(1, std::usize::MAX)
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\-\\-", "DEC_OP", 14); // used in Regex to build character classes
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\->", "PTR_OP", 15);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "&&", "AND_OP", 16);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\|\\|", "OR_OP", 17); // used in Regex as OR operator
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "&&", "AND_OP", PP_AND_OP_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\|\\|", "OR_OP", PP_OR_OP_TOKEN_ID); // used in Regex as OR operator
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "<=", "LE_OP", 18);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ">=", "GE_OP", 19);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ">=", "GE_OP", PP_GE_OP_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "==", "EQ_OP", 20);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\!=", "NE_OP", 21); // ???
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ";", "SEMICOLON", 22);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\{", "OPENING_CURLY_BRACKET", 23);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\}", "CLOSING_CURLY_BRACKET", 24);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ",", "COMMA", 25);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ":", "COLON", 26);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ",", "COMMA", PP_OR_OP_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ":", "COLON", PP_COLON_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "=", "EQUALS_SIGN", 27);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\(", "OPENING_BRACKET", 28); // used in Regex to build blocks
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\)", "CLOSING_BRACKET", 29); // used in Regex to build blocks
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\(", "OPENING_BRACKET", PP_OPENING_BRACKET_TOKEN_ID); // used in Regex to build blocks
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\)", "CLOSING_BRACKET", PP_CLOSING_BRACKET_TOKEN_ID); // used in Regex to build blocks
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\[", "OPENING_ANGULAR_BRACKET", 30); // used in Regex to build character classes
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\]", "CLOSING_ANGULAR_BRACKET", 31); // used in Regex to build character classes
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ".", "DOT", 32);
@@ -290,10 +311,11 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ">", "GT", 42);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\^", "CIRCUMFLEX", 43); // used in Regex as NEGATION operator
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\|", "OR", 44); // used in Regex as OR operator
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\?", "QUESTION_MARK", 45); // used in Regex as Repeat(0, 1)
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\?", "QUESTION_MARK", PP_QUESTION_MARK_TOKEN_ID); // used in Regex as Repeat(0, 1)
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#", "HASHTAG", PP_HASHTAG_TOKEN_ID);
 
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, " ", "WHITESPACE", WHITESPACE_TOKEN_ID);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\n|\r\n|\r", "NEWLINE", NEWLINE_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, " ", "WHITESPACE", PP_WHITESPACE_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\n|\r\n|\r", "NEWLINE", PP_NEWLINE_TOKEN_ID);
 
     // //
     // // Whitespace
@@ -354,6 +376,34 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "void", "VOID", 129);
     // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "volatile", "VOLATILE", 130); // volatile
     // add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "while", "WHILE", 131); // while
+
+    //
+    // Preprocessor functions (PPF)
+    //
+
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "defined", "PPF_DEFINED", PP_PPF_DEFINED_TOKEN_ID);
+
+    //
+    // Preprocessor Instructions (PPI)
+    //
+
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#define", "PPI_DEFINE", PP_DEFINE_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#undef", "PPI_UNDEF", 201);
+
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#if", "PPI_IF", 202);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#elif", "PPI_ELIF", 203);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#else", "PPI_ELSE", 204);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#endif", "PPI_ENDIF", 205);
+
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#ifdef", "PPI_IFDEF", 206);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#ifndef", "PPI_IFNDEF", 207);
+
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#include", "PPI_INCLUDE", 208);
+
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#error", "PPI_ERROR", 209);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#pragma", "PPI_PRAGMA", 210);
+
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#line", "PPI_LINE", 211);
 
     //
     // Phase 3 - Convert eNFA to DFA

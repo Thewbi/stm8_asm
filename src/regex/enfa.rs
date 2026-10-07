@@ -320,7 +320,7 @@ pub fn enfa_serialize(enfa: &mut EpsilonNfa<State, RegexBuildingBlock>, filename
     //
     // Example:
     // 1168
-    println!("StartStateId: {:?}", enfa.start_state_id);
+    // println!("StartStateId: {:?}", enfa.start_state_id);
 
     string_buffer.push_str("S_ID;");
     string_buffer.push_str(format!("{}", enfa.start_state_id).as_str());

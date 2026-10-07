@@ -13,9 +13,19 @@ use crate::regex::enfa::recurse_postfix_build_fragment_stack;
 use crate::Input;
 use crate::example_lexers::common::add_token_definition;
 
-use crate::IDENTIFIER_TOKEN_ID;
-use crate::WHITESPACE_TOKEN_ID;
-use crate::NEWLINE_TOKEN_ID;
+pub const WHITESPACE_TOKEN_ID: usize = 46;
+pub const NEWLINE_TOKEN_ID: usize = 47;
+
+pub const IDENTIFIER_TOKEN_ID: usize = 500;
+
+pub const NUMERIC_TOKEN_ID: usize = 600;
+pub const FLOAT_NUMERIC_TOKEN_ID: usize = 601;
+pub const HEX_NUMERIC_TOKEN_ID: usize = 602;
+pub const STRING_LITERAL_TOKEN_ID: usize = 610;
+
+pub const SINGLELINE_COMMENT_START_TOKEN_ID: usize = 800;
+pub const MULTILINE_COMMENT_START_TOKEN_ID: usize = 801;
+pub const MULTILINE_COMMENT_END_TOKEN_ID: usize = 802;
 
 // Defines token for a lexer.
 // The grammar is defined in produce_grammar_c_full_if_else_4(); (c_full_if_else_4.rs)
@@ -185,7 +195,7 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_numeric, &mut alphabet);
     converter.reset();
     let mut fragment_numeric = fragment_stack_numeric.stack.pop().unwrap();
-    fragment_numeric.enfa.states.get_mut(&fragment_numeric.end_id).unwrap().token_id = 600;
+    fragment_numeric.enfa.states.get_mut(&fragment_numeric.end_id).unwrap().token_id = NUMERIC_TOKEN_ID;
     fragment_numeric.enfa.states.get_mut(&fragment_numeric.end_id).unwrap().token_name = String::from("NUMERIC");
     // insert into LEXER
     let (start_id_numeric, end_id_numeric) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_numeric.enfa, fragment_numeric.end_id);
@@ -198,7 +208,7 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_string_literal, &mut alphabet);
     converter.reset();
     let mut fragment_string_literal = fragment_stack_string_literal.stack.pop().unwrap();
-    fragment_string_literal.enfa.states.get_mut(&fragment_string_literal.end_id).unwrap().token_id = 610;
+    fragment_string_literal.enfa.states.get_mut(&fragment_string_literal.end_id).unwrap().token_id = STRING_LITERAL_TOKEN_ID;
     fragment_string_literal.enfa.states.get_mut(&fragment_string_literal.end_id).unwrap().token_name = String::from("STRING_LITERAL");
     // // DEBUG
     // enfa_to_dot_directed_graph(&mut fragment_string_literal.enfa, "dot\\string_literal_enfa_automaton.dot");

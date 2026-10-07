@@ -164,11 +164,7 @@ pub fn replace_parent_of_right_child(arena: &mut Arena<RegexBuildingBlock>,
     let next_index = arena.nodes.len();
 
     // push the node into the arena
-    arena.nodes.push(Node {
-        left: None,
-        right: None,
-        data: regex_building_block,
-    });
+    arena.nodes.push(Node::new(regex_building_block));
 
     // get node_id of right child
     let right_child_node_id = arena.nodes[node_id.index].right.unwrap().index;
@@ -191,23 +187,13 @@ pub fn concat_right_side(arena: &mut Arena<RegexBuildingBlock>,
     let next_index = arena.nodes.len();
 
     // push the node into the arena
-    arena.nodes.push(Node {
-        // parent: None,
-        left: None,
-        right: None,
-        data: regex_building_block,
-    });
+    arena.nodes.push(Node::new(regex_building_block));
 
     // get the next free index
     let concat_index = arena.nodes.len();
 
     // push the node into the arena
-    arena.nodes.push(Node {
-        // parent: None,
-        left: None,
-        right: None,
-        data: RegexBuildingBlock::Concatenation,
-    });
+    arena.nodes.push(Node::new(RegexBuildingBlock::Concatenation));
 
     // save right index
     let old_right_option = arena.nodes[node_id.index].right;
@@ -242,21 +228,13 @@ pub fn new_concat_root(arena: &mut Arena<RegexBuildingBlock>,
     let next_index = arena.nodes.len();
 
     // push the node into the arena
-    arena.nodes.push(Node {
-        left: None,
-        right: None,
-        data: RegexBuildingBlock::Concatenation,
-    });
+    arena.nodes.push(Node::new(RegexBuildingBlock::Concatenation));
 
     // get the next free index
     let regex_bb_index = arena.nodes.len();
 
     // push the node into the arena
-    arena.nodes.push(Node {
-        left: None,
-        right: None,
-        data: regex_building_block,
-    });
+    arena.nodes.push(Node::new(regex_building_block));
 
     arena.nodes[next_index].left = Some ( NodeId { index: node_id.index } );
     arena.nodes[next_index].right = Some ( NodeId { index: regex_bb_index } );
@@ -622,6 +600,7 @@ impl InfixPostfixConverter {
                     ']' => { self.process_literal_character(']'); }
                     '!' => { self.process_literal_character('!'); }
                     '?' => { self.process_literal_character('?'); }
+                    '#' => { self.process_literal_character('#'); }
                     _ => { panic!("[infix_to_postfix] unhandled character sequence: {}", c); }
                 }
 
@@ -1560,4 +1539,45 @@ impl InfixPostfixConverter {
         self.arena.reset();
     }
 
+}
+
+pub fn recurse_arena_postfix(arena: &Arena<RegexBuildingBlock>,
+    parent_node_id: &NodeId,
+    string_buffer: &mut String)
+{
+
+    let parent_node: &Node<RegexBuildingBlock> = &arena.nodes[parent_node_id.index];
+    match &parent_node.left {
+        Some(_) => {
+            recurse_arena_postfix(arena, parent_node.left.as_ref().unwrap(), string_buffer);
+        }
+        None => {
+        }
+    }
+    match &parent_node.right {
+        Some(_) => {
+            recurse_arena_postfix(arena, parent_node.right.as_ref().unwrap(), string_buffer);
+        }
+        None => {
+        }
+    }
+
+    match parent_node.data {
+
+        // unescaped for processing, the special characters have to be escaped again for output
+        RegexBuildingBlock::CharacterLiteral(c) => {
+            match c {
+                '|' => { string_buffer.push_str("\\|"); }
+                '+' => { string_buffer.push_str("\\+"); }
+                '-' => { string_buffer.push_str("\\-"); }
+                '*' => { string_buffer.push_str("\\*"); }
+                '^' => { string_buffer.push_str("\\^"); }
+                _ => { string_buffer.push_str(format!("{:?}", parent_node.data).as_str()); }
+            }
+        }
+        _ => {
+            // output to string buffer
+            string_buffer.push_str(format!("{:?}", parent_node.data).as_str());
+        }
+    }
 }

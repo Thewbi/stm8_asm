@@ -1,0 +1,1 @@
+defined(MIDL_PASS) || defined(__midl) || defined(RC_INVOKED)

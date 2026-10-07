@@ -47,7 +47,7 @@ These PPI exist:
 
 Makros:
 ```
-#define <symbol> <expression>
+#define <symbol> <replacement_text>
 #undef <symbol>
 ```
 
@@ -161,20 +161,22 @@ define struct for fast lookup and retrieval of defines, when they are encountere
 in the source code and when each individual token in the input stream needs
 to be checked if it is a defined symbol.
 
-The #define PP instruction consists of two parts and uses the same parser for both.
+The #define PP instruction consists of two parts.
 The <macro_interface> is the first AST parsed from the input.
 The <macro_definition>S are the rest of the ASTs parsed from the input.
 
 The <macro_interface> AST is parsed into the 'name' of the define struct and also into
 the 'list_of_parameters' of the define struct.
 
-As an example, the following define:
+As an example, the following define is a #define which actually has
+an interface and a definition which are well-formed and could in theory
+be parsed by an expression parser:
 
 ```
 #define max(a,b) ((a) >= (b) ? (a) : (b))
 ```
 
-yields a <macro_interface> which is the following AST:
+This define yields a <macro_interface> which is the following AST:
 
 ```
         () <--- ptr
@@ -192,6 +194,55 @@ The define struct's name is filled with the extracted value 'max'.
 The efine struct's list_of_parameters is extracted from the AST to be 'a', 'b' in exactly that order.
 
 The list_of_ASTs is filled with all the ASTs that follow the <macro_interface>
+
+The following define is different:
+
+```
+#define _SAL1_Source_(Name, args, annotes) _SA_annotes3(SAL_name, #Name, "", "1") _GrouP_(annotes _SAL_nop_impl_)
+```
+
+Here, there are two <macro_definition>S.
+A normal Expression parser cannot correctly parse both expressions because it does
+not use a grammar and no recursive decent parser or the likes. A grammar cannot
+be use since anything can be put in a #define and there is no grammar that
+captures all possibilities.
+
+Another example is this define:
+
+```
+#define _Analysis_mode_(mode)                                                 \
+    __pragma(warning(disable: 28110 28111 28161 28162))                       \
+    typedef _Analysis_mode_impl_(mode) int                                    \
+        __GENSYM(__prefast_analysis_mode_flag);
+```
+
+This define cannot be parsed into a working tree easily.
+
+Therefore, the way defines are treating will work on a very low level
+of formality.
+
+NOTE: PPI such as #if, #elif, #if defined() must contain well-formed expressions!
+The reason is that the expressions need to be parsed into an expression tree
+by an expression parser and the expression tree needs to be evaluated using actual
+parameter values! This means that in contrast to #define PPI, the #if etc. PPI
+need to contain a well-formed tree!
+
+The way #define is resolved is:
+
+The entire #define macro_definitions are treated as a single large string.
+In a loop, defined symbols are replaced in the string.
+Because a defined symbol can be resolved to even more defined symbols, the
+loop needs to iterate as long as there are unresolved defined symbols in
+the large string. One edge-case is an endless loop which can be created
+by having a cycle of defines which resolve into each other. Because the
+cycle closes back to the first define, it will loop forever. A mecanism
+which detects loops needs to be provided.
+
+### Resolving a #define (when it is found in the token stream)
+
+This is not how the defines are actually handled!
+It was written before I realized that #defines are not well-formed
+and cannot always be parsed by an expression parser.
 
 When a defined symbol is detected in the token stream,
 1. the define struct is retrieved from the map of defines
@@ -233,9 +284,19 @@ When a defined symbol is detected in the token stream,
 The #if PP instruction consists of a single part, which is parsed using the expression parser
 
 The format is:
+
 ```
 #if <expression>
 ```
+
+### Resolving a if-instruction (when it is found in the token stream)
+
+When a #if symbol is detected in the token stream,
+1. the #if content is parsed using an expression parser
+1. the actual parameters are extracted from the occurence in the token stream
+1. the actual paramater value is replaced in all AST nodes in the define struct's list_of_ASTs
+1. The tree is evaluated into a boolean value
+1. The #if is either branched into or not based on the boolean value.
 
 ### Sample Data
 
@@ -364,7 +425,7 @@ Format
 #define SQUARE(x) ((x) * (x))
 ```
 
-The preprocessor once it encounters a PPI has to parse that PPI into an
+The preprocessor, once it encounters a PPI, has to parse that PPI into an
 AST of tree nodes that captures the expression.
 As the lexer outputs token, the are immediately processed.
 Once the newline character is encountered
@@ -372,40 +433,61 @@ Once the newline character is encountered
 be used to detect the end of the PPI), then the data parsed so far is
 added to the internal data store of all defined symbols.
 
-An example is the line:
+#define PPI are a special case. Only the first part, the macro_interface
+is a well-formed string which can be parsed into an AST. The second part,
+the macro-definition is not well-formed an can be any text, even non-formalized
+text.
+
+An example for a #defin PPI is the line:
 
 ```
 #define SQUARE(x) ((x) * (x))
 ```
 
+The macro interface is SQUARE(x) which is well-formed and can be
+parsed into an AST by the expression parser. In this example,
+the second part ((x) * (x)) is also well-formed but in general
+any text is allowed.
+
+NOTE: #if, #elif, #if define PPI are different. Because the
+preprocessor needs to evaluate the predicate to a true or false
+value, the content of the #if statements need to always be
+wellformed text which can be parsed into an AST!
+
+First, the preprocessor parses the macro interface into the
+following AST:
+
+```
+       ()
+       |
+    -------
+    |     |
+ SQUARE   x
+```
+
+The AST is created using the weighted sink-down algorithm as the token are parsed.
+
 The following information is created by the preprocessor:
 
 ```
 Symbol {
-	name: SQUARE
+	name: "SQUARE"
 	formal_parameter_map: { key: 0, value: x }
-	ast: TreeNode
+	definition: "((x) * (x))"
 }
 ```
 
 name is the name of the Symbol
 The formal_parameter_map contains entries, one entry per formal parameter.
-The key is the index (0 means first formal parameter, 1 means second formal parameter)
-The value is the name of the formal parameter.
+The key is the index (0 means first formal parameter, 1 means second formal parameter, ...)
+The value is the name of the formal parameter so it can be recognized within the
+macro definition.
 
-The ast will look like this
+Building the AST of the macro definition is not performed!
+The macro definition is stored as a string!
 
-```
-         *
-		 |
-     ---------
-	 |       |
-    ()       ()
-     |       |
-	 x       x
-```
 
-The AST is created using the weighted sink-down algorithm as the token are parsed.
+
 
 ### Applying the #define PPI
 
@@ -420,24 +502,29 @@ be described as NORMAL-mode.
 
 In NORMAL-mode, for every token, the preprocessor looks up the token in the internal data store.
 If the token is contained in the data store, instead of outputting the token, it is replaced by
-the defined value. Before replacing, the defined value is evaluated with actual parameters.
+the defined macro definition. Before replacing, the defined value is filled with actual
+parameters in place of all the formal parameters it contains.
+
+NOTE: There should also be a type-checking phase to see if all required formal parameters
+are actually provided with actual parameters! Otherwise the macro is applied incorrectly
+and the preprocessor should quit with an error message.
 
 In the example above, the token SQUARE(4) is found in the data store.
 The defintion is:
 
 ```
 Symbol {
-	name: SQUARE
+	name: "SQUARE"
 	formal_parameter_map: { key: 0, value: x }
-	ast: TreeNode
+	definition: "((x) * (x))"
 }
 ```
 
-The AST from the symbol in the datastore is first cloned because a copy is required
-since the next step will alter the AST tree.
+The String from the symbol definition in the datastore is first cloned because a copy is required
+since the next step will alter the String.
 
 Next the formal parameter at index 0 which is called x is replaced by the actual parameter 4
-in the cloned AST and then the entire AST is output in Infix order.
+in the cloned String and then the entire String is output where the original symbol would go.
 
 The result is:
 
@@ -452,6 +539,26 @@ printf("Square of 4: %d\n", ((4) * (4)));
 ```
 #if <expression>
 ```
+
+The special thing about #if PPI is that the expression must be well-formed
+meaning that it can be parsed into an AST by an Expression parser!
+
+The <epression> is parsed into an AST as the lexer emits token.
+The AST is created using the weighted-sink-down algorithm as the token are parsed.
+
+When the newline character is encountered, a semantic analysis phase starts and
+the type checker checks if for each formal parameter an actual value is provided.
+If there is any error, the preprocessor exits with an error message.
+
+After sematic analysis the expression AST node is evaluated.
+
+If the expression evaluates to true, then in the execution phase, the if-stack
+is consulted. First the topmost if-stack element is peeked and it is checked, if
+this frame is deactivated or not.
+
+If it is not deactivated, a new IfStackFrame is pushed on top of the stack
+for the current if-statement and the predicate is evaluated.
+If it evaluates to true, the if statement is executed.
 
 ### Sample Data
 
@@ -470,18 +577,7 @@ printf("Square of 4: %d\n", ((4) * (4)));
 #endif
 ```
 
-The <epression> is parsed into an AST as the lexer emits token.
-The AST is created using the weighted-sink-down algorithm as the token are parsed.
 
-When the newline character is encountered, the expression AST node is evaluated.
-
-If the expression evaluates to true, then in the execution phase, the if-stack
-is consulted. First the topmost if-stack element is peeked and it is checked, if
-this frame is deactivated or not.
-
-If it is not deactivated, a new IfStackFrame is pushed on top of the stack
-and the predicate is evaluated. If it evaluates to true, the if statement
-is executed.
 
 
 
@@ -1206,4 +1302,13 @@ defined:
 					_CRTIMP       !
 					                    defined								// defined moves nodes into it's RHS
 										            _VCRT_DEFINED_CRTIMP
+```
+
+## Example 7
+
+```
+#define _Analysis_mode_(mode)                                                 \
+    __pragma(warning(disable: 28110 28111 28161 28162))                       \
+    typedef _Analysis_mode_impl_(mode) int                                    \
+        __GENSYM(__prefast_analysis_mode_flag);
 ```

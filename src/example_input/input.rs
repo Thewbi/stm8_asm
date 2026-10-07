@@ -7,10 +7,10 @@ use std::io::BufReader;
 use std::io::BufWriter;
 use std::io::Write;
 
-enum PreprocessorOperatingMode {
-    Normal,
-    MultilineComment,
-}
+// enum PreprocessorOperatingMode {
+//     Normal,
+//     MultilineComment,
+// }
 
 // first element: text data
 // second element: filename which is the source of the text data
@@ -541,8 +541,19 @@ pub fn provide_sourcode_input() -> ( String, String ) {
     // let filename = "res/C/samples/c_samples/printf_0.c";
 
     // let filename = "res/C/samples/c_samples/test_0.c";
-    let filename = "res/C/samples/c_samples/test_1.c";
+    // let filename = "res/C/samples/c_samples/test_1.c";
 
+    //
+    // Preprocessor Samples
+    //
+
+    // let filename = "res/preprocessor/define_0.pp";
+
+    // let filename = "res/preprocessor/if_0.pp";
+
+    let filename = "res/preprocessor/scratchpad_0.pp";
+
+/*
     //
     // Preprocessor - step 1 - remove single-line comments
     //
@@ -555,9 +566,7 @@ pub fn provide_sourcode_input() -> ( String, String ) {
 
     // C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\ucrt
 
-
-
-    // 3. Write data
+    // 3. output the input file to the console
     let f = match File::open(filename) {
 
         Ok(f) => {
@@ -568,6 +577,12 @@ pub fn provide_sourcode_input() -> ( String, String ) {
             for line in file.lines() {
 
                 let curr_line = line.unwrap();
+
+                // // DEBUG
+                // println!("{}", curr_line);
+                // if curr_line.ends_with('\n') {
+                //     println!("test");
+                // }
 
                 if line_num > 0 {
                     write!(writer, "{}", "\n");
@@ -587,6 +602,22 @@ pub fn provide_sourcode_input() -> ( String, String ) {
         }
     };
 
+    // 4. Explicitly flush the remaining data to disk
+    writer.flush().expect("flush failed!");
+
+    // output C-application translation unit into a fixed file called "preprocessed.c".
+    // The C-compiler will read input from "preprocessed.c"
+    let str: String = fs::read_to_string("preprocessed.c").expect("file cannot be read!");
+ */
+    let str: String = fs::read_to_string(filename).expect("file cannot be read!");
+
+    return ( str.to_string(), filename.to_string() )
+}
+
+// // DEBUG
+// split.for_each(|item| {
+//     println!("text: {:?}", &item);
+// });
 /*
     let mut pp_op_mode: PreprocessorOperatingMode = PreprocessorOperatingMode::Normal;
 
@@ -679,17 +710,3 @@ pub fn provide_sourcode_input() -> ( String, String ) {
         }
     };
  */
-    // 4. Explicitly flush the remaining data to disk
-    writer.flush().expect("flush failed!");
-
-    // output C-application translation unit into a fixed file called "preprocessed.c".
-    // The C-compiler will read input from "preprocessed.c"
-    let str: String = fs::read_to_string("preprocessed.c").expect("file cannot be read!");
-
-    return ( str.to_string(), filename.to_string() )
-}
-
-// // DEBUG
-// split.for_each(|item| {
-//     println!("text: {:?}", &item);
-// });

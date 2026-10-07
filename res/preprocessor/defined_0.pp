@@ -1,0 +1,1 @@
+defined(MIDL_PASS)

@@ -12,6 +12,10 @@ use std::fmt::Debug;
 
 use std::str::FromStr;
 
+use std::{
+    sync::atomic::{AtomicUsize, Ordering}
+};
+
 use crate::c_ast::ast_node_id_counter::AST_NODE_ID_COUNTER;
 use crate::common::data_type::DataType;
 
@@ -26,14 +30,9 @@ use crate::c_ast::ast_node::AstNode;
 use crate::c_ast::ast_node::AstNodeType;
 use crate::c_ast::ast_node::AstNodeOperatorType;
 
-use std::{
-    sync::atomic::{AtomicUsize, Ordering}
-};
-
 pub struct Transition<T>(pub usize, pub RuleElement<T>);
 
 static DEBUG_NODE_COUNTER: AtomicUsize = AtomicUsize::new(0);
-// pub static AST_NODE_ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug)]
 pub struct DebugNode {
@@ -151,6 +150,9 @@ pub struct Parser<T> {
     pub direct_declarator_counter: usize,
     pub struct_field_counter: usize,
 
+    // TODO: improve the parser/lexer API.
+    // Currently the lexer always needs a parser to function.
+    // To keep the parser from processing during testing, this flag diables the parser.
     pub disabled: bool,
 }
 
@@ -256,8 +258,6 @@ impl Parser<String> {
         parser
     }
 
-
-
     // removes the current node from the stack and replaces it by a new node,
     // inserting a transition line and a line for the new node.
     pub fn node_to_node(&mut self,
@@ -296,8 +296,6 @@ impl Parser<String> {
     // Given some input symbol, the current stack of parse elements looks at the topmost stack element.
     // A stack element can either can either be a rule or a state id.
     //
-    // RETURNS: true if something has been consumed
-    //
     // If the topmost stack element is a state_id, retrieves the parse table row for that state
     // from the parse table.
     // Retrieve the entry that the parse table row stores for the current input.
@@ -318,6 +316,8 @@ impl Parser<String> {
     // If the parse table row contains no entry for the current input, ???
     //
     // ...
+    //
+    // RETURNS: true if something has been consumed
     pub fn consume(&mut self,
         input: RuleElement<String>,
         terminal_value: &String,
@@ -7146,7 +7146,9 @@ pub fn output_parse_table_to_csv(
     }
 }
 
-pub fn read_parse_table_from_csv(filename: &str, parse_table: &mut HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>) {
+pub fn read_parse_table_from_csv(filename: &str,
+    parse_table: &mut HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>)
+{
 
     let file = File::open(filename).expect("Reading file failed!");
     let reader = BufReader::new(file);

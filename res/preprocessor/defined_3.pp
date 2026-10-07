@@ -1,0 +1,1 @@
+_USE_DECLSPECS_FOR_SAL && ( defined(MIDL_PASS) || defined(__midl) || defined(RC_INVOKED) || !defined(_PREFAST_) )

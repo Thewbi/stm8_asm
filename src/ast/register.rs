@@ -85,13 +85,13 @@ impl Register {
             Register::R8 => 8,
             Register::R9 => 9,
             Register::R10 => 10,
-            
+
             Register::R11 => 11,
             Register::FP => 11,
-            
+
             Register::R12 => 12,
             Register::IP => 12,
-            
+
             Register::R13 => 13,
             Register::SP => 13,
 
@@ -177,6 +177,5 @@ impl fmt::Display for Register {
 
             Register::UNDEFINED => write!(f, "undefined"),
         }
-        
     }
 }

@@ -1,0 +1,1 @@
+printf("Hello World! %s %s %d", "a"/*a*/, "b"/*b*/, 5/*c*/);
