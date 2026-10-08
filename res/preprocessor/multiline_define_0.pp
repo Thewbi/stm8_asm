@@ -1,11 +1,3 @@
-#define add(a, b) a+b
-
-#define SQUARE(x) ((x) * (x))
-
 #define _Analysis_mode_(mode) \
     typedef _Analysis_mode_impl_(mode) int \
         __GENSYM(__prefast_analysis_mode_flag);
-
-#define max(a,b) ((a) >= (b) ? (a) : (b))
-
-#define test test_def

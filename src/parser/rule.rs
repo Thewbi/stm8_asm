@@ -53,7 +53,39 @@ impl<T: Display> fmt::Debug for RuleElement<T> {
 
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 
-        // LHS
+        match &self {
+            RuleElement::NonTerminal(str_val) => {
+                write!(f, "{}", str_val).expect("Write failed!");
+            }
+            RuleElement::Terminal(str_val) => {
+                write!(f, "{}", str_val).expect("Write failed!");
+            }
+            RuleElement::Epsilon => {
+                write!(f, "ϵ").expect("Write failed!");
+            }
+            RuleElement::Dot => {
+                write!(f, ".").expect("Write failed!");
+            }
+            RuleElement::AcceptingStateTransition => {
+                write!(f, "$").expect("Write failed!");
+            }
+            RuleElement::Closure => {
+                write!(f, "#").expect("Write failed!");
+            }
+            RuleElement::Unknown => {
+                write!(f, "UNKNOWN").expect("Write failed!");
+            }
+            RuleElement::Unused => {
+                // do not display unused
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl<T: Display> std::fmt::Display for RuleElement<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self {
             RuleElement::NonTerminal(str_val) => {
                 write!(f, "{}", str_val).expect("Write failed!");

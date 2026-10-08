@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use crate::EpsilonNfa;
+use crate::regex::enfa::add_character_literal;
 use crate::regex::enfa::enfa_copy;
 use crate::State;
 use crate::RegexBuildingBlock;
@@ -30,27 +31,65 @@ pub fn add_token_definition(converter: &mut InfixPostfixConverter,
     alphabet: &mut HashSet::<RegexBuildingBlock>,
     regex_infix: &str,
     token_name: &str,
-    token_id: usize) {
-
-    // 1. convert the input regex_infix from infix to postfix notation using the converter
-    converter.infix_to_postfix(regex_infix);
-
-    // 2. The postfix notation is used as a guidance rule for building fragments on the
-    //    fragment stack. The fragment stack eventually contains a single fragment that
-    //    points to the start and end state of an automaton for the input regex.
+    token_id: usize)
+{
     let mut fragment_stack_return = FragmentStack::new();
-    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_return, alphabet);
+
+    if regex_infix == "\\" {
+
+        //
+        // special treatment for a singular backslash because it conflicts
+        // with escape sequences
+        //
+
+        //panic!("test");
+
+        let regex_building_block: RegexBuildingBlock = RegexBuildingBlock::CharacterLiteral('\\');
+
+        // let fragment:Fragment = Fragment::new(regex_building_block);
+        // fragment.enfa.start_state_id = fragment.start_id;
+
+        add_character_literal(&mut fragment_stack_return,
+            RegexBuildingBlock::CharacterLiteral('\\'),
+            alphabet);
+
+        // fragment_stack_return.stack.push(fragment);
+
+    } else {
+
+        // 1. convert the input regex_infix from infix to postfix notation using the converter
+        //    The result of this call is an AST tree which is stored in the members of
+        //    this struct and which is inserted into the combined_fragment at the end
+        //    of this function. combined_fragment is passed in as a mutable parameter.
+        //    It gets extended until it contains all token
+        converter.infix_to_postfix(regex_infix);
+
+        // 2. The postfix notation is used as a guidance rule for building fragments on the
+        //    fragment stack. The fragment stack eventually contains a single fragment that
+        //    points to the start and end state of an automaton for the input regex.
+        recurse_postfix_build_fragment_stack(&converter.arena,
+            &converter.root_node_id,
+            &mut fragment_stack_return,
+            alphabet);
+    }
+
+    // reset the members of the converter because the AST has been
+    // transered into fragment_stack_return
     converter.reset();
 
     // 3. finalize the resulting fragment
+    //    Insert the user-defined token id and token name
     let mut fragment_return = fragment_stack_return.stack.pop().unwrap();
     fragment_return.enfa.states.get_mut(&fragment_return.end_id).unwrap().token_id = token_id;
     fragment_return.enfa.states.get_mut(&fragment_return.end_id).unwrap().token_name = String::from(token_name);
 
-    // 4. combine the new fragment into the combined fragment to insert the new DFA to the existing DFA
-    //    which represents all prior regexes added so far
-    let (start_id_return, end_id_return) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_return.enfa, fragment_return.end_id);
+    // 4. combine the new fragment into the combined fragment to insert the new DFA into
+    //    the existing DFA which represents all prior regexes added so far
+    let (start_id_return, end_id_return) = enfa_copy(&mut combined_fragment.enfa,
+        &mut fragment_return.enfa,
+        fragment_return.end_id);
 
     // 5. make the new fragment accessible from the old start state using an epsilon transition
-    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_return);
+    combined_fragment.enfa.add_transition(combined_fragment.start_id,
+        Input::Epsilon, start_id_return);
 }

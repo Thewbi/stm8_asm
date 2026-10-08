@@ -114,8 +114,10 @@ impl Lexer {
         //     println!("[LEXER.TRAP_STATE] Lookahead character is: '{}'", lookahead_character);
         // }
 
-        // // DEBUG
-        // println!("[LEXER.consume_character()] Character is: '{}'", current_character);
+        // DEBUG
+        //if self.lexer_debug {
+            println!("[LEXER.consume_character()] Character is: '{}'", current_character);
+        //}
 
         let mut next_state_id = self.current_state_id;
 
@@ -136,7 +138,8 @@ impl Lexer {
             //
 
             next_state_id = transition_dfa(&mut self.dfa,
-                self.current_state_id, &RegexBuildingBlock::CharacterLiteral(current_character));
+                self.current_state_id,
+                &RegexBuildingBlock::CharacterLiteral(current_character));
 
             // DEBUG
             if self.lexer_debug {
@@ -335,21 +338,9 @@ impl Lexer {
             node_map
         );
     }
-
-    // fn next(&mut self) -> Option<Token> {
-
-    //     match self.string_data_iterator {
-    //         Option::None => {
-    //             self.string_data_iterator = Some(self.string_data.chars());
-    //         }
-    //         _ => {
-    //         }
-    //     }
-
-    //     panic!();
-    // }
 }
 
+#[derive(Clone)]
 pub struct Token {
     pub token_id: usize,
     pub text: String,
@@ -408,11 +399,13 @@ impl Iterator for Lexer {
                     let current_character_option = self.string_data_iterator.next();
                     match current_character_option {
                         Some(current_character_value) => {
-                            // // DEBUG
-                            // println!("current_character_value: {:?}", current_character_value);
-                            // if current_character_value == '\n' {
-                            //     println!("newline");
-                            // }
+                            // DEBUG
+                            if self.lexer_debug {
+                                println!("current_character_value: {:?}", current_character_value);
+                                if current_character_value == '\n' {
+                                    println!("newline");
+                                }
+                            }
 
                             current_character = current_character_value;
                         }

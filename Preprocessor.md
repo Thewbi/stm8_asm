@@ -513,7 +513,7 @@ In the example above, the token SQUARE(4) is found in the data store.
 The defintion is:
 
 ```
-Symbol {
+DefineSymbol {
 	name: "SQUARE"
 	formal_parameter_map: { key: 0, value: x }
 	definition: "((x) * (x))"

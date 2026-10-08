@@ -646,8 +646,10 @@ pub fn recurse_postfix_build_fragment_stack(arena: &Arena<RegexBuildingBlock>,
     }
 }
 
-pub fn add_character_literal(fragment_stack: &mut FragmentStack, regex_building_block: RegexBuildingBlock, alphabet: &mut HashSet<RegexBuildingBlock>) {
-
+pub fn add_character_literal(fragment_stack: &mut FragmentStack,
+    regex_building_block: RegexBuildingBlock,
+    alphabet: &mut HashSet<RegexBuildingBlock>)
+{
     alphabet.insert(regex_building_block);
 
     if fragment_stack.is_empty() {
@@ -1460,7 +1462,8 @@ pub fn enfa_copy(dest: &mut EpsilonNfa::<State, RegexBuildingBlock>, src: &mut E
             }
         }
 
-        // if this is the start state of the src enfa, remember the id of the corresponding copied node for later use
+        // if this is the start state of the src enfa, remember the id of the
+        // corresponding copied node for later use
         if *start_state_id == src.start_state_id {
             copied_start_id = another_state_id;
         }

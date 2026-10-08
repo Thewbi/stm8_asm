@@ -19,6 +19,7 @@ use crate::example_lexers::preprocessor_lexer::PP_GE_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_CLOSING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_OPENING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_OR_OP_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_SEMICOLON_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_COMMA_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_COLON_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_DEFINE_TOKEN_ID;
@@ -28,6 +29,7 @@ use crate::example_lexers::preprocessor_lexer::PP_NEWLINE_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_STRING_LITERAL_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_QUESTION_MARK_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_HASHTAG_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_BACKSLASH_TOKEN_ID;
 
 use crate::regex::arena::recurse_arena;
 use crate::regex::arena::{Arena, NodeId, recurse_arena_dot};
@@ -43,8 +45,8 @@ enum Operation {
 }
 
 pub struct ExpressionParser {
-    arena: Arena<Token>,
-    ptr_node_id: NodeId,
+    pub arena: Arena<Token>,
+    pub ptr_node_id: NodeId,
 }
 
 impl ExpressionParser {
@@ -85,6 +87,9 @@ impl ExpressionParser {
             PP_GE_OP_TOKEN_ID => {
                 token.weight = 180;
             }
+            PP_SEMICOLON_TOKEN_ID => {
+                token.weight = 182;
+            }
             PP_COMMA_TOKEN_ID => { // COMMA
                 token.weight = 182;
             }
@@ -115,6 +120,9 @@ impl ExpressionParser {
                 token.weight = 420;
             }
             PP_HASHTAG_TOKEN_ID => {
+                token.weight = 420;
+            }
+            PP_BACKSLASH_TOKEN_ID => {
                 token.weight = 420;
             }
             100 => { // DEFINED (Preprocessor Function (PPF))
@@ -348,6 +356,7 @@ impl ExpressionParser {
     }
 
     pub fn print_dot(&self) {
+
         let mut ast_string_buffer = String::from("");
 
         // serialize the AST into .dot graphviz format
@@ -366,5 +375,10 @@ impl ExpressionParser {
 
         // 4. Explicitly flush the remaining data to disk
         writer.flush().expect("flush failed!");
+    }
+
+    pub fn reset(&mut self) {
+        self.arena.reset();
+        self.ptr_node_id = NodeId { index: 0 };
     }
 }

@@ -40,9 +40,11 @@ use crate::common::file_handling::write_string_to_file;
 
 mod regex;
 use crate::preprocessor::define_mode::DefineMode;
+use crate::preprocessor::define_symbol::{self, DefineSymbol};
+use crate::preprocessor::preprocessor_operating_mode::PreprocessorOperatingMode::DEFINE_IFC_OR_DEFINITION;
 use crate::regex::infix_postfix_converter::InfixPostfixConverter;
 use crate::regex::regex_building_block::RegexBuildingBlock;
-use crate::regex::arena::{Arena, recurse_arena, recurse_arena_dot};
+use crate::regex::arena::{Arena, VisitMode, recurse_arena, recurse_arena_dot};
 use crate::regex::arena::NodeId;
 use crate::regex::arena::Node;
 use crate::regex::enfa::Input;
@@ -72,7 +74,7 @@ use crate::parser::print_rules::print_rules;
 mod lexer;
 use crate::lexer::lexer::{Lexer, Token};
 
-use crate::example_lexers::preprocessor_lexer::{PP_SINGLELINE_COMMENT_START_TOKEN_ID, PP_WHITESPACE_TOKEN_ID};
+use crate::example_lexers::preprocessor_lexer::{PP_BACKSLASH_TOKEN_ID, PP_IDENTIFIER_TOKEN_ID, PP_SINGLELINE_COMMENT_START_TOKEN_ID, PP_WHITESPACE_TOKEN_ID};
 use crate::example_lexers::preprocessor_lexer::PP_MULTILINE_COMMENT_START_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_MULTILINE_COMMENT_END_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_NEWLINE_TOKEN_ID;
@@ -501,6 +503,9 @@ fn main() {
     // - replace definitions in plain text
     // - process #if, parse AST, evaluate AST
     // - organize if-stack
+    // - combine the preprocessor and the lexer
+    // - check if the lexer still works after all the changes
+    // - turn off the regeneration of the preprocessor_lexer in main()
 
     let lexer_debug: bool = false;
     let lexer_token_debug: bool = false;
@@ -517,10 +522,16 @@ fn main() {
 
     let mut buffered_token_option: Option<Token> = None;
 
-    let mut define_mode: DefineMode = DefineMode::NONE;
-    let mut old_define_mode: DefineMode = DefineMode::NONE;
+    // let mut define_mode: DefineMode = DefineMode::NONE;
+    // let mut old_define_mode: DefineMode = DefineMode::NONE;
 
     let mut definition_string_buffer:String = String::new();
+
+    let mut ignore_next_newline:bool = false;
+
+    let mut defined_symbol_map: HashMap<String, DefineSymbol> = HashMap::<String, DefineSymbol>::new();
+
+    // let mut define_has_parameters:bool = false;
 
     let mut lexer_done: bool = false;
     while !lexer_done {
@@ -539,24 +550,62 @@ fn main() {
 
             let token_text = token.text.clone();
 
+            // DEBUG
+            if lexer_debug {
+                println!("Token consumed: {}", token_text);
+            }
+
+            // the backslash character is used to extend a single define
+            // accross several lines. If the backslash is used, the next
+            // newline is ignored
+            //
+            // example:
+            // #define _Analysis_mode_(mode) \
+            //     typedef _Analysis_mode_impl_(mode) int \
+            //         __GENSYM(__prefast_analysis_mode_flag);
+            match token.token_id {
+                PP_BACKSLASH_TOKEN_ID => {
+                    ignore_next_newline = true;
+                    // skip the backslash
+                    continue;
+                }
+                PP_NEWLINE_TOKEN_ID => {
+                    if ignore_next_newline {
+                        ignore_next_newline = false;
+                        // skip the newline
+                        continue;
+                    }
+                }
+                _ => {
+                    // nothing
+                }
+            }
+
+            // DEBUG
+            println!("Current Token: '{}', preprocessor_operating_mode: {}", token, preprocessor_operating_mode);
+
             match preprocessor_operating_mode {
 
                 PreprocessorOperatingMode::NORMAL => {
-                    // in normal mode, check the first token for PPI
+
+                    // in normal mode, check the first token for PreProcessor Instructions (PPI)
                     // if there is no PPI, process the following token in NORMAL mode
                     // if there is a PPI, switch to the respective mode
                     match token.token_id {
+
                         //
-                        // PPI - PreProcessor Instructions
+                        // #define PPI - PreProcessor Instructions
                         //
                         PP_DEFINE_TOKEN_ID => {
                             // #define <interface> <definition>
-                            // enter interface phase
-                            // enter DEFINE_MODE::interface
-                            old_define_mode = define_mode.clone();
-                            define_mode = DefineMode::INTERFACE;
-                            preprocessor_operating_mode = PreprocessorOperatingMode::DEFINE;
+
+                            // reset
+                            definition_string_buffer.clear();
+                            expression_parser.reset();
+
+                            preprocessor_operating_mode = PreprocessorOperatingMode::DEFINE_WAITING_FOR_NAME;
                         }
+
                         //
                         // Comments
                         //
@@ -564,18 +613,29 @@ fn main() {
                             // a comment is replaced by a single space character
                             // TODO output a space into the output token stream
                             println!(" ");
-                            preprocessor_operating_mode = PreprocessorOperatingMode::IGNORE;
+                            preprocessor_operating_mode = PreprocessorOperatingMode::IGNORE_SINGLE_LINE_COMMENT;
                         }
                         PP_MULTILINE_COMMENT_START_TOKEN_ID => {
-                            preprocessor_operating_mode = PreprocessorOperatingMode::IGNORE;
+                            // a comment is replaced by a single space character
+                            // TODO output a space into the output token stream
+                            println!(" ");
+                            preprocessor_operating_mode = PreprocessorOperatingMode::IGNORE_MULTI_LINE_COMMENT;
                         }
                         PP_MULTILINE_COMMENT_END_TOKEN_ID => {
                             preprocessor_operating_mode = PreprocessorOperatingMode::NORMAL;
                         }
+
+                        //
+                        // not PPI, not PPF, Normal token
+                        //
                         _ => {
                             // not PPI, not PPF
                             // TODO check if token is part of the data store and replace it
-                            println!("{}", token.text);
+
+                            // DEBUG
+                            if lexer_debug {
+                                println!("not PPI, not PPF: '{}'", token.text);
+                            }
 
                             // DEBUG build ASTNODE
                             expression_parser.process_token(token);
@@ -583,14 +643,8 @@ fn main() {
                     }
                 }
 
-                PreprocessorOperatingMode::IGNORE => {
+                PreprocessorOperatingMode::IGNORE_SINGLE_LINE_COMMENT => {
                     match token.token_id {
-                        PP_MULTILINE_COMMENT_END_TOKEN_ID => {
-                            // a comment is replaced by a single space character
-                            // TODO output a space into the output token stream
-                            println!(" ");
-                            preprocessor_operating_mode = PreprocessorOperatingMode::NORMAL;
-                        }
                         PP_NEWLINE_TOKEN_ID => {
                             preprocessor_operating_mode = PreprocessorOperatingMode::NORMAL;
                         }
@@ -601,94 +655,331 @@ fn main() {
                     }
                 }
 
-                PreprocessorOperatingMode::DEFINE => {
+                PreprocessorOperatingMode::IGNORE_MULTI_LINE_COMMENT => {
+                    match token.token_id {
+                        PP_MULTILINE_COMMENT_END_TOKEN_ID => {
+                            // a comment is replaced by a single space character
+                            // TODO output a space into the output token stream
+                            println!(" ");
+                            preprocessor_operating_mode = PreprocessorOperatingMode::NORMAL;
+                        }
+                        _ => {
+                            // not PPI, not PPF
+                            // println!("{}", token.text);
+                        }
+                    }
+                }
 
-                    // DEBUG
-                    //println!("Define-Mode: {:?}, Token: {}", define_mode.to_string(), token);
-
+                PreprocessorOperatingMode::DEFINE_WAITING_FOR_NAME => {
                     match token.token_id {
                         PP_WHITESPACE_TOKEN_ID => {
                             // ignore
                         }
+                        _ => {
+                            expression_parser.process_token(token);
+                            preprocessor_operating_mode = DEFINE_IFC_OR_DEFINITION;
+                        }
+                    }
+                }
+
+                PreprocessorOperatingMode::DEFINE_IFC_OR_DEFINITION => {
+
+                    // the next node is either
+                    // 1. a '(' if parameters exist in the macro interface (= in the define)
+                    // 2. some token which will become part of the
+                    //    macro defintion and in this case no parameters exist
+                    // 3. a newline which means the symbol
+                    //    is defined to the value 0 (see C-specification on preprocessors)
+
+                    match token.token_id {
+
+                        PP_WHITESPACE_TOKEN_ID => {
+                            // ignore
+                        }
+
                         PP_NEWLINE_TOKEN_ID => {
-                            // the one line allocated to PPI is over!
+                            // DEBUG
+                            // if lexer_debug {
+                                println!("INSERTING EMPTY DEFINE STRUCT INTO DATASTORE!");
+                                // println!("Definition: '{}'", definition_string_buffer);
+                            // }
+
+                            let mut defined_symbol = DefineSymbol::new();
+                            defined_symbol.name = String::from("UNKNOWN");
+                            defined_symbol.definition = String::from("0");
+                            if let Some(node) = expression_parser.arena.next() {
+                                defined_symbol.name = node.data.text.clone();
+                            }
+
+                            // insert the symbol into the symbol map
+                            defined_symbol_map.insert(defined_symbol.name.clone(), defined_symbol);
+
+                            // back to NORMAL mode because the define has been consumed
+                            preprocessor_operating_mode = PreprocessorOperatingMode::NORMAL;
+
+                            // reset
+                            definition_string_buffer.clear();
+
+                            // back to NORMAL mode
+                            preprocessor_operating_mode = PreprocessorOperatingMode::NORMAL;
+                        }
+
+                        PP_OPENING_BRACKET_TOKEN_ID => {
+
+                            expression_parser.process_token(token);
+
+                            // enter DEFINE_IFC mode (because there is a parameter list)
+                            preprocessor_operating_mode = PreprocessorOperatingMode::DEFINE_IFC;
+                        }
+
+                        PP_CLOSING_BRACKET_TOKEN_ID => {
+                            panic!("[PREPROCESSOR] Malformed #define found!");
+                        }
+
+                        _ => {
+
+                            // insert word into definition
+                            if definition_string_buffer.len() > 0 {
+                                definition_string_buffer.push_str(" ");
+                            }
+                            definition_string_buffer.push_str(token_text.as_str());
+
+                            // enter DEFINE_DEFINITION mode (because there is no parameter list)
+                            preprocessor_operating_mode = PreprocessorOperatingMode::DEFINE_DEFINITION;
+                        }
+                    }
+
+                }
+
+                PreprocessorOperatingMode::DEFINE_IFC => {
+                    match token.token_id {
+
+                        PP_WHITESPACE_TOKEN_ID => {
+                            // ignore
+                        }
+
+                        PP_NEWLINE_TOKEN_ID => {
+                            panic!("[PREPROCESSOR] Malformed #define found!");
+                        }
+
+                        PP_CLOSING_BRACKET_TOKEN_ID => {
+                            expression_parser.process_token(token);
+
+                            // enter DEFINE_DEFINITION mode (because the parameter list is consumed)
+                            preprocessor_operating_mode = PreprocessorOperatingMode::DEFINE_DEFINITION;
+
+                        }
+
+                        _ => {
+                            expression_parser.process_token(token);
+                        }
+                    }
+                }
+
+                PreprocessorOperatingMode::DEFINE_DEFINITION => {
+
+                    // DEBUG
+                    //println!("Define-Mode: {:?}, Token: {}", define_mode.to_string(), token);
+
+                    // define_has_parameters = false;
+
+                    match token.token_id {
+
+                        PP_WHITESPACE_TOKEN_ID => {
+                            // ignore
+                        }
+                        PP_NEWLINE_TOKEN_ID => {
+                            // newline encountered. The one line allocated to PPI is over.
                             //
                             // Create define struct and insert into data store
 
                             // #define <interface> <definition>
                             // leave definition phase, enter NONE phase
-                            define_mode = DefineMode::NONE;
-                            old_define_mode = DefineMode::NONE;
+                            // define_mode = DefineMode::NONE;
+                            // old_define_mode = DefineMode::NONE;
 
                             // DEBUG
-                            println!("INSERTING DEFINE STRUCT INTO DATASTORE!");
-                            println!("Definition: '{}'", definition_string_buffer);
+                            // if lexer_debug {
+                                println!("INSERTING DEFINE STRUCT INTO DATASTORE!");
+                                // println!("Definition: '{}'", definition_string_buffer);
+                            // }
 
-                            // back to NORMAL mode
+                            // DEBUG
+                            // expression_parser.print_dot();
+                            // expression_parser.print_console();
+
+                            // first reset the state so that iteration can be performed
+                            // since state is used to remember which nodes in the AST
+                            // have been iterated over already
+                            expression_parser.arena.set_visit_mode_for_all_nodes(expression_parser.ptr_node_id.index, VisitMode::VisitLeft);
+
+                            // set the start node id from where the iteration in the AST should start
+                            expression_parser.arena.iterator_current_node_id = expression_parser.ptr_node_id.index;
+
+                            let mut defined_symbol = DefineSymbol::new();
+                            defined_symbol.name = String::from("UNKNOWN");
+                            defined_symbol.definition = definition_string_buffer.to_owned();
+
+                            let mut terminal_index:i32 = -1;
+
+                            // iterate over all nodes. Nodes are returned in in-order
+                            // Each node has optional left and right children.
+                            // In-order means the node itself is output after visiting
+                            // the left and before visiting the right child.
+                            // In this order, outputting the AST yields the original String
+                            // the AST was parsed from.
+                            let mut expr_done: bool = false;
+                            while !expr_done {
+
+                                if let Some(node) = expression_parser.arena.next() {
+
+                                    // filter away all token which are not terminals
+                                    match node.data.token_id {
+                                        PP_IDENTIFIER_TOKEN_ID => {
+                                            // DEBUG
+                                            println!("{:?}", node);
+
+                                            // first terminal is the name of the interface
+                                            // all subsequent terminals are parameters
+                                            if terminal_index == -1 {
+                                                defined_symbol.name = node.data.text.clone();
+                                                terminal_index = terminal_index + 1;
+                                            } else {
+                                                defined_symbol.formal_parameter_map.insert(terminal_index as usize, node.data.text.clone());
+                                                terminal_index = terminal_index + 1;
+                                            }
+                                        }
+                                        _ => {
+                                        }
+                                    }
+                                } else {
+                                    expr_done = true;
+                                }
+                            }
+
+                            // insert the symbol into the symbol map
+                            defined_symbol_map.insert(defined_symbol.name.clone(), defined_symbol);
+
+                            // back to NORMAL mode because the define has been consumed
                             preprocessor_operating_mode = PreprocessorOperatingMode::NORMAL;
 
+                            // reset
                             definition_string_buffer.clear();
                         }
                         _ => {
-                            expression_parser.process_token(token);
 
-
-
-                            // perform lookahead:
-                            //
-                            // If the next token is an opening brace, parse the entire
-                            // parameter list. Otherwise, the interface consists of
-                            // a symbol name only
-                            if define_mode == DefineMode::INTERFACE {
-                                buffered_token_option = preprocessor_lexer.next();
-                                if let Some(ref buffered_token) = buffered_token_option {
-                                    match buffered_token.token_id {
-
-                                        PP_OPENING_BRACKET_TOKEN_ID => {
-                                            // now the preprocessor knows that the define specification
-                                            // consists of an additional parameter list
-                                            //println!("INTERFACE STARTS WITH PARAMETERS");
-                                        }
-
-                                        PP_CLOSING_BRACKET_TOKEN_ID => {
-                                            // now the preprocessor knows that the define specification
-                                            // consists of an additional parameter list
-                                            //println!("INTERFACE OVER WITH PARAMETERS");
-
-                                            // #define <interface> <definition>
-                                            // leave interface phase, enter definition phase
-                                            old_define_mode = define_mode;
-                                            define_mode = DefineMode::DEFINITION;
-                                        }
-
-                                        _ => {
-                                            // no opening bracket found. The define interface is over
-                                            // and the define defintion starts
-                                            //println!("INTERFACE OVER WITHOUT PARAMETERS");
-                                            //define_mode = DefineMode::DEFINITION;
-                                        }
-                                    }
-                                }
-                            } else {
-                                if old_define_mode == DefineMode::INTERFACE && define_mode == DefineMode::DEFINITION {
-                                    // not not ad the closing bracket which terminates the interface into the definition
-                                } else {
-                                    definition_string_buffer.push_str(token_text.as_str());
-                                    definition_string_buffer.push_str(" ");
-                                }
-
-                                old_define_mode = define_mode;
+                            // insert word into definition
+                            if definition_string_buffer.len() > 0 {
+                                definition_string_buffer.push_str(" ");
                             }
+                            definition_string_buffer.push_str(token_text.as_str());
+
+                        //     // DEBUG
+                        //     // println!("{}", token);
+
+                        //     // perform lookahead:
+                        //     //
+                        //     // If the next token is an opening brace, parse the entire
+                        //     // parameter list. Otherwise, the interface consists of
+                        //     // a symbol name only
+                        //     // if define_mode == DefineMode::INTERFACE {
+                        //     match define_mode {
+
+                        //         DefineMode::INTERFACE => {
+
+                        //             // in interface mode, the expression_parser inserts
+                        //             // the token into the AST so that in the end, a
+                        //             // interface AST is created and the parameters and the
+                        //             // macro name can be extracted from that AST
+                        //             expression_parser.process_token(token);
+
+                        //             // perform lookahead and store lookahead in buffered token
+                        //             buffered_token_option = preprocessor_lexer.next();
+                        //             if let Some(ref buffered_token) = buffered_token_option {
+
+                        //                 match buffered_token.token_id {
+
+                        //                     PP_OPENING_BRACKET_TOKEN_ID => {
+                        //                         // now the preprocessor knows that the define specification
+                        //                         // consists of an additional parameter list
+
+                        //                         // DEBUG
+                        //                         //if lexer_debug {
+                        //                             println!("INTERFACE STARTS WITH PARAMETERS");
+                        //                         //}
+
+                        //                         define_has_parameters = true;
+                        //                     }
+
+                        //                     PP_CLOSING_BRACKET_TOKEN_ID => {
+                        //                         // now the preprocessor knows that the define specification
+                        //                         // has a parameter list
+
+                        //                         // DEBUG
+                        //                         //if lexer_debug {
+                        //                             println!("INTERFACE OVER WITH PARAMETERS");
+                        //                         //}
+
+                        //                         // define_has_parameters = true;
+
+                        //                         // #define <interface> <definition>
+                        //                         // leave interface phase, enter definition phase
+                        //                         old_define_mode = define_mode;
+                        //                         define_mode = DefineMode::DEFINITION;
+                        //                     }
+
+                        //                     _ => {
+                        //                         // no opening bracket found. The define interface is over
+                        //                         // and the define defintion starts
+
+                        //                         //define_mode = DefineMode::DEFINITION;
+
+                        //                         // DEBUG
+                        //                         //if lexer_debug {
+                        //                             println!("INTERFACE OVER WITHOUT PARAMETERS");
+                        //                         //}
+
+                        //                         define_has_parameters = false;
+
+                        //                         // #define <interface> <definition>
+                        //                         // leave interface phase, enter definition phase
+                        //                         old_define_mode = define_mode;
+                        //                         define_mode = DefineMode::DEFINITION;
+                        //                     }
+                        //                 }
+                        //             }
+                        //         }
+
+                        //         _ => {
+                        //             // check if the algorithm just left INTERFACE mode
+                        //             if define_has_parameters && old_define_mode == DefineMode::INTERFACE && define_mode == DefineMode::DEFINITION {
+                        //                 // do not ad the closing bracket into the definition which terminates the interface
+                        //                 // into the definition. Only add it into the interface AST
+                        //                 expression_parser.process_token(token);
+                        //             } else {
+                        //                 definition_string_buffer.push_str(token_text.as_str());
+                        //                 definition_string_buffer.push_str(" ");
+                        //             }
+
+                        //             old_define_mode = define_mode;
+                        //         }
+                        //     }
+
                         }
                     }
                 }
             }
+
         } else {
             lexer_done = true;
         }
     }
 
-    expression_parser.print_dot();
+    for (key, value) in defined_symbol_map.into_iter() {
+        println!("{} / {}", key, value);
+    }
+
+    //expression_parser.print_dot();
     // expression_parser.print_console();
 
     println!("*********************************************************************************");
@@ -781,10 +1072,6 @@ fn main() {
         &mut node_map
     );
  */
-
-
-
-
 
     println!("*********************************************************************************");
 

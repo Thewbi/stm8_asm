@@ -86,7 +86,9 @@ pub fn recurse_postfix_debug_print(arena: &Arena<RegexBuildingBlock>,
 }
 
 pub fn recurse_postfix(arena: &Arena<RegexBuildingBlock>,
-    parent_node_id: &NodeId, string_buffer: &mut String) {
+    parent_node_id: &NodeId,
+    string_buffer: &mut String)
+{
     let parent_node: &Node<RegexBuildingBlock> = &arena.nodes[parent_node_id.index];
     match &parent_node.left {
         Some(_) => {
@@ -118,6 +120,7 @@ pub fn recurse_postfix(arena: &Arena<RegexBuildingBlock>,
                 '^' => { string_buffer.push_str("\\^"); }
                 '(' => { string_buffer.push_str("\\("); }
                 ')' => { string_buffer.push_str("\\)"); }
+                // '\\' => { string_buffer.push_str("\\\\"); }
                 _ => { string_buffer.push_str(format!("{:?}", parent_node.data).as_str()); }
             }
         }
@@ -544,6 +547,8 @@ impl InfixPostfixConverter {
             // Escaped sequences
             //
 
+            // if a backslash is read, set the converter into a mode
+            // where it escapes the character
             if c == '\\' {
                 self.escaped_sequence = true;
                 continue;
@@ -601,6 +606,7 @@ impl InfixPostfixConverter {
                     '!' => { self.process_literal_character('!'); }
                     '?' => { self.process_literal_character('?'); }
                     '#' => { self.process_literal_character('#'); }
+                    //'\\' => { self.process_literal_character('\\'); }
                     _ => { panic!("[infix_to_postfix] unhandled character sequence: {}", c); }
                 }
 
