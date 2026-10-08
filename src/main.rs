@@ -41,7 +41,7 @@ use crate::common::file_handling::write_string_to_file;
 mod regex;
 use crate::preprocessor::define_mode::DefineMode;
 use crate::preprocessor::define_symbol::{self, DefineSymbol};
-use crate::preprocessor::preprocessor_operating_mode::PreprocessorOperatingMode::DEFINE_IFC_OR_DEFINITION;
+use crate::preprocessor::preprocessor_operating_mode::PreprocessorOperatingMode::DefineIfcOrDefinition;
 use crate::regex::infix_postfix_converter::InfixPostfixConverter;
 use crate::regex::regex_building_block::RegexBuildingBlock;
 use crate::regex::arena::{Arena, VisitMode, recurse_arena, recurse_arena_dot};
@@ -512,7 +512,7 @@ fn main() {
     let mut preprocessor_lexer: Lexer = Lexer::new(input_tuple.0.clone(),
         preprocessor_dfa, lexer_debug, lexer_token_debug);
 
-    let mut preprocessor_operating_mode = PreprocessorOperatingMode::NORMAL;
+    let mut preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
 
     // the expression parser is used to parse well-formed text to an AST for evaluation
     // Well-formed text appears in all PPI that need to be evaluated such as #if, #elif, defined
@@ -586,7 +586,7 @@ fn main() {
 
             match preprocessor_operating_mode {
 
-                PreprocessorOperatingMode::NORMAL => {
+                PreprocessorOperatingMode::Normal => {
 
                     // in normal mode, check the first token for PreProcessor Instructions (PPI)
                     // if there is no PPI, process the following token in NORMAL mode
@@ -603,7 +603,7 @@ fn main() {
                             definition_string_buffer.clear();
                             expression_parser.reset();
 
-                            preprocessor_operating_mode = PreprocessorOperatingMode::DEFINE_WAITING_FOR_NAME;
+                            preprocessor_operating_mode = PreprocessorOperatingMode::DefineWaitingForName;
                         }
 
                         //
@@ -613,16 +613,16 @@ fn main() {
                             // a comment is replaced by a single space character
                             // TODO output a space into the output token stream
                             println!(" ");
-                            preprocessor_operating_mode = PreprocessorOperatingMode::IGNORE_SINGLE_LINE_COMMENT;
+                            preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreSingleLineComment;
                         }
                         PP_MULTILINE_COMMENT_START_TOKEN_ID => {
                             // a comment is replaced by a single space character
                             // TODO output a space into the output token stream
                             println!(" ");
-                            preprocessor_operating_mode = PreprocessorOperatingMode::IGNORE_MULTI_LINE_COMMENT;
+                            preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreMultiLineComment;
                         }
                         PP_MULTILINE_COMMENT_END_TOKEN_ID => {
-                            preprocessor_operating_mode = PreprocessorOperatingMode::NORMAL;
+                            preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
                         }
 
                         //
@@ -643,10 +643,10 @@ fn main() {
                     }
                 }
 
-                PreprocessorOperatingMode::IGNORE_SINGLE_LINE_COMMENT => {
+                PreprocessorOperatingMode::IgnoreSingleLineComment => {
                     match token.token_id {
                         PP_NEWLINE_TOKEN_ID => {
-                            preprocessor_operating_mode = PreprocessorOperatingMode::NORMAL;
+                            preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
                         }
                         _ => {
                             // not PPI, not PPF
@@ -655,13 +655,13 @@ fn main() {
                     }
                 }
 
-                PreprocessorOperatingMode::IGNORE_MULTI_LINE_COMMENT => {
+                PreprocessorOperatingMode::IgnoreMultiLineComment => {
                     match token.token_id {
                         PP_MULTILINE_COMMENT_END_TOKEN_ID => {
                             // a comment is replaced by a single space character
                             // TODO output a space into the output token stream
                             println!(" ");
-                            preprocessor_operating_mode = PreprocessorOperatingMode::NORMAL;
+                            preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
                         }
                         _ => {
                             // not PPI, not PPF
@@ -670,19 +670,19 @@ fn main() {
                     }
                 }
 
-                PreprocessorOperatingMode::DEFINE_WAITING_FOR_NAME => {
+                PreprocessorOperatingMode::DefineWaitingForName => {
                     match token.token_id {
                         PP_WHITESPACE_TOKEN_ID => {
                             // ignore
                         }
                         _ => {
                             expression_parser.process_token(token);
-                            preprocessor_operating_mode = DEFINE_IFC_OR_DEFINITION;
+                            preprocessor_operating_mode = DefineIfcOrDefinition;
                         }
                     }
                 }
 
-                PreprocessorOperatingMode::DEFINE_IFC_OR_DEFINITION => {
+                PreprocessorOperatingMode::DefineIfcOrDefinition => {
 
                     // the next node is either
                     // 1. a '(' if parameters exist in the macro interface (= in the define)
@@ -715,13 +715,13 @@ fn main() {
                             defined_symbol_map.insert(defined_symbol.name.clone(), defined_symbol);
 
                             // back to NORMAL mode because the define has been consumed
-                            preprocessor_operating_mode = PreprocessorOperatingMode::NORMAL;
+                            preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
 
                             // reset
                             definition_string_buffer.clear();
 
                             // back to NORMAL mode
-                            preprocessor_operating_mode = PreprocessorOperatingMode::NORMAL;
+                            preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
                         }
 
                         PP_OPENING_BRACKET_TOKEN_ID => {
@@ -729,7 +729,7 @@ fn main() {
                             expression_parser.process_token(token);
 
                             // enter DEFINE_IFC mode (because there is a parameter list)
-                            preprocessor_operating_mode = PreprocessorOperatingMode::DEFINE_IFC;
+                            preprocessor_operating_mode = PreprocessorOperatingMode::DefineIfc;
                         }
 
                         PP_CLOSING_BRACKET_TOKEN_ID => {
@@ -745,13 +745,13 @@ fn main() {
                             definition_string_buffer.push_str(token_text.as_str());
 
                             // enter DEFINE_DEFINITION mode (because there is no parameter list)
-                            preprocessor_operating_mode = PreprocessorOperatingMode::DEFINE_DEFINITION;
+                            preprocessor_operating_mode = PreprocessorOperatingMode::DefineDefinition;
                         }
                     }
 
                 }
 
-                PreprocessorOperatingMode::DEFINE_IFC => {
+                PreprocessorOperatingMode::DefineIfc => {
                     match token.token_id {
 
                         PP_WHITESPACE_TOKEN_ID => {
@@ -766,7 +766,7 @@ fn main() {
                             expression_parser.process_token(token);
 
                             // enter DEFINE_DEFINITION mode (because the parameter list is consumed)
-                            preprocessor_operating_mode = PreprocessorOperatingMode::DEFINE_DEFINITION;
+                            preprocessor_operating_mode = PreprocessorOperatingMode::DefineDefinition;
 
                         }
 
@@ -776,7 +776,7 @@ fn main() {
                     }
                 }
 
-                PreprocessorOperatingMode::DEFINE_DEFINITION => {
+                PreprocessorOperatingMode::DefineDefinition => {
 
                     // DEBUG
                     //println!("Define-Mode: {:?}, Token: {}", define_mode.to_string(), token);
@@ -861,7 +861,7 @@ fn main() {
                             defined_symbol_map.insert(defined_symbol.name.clone(), defined_symbol);
 
                             // back to NORMAL mode because the define has been consumed
-                            preprocessor_operating_mode = PreprocessorOperatingMode::NORMAL;
+                            preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
 
                             // reset
                             definition_string_buffer.clear();
@@ -975,9 +975,11 @@ fn main() {
         }
     }
 
+    println!(":) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) ");
     for (key, value) in defined_symbol_map.into_iter() {
         println!("{} / {}", key, value);
     }
+    println!(":) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) ");
 
     //expression_parser.print_dot();
     // expression_parser.print_console();
