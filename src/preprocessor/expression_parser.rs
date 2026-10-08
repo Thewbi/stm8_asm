@@ -134,6 +134,9 @@ impl ExpressionParser {
             PP_STRING_LITERAL_TOKEN_ID => {
                 token.weight = 999;
             }
+            PP_NUMERIC_TOKEN_ID => {
+                token.weight = 998;
+            }
             _ => {
                 panic!("Cannot assign weight to token.token_id: {} token.text: {}", token.token_id, token.text);
             }

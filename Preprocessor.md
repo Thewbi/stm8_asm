@@ -409,8 +409,6 @@ Format
 #define <symbol> <expression>
 ```
 
-### Sample Data
-
 ```
 #define _DEBUG
 #define BUFSIZE 1
@@ -418,12 +416,28 @@ Format
 #define DIMENSION 4
 #define ELEMENTS DIMENSION * DIMENSION
 
+#define EXPR_A (2 + 3)
+
 #define abs(x)   ((x) >= 0 ? (x) : -(x))
 #define min(a,b) ((a) <= (b) ? (a) : (b))
 #define max(a,b) ((a) >= (b) ? (a) : (b))
 
 #define SQUARE(x) ((x) * (x))
 ```
+
+There is on nasty edge-case which makes parsing more complicated!
+The interface has an optional parameter list and the definition is
+allowed to be wrapped in brackets!
+
+```
+#define EXPR_A (2 + 3)
+```
+
+Here, identifying the interface 'EXPR_A' and the definition '(2 + 3)'
+is hard because brackets cannot be used in a straightforward fashion
+as a lookahead to distinguish between the parameter list and the definition
+since with a single token of lookahead, the parameter list and the
+definition look the same!
 
 The preprocessor, once it encounters a PPI, has to parse that PPI into an
 AST of tree nodes that captures the expression.
@@ -486,6 +500,23 @@ macro definition.
 Building the AST of the macro definition is not performed!
 The macro definition is stored as a string!
 
+### Sample Data #define PPI
+
+```
+#define _DEBUG
+#define BUFSIZE 1
+
+#define DIMENSION 4
+#define ELEMENTS DIMENSION * DIMENSION
+
+#define EXPR_A (2 + 3)
+
+#define abs(x)   ((x) >= 0 ? (x) : -(x))
+#define min(a,b) ((a) <= (b) ? (a) : (b))
+#define max(a,b) ((a) >= (b) ? (a) : (b))
+
+#define SQUARE(x) ((x) * (x))
+```
 
 
 

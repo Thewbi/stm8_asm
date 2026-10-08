@@ -43,25 +43,46 @@ use std::fmt;
 // }
 
 pub enum PreprocessorOperatingMode {
+    // normal operation, no preprocessor instruction
     Normal,
+
+    // comment
     IgnoreSingleLineComment,
     IgnoreMultiLineComment,
+
+    // #define Preprocessor Instruction (PPI)
     DefineWaitingForName,
     DefineIfcOrDefinition,
     DefineIfc,
     DefineDefinition,
+
+    // #if Preprocessor Instruction (PPI)
+    If,
+    Elif,
+    Else,
+    Endif,
 }
 
 impl fmt::Display for PreprocessorOperatingMode {
+
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self {
+
             PreprocessorOperatingMode::Normal => { write!(f, "NORMAL").expect("Write failed!"); }
+
             PreprocessorOperatingMode::IgnoreSingleLineComment => { write!(f, "IGNORE_SINGLE_LINE_COMMENT").expect("Write failed!"); }
             PreprocessorOperatingMode::IgnoreMultiLineComment => { write!(f, "IGNORE_MULTI_LINE_COMMENT").expect("Write failed!"); }
+
             PreprocessorOperatingMode::DefineWaitingForName => { write!(f, "DEFINE_WAITING_FOR_NAME").expect("Write failed!"); }
             PreprocessorOperatingMode::DefineIfcOrDefinition => { write!(f, "DEFINE_IFC_OR_DEFINITION").expect("Write failed!"); }
             PreprocessorOperatingMode::DefineIfc => { write!(f, "DEFINE_IFC").expect("Write failed!"); }
             PreprocessorOperatingMode::DefineDefinition => { write!(f, "DEFINE_DEFINITION").expect("Write failed!"); }
+
+            PreprocessorOperatingMode::If => { write!(f, "IF").expect("Write failed!"); }
+            PreprocessorOperatingMode::Elif => { write!(f, "ELIF").expect("Write failed!"); }
+            PreprocessorOperatingMode::Else => { write!(f, "ELSE").expect("Write failed!"); }
+            PreprocessorOperatingMode::Endif => { write!(f, "ENDIF").expect("Write failed!"); }
+
         }
 
         Ok(())

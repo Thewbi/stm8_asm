@@ -32,6 +32,22 @@ pub const PP_BACKSLASH_TOKEN_ID: usize = 49;
 pub const PP_PPF_DEFINED_TOKEN_ID: usize = 100;
 
 pub const PP_DEFINE_TOKEN_ID: usize = 200;
+pub const PP_UNDEF_TOKEN_ID: usize = 201;
+
+pub const PP_IF_TOKEN_ID: usize = 202;
+pub const PP_ELIF_TOKEN_ID: usize = 203;
+pub const PP_ELSE_TOKEN_ID: usize = 204;
+pub const PP_ENDIF_TOKEN_ID: usize = 205;
+
+pub const PP_IFDEF_TOKEN_ID: usize = 206;
+pub const PP_IFNDEF_TOKEN_ID: usize = 207;
+
+pub const PP_INCLUDE_TOKEN_ID: usize = 208;
+
+pub const PP_ERROR_TOKEN_ID: usize = 209;
+pub const PP_PRAGMA_TOKEN_ID: usize = 210;
+
+pub const PP_LINE_TOKEN_ID: usize = 211;
 
 pub const PP_IDENTIFIER_TOKEN_ID: usize = 500;
 
@@ -239,17 +255,23 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     //
     // numeric (token-id: 600)
     //
-    converter.infix_to_postfix("(0|1|2|3|4|5|6|7|8|9)+");
-    let mut fragment_stack_numeric = FragmentStack::new();
-    recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_numeric, &mut alphabet);
-    converter.reset();
-    let mut fragment_numeric = fragment_stack_numeric.stack.pop().unwrap();
-    fragment_numeric.enfa.states.get_mut(&fragment_numeric.end_id).unwrap().token_id = PP_NUMERIC_TOKEN_ID;
-    fragment_numeric.enfa.states.get_mut(&fragment_numeric.end_id).unwrap().token_name = String::from("NUMERIC");
-    // insert into LEXER
-    let (start_id_numeric, end_id_numeric)
-        = enfa_copy(&mut combined_fragment.enfa, &mut fragment_numeric.enfa, fragment_numeric.end_id);
-    combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_numeric);
+    // converter.infix_to_postfix("(0|1|2|3|4|5|6|7|8|9)+");
+    // let mut fragment_stack_numeric = FragmentStack::new();
+    // recurse_postfix_build_fragment_stack(&converter.arena, &converter.root_node_id, &mut fragment_stack_numeric, &mut alphabet);
+    // converter.reset();
+    // let mut fragment_numeric = fragment_stack_numeric.stack.pop().unwrap();
+    // fragment_numeric.enfa.states.get_mut(&fragment_numeric.end_id).unwrap().token_id = PP_NUMERIC_TOKEN_ID;
+    // fragment_numeric.enfa.states.get_mut(&fragment_numeric.end_id).unwrap().token_name = String::from("NUMERIC");
+    // // insert into LEXER
+    // let (start_id_numeric, end_id_numeric)
+    //     = enfa_copy(&mut combined_fragment.enfa, &mut fragment_numeric.enfa, fragment_numeric.end_id);
+    // combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_numeric);
+    add_token_definition(&mut converter,
+        &mut combined_fragment,
+        &mut alphabet,
+        "(0|1|2|3|4|5|6|7|8|9)+",
+        "NUMERIC",
+        PP_NUMERIC_TOKEN_ID);
 
     //
     // string_literal (token-id: 610)
@@ -403,22 +425,22 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     //
 
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#define", "PPI_DEFINE", PP_DEFINE_TOKEN_ID);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#undef", "PPI_UNDEF", 201);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#undef", "PPI_UNDEF", PP_UNDEF_TOKEN_ID);
 
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#if", "PPI_IF", 202);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#elif", "PPI_ELIF", 203);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#else", "PPI_ELSE", 204);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#endif", "PPI_ENDIF", 205);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#if", "PPI_IF", PP_IF_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#elif", "PPI_ELIF", PP_ELIF_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#else", "PPI_ELSE", PP_ELSE_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#endif", "PPI_ENDIF", PP_ENDIF_TOKEN_ID);
 
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#ifdef", "PPI_IFDEF", 206);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#ifndef", "PPI_IFNDEF", 207);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#ifdef", "PPI_IFDEF", PP_IFDEF_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#ifndef", "PPI_IFNDEF", PP_IFNDEF_TOKEN_ID);
 
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#include", "PPI_INCLUDE", 208);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#include", "PPI_INCLUDE", PP_INCLUDE_TOKEN_ID);
 
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#error", "PPI_ERROR", 209);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#pragma", "PPI_PRAGMA", 210);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#error", "PPI_ERROR", PP_ERROR_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#pragma", "PPI_PRAGMA", PP_PRAGMA_TOKEN_ID);
 
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#line", "PPI_LINE", 211);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#line", "PPI_LINE", PP_LINE_TOKEN_ID);
 
     //
     // Phase 3 - Convert eNFA to DFA
