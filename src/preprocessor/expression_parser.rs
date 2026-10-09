@@ -16,6 +16,7 @@ use std::io::Write;
 
 use crate::example_lexers::preprocessor_lexer::PP_AND_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_GE_OP_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_EQ_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_CLOSING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_OPENING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_OR_OP_TOKEN_ID;
@@ -25,6 +26,7 @@ use crate::example_lexers::preprocessor_lexer::PP_COLON_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_DEFINE_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_WHITESPACE_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_IDENTIFIER_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_NUMERIC_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_NEWLINE_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_STRING_LITERAL_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_QUESTION_MARK_TOKEN_ID;
@@ -44,6 +46,11 @@ enum Operation {
     NO_ACTION
 }
 
+// the expression parser is used to parse well-formed text to an AST for evaluation
+// Well-formed text appears in all PPI that need to be evaluated such as #if, #elif
+// Note that the #define PPI only has well-formed text in the macro_interface part
+// but the macro_definition can be free-form text of any kind and does not have to
+// be well-formed
 pub struct ExpressionParser {
     pub arena: Arena<Token>,
     pub ptr_node_id: NodeId,
@@ -86,6 +93,9 @@ impl ExpressionParser {
             }
             PP_GE_OP_TOKEN_ID => {
                 token.weight = 180;
+            }
+            PP_EQ_OP_TOKEN_ID => {
+                token.weight = 179;
             }
             PP_SEMICOLON_TOKEN_ID => {
                 token.weight = 182;
@@ -358,6 +368,8 @@ impl ExpressionParser {
         recurse_arena(&self.arena, &self.ptr_node_id);
     }
 
+    // prints the internal area as a dot graphviz tree
+    // TODO: extract this to a general method an place this method next to the arena maybe?
     pub fn print_dot(&self) {
 
         let mut ast_string_buffer = String::from("");

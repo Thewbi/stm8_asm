@@ -43,9 +43,22 @@ use crate::parser::grammar_state::GrammarState;
 // The parser is implemented in parser/parser.rs
 //
 // The README.md documents the lexer and parser generation and implementation.
-pub struct Lexer {
+//
+// About the lifetime 'a.
+// The Lexer uses a complex DFA to detect token.
+// The DFA is created once and used by several lexers.
+// Once created the DFA is never changed and should not be cloned!
+// To not copy memory, the dfa is passed around using read-only
+// references. This requires the use of lifetime because the rust
+// borrow-checker needs to make sure that the lexers are not left
+// without a reference to a DFA which has been cleaned up without
+// the lexers knowing! The lifetime 'a is the lifetime of the
+// DFA and it is also asigned to the lexers. Using this lifetime 'a
+// the borrow checker now can make sure that the DFA outlives the
+// lexers which reference it!
+pub struct Lexer<'a> {
     pub string_data_iterator: IntoIter<char>,
-    pub dfa: EpsilonNfa::<State, RegexBuildingBlock>,
+    pub dfa: &'a EpsilonNfa::<State, RegexBuildingBlock>,
     pub current_state_id: usize,
     pub token_string_buffer: String,
     pub lexer_debug: bool,
@@ -54,11 +67,11 @@ pub struct Lexer {
     done: bool,
 }
 
-impl Lexer {
+impl<'a> Lexer<'a> {
 
     pub fn new(
         string_data_param: String,
-        dfa_param: EpsilonNfa::<State, RegexBuildingBlock>,
+        dfa_param: &'a EpsilonNfa::<State, RegexBuildingBlock>,
         lexer_debug_param: bool,
         lexer_token_debug_param: bool)
     -> Self
@@ -88,6 +101,7 @@ impl Lexer {
             done: false,
         };
 
+        // https://stackoverflow.com/questions/28672190/how-do-i-set-the-lifetime-of-a-return-value-as-the-lifetime-of-the-variable-i-mo
         lexer
     }
 
@@ -137,7 +151,7 @@ impl Lexer {
             // This means that the lexer has identified a token.
             //
 
-            next_state_id = transition_dfa(&mut self.dfa,
+            next_state_id = transition_dfa(&self.dfa,
                 self.current_state_id,
                 &RegexBuildingBlock::CharacterLiteral(current_character));
 
@@ -369,7 +383,7 @@ impl fmt::Display for Token {
     }
 }
 
-impl Iterator for Lexer {
+impl Iterator for Lexer<'_> {
 
     type Item = Token;
 

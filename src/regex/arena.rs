@@ -13,7 +13,7 @@ pub struct NodeId {
     pub index: usize,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Node<T> {
     pub left: Option<NodeId>,
     pub right: Option<NodeId>,
@@ -157,7 +157,7 @@ impl<T> Arena<T> {
 
     /**
      * First create a new node from the data parameter then insert that node
-     * into the LHS of the parent node.
+     * into the LHS of the parent node and assign the payload (data).
      */
     pub fn add_left(&mut self, parent_node_id: &NodeId, data: T) -> NodeId {
         let new_node_id: NodeId = self.new_node(data);
@@ -173,7 +173,7 @@ impl<T> Arena<T> {
 
     /**
      * First create a new node from the data parameter then insert that node
-     * into the RHS of the parent node.
+     * into the RHS of the parent node and assign the payload (data).
      */
     pub fn add_right(&mut self, parent_node_id: &NodeId, data: T) -> NodeId {
         let new_node_id: NodeId = self.new_node(data);
@@ -229,6 +229,18 @@ impl<T> Arena<T> {
 
             }
         }
+    }
+
+    pub fn remove_left(&mut self, parent_node_id: &NodeId) {
+        let parent_node: &mut Node<T> = &mut self.nodes[parent_node_id.index];
+
+        parent_node.left = None;
+    }
+
+    pub fn remove_right(&mut self, parent_node_id: &NodeId) {
+        let parent_node: &mut Node<T> = &mut self.nodes[parent_node_id.index];
+
+        parent_node.right = None;
     }
 }
 

@@ -82,6 +82,9 @@ use crate::example_lexers::preprocessor_lexer::PP_MULTILINE_COMMENT_END_TOKEN_ID
 use crate::example_lexers::preprocessor_lexer::PP_NEWLINE_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_DEFINE_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_IF_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_ELIF_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_ELSE_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_ENDIF_TOKEN_ID;
 
 use crate::example_lexers::preprocessor_lexer::PP_OPENING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_CLOSING_BRACKET_TOKEN_ID;
@@ -197,6 +200,21 @@ pub fn print_ast(program_ast_node_id: &usize, node_map: &Box<HashMap::<usize, As
 
     if debug {
         println!("---------------------------------------------------------------------------------");
+    }
+}
+
+#[derive(Clone, Debug)]
+struct PpIfFrame {
+    pub output_enabled:bool,
+    pub if_statement_already_enabled:bool,
+}
+
+impl PpIfFrame {
+    pub fn new() -> PpIfFrame {
+        PpIfFrame {
+            output_enabled: true,
+            if_statement_already_enabled: false,
+        }
     }
 }
 
@@ -460,8 +478,8 @@ fn main() {
     let preprocessor_temp_q0 = State::new(0);
     let mut preprocessor_dfa = EpsilonNfa::new(preprocessor_temp_q0);
 
-    let generate_preprocessor_lexer = true;
-    // let generate_preprocessor_lexer = false;
+    // let generate_preprocessor_lexer = true;
+    let generate_preprocessor_lexer = false;
     if generate_preprocessor_lexer {
         preprocessor_dfa = produce_preprocessor_lexer();
         // store into file
@@ -476,7 +494,7 @@ fn main() {
     }
 
     //
-    // Process some input
+    // Process some input for the preprocessor
     //
 
     // ( str, filename )
@@ -490,776 +508,792 @@ fn main() {
         println!("Filename:\n{}", input_tuple.1); // filename
     }
 
-    //
-    // Driving the preprocessor against input
-    //
+    let use_preprocessor = true;
+    // let use_preprocessor = false;
+    if use_preprocessor {
 
-    if debug {
-        println!("");
-        println!("*********************************************************************************");
-        println!("Driving the preprocessor against input                                           ");
-        println!("*********************************************************************************");
-    }
+        //
+        // Driving the preprocessor against input
+        //
 
-    // 1. Create or overwrite the file
-    let preprocessed_file = File::create("preprocessed.c").expect("Create file failed!");
-
-    // 2. Wrap the file in a BufWriter
-    let mut writer = BufWriter::new(preprocessed_file);
-
-    //
-    // START TIME - PREPROCESSOR
-    //
-
-    let now = Instant::now();
-
-    // Next Steps:
-    // - build a data store to house definitions
-    // - replace definitions in plain text
-    // - process #if, parse AST, evaluate AST
-    // - organize if-stack
-    // - combine the preprocessor and the lexer
-    // - check if the lexer still works after all the changes
-    // - turn off the regeneration of the preprocessor_lexer in main()
-
-    let lexer_debug: bool = false;
-    let lexer_token_debug: bool = false;
-    let mut preprocessor_lexer: Lexer = Lexer::new(input_tuple.0.clone(),
-        preprocessor_dfa, lexer_debug, lexer_token_debug);
-
-    let mut preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
-
-    // the expression parser is used to parse well-formed text to an AST for evaluation
-    // Well-formed text appears in all PPI that need to be evaluated such as #if, #elif, defined
-    // Note that the #define PPI only has well-formed text in the macro_interface part
-    // but the macro_definition can be free text of any kind and does not have to be well-formed
-    let mut expression_parser = ExpressionParser::new();
-
-    let mut buffered_token_option: Option<Token> = None;
-
-    // let mut define_mode: DefineMode = DefineMode::NONE;
-    // let mut old_define_mode: DefineMode = DefineMode::NONE;
-
-    let mut definition_string_buffer:String = String::new();
-
-    let mut ignore_next_newline:bool = false;
-
-    let mut defined_symbol_map: HashMap<String, DefineSymbol> = HashMap::<String, DefineSymbol>::new();
-
-    // let mut define_has_parameters:bool = false;
-
-    let mut has_definition:bool = false;
-    let mut macro_name:String = String::from("UNKNOWN");
-
-    let mut lexer_done: bool = false;
-    while !lexer_done {
-
-        // retrieve the next token
-        // if the lexer has no more token it will return 'None' instead of 'Some'
-        let token_option: Option<Token>;
-        if buffered_token_option.is_some() {
-            token_option = buffered_token_option;
-            buffered_token_option = None;
-        } else {
-            token_option = preprocessor_lexer.next();
+        if debug {
+            println!("");
+            println!("*********************************************************************************");
+            println!("Driving the preprocessor against input                                           ");
+            println!("*********************************************************************************");
         }
 
-        if let Some(token) = token_option {
+        // 1. Create or overwrite the file
+        let preprocessed_file = File::create("preprocessed.c").expect("Create file failed!");
 
-            let token_text = token.text.clone();
+        // 2. Wrap the file in a BufWriter
+        let mut writer = BufWriter::new(preprocessed_file);
 
-            // DEBUG
-            if lexer_debug {
-                println!("Token consumed: {}", token_text);
+        //
+        // START TIME - PREPROCESSOR
+        //
+
+        let now = Instant::now();
+
+        // Next Steps:
+        // - build a data store to house definitions
+        // - replace definitions in plain text
+        // - process #if, parse AST, evaluate AST
+        // - organize if-stack
+        // - combine the preprocessor and the lexer
+        // - check if the lexer still works after all the changes
+        // - turn off the regeneration of the preprocessor_lexer in main()
+
+        let lexer_debug: bool = false;
+        let lexer_token_debug: bool = false;
+        let mut preprocessor_lexer: Lexer = Lexer::new(input_tuple.0.clone(),
+            &preprocessor_dfa, lexer_debug, lexer_token_debug);
+
+        let mut preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+
+        // the expression parser is used to parse well-formed text to an AST for evaluation
+        // Well-formed text appears in all PPI that need to be evaluated such as #if, #elif
+        // Note that the #define PPI only has well-formed text in the macro_interface part
+        // but the macro_definition can be free-form text of any kind and does not have to
+        // be well-formed
+        let mut expression_parser = ExpressionParser::new();
+
+        let mut buffered_token_option: Option<Token> = None;
+
+        let mut definition_string_buffer: String = String::new();
+
+        let mut ignore_next_newline: bool = false;
+
+        let mut defined_symbol_map: HashMap<String, DefineSymbol> = HashMap::<String, DefineSymbol>::new();
+
+        let mut has_definition: bool = false;
+        let mut macro_name: String = String::from("UNKNOWN");
+
+        let mut pp_if_frame_stack = Vec::<PpIfFrame>::new();
+
+        let mut lexer_done: bool = false;
+        while !lexer_done {
+
+            // retrieve the next token
+            // if the lexer has no more token it will return 'None' instead of 'Some'
+            let token_option: Option<Token>;
+            if buffered_token_option.is_some() {
+                token_option = buffered_token_option;
+                buffered_token_option = None;
+            } else {
+                token_option = preprocessor_lexer.next();
             }
 
-            // the backslash character is used to extend a single define
-            // accross several lines. If the backslash is used, the next
-            // newline is ignored
-            //
-            // example:
-            // #define _Analysis_mode_(mode) \
-            //     typedef _Analysis_mode_impl_(mode) int \
-            //         __GENSYM(__prefast_analysis_mode_flag);
-            match token.token_id {
-                PP_BACKSLASH_TOKEN_ID => {
-                    ignore_next_newline = true;
-                    // skip the backslash
-                    continue;
+            if let Some(token) = token_option {
+
+                let token_text = token.text.clone();
+
+                // DEBUG
+                if lexer_debug {
+                    println!("Token consumed: {}", token_text);
                 }
-                PP_NEWLINE_TOKEN_ID => {
-                    if ignore_next_newline {
-                        ignore_next_newline = false;
-                        // skip the newline
+
+                // the backslash character is used to extend a single define
+                // across several lines. If the backslash is used, the next
+                // newline is ignored
+                //
+                // example:
+                // #define _Analysis_mode_(mode) \
+                //     typedef _Analysis_mode_impl_(mode) int \
+                //         __GENSYM(__prefast_analysis_mode_flag);
+                match token.token_id {
+                    PP_BACKSLASH_TOKEN_ID => {
+                        ignore_next_newline = true;
+                        // skip the backslash
                         continue;
                     }
-                }
-                _ => {
-                    // nothing
-                }
-            }
-
-            // DEBUG
-            // println!("Current Token: '{}', preprocessor_operating_mode: {}", token, preprocessor_operating_mode);
-
-            match preprocessor_operating_mode {
-
-                PreprocessorOperatingMode::Normal => {
-
-                    // in normal mode, check the first token for PreProcessor Instructions (PPI)
-                    // if there is no PPI, process the following token in NORMAL mode
-                    // if there is a PPI, switch to the respective mode
-                    match token.token_id {
-
-                        //
-                        // #define PPI - PreProcessor Instructions
-                        //
-                        PP_DEFINE_TOKEN_ID => {
-                            // #define <interface> <definition>
-
-                            // reset
-                            definition_string_buffer.clear();
-                            expression_parser.reset();
-
-                            preprocessor_operating_mode = PreprocessorOperatingMode::DefineWaitingForName;
+                    PP_NEWLINE_TOKEN_ID => {
+                        if ignore_next_newline {
+                            ignore_next_newline = false;
+                            // skip the newline
+                            continue;
                         }
-
-                        //
-                        // #if PPI - PreProcessor Instructions
-                        //
-                        PP_IF_TOKEN_ID => {
-                            // #if <expression>
-
-                            // reset
-                            definition_string_buffer.clear();
-                            expression_parser.reset();
-
-                            preprocessor_operating_mode = PreprocessorOperatingMode::If;
-                        }
-
-                        //
-                        // Comments
-                        //
-                        PP_SINGLELINE_COMMENT_START_TOKEN_ID => {
-                            // a comment is replaced by a single space character
-                            // TODO output a space into the output token stream
-                            println!(" ");
-                            preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreSingleLineComment;
-                        }
-                        PP_MULTILINE_COMMENT_START_TOKEN_ID => {
-                            // a comment is replaced by a single space character
-                            // TODO output a space into the output token stream
-                            println!(" ");
-                            preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreMultiLineComment;
-                        }
-                        PP_MULTILINE_COMMENT_END_TOKEN_ID => {
-                            preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
-                        }
-
-                        //
-                        // not PPI, not PPF, Normal token
-                        //
-                        _ => {
-                            // not PPI, not PPF
-
-                            // DEBUG
-                            if lexer_debug {
-                                println!("not PPI, not PPF: '{}'", token.text);
-                            }
-
-                            // DEBUG build ASTNODE
-                            //expression_parser.process_token(token);
-
-                            // TODO check if token is part of the data store and replace it
-                            // output the token to the result
-
-                            // 3. Write data
-                            write!(writer, "{} ", token.text);
-                        }
+                    }
+                    _ => {
+                        // nothing
                     }
                 }
 
-                PreprocessorOperatingMode::IgnoreSingleLineComment => {
-                    match token.token_id {
-                        PP_NEWLINE_TOKEN_ID => {
-                            // a comment is replaced by a single space character
+                // DEBUG
+                // println!("Current Token: '{}', preprocessor_operating_mode: {}", token, preprocessor_operating_mode);
 
-                            // panic!("I need to output a space!");
+                match preprocessor_operating_mode {
 
-                            // 3. Write data
-                            write!(writer, " ");
+                    PreprocessorOperatingMode::Normal => {
 
-                            preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
-                        }
-                        _ => {
-                            // not PPI, not PPF
-                            // println!("{}", token.text);
-                        }
-                    }
-                }
+                        // in normal mode, check the first token for PreProcessor Instructions (PPI)
+                        // if there is no PPI, process the following token in NORMAL mode
+                        // if there is a PPI, switch to the respective mode
+                        match token.token_id {
 
-                PreprocessorOperatingMode::IgnoreMultiLineComment => {
-                    match token.token_id {
-                        PP_MULTILINE_COMMENT_END_TOKEN_ID => {
-                            // a comment is replaced by a single space character
-                            // TODO output a space into the output token stream
-                            // println!(" ");
-                            // panic!("I need to output a space!");
-
-                            // 3. Write data
-                            write!(writer, " ");
-
-                            preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
-                        }
-                        _ => {
-                            // not PPI, not PPF
-                            // println!("{}", token.text);
-                        }
-                    }
-                }
-
-                PreprocessorOperatingMode::DefineWaitingForName => {
-                    match token.token_id {
-                        PP_WHITESPACE_TOKEN_ID => {
-                            // ignore
-                        }
-                        _ => {
-                            macro_name = token.text.clone();
-                            expression_parser.process_token(token);
-                            preprocessor_operating_mode = DefineIfcOrDefinition;
-                        }
-                    }
-                }
-
-                PreprocessorOperatingMode::DefineIfcOrDefinition => {
-
-                    // the next node is either
-                    // 1. a '(' if parameters exist in the macro interface (= in the define)
-                    // 2. some token which will become part of the
-                    //    macro defintion and in this case no parameters exist
-                    // 3. a newline which means the symbol
-                    //    is defined to the value 0 (see C-specification on preprocessors)
-
-                    match token.token_id {
-
-                        PP_WHITESPACE_TOKEN_ID => {
-                            // ignore
-                        }
-
-                        PP_NEWLINE_TOKEN_ID => {
-                            // DEBUG
-                            if lexer_debug {
-                                println!("INSERTING EMPTY DEFINE STRUCT INTO DATASTORE!");
-                                // println!("Definition: '{}'", definition_string_buffer);
-                            }
-
-                            let mut defined_symbol = DefineSymbol::new();
-                            defined_symbol.name = String::from("UNKNOWN");
-                            defined_symbol.definition = String::from("0");
-                            if let Some(node) = expression_parser.arena.next() {
-                                defined_symbol.name = node.data.text.clone();
-                            }
-
-                            // insert the symbol into the symbol map
-                            defined_symbol_map.insert(defined_symbol.name.clone(), defined_symbol);
-
-                            // back to NORMAL mode because the define has been consumed
-                            preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
-
-                            // reset
-                            definition_string_buffer.clear();
-
-                            // back to NORMAL mode
-                            preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
-                        }
-
-                        PP_OPENING_BRACKET_TOKEN_ID => {
-                            expression_parser.process_token(token);
-
-                            // enter DEFINE_IFC mode (because there is a parameter list)
-                            preprocessor_operating_mode = PreprocessorOperatingMode::DefineIfc;
-                        }
-
-                        PP_CLOSING_BRACKET_TOKEN_ID => {
-                            panic!("[PREPROCESSOR] Malformed #define found!");
-                        }
-
-                        _ => {
-                            has_definition = true;
-
-                            // insert word into definition
-                            if definition_string_buffer.len() > 0 {
-                                definition_string_buffer.push_str(" ");
-                            }
-                            definition_string_buffer.push_str(token_text.as_str());
-
-                            // enter DEFINE_DEFINITION mode (because there is no parameter list)
-                            preprocessor_operating_mode = PreprocessorOperatingMode::DefineDefinition;
-                        }
-                    }
-                }
-
-                PreprocessorOperatingMode::DefineIfc => {
-
-                    match token.token_id {
-
-                        PP_WHITESPACE_TOKEN_ID => {
-                            // ignore
-                        }
-
-                        PP_NEWLINE_TOKEN_ID => {
-                            panic!("[PREPROCESSOR] Malformed #define found!");
-                        }
-
-                        PP_CLOSING_BRACKET_TOKEN_ID => {
-                            expression_parser.process_token(token);
-
-                            // enter DEFINE_DEFINITION mode (because the parameter list is consumed)
-                            preprocessor_operating_mode = PreprocessorOperatingMode::DefineDefinition;
-
-                        }
-
-                        _ => {
-                            expression_parser.process_token(token);
-                        }
-                    }
-                }
-
-                PreprocessorOperatingMode::DefineDefinition => {
-
-                    // DEBUG
-                    //println!("Define-Mode: {:?}, Token: {}", define_mode.to_string(), token);
-
-                    match token.token_id {
-
-                        PP_WHITESPACE_TOKEN_ID => {
-                            // ignore
-                        }
-                        PP_NEWLINE_TOKEN_ID => {
-                            // newline encountered. The one line allocated to PPI is over.
                             //
-                            // Create define struct and insert into data store
+                            // #define PPI - PreProcessor Instructions
+                            //
+                            PP_DEFINE_TOKEN_ID => {
+                                // #define <interface> <definition>
 
-                            // #define <interface> <definition>
-                            // leave definition phase, enter NONE phase
-                            // define_mode = DefineMode::NONE;
-                            // old_define_mode = DefineMode::NONE;
+                                // reset
+                                definition_string_buffer.clear();
+                                expression_parser.reset();
 
-                            // DEBUG
-                            if lexer_debug {
-                                println!("INSERTING DEFINE STRUCT INTO DATASTORE!");
-                                // println!("Definition: '{}'", definition_string_buffer);
+                                preprocessor_operating_mode = PreprocessorOperatingMode::DefineWaitingForName;
                             }
 
-                            // DEBUG
-                            // expression_parser.print_dot();
-                            // expression_parser.print_console();
+                            //
+                            // #if PPI - PreProcessor Instructions
+                            //
+                            PP_IF_TOKEN_ID => {
+                                // #if <expression>
 
-                            if !has_definition {
+                                // reset
+                                definition_string_buffer.clear();
+                                expression_parser.reset();
 
-                                // example
-                                // #define EXPR_A (2 + 3)
-                                // here, there is no interface other than the macro's name
-                                // the definition '(2 + 3)' has been falsely been parsed into
-                                // the interface!
+                                preprocessor_operating_mode = PreprocessorOperatingMode::If;
+                            }
+                            PP_ELIF_TOKEN_ID => {
+                                // #elif <expression>
+                                // panic!("NORMAL > ELIF")
+                                //pp_if_frame_stack.pop();
 
-                                // first reset the state so that iteration can be performed
-                                // since state is used to remember which nodes in the AST
-                                // have been iterated over already
-                                expression_parser.arena.set_visit_mode_for_all_nodes(expression_parser.ptr_node_id.index, VisitMode::VisitLeft);
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Elif;
+                            }
+                            PP_ELSE_TOKEN_ID => {
+                                // #else
+                                //panic!("NORMAL > ELIF")
+                                // pp_if_frame_stack.pop();
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Else;
+                            }
+                            PP_ENDIF_TOKEN_ID => {
+                                // remove if-frame from the if-stack
+                                // remove the if stack frame which had been pushed by a preceding #if or #elif
+                                pp_if_frame_stack.pop();
 
-                                // set the start node id from where the iteration in the AST should start
-                                expression_parser.arena.iterator_current_node_id = expression_parser.ptr_node_id.index;
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
 
-                                // // iterate over all nodes
-                                // let mut expr_done: bool = false;
-                                // while !expr_done {
-                                //     if let Some(node) = expression_parser.arena.next() {
-                                //         definition.push_str(node.data.text.clone().as_str());
-                                //     } else {
-                                //         expr_done = true;
-                                //     }
-                                // }
+                            //
+                            // Comments
+                            //
+                            PP_SINGLELINE_COMMENT_START_TOKEN_ID => {
+                                // a comment is replaced by a single space character
+                                // TODO output a space into the output token stream
+                                println!(" ");
+                                preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreSingleLineComment;
+                            }
+                            PP_MULTILINE_COMMENT_START_TOKEN_ID => {
+                                // a comment is replaced by a single space character
+                                // TODO output a space into the output token stream
+                                println!(" ");
+                                preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreMultiLineComment;
+                            }
+                            PP_MULTILINE_COMMENT_END_TOKEN_ID => {
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
 
-                                let mut string_buffer:String = String::new();
+                            //
+                            // not PPI, not PPF, Normal token
+                            //
+                            _ => {
+                                // not PPI, not PPF
 
-                                to_string_1(&expression_parser.arena,
-                                    &expression_parser.ptr_node_id,
-                                    &mut string_buffer
-                                );
+                                // DEBUG
+                                if lexer_debug {
+                                    println!("not PPI, not PPF: '{}'", token.text);
+                                }
 
-                                let mut defined_symbol = DefineSymbol::new();
-                                defined_symbol.name = macro_name.clone();
-                                defined_symbol.definition = string_buffer;
-
-                                // insert the symbol into the symbol map
-                                defined_symbol_map.insert(defined_symbol.name.clone(), defined_symbol);
-
-                            } else {
+                                // DEBUG build ASTNODE
+                                // This is for testing the expression parser using normal input
+                                // from a .pp file (pp == preprocessor)
+                                //expression_parser.process_token(token);
 
                                 //
-                                // The AST parsed for the macro's interface is now
-                                // traversed. The traversal will extract the macro's
-                                // name and all parameters
+                                // Handle if stack frame
                                 //
 
-                                // first reset the state so that iteration can be performed
-                                // since state is used to remember which nodes in the AST
-                                // have been iterated over already
-                                expression_parser.arena.set_visit_mode_for_all_nodes(expression_parser.ptr_node_id.index, VisitMode::VisitLeft);
+                                let mut oe: bool = true;
 
-                                // set the start node id from where the iteration in the AST should start
-                                expression_parser.arena.iterator_current_node_id = expression_parser.ptr_node_id.index;
+                                if !pp_if_frame_stack.is_empty() {
+                                    let top_frame = &pp_if_frame_stack[pp_if_frame_stack.len() - 1];
+                                    oe = top_frame.output_enabled;
+                                }
+
+                                if oe {
+
+                                    // TODO check if token is part of the data store and replace it
+                                    // output the token to the result
+
+                                    // 3. Write data
+                                    write!(writer, "{} ", token.text);
+                                }
+                            }
+                        }
+                    }
+
+                    PreprocessorOperatingMode::IgnoreSingleLineComment => {
+                        match token.token_id {
+                            PP_NEWLINE_TOKEN_ID => {
+                                // a comment is replaced by a single space character
+
+                                // panic!("I need to output a space!");
+
+                                // 3. Write data
+                                write!(writer, " ");
+
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
+                            _ => {
+                                // not PPI, not PPF
+                                // println!("{}", token.text);
+                            }
+                        }
+                    }
+
+                    PreprocessorOperatingMode::IgnoreMultiLineComment => {
+                        match token.token_id {
+                            PP_MULTILINE_COMMENT_END_TOKEN_ID => {
+                                // a comment is replaced by a single space character
+                                // TODO output a space into the output token stream
+                                // println!(" ");
+                                // panic!("I need to output a space!");
+
+                                // 3. Write data
+                                write!(writer, " ");
+
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
+                            _ => {
+                                // not PPI, not PPF
+                                // println!("{}", token.text);
+                            }
+                        }
+                    }
+
+                    PreprocessorOperatingMode::DefineWaitingForName => {
+                        match token.token_id {
+                            PP_WHITESPACE_TOKEN_ID => {
+                                // ignore
+                            }
+                            _ => {
+                                macro_name = token.text.clone();
+                                expression_parser.process_token(token);
+                                preprocessor_operating_mode = DefineIfcOrDefinition;
+                            }
+                        }
+                    }
+
+                    PreprocessorOperatingMode::DefineIfcOrDefinition => {
+
+                        // the next node is either
+                        // 1. a '(' if parameters exist in the macro interface (= in the define)
+                        // 2. some token which will become part of the
+                        //    macro defintion and in this case no parameters exist
+                        // 3. a newline which means the symbol
+                        //    is defined to the value 0 (see C-specification on preprocessors)
+
+                        match token.token_id {
+
+                            PP_WHITESPACE_TOKEN_ID => {
+                                // ignore
+                            }
+
+                            PP_NEWLINE_TOKEN_ID => {
+                                // DEBUG
+                                if lexer_debug {
+                                    println!("INSERTING EMPTY DEFINE STRUCT INTO DATASTORE!");
+                                    // println!("Definition: '{}'", definition_string_buffer);
+                                }
 
                                 let mut defined_symbol = DefineSymbol::new();
                                 defined_symbol.name = String::from("UNKNOWN");
-                                defined_symbol.definition = definition_string_buffer.to_owned();
-
-                                let mut terminal_index:i32 = -1;
-
-                                // iterate over all nodes. Nodes are returned in in-order
-                                // Each node has optional left and right children.
-                                // In-order means the node itself is output after visiting
-                                // the left and before visiting the right child.
-                                // In this order, outputting the AST yields the original String
-                                // the AST was parsed from.
-                                let mut expr_done: bool = false;
-                                while !expr_done {
-
-                                    if let Some(node) = expression_parser.arena.next() {
-
-                                        // filter away all token which are not terminals
-                                        match node.data.token_id {
-                                            PP_IDENTIFIER_TOKEN_ID => {
-                                                // DEBUG
-                                                // println!("{:?}", node);
-
-                                                // first terminal is the name of the interface
-                                                // all subsequent terminals are parameters
-                                                if terminal_index == -1 {
-                                                    defined_symbol.name = node.data.text.clone();
-                                                    terminal_index = terminal_index + 1;
-                                                } else {
-                                                    defined_symbol.formal_parameter_map.insert(terminal_index as usize, node.data.text.clone());
-                                                    terminal_index = terminal_index + 1;
-                                                }
-                                            }
-                                            _ => {
-                                            }
-                                        }
-                                    } else {
-                                        expr_done = true;
-                                    }
+                                defined_symbol.definition = String::from("0");
+                                if let Some(node) = expression_parser.arena.next() {
+                                    defined_symbol.name = node.data.text.clone();
                                 }
 
                                 // insert the symbol into the symbol map
                                 defined_symbol_map.insert(defined_symbol.name.clone(), defined_symbol);
+
+                                // back to NORMAL mode because the define has been consumed
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+
+                                // reset
+                                definition_string_buffer.clear();
+
+                                // back to NORMAL mode
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
                             }
 
-                            // back to NORMAL mode because the #define has been consumed
-                            preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            PP_OPENING_BRACKET_TOKEN_ID => {
+                                expression_parser.process_token(token);
 
-                            // reset
-                            definition_string_buffer.clear();
-                            macro_name = String::from("");
-                            has_definition = false;
-
-                        }
-                        _ => {
-
-                            // something other than space has been inserted into the definition
-                            // so there is a definition
-                            has_definition = true;
-
-                            // insert word into definition
-                            if definition_string_buffer.len() > 0 {
-                                definition_string_buffer.push_str(" ");
+                                // enter DEFINE_IFC mode (because there is a parameter list)
+                                preprocessor_operating_mode = PreprocessorOperatingMode::DefineIfc;
                             }
-                            definition_string_buffer.push_str(token_text.as_str());
 
-                        //     // DEBUG
-                        //     // println!("{}", token);
+                            PP_CLOSING_BRACKET_TOKEN_ID => {
+                                panic!("[PREPROCESSOR] Malformed #define found!");
+                            }
 
-                        //     // perform lookahead:
-                        //     //
-                        //     // If the next token is an opening brace, parse the entire
-                        //     // parameter list. Otherwise, the interface consists of
-                        //     // a symbol name only
-                        //     // if define_mode == DefineMode::INTERFACE {
-                        //     match define_mode {
+                            _ => {
+                                has_definition = true;
 
-                        //         DefineMode::INTERFACE => {
+                                // insert word into definition
+                                if definition_string_buffer.len() > 0 {
+                                    definition_string_buffer.push_str(" ");
+                                }
+                                definition_string_buffer.push_str(token_text.as_str());
 
-                        //             // in interface mode, the expression_parser inserts
-                        //             // the token into the AST so that in the end, a
-                        //             // interface AST is created and the parameters and the
-                        //             // macro name can be extracted from that AST
-                        //             expression_parser.process_token(token);
-
-                        //             // perform lookahead and store lookahead in buffered token
-                        //             buffered_token_option = preprocessor_lexer.next();
-                        //             if let Some(ref buffered_token) = buffered_token_option {
-
-                        //                 match buffered_token.token_id {
-
-                        //                     PP_OPENING_BRACKET_TOKEN_ID => {
-                        //                         // now the preprocessor knows that the define specification
-                        //                         // consists of an additional parameter list
-
-                        //                         // DEBUG
-                        //                         //if lexer_debug {
-                        //                             println!("INTERFACE STARTS WITH PARAMETERS");
-                        //                         //}
-
-                        //                         define_has_parameters = true;
-                        //                     }
-
-                        //                     PP_CLOSING_BRACKET_TOKEN_ID => {
-                        //                         // now the preprocessor knows that the define specification
-                        //                         // has a parameter list
-
-                        //                         // DEBUG
-                        //                         //if lexer_debug {
-                        //                             println!("INTERFACE OVER WITH PARAMETERS");
-                        //                         //}
-
-                        //                         // define_has_parameters = true;
-
-                        //                         // #define <interface> <definition>
-                        //                         // leave interface phase, enter definition phase
-                        //                         old_define_mode = define_mode;
-                        //                         define_mode = DefineMode::DEFINITION;
-                        //                     }
-
-                        //                     _ => {
-                        //                         // no opening bracket found. The define interface is over
-                        //                         // and the define defintion starts
-
-                        //                         //define_mode = DefineMode::DEFINITION;
-
-                        //                         // DEBUG
-                        //                         //if lexer_debug {
-                        //                             println!("INTERFACE OVER WITHOUT PARAMETERS");
-                        //                         //}
-
-                        //                         define_has_parameters = false;
-
-                        //                         // #define <interface> <definition>
-                        //                         // leave interface phase, enter definition phase
-                        //                         old_define_mode = define_mode;
-                        //                         define_mode = DefineMode::DEFINITION;
-                        //                     }
-                        //                 }
-                        //             }
-                        //         }
-
-                        //         _ => {
-                        //             // check if the algorithm just left INTERFACE mode
-                        //             if define_has_parameters && old_define_mode == DefineMode::INTERFACE && define_mode == DefineMode::DEFINITION {
-                        //                 // do not ad the closing bracket into the definition which terminates the interface
-                        //                 // into the definition. Only add it into the interface AST
-                        //                 expression_parser.process_token(token);
-                        //             } else {
-                        //                 definition_string_buffer.push_str(token_text.as_str());
-                        //                 definition_string_buffer.push_str(" ");
-                        //             }
-
-                        //             old_define_mode = define_mode;
-                        //         }
-                        //     }
-
+                                // enter DEFINE_DEFINITION mode (because there is no parameter list)
+                                preprocessor_operating_mode = PreprocessorOperatingMode::DefineDefinition;
+                            }
                         }
                     }
-                }
 
-                PreprocessorOperatingMode::If => {
+                    PreprocessorOperatingMode::DefineIfc => {
 
-                    match token.token_id {
+                        match token.token_id {
 
-                        PP_WHITESPACE_TOKEN_ID => {
-                            // ignore
+                            PP_WHITESPACE_TOKEN_ID => {
+                                // ignore
+                            }
+
+                            PP_NEWLINE_TOKEN_ID => {
+                                panic!("[PREPROCESSOR] Malformed #define found!");
+                            }
+
+                            PP_CLOSING_BRACKET_TOKEN_ID => {
+                                expression_parser.process_token(token);
+
+                                // enter DEFINE_DEFINITION mode (because the parameter list is consumed)
+                                preprocessor_operating_mode = PreprocessorOperatingMode::DefineDefinition;
+
+                            }
+
+                            _ => {
+                                expression_parser.process_token(token);
+                            }
                         }
-                        PP_NEWLINE_TOKEN_ID => {
+                    }
 
-                            // expression_parser.print_console();
-                            println!("RootNode: {}", expression_parser.ptr_node_id.index);
+                    PreprocessorOperatingMode::DefineDefinition => {
 
-                            // TODO start a loop which keeps replacing symbols until
-                            // there are no more symbols to replace!
-                            // Edge Case: Brake cycles!
-                            let mut replaced:bool = true;
-                            while replaced {
+                        // DEBUG
+                        //println!("Define-Mode: {:?}, Token: {}", define_mode.to_string(), token);
+
+                        match token.token_id {
+
+                            PP_WHITESPACE_TOKEN_ID => {
+                                // ignore
+                            }
+                            PP_NEWLINE_TOKEN_ID => {
+                                // newline encountered. The one line allocated to PPI is over.
+                                //
+                                // Create define struct and insert into data store
+
+                                // #define <interface> <definition>
+                                // leave definition phase, enter NONE phase
+                                // define_mode = DefineMode::NONE;
+                                // old_define_mode = DefineMode::NONE;
 
                                 // DEBUG
-                                expression_parser.print_dot();
+                                if lexer_debug {
+                                    println!("INSERTING DEFINE STRUCT INTO DATASTORE!");
+                                    // println!("Definition: '{}'", definition_string_buffer);
+                                }
 
-                                replaced = replace_symbols(&expression_parser.arena,
-                                    &expression_parser.ptr_node_id,
-                                    &defined_symbol_map
-                                );
+                                // DEBUG
+                                // expression_parser.print_dot();
+                                // expression_parser.print_console();
+
+                                if !has_definition {
+
+                                    // example
+                                    // #define EXPR_A (2 + 3)
+                                    // here, there is no interface other than the macro's name
+                                    // the definition '(2 + 3)' has been falsely been parsed into
+                                    // the interface!
+
+                                    // first reset the state so that iteration can be performed
+                                    // since state is used to remember which nodes in the AST
+                                    // have been iterated over already
+                                    expression_parser.arena.set_visit_mode_for_all_nodes(expression_parser.ptr_node_id.index, VisitMode::VisitLeft);
+
+                                    // set the start node id from where the iteration in the AST should start
+                                    expression_parser.arena.iterator_current_node_id = expression_parser.ptr_node_id.index;
+
+                                    // the left node conatins the macro name which should not be
+                                    // become part of the macro defintion, so remove it
+                                    expression_parser.arena.remove_left(&expression_parser.ptr_node_id);
+
+                                    // // start from RHS, skip root!
+                                    // let right_node = expression_parser.arena.get_right_id(&expression_parser.ptr_node_id).unwrap().clone();
+                                    // let right_node_id = right_node.index;
+                                    // expression_parser.arena.iterator_current_node_id = right_node_id;
+
+                                    // // iterate over all nodes
+                                    // let mut expr_done: bool = false;
+                                    // while !expr_done {
+                                    //     if let Some(node) = expression_parser.arena.next() {
+                                    //         definition.push_str(node.data.text.clone().as_str());
+                                    //     } else {
+                                    //         expr_done = true;
+                                    //     }
+                                    // }
+
+                                    let mut string_buffer: String = String::new();
+
+                                    to_string_1(&expression_parser.arena,
+                                        &expression_parser.ptr_node_id,
+                                        &mut string_buffer
+                                    );
+
+                                    println!("{}", string_buffer);
+
+                                    let mut defined_symbol = DefineSymbol::new();
+                                    defined_symbol.name = macro_name.clone();
+                                    defined_symbol.definition = string_buffer;
+
+                                    // insert the symbol into the symbol map
+                                    defined_symbol_map.insert(defined_symbol.name.clone(), defined_symbol);
+
+                                } else {
+
+                                    //
+                                    // The AST parsed for the macro's interface is now
+                                    // traversed. The traversal will extract the macro's
+                                    // name and all parameters
+                                    //
+
+                                    // first reset the state so that iteration can be performed
+                                    // since state is used to remember which nodes in the AST
+                                    // have been iterated over already
+                                    expression_parser.arena.set_visit_mode_for_all_nodes(expression_parser.ptr_node_id.index, VisitMode::VisitLeft);
+
+                                    // set the start node id from where the iteration in the AST should start
+                                    expression_parser.arena.iterator_current_node_id = expression_parser.ptr_node_id.index;
+
+                                    let mut defined_symbol = DefineSymbol::new();
+                                    defined_symbol.name = String::from("UNKNOWN");
+                                    defined_symbol.definition = definition_string_buffer.to_owned();
+
+                                    let mut terminal_index:i32 = -1;
+
+                                    // iterate over all nodes. Nodes are returned in in-order
+                                    // Each node has optional left and right children.
+                                    // In-order means the node itself is output after visiting
+                                    // the left and before visiting the right child.
+                                    // In this order, outputting the AST yields the original String
+                                    // the AST was parsed from.
+                                    let mut expr_done: bool = false;
+                                    while !expr_done {
+
+                                        if let Some(node) = expression_parser.arena.next() {
+
+                                            // filter away all token which are not terminals
+                                            match node.data.token_id {
+                                                PP_IDENTIFIER_TOKEN_ID => {
+                                                    // DEBUG
+                                                    // println!("{:?}", node);
+
+                                                    // first terminal is the name of the interface
+                                                    // all subsequent terminals are parameters
+                                                    if terminal_index == -1 {
+                                                        defined_symbol.name = node.data.text.clone();
+                                                        terminal_index = terminal_index + 1;
+                                                    } else {
+                                                        defined_symbol.formal_parameter_map.insert(terminal_index as usize, node.data.text.clone());
+                                                        terminal_index = terminal_index + 1;
+                                                    }
+                                                }
+                                                _ => {
+                                                }
+                                            }
+                                        } else {
+                                            expr_done = true;
+                                        }
+                                    }
+
+                                    // insert the symbol into the symbol map
+                                    defined_symbol_map.insert(defined_symbol.name.clone(), defined_symbol);
+                                }
+
+                                // back to NORMAL mode because the #define has been consumed
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+
+                                // reset
+                                definition_string_buffer.clear();
+                                macro_name = String::from("");
+                                has_definition = false;
+
                             }
+                            _ => {
 
-                            // TODO evaluate the expression
-                            let eval_value = evaluate_expression(&expression_parser.arena,
-                                &expression_parser.ptr_node_id,
-                                &defined_symbol_map
-                            );
+                                // something other than space has been inserted into the definition
+                                // so there is a definition
+                                has_definition = true;
 
-                            println!("eval_value: {}", eval_value);
+                                // insert word into definition
+                                if definition_string_buffer.len() > 0 {
+                                    definition_string_buffer.push_str(" ");
+                                }
+                                definition_string_buffer.push_str(token_text.as_str());
 
-                            // TODO add a new if frame!
+                            //     // DEBUG
+                            //     // println!("{}", token);
 
-                            // back to NORMAL mode because the #if has been consumed
-                            preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            //     // perform lookahead:
+                            //     //
+                            //     // If the next token is an opening brace, parse the entire
+                            //     // parameter list. Otherwise, the interface consists of
+                            //     // a symbol name only
+                            //     // if define_mode == DefineMode::INTERFACE {
+                            //     match define_mode {
+
+                            //         DefineMode::INTERFACE => {
+
+                            //             // in interface mode, the expression_parser inserts
+                            //             // the token into the AST so that in the end, a
+                            //             // interface AST is created and the parameters and the
+                            //             // macro name can be extracted from that AST
+                            //             expression_parser.process_token(token);
+
+                            //             // perform lookahead and store lookahead in buffered token
+                            //             buffered_token_option = preprocessor_lexer.next();
+                            //             if let Some(ref buffered_token) = buffered_token_option {
+
+                            //                 match buffered_token.token_id {
+
+                            //                     PP_OPENING_BRACKET_TOKEN_ID => {
+                            //                         // now the preprocessor knows that the define specification
+                            //                         // consists of an additional parameter list
+
+                            //                         // DEBUG
+                            //                         //if lexer_debug {
+                            //                             println!("INTERFACE STARTS WITH PARAMETERS");
+                            //                         //}
+
+                            //                         define_has_parameters = true;
+                            //                     }
+
+                            //                     PP_CLOSING_BRACKET_TOKEN_ID => {
+                            //                         // now the preprocessor knows that the define specification
+                            //                         // has a parameter list
+
+                            //                         // DEBUG
+                            //                         //if lexer_debug {
+                            //                             println!("INTERFACE OVER WITH PARAMETERS");
+                            //                         //}
+
+                            //                         // define_has_parameters = true;
+
+                            //                         // #define <interface> <definition>
+                            //                         // leave interface phase, enter definition phase
+                            //                         old_define_mode = define_mode;
+                            //                         define_mode = DefineMode::DEFINITION;
+                            //                     }
+
+                            //                     _ => {
+                            //                         // no opening bracket found. The define interface is over
+                            //                         // and the define defintion starts
+
+                            //                         //define_mode = DefineMode::DEFINITION;
+
+                            //                         // DEBUG
+                            //                         //if lexer_debug {
+                            //                             println!("INTERFACE OVER WITHOUT PARAMETERS");
+                            //                         //}
+
+                            //                         define_has_parameters = false;
+
+                            //                         // #define <interface> <definition>
+                            //                         // leave interface phase, enter definition phase
+                            //                         old_define_mode = define_mode;
+                            //                         define_mode = DefineMode::DEFINITION;
+                            //                     }
+                            //                 }
+                            //             }
+                            //         }
+
+                            //         _ => {
+                            //             // check if the algorithm just left INTERFACE mode
+                            //             if define_has_parameters && old_define_mode == DefineMode::INTERFACE && define_mode == DefineMode::DEFINITION {
+                            //                 // do not ad the closing bracket into the definition which terminates the interface
+                            //                 // into the definition. Only add it into the interface AST
+                            //                 expression_parser.process_token(token);
+                            //             } else {
+                            //                 definition_string_buffer.push_str(token_text.as_str());
+                            //                 definition_string_buffer.push_str(" ");
+                            //             }
+
+                            //             old_define_mode = define_mode;
+                            //         }
+                            //     }
+
+                            }
                         }
-                        _ => {
-                            expression_parser.process_token(token);
+                    }
+
+                    PreprocessorOperatingMode::If | PreprocessorOperatingMode::Elif => {
+
+                        match token.token_id {
+
+                            PP_WHITESPACE_TOKEN_ID => {
+                                // ignore
+                            }
+                            PP_NEWLINE_TOKEN_ID => {
+
+                                let mut if_statement_already_enabled: bool = false;
+
+                                if preprocessor_operating_mode == PreprocessorOperatingMode::Elif {
+
+                                    // remove the if stack frame which had been pushed by a preceding #if or #elif
+                                    let frame = pp_if_frame_stack.pop().unwrap();
+                                    if frame.if_statement_already_enabled {
+
+                                        // the last branch was enabled.
+                                        // This means that this #elif-branch should be disabled because
+                                        // only a single branch can be enabled per if
+
+                                        if_statement_already_enabled = true;
+                                    }
+                                }
+
+                                // expression_parser.print_console();
+                                println!("RootNode: {}", expression_parser.ptr_node_id.index);
+
+                                if if_statement_already_enabled {
+
+                                    // add a new if frame!
+                                    let mut frame: PpIfFrame = PpIfFrame::new();
+                                    frame.output_enabled = false;
+                                    frame.if_statement_already_enabled = true;
+                                    pp_if_frame_stack.push(frame);
+
+                                } else {
+
+                                    // TODO start a loop which keeps replacing symbols until
+                                    // there are no more symbols to replace!
+                                    // Edge Case: Brake cycles!
+                                    let mut replaced:bool = true;
+                                    while replaced {
+
+                                        // DEBUG
+                                        expression_parser.print_dot();
+
+                                        replaced = replace_symbols(&mut expression_parser.arena,
+                                            &expression_parser.ptr_node_id,
+                                            &mut defined_symbol_map,
+                                            &lexer_dfa
+                                        );
+
+                                        // DEBUG
+                                        expression_parser.print_dot();
+
+                                        println!("test");
+                                    }
+
+                                    // evaluate the expression
+                                    let eval_value = evaluate_expression(&expression_parser.arena,
+                                        &expression_parser.ptr_node_id,
+                                        &defined_symbol_map);
+
+                                    println!("eval_value: {}", eval_value);
+
+                                    // add a new if frame!
+                                    let mut frame: PpIfFrame = PpIfFrame::new();
+                                    frame.output_enabled = false;
+                                    frame.if_statement_already_enabled = false;
+                                    if eval_value == 1 {
+                                        frame.output_enabled = true;
+                                        frame.if_statement_already_enabled = true;
+                                    }
+                                    pp_if_frame_stack.push(frame);
+                                }
+
+                                expression_parser.reset();
+
+                                // back to NORMAL mode because the #if has been consumed
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
+                            _ => {
+                                expression_parser.process_token(token);
+                            }
                         }
+                    }
+
+                    PreprocessorOperatingMode::Else => {
+                        // remove the if stack frame which had been pushed by a preceding #if or #elif
+                        let mut frame = pp_if_frame_stack.pop().unwrap();
+                        // the else branch unconditionally outputs it's contents
+                        // unless a prior branch of the if has been activated
+                        frame.output_enabled = true;
+                        if frame.if_statement_already_enabled {
+                            frame.output_enabled = false;
+                        }
+                        // push frame back
+                        pp_if_frame_stack.push(frame);
+                        // back to NORMAL mode because the #if has been consumed
+                        preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                    }
+
+                    PreprocessorOperatingMode::Endif => {
+                        // remove the if stack frame which had been pushed by a preceding #if or #elif
+                        pp_if_frame_stack.pop();
                     }
                 }
 
-                PreprocessorOperatingMode::Elif => {
-
-                }
-
-                PreprocessorOperatingMode::Else => {
-
-                }
-
-                PreprocessorOperatingMode::Endif => {
-                    println!("elif")
-
-                    // TODO remove the if frame!
-                }
+            } else {
+                lexer_done = true;
             }
-
-        } else {
-            lexer_done = true;
         }
-    }
 
-    //
-    // STOP TIME - PREPROCESSOR
-    //
+        //
+        // STOP TIME - PREPROCESSOR
+        //
 
-    let elapsed = now.elapsed();
-    println!("STOP TIME - PREPROCESSOR. Elapsed: {:.2?}", elapsed);
+        let elapsed = now.elapsed();
+        println!("STOP TIME - PREPROCESSOR. Elapsed: {:.2?}", elapsed);
 
-    //
-    // DEBUG output all preprocessor symbols
-    //
+        //
+        // DEBUG output all preprocessor symbols
+        //
 
-    println!(":) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) ");
-    for (key, value) in defined_symbol_map.into_iter() {
-        println!("{} / {}", key, value);
-    }
-    println!(":) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) ");
-
-    //expression_parser.print_dot();
-    // expression_parser.print_console();
-
-    // 4. Explicitly flush the remaining data to disk
-    writer.flush().expect("flush failed!");
-
-    println!("*********************************************************************************");
-
-/*
-    let lexer_debug: bool = false;
-    let lexer_token_debug: bool = true;
-    let mut preprocessor_lexer: Lexer = Lexer::new(input_tuple.0.clone(),
-        preprocessor_dfa, lexer_debug, lexer_token_debug);
-
-    let mut step: usize = 1;
-
-    let mut parser: Parser<String> = Parser::<String>::new(parse_table.clone());
-    // TODO: improve the parser/lexer API. Currently the lexer always needs a parser to function
-    parser.disabled = true; // do not take real parser action
-
-    let mut debug_node_string_buffer = String::from("");
-    let mut debug_node_stack = Vec::<DebugNode>::new();
-
-    let mut line_number: usize = 1;
-
-    let mut node_map = Box::new(HashMap::<usize, AstNode>::new());
-
-    let mut character_iterator = input_tuple.0.chars();
-    let mut lexer_done: bool = false;
-    while !lexer_done {
-
-        let character_option = character_iterator.next();
-        if let Some(character) = character_option {
-
-            println!("{}", character);
-
-            preprocessor_lexer.consume_character(
-                character,
-                &mut step,
-                &mut parser,
-                &rule_map,
-                &mut debug_node_string_buffer,
-                &mut debug_node_stack,
-                &input_tuple.1,
-                line_number,
-                &mut node_map
-            );
-
-            if character == '\n' {
-                line_number = line_number + 1;
-            }
-        } else {
-            lexer_done = true;
+        println!(":) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) ");
+        for (key, value) in defined_symbol_map.into_iter() {
+            println!("{} / {}", key, value);
         }
-    }
-*/
-
-/*
-    // input_tuple.0 is the input data that results from loading a text file (.c / .h)
-    for character in input_tuple.0.chars() {
+        println!(":) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) ");
 
         // DEBUG
-        if debug {
-            println!("CHAR: {}", character);
-        }
+        // expression_parser.print_dot();
+        // expression_parser.print_console();
 
-        preprocessor_lexer.consume_character(
-            character,
-            &mut step,
-            &mut parser,
-            &rule_map,
-            &mut debug_node_string_buffer,
-            &mut debug_node_stack,
-            &input_tuple.1,
-            line_number,
-            &mut node_map
-        );
+        // 4. Explicitly flush the remaining data to disk
+        writer.flush().expect("flush failed!");
 
-        if character == '\n' {
-            line_number = line_number + 1;
-        }
+        println!("*********************************************************************************");
     }
 
-    // Consume a last EOF character to flush out the last token
-    preprocessor_lexer.consume_character(
-        '\n', // dummy character
-        &mut step,
-        &mut parser,
-        &rule_map,
-        &mut debug_node_string_buffer,
-        &mut debug_node_stack,
-        &input_tuple.1,
-        line_number,
-        &mut node_map
-    );
- */
+
 
     println!("*********************************************************************************");
 
     //
-    // Process some input
+    // Process some input for the compiler
     //
 
     // ( str, filename )
-    let input_tuple = provide_sourcode_input();
+    // let input_tuple = provide_sourcode_input();
+    //let filename = "res/preprocessor/scratchpad_0.pp";
+    let filename = "preprocessed.c";
+    let str: String = fs::read_to_string(filename).expect("file cannot be read!");
+    let input_tuple = ( str.to_string(), filename.to_string() );
 
     // DEBUG
     if debug {
@@ -1287,13 +1321,18 @@ fn main() {
     //
     // The parser starts in the start state S' (= state-id 0)
     // When the parser sees a nonterminal in a state, it will consult the parse table.
-    // If the ACTION is shift(x), the nonterminal is placed on to the stack and the parser enters state-id x
+    //
+    // If the ACTION is shift(x), the nonterminal is placed on to the stack and
+    // the parser enters state-id x.
+    //
     // If the ACTION is a reduce(x),
     //      - the rule is retrieved,
     //      - the symbols on the RHS of the rule are popped from the stack
     //      - the rule's LHS is pushed onto the stack
     //      - the parser enters state-id x
-    // If the ACTION is a GOTO(x), the parser enters state-id x
+    //
+    // If the ACTION is a GOTO(x), the parser enters state-id x.
+    //
     // If the parser enters the ACCEPT state, then parsing stops successfully.
 
     let file_content = input_tuple.0.clone();
@@ -1303,13 +1342,11 @@ fn main() {
 
     let lexer_debug: bool = false;
     let lexer_token_debug: bool = true;
-    let mut lexer: Lexer = Lexer::new(file_content, lexer_dfa, lexer_debug, lexer_token_debug);
+    let mut lexer: Lexer = Lexer::new(file_content, &lexer_dfa, lexer_debug, lexer_token_debug);
 
     let mut step: usize = 1;
 
     let mut current_character: char = 'x';
-    // let mut lookahead_character: char = 'y';
-    // let mut has_lookahead_character = false;
 
     let mut node_map = Box::new(HashMap::<usize, AstNode>::new());
 
@@ -1330,23 +1367,15 @@ fn main() {
     // Feed the input source code to the lexer
     //
 
+    // TODO: write line and file into the token before passing it to the parser
+    // so that the parser has line and file information
+
     let mut line_number: usize = 1;
 
     for character in input_tuple.0.chars() {
 
-        // current_character = lookahead_character;
-        // lookahead_character = character;
-
-        // // the very first iteration is here to load the lookahead character
-        // if !has_lookahead_character {
-        //     has_lookahead_character = true;
-        //     continue;
-        // }
-
         current_character = character;
 
-        // TODO: the lookahead character is not used at all!
-        // Remove it! It makes the parser loop more complicated
         lexer.consume_character(
             current_character,
             &mut step,
@@ -1364,57 +1393,6 @@ fn main() {
         }
     }
 
-    // // consume the lookahead from the very last cycle as a normal input.
-    // // Specify dummy lookahead character.
-    // lexer.consume_character(
-    //     'x', // dummy character
-    //     &mut step,
-    //     &mut parser,
-    //     &mut rule_map,
-    //     &mut debug_node_string_buffer,
-    //     &mut debug_node_stack,
-    //     &input_tuple.1,
-    //     line_number,
-    //     &mut node_map
-    // );
-
-
-
-
-
-
-    // // DEBUG
-    // let lexer_debug: bool = false;
-    // if lexer_debug {
-    //     println!("[LEXER] Emitting '{}'. Token-Id: {}, Token-Name: {}", token_string_buffer, dfa.states[&current_state_id].token_id, dfa.states[&current_state_id].token_name);
-    //     println!("");
-    // }
-
-    // TODO: write line and file into the token before passing it to the parser
-    // so that the parser has line and file information
-
-    // // DEBUG - this outputs the string and the token generated from the string
-    // // This is a good starting point for debugging
-    // if lexer_token_debug {
-    //     println!("[LEXER.TRAP_STATE] {:?} ---> {:?} | File: {:?}, Line: {:?}",
-    //         lookahead_character,
-    //         RuleElement::Terminal(lexer.dfa.states[&lexer.current_state_id].token_name.clone()),
-    //         &input_tuple.1,
-    //         line_number
-    //     );
-    // }
-
-    // provide the last token to the parser
-    lexer.parser_provide_input(
-        &mut parser,
-        &mut step,
-        &rule_map,
-        &RuleElement::Terminal(lexer.dfa.states[&lexer.current_state_id].token_name.clone()),
-        &mut debug_node_string_buffer,
-        &mut debug_node_stack,
-        &mut node_map
-    );
-
     // provide EOI (End of Input) to the parser
     lexer.parser_provide_input(
         &mut parser,
@@ -1427,6 +1405,7 @@ fn main() {
     );
 
     // print the parse tree to a dot file for online debugging (https://dreampuf.github.io/GraphvizOnline)
+
     // let output_parse_tree_as_dot_to_console: bool = true;
     let output_parse_tree_as_dot_to_console: bool = false;
     if output_parse_tree_as_dot_to_console {
@@ -1820,13 +1799,6 @@ fn main() {
     println!("end");
 }
 
-// pub struct Token {
-//     pub token_id: usize,
-//     pub text: String,
-//     pub terminal: RuleElement<String>,
-//     pub weight: usize,
-// }
-
 pub fn to_string_1(
     arena: &Arena<Token>,
     node_id: &NodeId,
@@ -1870,14 +1842,13 @@ pub fn to_string_1(
 }
 
 pub fn replace_symbols(
-    arena: &Arena<Token>,
+    arena: &mut Arena<Token>,
     node_id: &NodeId,
-    defined_symbol_map: &HashMap::<String, DefineSymbol>)
+    defined_symbol_map: &mut HashMap::<String, DefineSymbol>,
+    preprocessor_dfa: &EpsilonNfa<State, RegexBuildingBlock>)
     -> bool
 {
     println!("replace!");
-
-    let node: &Node<Token> = &arena.nodes[node_id.index];
 
     // output node
     // println!("{:?}", parent_node.data);
@@ -1895,39 +1866,83 @@ pub fn replace_symbols(
     let mut left_child_id:usize = 0;
     let mut right_child_id:usize = 0;
 
+    let node: &Node<Token> = &arena.nodes[node_id.index].clone();
+
     // LHS - output left child
     if let Some(left_id) = &node.left {
         has_left_child = true;
-        left_result = replace_symbols(arena, left_id, defined_symbol_map);
+        left_result = replace_symbols(arena, left_id, defined_symbol_map, preprocessor_dfa);
         left_child_id = left_id.index;
     }
 
     // RHS - output right child
     if let Some(right_id) = &node.right {
         has_right_child = true;
-        right_result = replace_symbols(arena, right_id, defined_symbol_map);
+        right_result = replace_symbols(arena, right_id, defined_symbol_map, preprocessor_dfa);
         right_child_id = right_id.index;
     }
 
+    // retrieve the token which is stored inside the current node
     let token:&Token = &node.data;
 
+    // DEBUG
     println!("token: {:?}", token);
 
     match &token.terminal {
 
         Terminal(val) => {
+
+            // DEBUG
             println!("val: {}", val);
 
             if *val == String::from("IDENTIFIER") {
+
+                // DEBUG
                 println!("token.text: {}", token.text);
-                // return the value
+
+                // check if this string of text is a macro name
                 if defined_symbol_map.contains_key(&token.text) {
-                    let defineSymbol:&DefineSymbol = defined_symbol_map.get(&token.text).unwrap();
-                    let definition = defineSymbol.definition.trim();
-                    println!("definition: '{}'", definition);
+
+                    let option = defined_symbol_map.get_mut(&token.text);
+                    if let Some(define_symbol) = option {
+                        // let define_symbol: &mut DefineSymbol =
+                        // let definition = define_symbol.definition.clone().trim();
+                        // // DEBUG
+                        // println!("definition: '{}'", definition);
+
+                        // parse the definition into an AST, or reuse an AST optimally
+                        parse_definition_into_AST(define_symbol, preprocessor_dfa);
+
+                        // TODO replace the formal parameter occurences by actual parameters
+
+                        // TODO replace the original node of the macro by the AST that
+                        // represents it's definition
+
+                        let root_node: &Node<Token> = &define_symbol.expression_parser.arena.nodes[define_symbol.expression_parser.ptr_node_id.index];
+
+                        println!("Replacing node by AST ...");
+
+                        arena.change_payload(node_id, root_node.data.clone());
+                        copy_tree(arena, node_id, &define_symbol.expression_parser.arena, &define_symbol.expression_parser.ptr_node_id);
+
+                        // a symbol has been replaced, start a new iteration to replace
+                        // more symbols which might have been introduced by the replaced symbol
+                        return true;
+                    }
+
+                    // example:
+                    // #define ADD(x, y) (x + y)
+                    // #define EXPR_A (ADD(7, 8) + 2 + 3)
+                    // #define EXPR_B (EXPR_A * 4)
+                    //
+                    // #if EXPR_B == 80
+                    //     // This code WILL be included
+                    // #endif
                 }
                 return true;
+
             } else if *val == String::from("PPF_DEFINED") {
+
                 println!("token.text: {}", token.text);
                 // let right_node: &Node<Token> = &arena.nodes[right_child_id];
                 // if defined_symbol_map.contains_key(&right_node.data.text) {
@@ -1944,7 +1959,35 @@ pub fn replace_symbols(
         }
     }
 
-    false
+    return left_result || right_result;
+}
+
+// arena, node_id, define_symbol.expression_parser.arena, root_node
+pub fn copy_tree(
+    dst_arena: &mut Arena<Token>,
+    dst_node_id: &NodeId,
+
+    src_arena: &Arena<Token>,
+    src_node_id: &NodeId
+) {
+    let src_node: &Node<Token> = &src_arena.nodes[src_node_id.index];
+    let dst_node: &mut Node<Token> = &mut dst_arena.nodes[dst_node_id.index];
+
+    // if the src has a LHS, create a LHS in the dst
+    if let Some(left_node_id) = src_node.left {
+        let left_node: &Node<Token> = &src_arena.nodes[left_node_id.index];
+        let dst_left_node_id = dst_arena.add_left(dst_node_id, left_node.data.clone());
+
+        copy_tree(dst_arena, &dst_left_node_id, src_arena, &left_node_id);
+    }
+
+    // if the src has a RHS, create a RHS in the dst
+    if let Some(right_node_id) = src_node.right {
+        let right_node: &Node<Token> = &src_arena.nodes[right_node_id.index];
+        let dst_right_node_id = dst_arena.add_right(dst_node_id, right_node.data.clone());
+
+        copy_tree(dst_arena, &dst_right_node_id, src_arena, &right_node_id);
+    }
 }
 
 pub fn evaluate_expression(
@@ -1987,20 +2030,28 @@ pub fn evaluate_expression(
 
     let token:&Token = &node.data;
 
+    // DEBUG
     println!("token: {:?}", token);
 
     match &token.terminal {
 
         Terminal(val) => {
+
+            // DEBUG
             println!("val: {}", val);
 
             if *val == String::from("IDENTIFIER") {
+
                 println!("token.text: {}", token.text);
-                // return the value
+
+                // if the symbol is contained in the symbol_map return the value
                 if defined_symbol_map.contains_key(&token.text) {
                     let defineSymbol:&DefineSymbol = defined_symbol_map.get(&token.text).unwrap();
                     let definition = defineSymbol.definition.trim();
+
+                    // DEBUG
                     println!("definition: '{}'", definition);
+
                     match definition.parse::<i32>() {
                         Result::Ok(numeric_value) => {
                             return numeric_value;
@@ -2014,21 +2065,249 @@ pub fn evaluate_expression(
                     }
                 }
                 return 0;
+
             } else if *val == String::from("PPF_DEFINED") {
+
+                // DEBUG
                 println!("token.text: {}", token.text);
+
                 let right_node: &Node<Token> = &arena.nodes[right_child_id];
                 if defined_symbol_map.contains_key(&right_node.data.text) {
                     return 1;
                 } else {
                     return 0;
                 }
+
+            } else if *val == String::from("NUMERIC") {
+
+                return token.text.parse::<i32>().unwrap_or(0);
+
+            } else if *val == String::from("PLUS") {
+
+                return left_result + right_result;
+
+            } else if *val == String::from("ASTERISK") {
+
+                return left_result * right_result;
+
+            } else if *val == String::from("OPENING_BRACKET") {
+
+                return right_result;
+
+            }  else if *val == String::from("EQ_OP") {
+
+                if right_result == left_result {
+                    return 1;
+                };
+                return 0;
+
             }
         }
 
         _ => {
-
+            panic!("test");
         }
     }
 
     0
 }
+
+// first, checks if the macro definition is already available
+// as an AST. If not, the macro definition is parsed into an
+// AST and stored into the definition.
+//
+// In general a definition does not have to be well-formed
+// and this means it cannot be converted into an AST in the
+// general case. Use this function only if the defintion is
+// well-formed. For example, one way to figure out if a
+// macro definition is well-formed is if the symbol is used
+// in a #if, #elif PPI in which case it has to be well-formed
+// because it needs to be evaluated. Only well-formed
+// definitions can be evaluated
+fn parse_definition_into_AST(define_symbol: &mut DefineSymbol,
+    preprocessor_dfa: &EpsilonNfa<State, RegexBuildingBlock>) {
+
+    // the expression parser stores the AST in it's internal arena.
+    // If the arena is empty, the macro defintion has not been
+    // parsed into an AST yet!
+    if define_symbol.expression_parser.arena.is_empty() {
+
+        // DEBUG
+        // println!("macro definition:'{}'", define_symbol.definition);
+
+        let lexer_debug: bool = false;
+        let lexer_token_debug: bool = true;
+
+        let internal_lexer: Lexer = Lexer::new(
+            define_symbol.definition.clone(),
+            preprocessor_dfa,
+            lexer_debug,
+            lexer_token_debug);
+
+        for token in internal_lexer {
+            define_symbol.expression_parser.process_token(token);
+        }
+    }
+
+    // DEBUG
+    // define_symbol.expression_parser.print_dot();
+    // define_symbol.expression_parser.print_console();
+}
+
+
+/*
+                        let mut ast_string_buffer = String::from("");
+
+                        let root = NodeId { index: arena.iterator_current_node_id, };
+
+                        // serialize the AST into .dot graphviz format
+                        ast_string_buffer.push_str("digraph {\n");
+                        recurse_arena_dot(&arena, &root, &mut ast_string_buffer);
+                        ast_string_buffer.push_str("}");
+
+                        // 1. Create or overwrite the file
+                        let file = File::create("preprocessor_tree.dot").expect("Create file failed!");
+
+                        // 2. Wrap the file in a BufWriter
+                        let mut writer = BufWriter::new(file);
+
+                        // 3. Write data
+                        write!(writer, "{}", ast_string_buffer);
+
+                        // 4. Explicitly flush the remaining data to disk
+                        writer.flush().expect("flush failed!");
+                        */
+
+                        // // DEBUG
+                        // define_symbol.expression_parser.print_dot();
+                        // define_symbol.expression_parser.print_console();
+
+                        // let mut ast_string_buffer = String::from("");
+                        // // serialize the AST into .dot graphviz format
+                        // ast_string_buffer.push_str("digraph {\n");
+                        // if let Some(body_ast_node) = arena.nodes.get(node_id.index) {
+                        //     body_ast_node.pretty_print_ast_dot(&mut ast_string_buffer, &node_map);
+                        // }
+                        // ast_string_buffer.push_str("}");
+
+
+
+                        /*
+    let lexer_debug: bool = false;
+    let lexer_token_debug: bool = true;
+    let mut preprocessor_lexer: Lexer = Lexer::new(input_tuple.0.clone(),
+        preprocessor_dfa, lexer_debug, lexer_token_debug);
+
+    let mut step: usize = 1;
+
+    let mut parser: Parser<String> = Parser::<String>::new(parse_table.clone());
+    // TODO: improve the parser/lexer API. Currently the lexer always needs a parser to function
+    parser.disabled = true; // do not take real parser action
+
+    let mut debug_node_string_buffer = String::from("");
+    let mut debug_node_stack = Vec::<DebugNode>::new();
+
+    let mut line_number: usize = 1;
+
+    let mut node_map = Box::new(HashMap::<usize, AstNode>::new());
+
+    let mut character_iterator = input_tuple.0.chars();
+    let mut lexer_done: bool = false;
+    while !lexer_done {
+
+        let character_option = character_iterator.next();
+        if let Some(character) = character_option {
+
+            println!("{}", character);
+
+            preprocessor_lexer.consume_character(
+                character,
+                &mut step,
+                &mut parser,
+                &rule_map,
+                &mut debug_node_string_buffer,
+                &mut debug_node_stack,
+                &input_tuple.1,
+                line_number,
+                &mut node_map
+            );
+
+            if character == '\n' {
+                line_number = line_number + 1;
+            }
+        } else {
+            lexer_done = true;
+        }
+    }
+*/
+
+/*
+    // input_tuple.0 is the input data that results from loading a text file (.c / .h)
+    for character in input_tuple.0.chars() {
+
+        // DEBUG
+        if debug {
+            println!("CHAR: {}", character);
+        }
+
+        preprocessor_lexer.consume_character(
+            character,
+            &mut step,
+            &mut parser,
+            &rule_map,
+            &mut debug_node_string_buffer,
+            &mut debug_node_stack,
+            &input_tuple.1,
+            line_number,
+            &mut node_map
+        );
+
+        if character == '\n' {
+            line_number = line_number + 1;
+        }
+    }
+
+    // Consume a last EOF character to flush out the last token
+    preprocessor_lexer.consume_character(
+        '\n', // dummy character
+        &mut step,
+        &mut parser,
+        &rule_map,
+        &mut debug_node_string_buffer,
+        &mut debug_node_stack,
+        &input_tuple.1,
+        line_number,
+        &mut node_map
+    );
+ */
+
+ // // DEBUG
+    // let lexer_debug: bool = false;
+    // if lexer_debug {
+    //     println!("[LEXER] Emitting '{}'. Token-Id: {}, Token-Name: {}", token_string_buffer, dfa.states[&current_state_id].token_id, dfa.states[&current_state_id].token_name);
+    //     println!("");
+    // }
+
+
+
+    // // DEBUG - this outputs the string and the token generated from the string
+    // // This is a good starting point for debugging
+    // if lexer_token_debug {
+    //     println!("[LEXER.TRAP_STATE] {:?} ---> {:?} | File: {:?}, Line: {:?}",
+    //         lookahead_character,
+    //         RuleElement::Terminal(lexer.dfa.states[&lexer.current_state_id].token_name.clone()),
+    //         &input_tuple.1,
+    //         line_number
+    //     );
+    // }
+
+    // // provide the last token to the parser
+    // lexer.parser_provide_input(
+    //     &mut parser,
+    //     &mut step,
+    //     &rule_map,
+    //     &RuleElement::Terminal(lexer.dfa.states[&lexer.current_state_id].token_name.clone()),
+    //     &mut debug_node_string_buffer,
+    //     &mut debug_node_stack,
+    //     &mut node_map
+    // );

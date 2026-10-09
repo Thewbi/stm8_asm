@@ -42,7 +42,9 @@ use std::fmt;
 //     6 -> 0 [label="\\n"]
 // }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PreprocessorOperatingMode {
+
     // normal operation, no preprocessor instruction
     Normal,
 

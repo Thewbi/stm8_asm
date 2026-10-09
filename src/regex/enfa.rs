@@ -49,10 +49,10 @@ impl State {
 pub trait StateTrait {
     fn get_id(&self) -> usize;
     fn set_start_state(&mut self, start_state: bool);
-    fn is_start_state(&mut self) -> bool;
+    fn is_start_state(&self) -> bool;
     fn set_end_state(&mut self, end_state: bool);
-    fn is_end_state(&mut self) -> bool;
-    fn is_trap_state(&mut self) -> bool;
+    fn is_end_state(&self) -> bool;
+    fn is_trap_state(&self) -> bool;
 }
 
 impl StateTrait for State {
@@ -62,16 +62,16 @@ impl StateTrait for State {
     fn set_start_state(&mut self, start_state: bool) {
         self.start_state = start_state;
     }
-    fn is_start_state(&mut self) -> bool {
+    fn is_start_state(&self) -> bool {
         self.start_state
     }
     fn set_end_state(&mut self, end_state: bool) {
         self.end_state = end_state;
     }
-    fn is_end_state(&mut self) -> bool {
+    fn is_end_state(&self) -> bool {
         self.end_state
     }
-    fn is_trap_state(&mut self) -> bool {
+    fn is_trap_state(&self) -> bool {
         self.trap_state
     }
 }
@@ -153,17 +153,17 @@ where
         if let Some(val) = self.states.get_mut(&state_id) { val.set_end_state(is_end); };
     }
 
-    pub fn is_end_state(&mut self, state_id: usize) -> bool {
-        if let Some(val) = self.states.get_mut(&state_id) { return val.is_end_state() };
+    pub fn is_end_state(&self, state_id: usize) -> bool {
+        if let Some(val) = self.states.get(&state_id) { return val.is_end_state() };
         false
     }
 
-    pub fn is_trap_state(&mut self, state_id: usize) -> bool {
-        if let Some(val) = self.states.get_mut(&state_id) { return val.is_trap_state() };
+    pub fn is_trap_state(&self, state_id: usize) -> bool {
+        if let Some(val) = self.states.get(&state_id) { return val.is_trap_state() };
         false
     }
 
-    pub fn is_empty(&mut self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.states.len() == 1
     }
 }
@@ -1710,13 +1710,16 @@ pub fn enfa_to_dfa(enfa: &mut EpsilonNfa::<State, RegexBuildingBlock>,
 }
 
 // try to transition the large lexer DFA to produce a token for the input
-pub fn transition_dfa(dfa: &mut EpsilonNfa::<State, RegexBuildingBlock>, start_id: usize, input: &RegexBuildingBlock) -> usize {
+pub fn transition_dfa(dfa: &EpsilonNfa::<State, RegexBuildingBlock>,
+    start_id: usize, input: &RegexBuildingBlock) -> usize {
 
-    let target_state_ids = dfa.transitions.entry((start_id, Input::Symbol(*input)));
-    let val = target_state_ids.or_default();
+    if dfa.transitions.contains_key(&(start_id, Input::Symbol(*input))) {
+        let temp = dfa.transitions.get(&(start_id, Input::Symbol(*input)));
+    }
+    if let Some(target_state_ids) = dfa.transitions.get(&(start_id, Input::Symbol(*input))) {
+        let val = target_state_ids;
+        return val.clone().into_iter().next().unwrap();
+    }
 
-    // DEBUG
-    // println!("{:?}", val);
-
-    val.clone().into_iter().next().unwrap()
+    panic!("");
 }

@@ -16,6 +16,7 @@ use crate::example_lexers::common::add_token_definition;
 pub const PP_AND_OP_TOKEN_ID: usize = 16;
 pub const PP_OR_OP_TOKEN_ID: usize = 17;
 pub const PP_GE_OP_TOKEN_ID: usize = 19;
+pub const PP_EQ_OP_TOKEN_ID: usize = 20;
 pub const PP_SEMICOLON_TOKEN_ID: usize = 22;
 pub const PP_COMMA_TOKEN_ID: usize = 25;
 
@@ -316,7 +317,7 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\|\\|", "OR_OP", PP_OR_OP_TOKEN_ID); // used in Regex as OR operator
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "<=", "LE_OP", 18);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ">=", "GE_OP", PP_GE_OP_TOKEN_ID);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "==", "EQ_OP", 20);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "==", "EQ_OP", PP_EQ_OP_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\!=", "NE_OP", 21); // ???
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ";", "SEMICOLON", PP_SEMICOLON_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\{", "OPENING_CURLY_BRACKET", 23);
@@ -343,7 +344,6 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\|", "OR", 44); // used in Regex as OR operator
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\?", "QUESTION_MARK", PP_QUESTION_MARK_TOKEN_ID); // used in Regex as Repeat(0, 1)
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#", "HASHTAG", PP_HASHTAG_TOKEN_ID);
-    //add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\\\", "BACKSLASH", PP_BACKSLASH_TOKEN_ID);
 
     //
     // Backslash

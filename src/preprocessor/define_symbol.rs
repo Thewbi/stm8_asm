@@ -2,6 +2,8 @@ use std::fmt;
 
 use std::collections::{BTreeMap, HashMap};
 
+use crate::preprocessor::expression_parser::ExpressionParser;
+
 // DefineSymbol {
 // 	    name: "SQUARE"
 // 	    formal_parameter_map: { key: 0, value: x }
@@ -11,6 +13,7 @@ pub struct DefineSymbol {
     pub name: String,
     pub formal_parameter_map: BTreeMap::<usize, String>,
     pub definition: String,
+    pub expression_parser: ExpressionParser, // stores the AST parsed form the definition in it's internal arena
 }
 
 impl DefineSymbol {
@@ -19,6 +22,7 @@ impl DefineSymbol {
             name: String::from(""),
             formal_parameter_map: BTreeMap::<usize, String>::new(),
             definition: String::from(""),
+            expression_parser: ExpressionParser::new(),
         }
     }
 }

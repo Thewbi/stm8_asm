@@ -1,28 +1,26 @@
-#define EXPR_A (2 + 3)
-#define EXPR_B (EXPR_A * 4)
+//#define EXPR_A (2 + 3)
+//#define EXPR_B (EXPR_A * 4)
 
-// test
-#define add(a, b) a+b
+//#define EXPR_B 10
+#define EXPR_B 15
+//#define EXPR_B 20
 
-#define SQUARE(x) ((x) * (x))
-
-#define _Analysis_mode_(mode) \
-    typedef _Analysis_mode_impl_(mode) int \
-        __GENSYM(__prefast_analysis_mode_flag);
-
-#define max(a,b) ((a) >= (b) ? (a) : (b))
-
-#define test test_def
-
-#define ELEMENTS DIMENSION*DIMENSION
-
-#define __crt_countof(_Array) (sizeof(_Array) / sizeof(_Array[0]))
-
-#define _Raises_SEH_exception_         _SAL2_Source_(_Raises_SEH_exception_, (x), _Maybe_raises_SEH_exception_ _Analysis_noreturn_)
-
-#define _Analysis_assume_
+//#if EXPR_B == 20
+//    // This code WILL be included
+//#endif
 
 int main() {
-    printf("Hello World! %s %s %d", "a"/*a*/, "b"/*b*/, 5/*c*/);
+#if EXPR_B == 10
+    // This code WILL be included
+    //printf("test\n");
+    int a = 10;
+#elif EXPR_B == 20
+    int b = 20;
+#else
+    int c = 30;
+#endif
+
     return 0;
 }
+
+
