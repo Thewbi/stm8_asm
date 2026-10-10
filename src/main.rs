@@ -718,9 +718,18 @@ fn main() {
 
                                 let mut oe: bool = true;
 
-                                if !pp_if_frame_stack.is_empty() {
-                                    let top_frame = &pp_if_frame_stack[pp_if_frame_stack.len() - 1];
-                                    oe = top_frame.output_enabled;
+                                // if !pp_if_frame_stack.is_empty() {
+                                //     let top_frame = &pp_if_frame_stack[pp_if_frame_stack.len() - 1];
+                                //     oe = top_frame.output_enabled;
+                                // }
+
+                                // the body of an if-PPI is only enabled if it is enabled and
+                                // if all if-PPI below it on the stack are also enabled!
+                                for frame in &pp_if_frame_stack {
+                                    oe = frame.output_enabled;
+                                    if !oe {
+                                        break;
+                                    }
                                 }
 
                                 if oe {
@@ -1183,16 +1192,15 @@ fn main() {
                                     let mut replaced:bool = true;
                                     while replaced {
 
-                                        // DEBUG
+                                        // DEBUG - BEFORE: output AST before replacement
                                         expression_parser.print_dot();
 
                                         replaced = replace_symbols(&mut expression_parser.arena,
                                             &expression_parser.ptr_node_id,
                                             &mut defined_symbol_map,
-                                            &lexer_dfa
-                                        );
+                                            &lexer_dfa);
 
-                                        // DEBUG
+                                        // DEBUG - AFTER: output AST after replacement
                                         expression_parser.print_dot();
 
                                         println!("test");
@@ -1868,14 +1876,14 @@ pub fn replace_symbols(
 
     let node: &Node<Token> = &arena.nodes[node_id.index].clone();
 
-    // LHS - output left child
+    // LHS - replace symbols inside left child
     if let Some(left_id) = &node.left {
         has_left_child = true;
         left_result = replace_symbols(arena, left_id, defined_symbol_map, preprocessor_dfa);
         left_child_id = left_id.index;
     }
 
-    // RHS - output right child
+    // RHS - replace symbols inside right child
     if let Some(right_id) = &node.right {
         has_right_child = true;
         right_result = replace_symbols(arena, right_id, defined_symbol_map, preprocessor_dfa);
@@ -1903,34 +1911,231 @@ pub fn replace_symbols(
                 // check if this string of text is a macro name
                 if defined_symbol_map.contains_key(&token.text) {
 
-                    let option = defined_symbol_map.get_mut(&token.text);
-                    if let Some(define_symbol) = option {
+                    let defined_symbol_option = defined_symbol_map.get_mut(&token.text);
+                    if let Some(define_symbol) = defined_symbol_option {
+
                         // let define_symbol: &mut DefineSymbol =
                         // let definition = define_symbol.definition.clone().trim();
                         // // DEBUG
                         // println!("definition: '{}'", definition);
 
+                        //
+                        // PHASE 0
+                        //
+                        // parse the definition into an AST, or reuse an AST optimally
+                        //
+
                         // parse the definition into an AST, or reuse an AST optimally
                         parse_definition_into_AST(define_symbol, preprocessor_dfa);
 
+                        // pub struct DefineSymbol {
+                        //     pub name: String,
+                        //     pub formal_parameter_map: BTreeMap::<usize, String>,
+                        //     pub definition: String,
+                        //     pub expression_parser: ExpressionParser, // stores the AST parsed form the definition in it's internal arena
+                        // }
+
                         // TODO replace the formal parameter occurences by actual parameters
+                        // continue here: replace formal parameters
+                        //
+                        // define_symbol is the formal symbol_definition with formal parameters.
+                        // In it's formal_parameter_map contains the amount of formal parameters.
+                        //
+                        // the actual parameters need to be retrieved by ascending to the parent
+                        // and then iterating the RHS subtree which contains the list of actual
+                        // parameters
 
-                        // TODO replace the original node of the macro by the AST that
-                        // represents it's definition
+                        /**/
 
-                        let root_node: &Node<Token> = &define_symbol.expression_parser.arena.nodes[define_symbol.expression_parser.ptr_node_id.index];
+                        //
+                        // PHASE 1
+                        //
+                        // determine the actual parameter values and perform semantic
+                        // analysis / type checking
+                        //
 
-                        println!("Replacing node by AST ...");
+                        let formal_parameter_count = define_symbol.formal_parameter_map.len();
+                        println!("Expecting {} parameters.", formal_parameter_count);
 
-                        arena.change_payload(node_id, root_node.data.clone());
-                        copy_tree(arena, node_id, &define_symbol.expression_parser.arena, &define_symbol.expression_parser.ptr_node_id);
+                        let mut replace_map = HashMap::<String, String>::new();
 
-                        // a symbol has been replaced, start a new iteration to replace
-                        // more symbols which might have been introduced by the replaced symbol
-                        return true;
+                        // only extract and check for formal parameters if they are actually there!
+                        // Some macros do not have formal parameters
+                        // e.g. "#define EXPR_B 10"
+                        if formal_parameter_count > 0 {
+
+                            // clone because an iterator is used later and the iterator
+                            // wants to own the object it iterates exclusively so that
+                            // the underlying object does not change during iteration
+                            let mut arena_clone = arena.clone();
+
+                            let end_token = node.data.clone();
+
+                            // retrieve parent
+                            let parent_node: &Node<Token> = &arena_clone.nodes[node.parent.unwrap().index];
+                            //let end_token = parent_node.data.clone();
+
+                            // descend into right child of parent
+                            let right_node_id = parent_node.right.unwrap();
+                            println!("{:?}", &right_node_id);
+                            let right_node: &Node<Token> = &arena_clone.nodes[right_node_id.index];
+                            println!("{:?}", &right_node);
+                            // let end_token = right_node.data.clone();
+
+                            // set the start node id from where the iteration in the AST should start
+                            //define_symbol.expression_parser.arena.iterator_current_node_id = right_node_id.index;
+                            arena_clone.iterator_current_node_id = right_node_id.index;
+
+                            // first reset the state so that iteration can be performed
+                            // since state is used to remember which nodes in the AST
+                            // have been iterated over already
+                            //define_symbol.expression_parser.arena.set_visit_mode_for_all_nodes(right_node_id.index, VisitMode::VisitLeft);
+                            arena_clone.set_visit_mode_for_all_nodes(right_node_id.index, VisitMode::VisitLeft);
+
+                            // // iterate
+                            // for token in arena.nodes.iter_mut() {
+                            //     println!("{}", token.data.text);
+                            // }
+
+                            // DEBUG
+                            //println!("{}", define_symbol.name);
+
+                            let mut actual_parameter_count: usize = 0;
+                            for token in arena_clone {
+
+                                // the iterator over the tree nodes is implemented in a weird way.
+                                // It will loop back to the left node once it has iterated over the
+                                // actual parameters. To stop iterating after the formal parameters,
+                                // the left node is identified here as a signal that all formal
+                                // parameters have been processed.
+                                //
+                                // TODO: find a cleaner way to extract the formal parameters.
+                                // They are the leaves of the subtree...
+                                if token.data == end_token {
+                                    break;
+                                }
+
+                                // DEBUG
+                                println!("{}", token.data.text);
+
+                                if token.data.text != "," {
+
+                                    // fill formal and actual values into the replace_map
+                                    let key_option = define_symbol.formal_parameter_map.get(&actual_parameter_count);
+                                    let key = key_option.unwrap().clone();
+                                    let value = token.data.text.clone();
+                                    replace_map.insert(key, value);
+
+                                    // increment index
+                                    actual_parameter_count = actual_parameter_count + 1;
+                                }
+                            }
+
+                            // semantic analysis
+                            if actual_parameter_count != formal_parameter_count {
+                                panic!("[ERR] Incorrect use of preprocessor macro \"{}\"! Parameter count mismatch!", define_symbol.name);
+                            }
+
+                            //
+                            // PHASE 2
+                            //
+                            // replace formal parameters by actual parameters
+                            //
+
+                            //let mut replace_map = HashMap::<String, String>::new();
+                            // replace_map.insert(String::from("x"), String::from("2"));
+                            // replace_map.insert(String::from("y"), String::from("3"));
+
+                            let mut arena_replace_clone = define_symbol.expression_parser.arena.clone();
+
+                            let mut root_index = 0;
+                            loop {
+                                if let Some(root_index_temp) = arena_replace_clone.nodes[root_index].parent {
+                                    root_index = root_index_temp.index;
+                                } else {
+                                    break;
+                                }
+                            }
+
+                            // DEBUG - before
+                            print_arena_dot(&arena_replace_clone);
+
+                            replace_parameters(&mut arena_replace_clone, root_index, &replace_map);
+
+                            // DEBUG - after
+                            print_arena_dot(&arena_replace_clone);
+
+                            //
+                            // PHASE 3
+                            //
+                            // replace the original node of the macro by the AST that
+                            // represents it's definition
+                            //
+
+                            //let root_node: &Node<Token> = &define_symbol.expression_parser.arena.nodes[define_symbol.expression_parser.ptr_node_id.index];
+                            let root_node: &Node<Token> = &arena_replace_clone.nodes[define_symbol.expression_parser.ptr_node_id.index];
+
+                            println!("Replacing node by AST ...");
+
+                            //let node: &Node<Token> = &arena.nodes[node_id.index].clone();
+
+                            // retrieve parent
+                            let parent_node_id = node.parent.unwrap();
+                            let parent_node: &Node<Token> = &arena.nodes[parent_node_id.index];
+
+                            // make the dst parent node the same as the source parent node
+                            arena.change_payload(node_id, root_node.data.clone());
+
+                            // copy LHS subtree and RHS subtree from src to dst
+                            copy_tree(arena,
+                                //node_id,
+                                &parent_node_id,
+                                // &define_symbol.expression_parser.arena,
+                                &arena_replace_clone,
+                                &define_symbol.expression_parser.ptr_node_id);
+
+                            return true;
+
+                        } else {
+
+                            //
+                            // PHASE 3
+                            //
+                            // replace the original node of the macro by the AST that
+                            // represents it's definition
+                            //
+
+                            let root_node: &Node<Token> = &define_symbol.expression_parser.arena.nodes[define_symbol.expression_parser.ptr_node_id.index];
+                            //let root_node: &Node<Token> = &arena_replace_clone.nodes[define_symbol.expression_parser.ptr_node_id.index];
+
+                            println!("Replacing node by AST ...");
+
+                            //let node: &Node<Token> = &arena.nodes[node_id.index].clone();
+
+                            // retrieve parent
+                            let parent_node_id = node.parent.unwrap();
+                            let parent_node: &Node<Token> = &arena.nodes[parent_node_id.index];
+
+                            // make the dst parent node the same as the source parent node
+                            arena.change_payload(node_id, root_node.data.clone());
+
+                            // copy LHS subtree and RHS subtree from src to dst
+                            copy_tree(arena,
+                                node_id,
+                                //&parent_node_id,
+                                &define_symbol.expression_parser.arena,
+                                //&arena_replace_clone,
+                                &define_symbol.expression_parser.ptr_node_id);
+
+                            // a symbol has been replaced.
+                            // Start a new iteration to replace more symbols which
+                            // might have been introduced by the replaced symbol
+                            return true;
+                        }
                     }
 
-                    // example:
+                    // example: - sample_2.pp
+                    //
                     // #define ADD(x, y) (x + y)
                     // #define EXPR_A (ADD(7, 8) + 2 + 3)
                     // #define EXPR_B (EXPR_A * 4)
@@ -1939,7 +2144,7 @@ pub fn replace_symbols(
                     //     // This code WILL be included
                     // #endif
                 }
-                return true;
+                return false;
 
             } else if *val == String::from("PPF_DEFINED") {
 
@@ -1962,7 +2167,41 @@ pub fn replace_symbols(
     return left_result || right_result;
 }
 
-// arena, node_id, define_symbol.expression_parser.arena, root_node
+pub fn replace_parameters(arena: &mut Arena<Token>,
+    root_index: usize,
+    replace_map: &HashMap::<String, String>)
+{
+    // // problem: iterator return copies of the nodes!
+    // for mut token in arena {
+    //     println!("{:?}", &token);
+    //     if token.data.text == "x" {
+    //         token.data.text = String::from("10");
+    //     }
+    // }
+
+    // retrieve the current node
+    let root_node: &mut Node<Token> = &mut arena.nodes[root_index].clone();
+
+    if let Some(left_node_id) = root_node.left {
+        replace_parameters(arena, left_node_id.index, replace_map);
+    }
+    if let Some(right_node_id) = root_node.right {
+        replace_parameters(arena, right_node_id.index, replace_map);
+    }
+
+    //if root_node.data.text == "x" {
+    if replace_map.contains_key(&root_node.data.text) {
+        // root_node.data.text = String::from("123");
+        let value = replace_map.get(&root_node.data.text).unwrap();
+        //arena.nodes[root_index].data.text = String::from("123");
+        arena.nodes[root_index].data.text = value.clone();
+    }
+}
+
+/// will attach the LHS subtree of the src node to the LHS side of the dst node
+/// replacing the existing LHS subtree.
+/// will attach the RHS subtree of the src node to the RHS side of the dst node
+/// replacing the existing RHS subtree.
 pub fn copy_tree(
     dst_arena: &mut Arena<Token>,
     dst_node_id: &NodeId,
@@ -1973,12 +2212,14 @@ pub fn copy_tree(
     let src_node: &Node<Token> = &src_arena.nodes[src_node_id.index];
     let dst_node: &mut Node<Token> = &mut dst_arena.nodes[dst_node_id.index];
 
-    // if the src has a LHS, create a LHS in the dst
+    // if the src has a LHS, create a LHS in the dst, replacing the existing LHS subtree
     if let Some(left_node_id) = src_node.left {
         let left_node: &Node<Token> = &src_arena.nodes[left_node_id.index];
         let dst_left_node_id = dst_arena.add_left(dst_node_id, left_node.data.clone());
 
         copy_tree(dst_arena, &dst_left_node_id, src_arena, &left_node_id);
+    } else {
+        dst_arena.remove_left(dst_node_id);
     }
 
     // if the src has a RHS, create a RHS in the dst
@@ -1987,6 +2228,8 @@ pub fn copy_tree(
         let dst_right_node_id = dst_arena.add_right(dst_node_id, right_node.data.clone());
 
         copy_tree(dst_arena, &dst_right_node_id, src_arena, &right_node_id);
+    } else {
+        dst_arena.remove_right(dst_node_id);
     }
 }
 
@@ -2028,6 +2271,9 @@ pub fn evaluate_expression(
         right_child_id = right_id.index;
     }
 
+    println!("left_result: {:?}", left_result);
+    println!("right_result: {:?}", right_result);
+
     let token:&Token = &node.data;
 
     // DEBUG
@@ -2063,8 +2309,19 @@ pub fn evaluate_expression(
                             return 0;
                         }
                     }
+                } else {
+                    match token.text.parse::<i32>() {
+                        Result::Ok(numeric_value) => {
+                            return numeric_value;
+                        }
+                        Result::Err(_) => {
+                            // TODO before returning true, try to evaluate the definition!
+                            // e.g. if the definition is 1 + 1, then this could be evaluated
+                            // to 2 and 2 could be returned!
+                            return 0;
+                        }
+                    }
                 }
-                return 0;
 
             } else if *val == String::from("PPF_DEFINED") {
 
@@ -2112,18 +2369,18 @@ pub fn evaluate_expression(
     0
 }
 
-// first, checks if the macro definition is already available
-// as an AST. If not, the macro definition is parsed into an
-// AST and stored into the definition.
-//
-// In general a definition does not have to be well-formed
-// and this means it cannot be converted into an AST in the
-// general case. Use this function only if the defintion is
-// well-formed. For example, one way to figure out if a
-// macro definition is well-formed is if the symbol is used
-// in a #if, #elif PPI in which case it has to be well-formed
-// because it needs to be evaluated. Only well-formed
-// definitions can be evaluated
+/// first, checks if the macro definition is already available
+/// as an AST. If not, the macro definition is parsed into an
+/// AST and stored into the definition.
+///
+/// In general a definition does not have to be well-formed
+/// and this means it cannot be converted into an AST in the
+/// general case. Use this function only if the defintion is
+/// well-formed. For example, one way to figure out if a
+/// macro definition is well-formed is if the symbol is used
+/// in a #if, #elif PPI in which case it has to be well-formed
+/// because it needs to be evaluated. Only well-formed
+/// definitions can be evaluated
 fn parse_definition_into_AST(define_symbol: &mut DefineSymbol,
     preprocessor_dfa: &EpsilonNfa<State, RegexBuildingBlock>) {
 
@@ -2152,6 +2409,29 @@ fn parse_definition_into_AST(define_symbol: &mut DefineSymbol,
     // DEBUG
     // define_symbol.expression_parser.print_dot();
     // define_symbol.expression_parser.print_console();
+}
+
+pub fn print_arena_dot(arena: &Arena<Token>) {
+    let mut ast_string_buffer = String::from("");
+
+    let root = NodeId { index: arena.iterator_current_node_id, };
+
+    // serialize the AST into .dot graphviz format
+    ast_string_buffer.push_str("digraph {\n");
+    recurse_arena_dot(&arena, &root, &mut ast_string_buffer);
+    ast_string_buffer.push_str("}");
+
+    // 1. Create or overwrite the file
+    let file = File::create("preprocessor_tree.dot").expect("Create file failed!");
+
+    // 2. Wrap the file in a BufWriter
+    let mut writer = BufWriter::new(file);
+
+    // 3. Write data
+    write!(writer, "{}", ast_string_buffer);
+
+    // 4. Explicitly flush the remaining data to disk
+    writer.flush().expect("flush failed!");
 }
 
 

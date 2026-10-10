@@ -19,6 +19,7 @@ pub struct Node<T> {
     pub right: Option<NodeId>,
     pub parent: Option<NodeId>,
     pub data: T, // payload
+    //pub data: RefCell<T>,
     pub visit_mode: VisitMode,
 }
 
@@ -29,6 +30,7 @@ impl<T> Node<T> {
             right: None,
             parent: None,
             data: data_param,
+            //data: RefCell::new(data_param),
             visit_mode: VisitMode::VisitLeft,
         }
     }
@@ -38,6 +40,7 @@ impl<T> Node<T> {
     }
 }
 
+#[derive(Clone)]
 pub struct Arena<T> {
     pub nodes: Vec<Node<T>>,
     pub iterator_current_node_id: usize,
@@ -158,6 +161,8 @@ impl<T> Arena<T> {
     /**
      * First create a new node from the data parameter then insert that node
      * into the LHS of the parent node and assign the payload (data).
+     *
+     * Note: the exising LHS subtree of the parent node is replaced!
      */
     pub fn add_left(&mut self, parent_node_id: &NodeId, data: T) -> NodeId {
         let new_node_id: NodeId = self.new_node(data);
@@ -174,6 +179,8 @@ impl<T> Arena<T> {
     /**
      * First create a new node from the data parameter then insert that node
      * into the RHS of the parent node and assign the payload (data).
+     *
+     * Note: the exising LHS subtree of the parent node is replaced!
      */
     pub fn add_right(&mut self, parent_node_id: &NodeId, data: T) -> NodeId {
         let new_node_id: NodeId = self.new_node(data);
@@ -311,8 +318,6 @@ where T: Clone
                 }
             }
         }
-
-        return None;
     }
 }
 

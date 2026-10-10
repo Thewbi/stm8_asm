@@ -2,7 +2,7 @@
 
 int main() {
 
-#if ADD(2, 3) == 5
+#if ADD(2, 4) == 5+1
     int a = 0;
 #endif
 

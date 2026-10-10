@@ -106,7 +106,7 @@ impl ExpressionParser {
             PP_COLON_TOKEN_ID => {
                 token.weight = 182;
             }
-            28 => { // OPENING_BRACKET
+            PP_OPENING_BRACKET_TOKEN_ID => { // OPENING_BRACKET
                 token.weight = 11111;
                 //token.weight = 99999;
             }
@@ -222,7 +222,7 @@ impl ExpressionParser {
 
                             // TODO: if the current token is a '(', then
                             // set the current ptr to this new node!
-                            if token_id == 28 { // OPENING_BRACKET
+                            if token_id == PP_OPENING_BRACKET_TOKEN_ID { // OPENING_BRACKET
                                 self.ptr_node_id.index = new_node_id.index;
                             }
                         }
@@ -246,7 +246,7 @@ impl ExpressionParser {
                                     current_node = &mut self.arena.nodes[self.ptr_node_id.index];
 
                                     // if the new node is an opening bracket, abort
-                                    if current_node.data.token_id == 28 { // OPENING_BRACKET
+                                    if current_node.data.token_id == PP_OPENING_BRACKET_TOKEN_ID { // OPENING_BRACKET
                                         break;
                                     }
 

@@ -354,7 +354,7 @@ impl<'a> Lexer<'a> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Token {
     pub token_id: usize,
     pub text: String,
