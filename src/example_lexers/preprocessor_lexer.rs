@@ -23,6 +23,9 @@ pub const PP_COMMA_TOKEN_ID: usize = 25;
 pub const PP_COLON_TOKEN_ID: usize = 26;
 pub const PP_OPENING_BRACKET_TOKEN_ID: usize = 28;
 pub const PP_CLOSING_BRACKET_TOKEN_ID: usize = 29;
+pub const PP_CLOSED_BRACKET_PAIR_TOKEN_ID: usize = 80;
+
+pub const PP_EXCLAMATION_MARK_TOKEN_ID: usize = 34;
 
 pub const PP_QUESTION_MARK_TOKEN_ID: usize = 45;
 pub const PP_WHITESPACE_TOKEN_ID: usize = 46;
@@ -331,7 +334,7 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\]", "CLOSING_ANGULAR_BRACKET", 31); // used in Regex to build character classes
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ".", "DOT", 32);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "&", "AMPERSAND", 33);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\!", "EXCLAMATION_MARK", 34); // ???
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\!", "EXCLAMATION_MARK", PP_EXCLAMATION_MARK_TOKEN_ID); // ???
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "~", "TILDE", 35);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\-", "MINUS", 36);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\+", "PLUS", 37); // used in Regex as Repeat(1, std::usize::MAX)

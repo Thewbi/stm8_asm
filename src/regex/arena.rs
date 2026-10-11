@@ -46,6 +46,10 @@ pub struct Arena<T> {
     pub iterator_current_node_id: usize,
 }
 
+// fn returns_closure() -> impl Fn(i32) -> i32 {
+//     |x| x + 1
+// }
+
 impl<T> Arena<T> {
 
     pub fn new() -> Self {
@@ -249,6 +253,61 @@ impl<T> Arena<T> {
 
         parent_node.right = None;
     }
+
+    pub fn recurse_arena(&self,
+
+        // output_prefix: &dyn Fn(&T) -> T,
+        // output_infix: &dyn Fn(&T) -> T,
+        // output_postfix: &dyn Fn(&T) -> T,
+
+        // output_prefix: &dyn Fn(&i32) -> String,
+        // output_infix: &dyn Fn(&i32) -> String,
+        // output_postfix: &dyn Fn(&i32) -> String,
+
+        output_prefix: &dyn Fn(&T) -> String,
+        output_infix: &dyn Fn(&T) -> String,
+        output_postfix: &dyn Fn(&T) -> String,
+
+        parent_node_id: &NodeId,
+        string_buffer: &mut String)
+    where T:std::fmt::Display,
+    {
+        let parent_node: &Node<T> = &self.nodes[parent_node_id.index];
+
+        // output node (Prefix)
+        //println!("{:?}", parent_node.data);
+
+        //output_prefix(&parent_node.data);
+        //string_buffer.push_str(&output_prefix(&10i32));
+        string_buffer.push_str(&output_prefix(&parent_node.data));
+
+        // LHS - output children
+        if let Some(left_id) = &parent_node.left {
+            self.recurse_arena(output_prefix, output_infix, output_postfix, left_id, string_buffer);
+        }
+
+        // output node (Infix)
+        // println!("{:?}", parent_node.data);
+
+        //string_buffer.push_str(&parent_node.data);
+        //string_buffer.push_str(format!("{}", parent_node.data).as_str());
+
+        // output_infix(&parent_node.data);
+        // string_buffer.push_str(&output_prefix(&11i32));
+        string_buffer.push_str(&output_infix(&parent_node.data));
+
+        // RHS - output children
+        if let Some(right_id) = &parent_node.right {
+            self.recurse_arena(output_prefix, output_infix, output_postfix, right_id, string_buffer);
+        }
+
+        // output node (Postfix)
+        // println!("{:?}", parent_node.data);
+
+        // output_postfix(&parent_node.data);
+        // string_buffer.push_str(&output_prefix(&12i32));
+        string_buffer.push_str(&output_postfix(&parent_node.data));
+    }
 }
 
 // iterate over all nodes. Nodes are returned in in-order
@@ -321,10 +380,10 @@ where T: Clone
     }
 }
 
-/**
- * DEBUG function to print the arena to the console
- */
-pub fn recurse_arena<T>(arena: &Arena<T>, parent_node_id: &NodeId)
+///
+/// DEBUG function to print the arena to the console
+///
+pub fn recurse_arena<T>(arena: &Arena<T>, parent_node_id: &NodeId, string_buffer: &mut String)
 where T:std::fmt::Debug,
 {
     let parent_node: &Node<T> = &arena.nodes[parent_node_id.index];
@@ -334,43 +393,36 @@ where T:std::fmt::Debug,
 
     // LHS - output children
     if let Some(left_id) = &parent_node.left {
-        recurse_arena(arena, left_id);
+        recurse_arena(arena, left_id, string_buffer);
     }
-    // match &parent_node.left {
-    //     Some(_) => {
-    //         recurse_arena(arena, parent_node.left.as_ref().unwrap());
-    //     }
-    //     None => {
-    //     }
-    // }
 
     // output node (Infix)
     println!("{:?}", parent_node.data);
 
+    //string_buffer.push_str(&parent_node.data);
+    string_buffer.push_str(format!("{:?}", parent_node.data).as_str());
+
     // RHS - output children
     if let Some(right_id) = &parent_node.right {
-        recurse_arena(arena, right_id);
+        recurse_arena(arena, right_id, string_buffer);
     }
-    // match &parent_node.right {
-    //     Some(_) => {
-    //         recurse_arena(arena, parent_node.right.as_ref().unwrap());
-    //     }
-    //     None => {
-    //     }
-    // }
 
     // output node (Postfix)
     // println!("{:?}", parent_node.data);
 }
 
-/**
- * DEBUG function to print the arena to the console
- */
+///
+/// DEBUG function to print the arena to the console
+///
 pub fn recurse_arena_dot<T>(arena: &Arena<T>,
     parent_node_id: &NodeId,
     string_buffer: &mut String)
 where T:std::fmt::Debug, T:std::fmt::Display
 {
+    if arena.is_empty() {
+        return;
+    }
+
     let parent_node: &Node<T> = &arena.nodes[parent_node_id.index];
 
     // output node

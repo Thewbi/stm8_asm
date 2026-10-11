@@ -52,17 +52,27 @@ pub enum PreprocessorOperatingMode {
     IgnoreSingleLineComment,
     IgnoreMultiLineComment,
 
+    // if-defined, if-not-defined
+    Ifdef,
+    Ifndef,
+
     // #define Preprocessor Instruction (PPI)
     DefineWaitingForName,
     DefineIfcOrDefinition,
     DefineIfc,
     DefineDefinition,
 
+    // #undef Preprocessor Instruction (PPI)
+    Undefine,
+
     // #if Preprocessor Instruction (PPI)
     If,
     Elif,
     Else,
     Endif,
+
+    // #pragma,
+    Pragma
 }
 
 impl fmt::Display for PreprocessorOperatingMode {
@@ -75,16 +85,22 @@ impl fmt::Display for PreprocessorOperatingMode {
             PreprocessorOperatingMode::IgnoreSingleLineComment => { write!(f, "IGNORE_SINGLE_LINE_COMMENT").expect("Write failed!"); }
             PreprocessorOperatingMode::IgnoreMultiLineComment => { write!(f, "IGNORE_MULTI_LINE_COMMENT").expect("Write failed!"); }
 
+            PreprocessorOperatingMode::Ifdef => { write!(f, "IF DEFINED").expect("Write failed!"); }
+            PreprocessorOperatingMode::Ifndef => { write!(f, "IF NOT DEFINED").expect("Write failed!"); }
+
             PreprocessorOperatingMode::DefineWaitingForName => { write!(f, "DEFINE_WAITING_FOR_NAME").expect("Write failed!"); }
             PreprocessorOperatingMode::DefineIfcOrDefinition => { write!(f, "DEFINE_IFC_OR_DEFINITION").expect("Write failed!"); }
             PreprocessorOperatingMode::DefineIfc => { write!(f, "DEFINE_IFC").expect("Write failed!"); }
             PreprocessorOperatingMode::DefineDefinition => { write!(f, "DEFINE_DEFINITION").expect("Write failed!"); }
+
+            PreprocessorOperatingMode::Undefine => { write!(f, "Undefine").expect("Write failed!"); }
 
             PreprocessorOperatingMode::If => { write!(f, "IF").expect("Write failed!"); }
             PreprocessorOperatingMode::Elif => { write!(f, "ELIF").expect("Write failed!"); }
             PreprocessorOperatingMode::Else => { write!(f, "ELSE").expect("Write failed!"); }
             PreprocessorOperatingMode::Endif => { write!(f, "ENDIF").expect("Write failed!"); }
 
+            PreprocessorOperatingMode::Pragma => { write!(f, "PRAGMA").expect("Write failed!"); }
         }
 
         Ok(())

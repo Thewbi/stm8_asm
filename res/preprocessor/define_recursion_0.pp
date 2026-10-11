@@ -1,0 +1,4 @@
+#define DIMENSION SQUARE
+#define SQUARE DIMENSION
+
+Macro: SQUARE

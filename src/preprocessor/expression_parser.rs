@@ -32,6 +32,7 @@ use crate::example_lexers::preprocessor_lexer::PP_STRING_LITERAL_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_QUESTION_MARK_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_HASHTAG_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_BACKSLASH_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_PRAGMA_TOKEN_ID;
 
 use crate::regex::arena::recurse_arena;
 use crate::regex::arena::{Arena, NodeId, recurse_arena_dot};
@@ -54,6 +55,8 @@ enum Operation {
 pub struct ExpressionParser {
     pub arena: Arena<Token>,
     pub ptr_node_id: NodeId,
+    pub ignore_input_due_to_single_line_comment: bool,
+    bracket_balance: usize,
 }
 
 impl ExpressionParser {
@@ -62,7 +65,17 @@ impl ExpressionParser {
         ExpressionParser {
             arena: Arena::new(),
             ptr_node_id: NodeId { index: usize::MAX },
+            ignore_input_due_to_single_line_comment: false,
+            bracket_balance: 0,
         }
+    }
+
+    pub fn is_tree_imbalanced(&mut self) -> bool {
+
+        //let text = self.arena.nodes[self.ptr_node_id.index].data.text.clone();
+
+        //return text != "()";
+        return self.bracket_balance == 0
     }
 
     pub fn process_token(&mut self, mut token: Token) {
@@ -70,16 +83,22 @@ impl ExpressionParser {
         // DEBUG
         // println!("[ExpressionParser::process_token()] Token: {}", token);
 
+        if self.ignore_input_due_to_single_line_comment {
+            return;
+        }
+
         //
         // STEP 1 - Assign weight to token
         //
 
         match token.token_id {
+
             PP_WHITESPACE_TOKEN_ID => {
                 token.weight = 0;
             }
             PP_NEWLINE_TOKEN_ID => {
                 token.weight = 0;
+                self.ignore_input_due_to_single_line_comment = false;
             }
             PP_IDENTIFIER_TOKEN_ID => {
                 // token.weight = 11111;
@@ -147,6 +166,12 @@ impl ExpressionParser {
             PP_NUMERIC_TOKEN_ID => {
                 token.weight = 998;
             }
+
+            SINGLELINE_COMMENT_START => {
+                token.weight = 0;
+                self.ignore_input_due_to_single_line_comment = true;
+            }
+
             _ => {
                 panic!("Cannot assign weight to token.token_id: {} token.text: {}", token.token_id, token.text);
             }
@@ -159,7 +184,7 @@ impl ExpressionParser {
         // check src\example_lexers\preprocessor_lexer.rs for the token ids
         match token.token_id {
             //
-            // WHITESPACE and NEWLINE is ignored
+            // WHITESPACE, NEWLINE are ignored
             //
             PP_WHITESPACE_TOKEN_ID => {
             }
@@ -171,6 +196,10 @@ impl ExpressionParser {
             }
             _ => {
                 // println!("Token: {:?}", token);
+
+                if token.text == "(" {
+                    self.bracket_balance = self.bracket_balance + 1;
+                }
 
                 if self.arena.is_empty() {
 
@@ -229,6 +258,8 @@ impl ExpressionParser {
 
                         Operation::CLOSE_BRACKETS => {
                             // println!("CLOSE_BRACKETS");
+
+                            self.bracket_balance = self.bracket_balance - 1;
 
                             let mut current_node = &mut self.arena.nodes[self.ptr_node_id.index];
                             current_node.data.token_id = 80usize; // 80 for close bracke-pair "()"
@@ -365,7 +396,9 @@ impl ExpressionParser {
     }
 
     pub fn print_console(&self) {
-        recurse_arena(&self.arena, &self.ptr_node_id);
+        let mut string_buffer: String = String::new();
+        recurse_arena(&self.arena, &self.ptr_node_id, &mut string_buffer);
+        println!("{}", string_buffer);
     }
 
     // prints the internal area as a dot graphviz tree
@@ -395,5 +428,6 @@ impl ExpressionParser {
     pub fn reset(&mut self) {
         self.arena.reset();
         self.ptr_node_id = NodeId { index: 0 };
+        self.bracket_balance = 0;
     }
 }

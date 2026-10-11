@@ -129,9 +129,9 @@ impl<'a> Lexer<'a> {
         // }
 
         // DEBUG
-        //if self.lexer_debug {
+        if self.lexer_debug {
             println!("[LEXER.consume_character()] Character is: '{}'", current_character);
-        //}
+        }
 
         let mut next_state_id = self.current_state_id;
 
@@ -362,6 +362,18 @@ pub struct Token {
     pub weight: usize,
 }
 
+impl Token {
+
+    pub fn new() -> Token {
+        Token {
+            token_id: 0,
+            text: String::new(),
+            terminal: RuleElement::Unknown,
+            weight: 0,
+        }
+    }
+}
+
 impl fmt::Debug for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Token").field("token_id", &self.token_id).field("text", &self.text).field("terminal", &self.terminal).finish()
@@ -579,88 +591,3 @@ impl Iterator for Lexer<'_> {
         return None;
     }
 }
-
-
-
-
-
-/*
-                    match self.dfa.states[&self.current_state_id].token_id {
-
-                        NEWLINE_TOKEN_ID | WHITESPACE_TOKEN_ID => {
-                            // ignore NEWLINE and WHITESPACE
-
-                            // DEBUG
-                            if self.lexer_debug {
-                                println!("[LEXER.TRAP_STATE] NOT Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
-                            }
-                        }
-
-                        // IDENTIFIER_TOKEN_ID => {
-
-                        //     // DEBUG
-                        //     if self.lexer_debug {
-                        //         println!("[LEXER.TRAP_STATE] Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
-                        //     }
-
-                        //     // handle typedef
-                        //     // turn an identifier into a TYPE_NAME if the identifier matches a user-defined type
-
-                        //     if parser.defined_types.contains(&self.token_string_buffer) {
-
-                        //         // pass token to the parser
-                        //         parser.provide_input(
-                        //             rule_map,
-                        //             step,
-                        //             &RuleElement::Terminal(String::from("TYPE_NAME")),
-                        //             &self.token_string_buffer,
-                        //             debug_node_string_buffer,
-                        //             debug_node_stack,
-                        //             node_map
-                        //         );
-
-                        //     } else {
-
-                        //         // pass token to the parser
-                        //         parser.provide_input(
-                        //             rule_map,
-                        //             step,
-                        //             &terminal,
-                        //             &self.token_string_buffer,
-                        //             debug_node_string_buffer,
-                        //             debug_node_stack,
-                        //             node_map
-                        //         );
-
-                        //     }
-
-                        // }
-
-                        _ => {
-
-                            // DEBUG
-                            if self.lexer_debug {
-                                println!("[LEXER.TRAP_STATE] Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
-                            }
-
-                            // panic!();
-
-                            if rule_map.len() > 0 {
-                                // pass token to the parser
-                                parser.provide_input(
-                                    rule_map,
-                                    step,
-                                    &terminal,
-                                    &self.token_string_buffer,
-                                    debug_node_string_buffer,
-                                    debug_node_stack,
-                                    node_map
-                                );
-                            } else {
-                                println!("[WARN] No rules supplied! Not calling parser!");
-                                *step = *step + 1;
-                            }
-
-                        }
-                    }
-*/

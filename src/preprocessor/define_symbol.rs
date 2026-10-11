@@ -4,11 +4,6 @@ use std::collections::{BTreeMap, HashMap};
 
 use crate::preprocessor::expression_parser::ExpressionParser;
 
-// DefineSymbol {
-// 	    name: "SQUARE"
-// 	    formal_parameter_map: { key: 0, value: x }
-// 	    definition: "((x) * (x))"
-// }
 pub struct DefineSymbol {
     pub name: String,
     pub formal_parameter_map: BTreeMap::<usize, String>,

@@ -2310,3 +2310,341 @@ match asm_ast_instruction.binary_operator {
                 // mov.dst = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(AsmAstReg::BX) };
                 // mov.comment = String::from("    ; binary_relational (1)");
                 // asm_ast_function.body.push(Box::new(mov));
+
+
+
+
+
+/*
+                        let mut ast_string_buffer = String::from("");
+
+                        let root = NodeId { index: arena.iterator_current_node_id, };
+
+                        // serialize the AST into .dot graphviz format
+                        ast_string_buffer.push_str("digraph {\n");
+                        recurse_arena_dot(&arena, &root, &mut ast_string_buffer);
+                        ast_string_buffer.push_str("}");
+
+                        // 1. Create or overwrite the file
+                        let file = File::create("preprocessor_tree.dot").expect("Create file failed!");
+
+                        // 2. Wrap the file in a BufWriter
+                        let mut writer = BufWriter::new(file);
+
+                        // 3. Write data
+                        write!(writer, "{}", ast_string_buffer);
+
+                        // 4. Explicitly flush the remaining data to disk
+                        writer.flush().expect("flush failed!");
+                        */
+
+                        // // DEBUG
+                        // define_symbol.expression_parser.print_dot();
+                        // define_symbol.expression_parser.print_console();
+
+                        // let mut ast_string_buffer = String::from("");
+                        // // serialize the AST into .dot graphviz format
+                        // ast_string_buffer.push_str("digraph {\n");
+                        // if let Some(body_ast_node) = arena.nodes.get(node_id.index) {
+                        //     body_ast_node.pretty_print_ast_dot(&mut ast_string_buffer, &node_map);
+                        // }
+                        // ast_string_buffer.push_str("}");
+
+
+
+                        /*
+    let lexer_debug: bool = false;
+    let lexer_token_debug: bool = true;
+    let mut preprocessor_lexer: Lexer = Lexer::new(input_tuple.0.clone(),
+        preprocessor_dfa, lexer_debug, lexer_token_debug);
+
+    let mut step: usize = 1;
+
+    let mut parser: Parser<String> = Parser::<String>::new(parse_table.clone());
+    // TODO: improve the parser/lexer API. Currently the lexer always needs a parser to function
+    parser.disabled = true; // do not take real parser action
+
+    let mut debug_node_string_buffer = String::from("");
+    let mut debug_node_stack = Vec::<DebugNode>::new();
+
+    let mut line_number: usize = 1;
+
+    let mut node_map = Box::new(HashMap::<usize, AstNode>::new());
+
+    let mut character_iterator = input_tuple.0.chars();
+    let mut lexer_done: bool = false;
+    while !lexer_done {
+
+        let character_option = character_iterator.next();
+        if let Some(character) = character_option {
+
+            println!("{}", character);
+
+            preprocessor_lexer.consume_character(
+                character,
+                &mut step,
+                &mut parser,
+                &rule_map,
+                &mut debug_node_string_buffer,
+                &mut debug_node_stack,
+                &input_tuple.1,
+                line_number,
+                &mut node_map
+            );
+
+            if character == '\n' {
+                line_number = line_number + 1;
+            }
+        } else {
+            lexer_done = true;
+        }
+    }
+*/
+
+/*
+    // input_tuple.0 is the input data that results from loading a text file (.c / .h)
+    for character in input_tuple.0.chars() {
+
+        // DEBUG
+        if debug {
+            println!("CHAR: {}", character);
+        }
+
+        preprocessor_lexer.consume_character(
+            character,
+            &mut step,
+            &mut parser,
+            &rule_map,
+            &mut debug_node_string_buffer,
+            &mut debug_node_stack,
+            &input_tuple.1,
+            line_number,
+            &mut node_map
+        );
+
+        if character == '\n' {
+            line_number = line_number + 1;
+        }
+    }
+
+    // Consume a last EOF character to flush out the last token
+    preprocessor_lexer.consume_character(
+        '\n', // dummy character
+        &mut step,
+        &mut parser,
+        &rule_map,
+        &mut debug_node_string_buffer,
+        &mut debug_node_stack,
+        &input_tuple.1,
+        line_number,
+        &mut node_map
+    );
+ */
+
+    // // DEBUG
+    // let lexer_debug: bool = false;
+    // if lexer_debug {
+    //     println!("[LEXER] Emitting '{}'. Token-Id: {}, Token-Name: {}", token_string_buffer, dfa.states[&current_state_id].token_id, dfa.states[&current_state_id].token_name);
+    //     println!("");
+    // }
+
+    // // DEBUG - this outputs the string and the token generated from the string
+    // // This is a good starting point for debugging
+    // if lexer_token_debug {
+    //     println!("[LEXER.TRAP_STATE] {:?} ---> {:?} | File: {:?}, Line: {:?}",
+    //         lookahead_character,
+    //         RuleElement::Terminal(lexer.dfa.states[&lexer.current_state_id].token_name.clone()),
+    //         &input_tuple.1,
+    //         line_number
+    //     );
+    // }
+
+    // // provide the last token to the parser
+    // lexer.parser_provide_input(
+    //     &mut parser,
+    //     &mut step,
+    //     &rule_map,
+    //     &RuleElement::Terminal(lexer.dfa.states[&lexer.current_state_id].token_name.clone()),
+    //     &mut debug_node_string_buffer,
+    //     &mut debug_node_stack,
+    //     &mut node_map
+    // );
+
+
+    //     // DEBUG
+                            //     // println!("{}", token);
+
+                            //     // perform lookahead:
+                            //     //
+                            //     // If the next token is an opening brace, parse the entire
+                            //     // parameter list. Otherwise, the interface consists of
+                            //     // a symbol name only
+                            //     // if define_mode == DefineMode::INTERFACE {
+                            //     match define_mode {
+
+                            //         DefineMode::INTERFACE => {
+
+                            //             // in interface mode, the expression_parser inserts
+                            //             // the token into the AST so that in the end, a
+                            //             // interface AST is created and the parameters and the
+                            //             // macro name can be extracted from that AST
+                            //             expression_parser.process_token(token);
+
+                            //             // perform lookahead and store lookahead in buffered token
+                            //             buffered_token_option = preprocessor_lexer.next();
+                            //             if let Some(ref buffered_token) = buffered_token_option {
+
+                            //                 match buffered_token.token_id {
+
+                            //                     PP_OPENING_BRACKET_TOKEN_ID => {
+                            //                         // now the preprocessor knows that the define specification
+                            //                         // consists of an additional parameter list
+
+                            //                         // DEBUG
+                            //                         //if lexer_debug {
+                            //                             println!("INTERFACE STARTS WITH PARAMETERS");
+                            //                         //}
+
+                            //                         define_has_parameters = true;
+                            //                     }
+
+                            //                     PP_CLOSING_BRACKET_TOKEN_ID => {
+                            //                         // now the preprocessor knows that the define specification
+                            //                         // has a parameter list
+
+                            //                         // DEBUG
+                            //                         //if lexer_debug {
+                            //                             println!("INTERFACE OVER WITH PARAMETERS");
+                            //                         //}
+
+                            //                         // define_has_parameters = true;
+
+                            //                         // #define <interface> <definition>
+                            //                         // leave interface phase, enter definition phase
+                            //                         old_define_mode = define_mode;
+                            //                         define_mode = DefineMode::DEFINITION;
+                            //                     }
+
+                            //                     _ => {
+                            //                         // no opening bracket found. The define interface is over
+                            //                         // and the define defintion starts
+
+                            //                         //define_mode = DefineMode::DEFINITION;
+
+                            //                         // DEBUG
+                            //                         //if lexer_debug {
+                            //                             println!("INTERFACE OVER WITHOUT PARAMETERS");
+                            //                         //}
+
+                            //                         define_has_parameters = false;
+
+                            //                         // #define <interface> <definition>
+                            //                         // leave interface phase, enter definition phase
+                            //                         old_define_mode = define_mode;
+                            //                         define_mode = DefineMode::DEFINITION;
+                            //                     }
+                            //                 }
+                            //             }
+                            //         }
+
+                            //         _ => {
+                            //             // check if the algorithm just left INTERFACE mode
+                            //             if define_has_parameters && old_define_mode == DefineMode::INTERFACE && define_mode == DefineMode::DEFINITION {
+                            //                 // do not ad the closing bracket into the definition which terminates the interface
+                            //                 // into the definition. Only add it into the interface AST
+                            //                 expression_parser.process_token(token);
+                            //             } else {
+                            //                 definition_string_buffer.push_str(token_text.as_str());
+                            //                 definition_string_buffer.push_str(" ");
+                            //             }
+
+                            //             old_define_mode = define_mode;
+                            //         }
+                            //     }
+
+
+
+
+
+
+
+/*
+                    match self.dfa.states[&self.current_state_id].token_id {
+
+                        NEWLINE_TOKEN_ID | WHITESPACE_TOKEN_ID => {
+                            // ignore NEWLINE and WHITESPACE
+
+                            // DEBUG
+                            if self.lexer_debug {
+                                println!("[LEXER.TRAP_STATE] NOT Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
+                            }
+                        }
+
+                        // IDENTIFIER_TOKEN_ID => {
+
+                        //     // DEBUG
+                        //     if self.lexer_debug {
+                        //         println!("[LEXER.TRAP_STATE] Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
+                        //     }
+
+                        //     // handle typedef
+                        //     // turn an identifier into a TYPE_NAME if the identifier matches a user-defined type
+
+                        //     if parser.defined_types.contains(&self.token_string_buffer) {
+
+                        //         // pass token to the parser
+                        //         parser.provide_input(
+                        //             rule_map,
+                        //             step,
+                        //             &RuleElement::Terminal(String::from("TYPE_NAME")),
+                        //             &self.token_string_buffer,
+                        //             debug_node_string_buffer,
+                        //             debug_node_stack,
+                        //             node_map
+                        //         );
+
+                        //     } else {
+
+                        //         // pass token to the parser
+                        //         parser.provide_input(
+                        //             rule_map,
+                        //             step,
+                        //             &terminal,
+                        //             &self.token_string_buffer,
+                        //             debug_node_string_buffer,
+                        //             debug_node_stack,
+                        //             node_map
+                        //         );
+
+                        //     }
+
+                        // }
+
+                        _ => {
+
+                            // DEBUG
+                            if self.lexer_debug {
+                                println!("[LEXER.TRAP_STATE] Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
+                            }
+
+                            // panic!();
+
+                            if rule_map.len() > 0 {
+                                // pass token to the parser
+                                parser.provide_input(
+                                    rule_map,
+                                    step,
+                                    &terminal,
+                                    &self.token_string_buffer,
+                                    debug_node_string_buffer,
+                                    debug_node_stack,
+                                    node_map
+                                );
+                            } else {
+                                println!("[WARN] No rules supplied! Not calling parser!");
+                                *step = *step + 1;
+                            }
+
+                        }
+                    }
+*/

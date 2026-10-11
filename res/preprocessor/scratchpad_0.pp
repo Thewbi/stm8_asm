@@ -1,10 +1,3 @@
-#define ADD(x, y) (x + y)
+#define max(a,b) ((a) >= (b) ? (a) : (b))
 
-int main() {
-
-#if ADD(2, 3) == 5
-    int a = 0;
-#endif
-
-    return 0;
-}
+Macro: max(1,2)

@@ -13,6 +13,7 @@ use std::any::Any;
 use std::collections::{HashMap, HashSet, BTreeSet, BTreeMap};
 use std::hash::Hash;
 use std::os::windows::fs::FileTypeExt;
+use std::panic::AssertUnwindSafe;
 use std::{
     sync::atomic::{AtomicUsize, Ordering}
 };
@@ -37,13 +38,13 @@ use crate::parser::rule::serialize_rules;
 
 mod common;
 use crate::common::variable_naming_source::VariableNamingSource;
-use crate::common::symbol_table::SymbolTable;
+use crate::common::symbol_table::{self, SymbolTable};
 use crate::common::file_handling::write_string_to_file;
 
 mod regex;
 use crate::preprocessor::define_mode::DefineMode;
 use crate::preprocessor::define_symbol::{self, DefineSymbol};
-use crate::preprocessor::preprocessor_operating_mode::PreprocessorOperatingMode::DefineIfcOrDefinition;
+use crate::preprocessor::preprocessor_operating_mode::PreprocessorOperatingMode::{DefineIfcOrDefinition, Normal};
 use crate::regex::infix_postfix_converter::InfixPostfixConverter;
 use crate::regex::regex_building_block::RegexBuildingBlock;
 use crate::regex::arena::{Arena, VisitMode, recurse_arena, recurse_arena_dot};
@@ -76,11 +77,17 @@ use crate::parser::print_rules::print_rules;
 mod lexer;
 use crate::lexer::lexer::{Lexer, Token};
 
-use crate::example_lexers::preprocessor_lexer::{PP_BACKSLASH_TOKEN_ID, PP_IDENTIFIER_TOKEN_ID, PP_SINGLELINE_COMMENT_START_TOKEN_ID, PP_WHITESPACE_TOKEN_ID};
+use crate::example_lexers::preprocessor_lexer::PP_BACKSLASH_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_IDENTIFIER_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_IFDEF_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_IFNDEF_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_SINGLELINE_COMMENT_START_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_WHITESPACE_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_MULTILINE_COMMENT_START_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_MULTILINE_COMMENT_END_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_NEWLINE_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_DEFINE_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_UNDEF_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_IF_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_ELIF_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_ELSE_TOKEN_ID;
@@ -88,6 +95,11 @@ use crate::example_lexers::preprocessor_lexer::PP_ENDIF_TOKEN_ID;
 
 use crate::example_lexers::preprocessor_lexer::PP_OPENING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_CLOSING_BRACKET_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_CLOSED_BRACKET_PAIR_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_PRAGMA_TOKEN_ID;
+
+use crate::example_lexers::preprocessor_lexer::PP_PPF_DEFINED_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_EXCLAMATION_MARK_TOKEN_ID;
 
 mod example_lexers;
 use crate::example_lexers::c_lexer::produce_c_lexer;
@@ -316,7 +328,9 @@ fn main() {
         if debug {
             println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
         }
-        perform_propagation(&rule_ids, &rule_id_to_state_id_map, &rule_channel_map,
+        perform_propagation(&rule_ids,
+            &rule_id_to_state_id_map,
+            &rule_channel_map,
             &mut grammar_state_hashmap);
         if debug {
             println!("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
@@ -462,7 +476,8 @@ fn main() {
         println!("*********************************************************************************");
     }
 
-/**/
+    /**/
+
     //
     // Build the Preprocessor Lexer
     //
@@ -547,7 +562,9 @@ fn main() {
         let lexer_debug: bool = false;
         let lexer_token_debug: bool = false;
         let mut preprocessor_lexer: Lexer = Lexer::new(input_tuple.0.clone(),
-            &preprocessor_dfa, lexer_debug, lexer_token_debug);
+            &preprocessor_dfa,
+            lexer_debug,
+            lexer_token_debug);
 
         let mut preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
 
@@ -570,6 +587,8 @@ fn main() {
         let mut macro_name: String = String::from("UNKNOWN");
 
         let mut pp_if_frame_stack = Vec::<PpIfFrame>::new();
+
+        let mut ifdef_token: Token = Token::new();
 
         let mut lexer_done: bool = false;
         while !lexer_done {
@@ -620,7 +639,9 @@ fn main() {
                 }
 
                 // DEBUG
-                // println!("Current Token: '{}', preprocessor_operating_mode: {}", token, preprocessor_operating_mode);
+                if debug {
+                    println!("Current Token: '{}', preprocessor_operating_mode: {}", token, preprocessor_operating_mode);
+                }
 
                 match preprocessor_operating_mode {
 
@@ -635,13 +656,88 @@ fn main() {
                             // #define PPI - PreProcessor Instructions
                             //
                             PP_DEFINE_TOKEN_ID => {
-                                // #define <interface> <definition>
+                                // #define (<interface>)? <definition>
+                                // if <interface> is present, it needs to be wellformed
 
                                 // reset
                                 definition_string_buffer.clear();
                                 expression_parser.reset();
 
-                                preprocessor_operating_mode = PreprocessorOperatingMode::DefineWaitingForName;
+                                let mut out_enable: bool = true;
+
+                                // the body of an if-PPI is only enabled if it is enabled and
+                                // if all if-PPI below it on the stack are also enabled!
+                                for frame in &pp_if_frame_stack {
+                                    out_enable = frame.output_enabled;
+                                    if !out_enable {
+                                        break;
+                                    }
+                                }
+
+                                if out_enable {
+                                    preprocessor_operating_mode = PreprocessorOperatingMode::DefineWaitingForName;
+                                } else {
+                                    // the if-frame is disabled
+                                    // do not perform the define but consume and ignore all token
+                                    // up to the next newline which returns the state back to
+                                    // normal
+                                    match token.token_id {
+                                        PP_WHITESPACE_TOKEN_ID => {
+                                            preprocessor_operating_mode = Normal;
+                                        }
+                                        _ => {
+                                            // ignore
+                                        }
+                                    }
+                                }
+                            }
+
+                            //
+                            // #undef PPI - PreProcessor Instructions
+                            //
+                            PP_UNDEF_TOKEN_ID => {
+
+                                // reset
+                                definition_string_buffer.clear();
+                                expression_parser.reset();
+
+                                let mut out_enable: bool = true;
+
+                                // the body of an if-PPI is only enabled if it is enabled and
+                                // if all if-PPI below it on the stack are also enabled!
+                                for frame in &pp_if_frame_stack {
+                                    out_enable = frame.output_enabled;
+                                    if !out_enable {
+                                        break;
+                                    }
+                                }
+
+                                if out_enable {
+                                    preprocessor_operating_mode = PreprocessorOperatingMode::Undefine;
+                                } else {
+                                    // the if-frame is disabled
+                                    // do not perform the define but consume and ignore all token
+                                    // up to the next newline which returns the state back to
+                                    // normal
+                                    match token.token_id {
+                                        PP_WHITESPACE_TOKEN_ID => {
+                                            preprocessor_operating_mode = Normal;
+                                        }
+                                        _ => {
+                                            // ignore
+                                        }
+                                    }
+                                }
+                            }
+
+                            //
+                            // DEFINED-checking (#ifdef, #ifndef)
+                            //
+                            PP_IFDEF_TOKEN_ID => {
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Ifdef;
+                            }
+                            PP_IFNDEF_TOKEN_ID => {
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Ifndef;
                             }
 
                             //
@@ -683,17 +779,28 @@ fn main() {
                             PP_SINGLELINE_COMMENT_START_TOKEN_ID => {
                                 // a comment is replaced by a single space character
                                 // TODO output a space into the output token stream
-                                println!(" ");
+
+                                // println!(" ");
+
                                 preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreSingleLineComment;
                             }
                             PP_MULTILINE_COMMENT_START_TOKEN_ID => {
                                 // a comment is replaced by a single space character
                                 // TODO output a space into the output token stream
-                                println!(" ");
+
+                                // println!(" ");
+
                                 preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreMultiLineComment;
                             }
                             PP_MULTILINE_COMMENT_END_TOKEN_ID => {
                                 preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
+
+                            //
+                            // Pragma
+                            //
+                            PP_PRAGMA_TOKEN_ID => {
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Pragma;
                             }
 
                             //
@@ -737,8 +844,171 @@ fn main() {
                                     // TODO check if token is part of the data store and replace it
                                     // output the token to the result
 
+                                    // DEBUG
+                                    // if debug {
+                                        println!("OUT: '{}'", token.text);
+                                    // }
+
+                                    let mut output_text = String::new();
+
+                                    match token.token_id {
+                                        PP_WHITESPACE_TOKEN_ID => {
+                                            output_text = token.text;
+                                        }
+                                        PP_NEWLINE_TOKEN_ID => {
+                                            output_text = token.text;
+                                        }
+                                        _ => {
+                                            let macro_name_token = token.clone();
+                                            output_text = token.text;
+                                            if defined_symbol_map.contains_key(&output_text) {
+
+                                                let temp = defined_symbol_map.get(&output_text).unwrap();
+
+                                                let mut formal_parameter_count = temp.formal_parameter_map.len();
+
+                                                println!("parameter_count: {}", formal_parameter_count);
+
+
+
+
+
+
+                                                let mut define_symbol: DefineSymbol = DefineSymbol::new();
+
+                                                //define_symbol.name = String::from("SQUARE");
+                                                define_symbol.name = output_text.clone();
+                                                // define_symbol.formal_parameter_map = BTreeMap::<usize, String>::new();
+                                                define_symbol.formal_parameter_map.insert(0, String::from("x"));
+                                                define_symbol.definition = String::from("((x) * (x))");
+
+                                                // macro name
+                                                define_symbol.expression_parser.process_token(macro_name_token);
+
+                                                let mut consumed_parameter = 0;
+                                                if formal_parameter_count > 0 {
+                                                    // opening bracket
+                                                    let token_opening_bracket = preprocessor_lexer.next().unwrap();
+                                                    define_symbol.expression_parser.process_token(token_opening_bracket);
+                                                    // all actual parameters
+                                                    //for i in [0..formal_parameter_count] {
+                                                    while formal_parameter_count > 0 {
+
+                                                        if consumed_parameter > 0 {
+                                                            preprocessor_lexer.next();
+                                                        }
+                                                        let token = preprocessor_lexer.next().unwrap();
+                                                        define_symbol.expression_parser.process_token(token);
+
+                                                        consumed_parameter = consumed_parameter + 1;
+
+                                                        formal_parameter_count = formal_parameter_count - 1;
+                                                    }
+                                                    // closing bracket
+                                                    let token_closing_bracket = preprocessor_lexer.next().unwrap();
+                                                    define_symbol.expression_parser.process_token(token_closing_bracket);
+                                                }
+
+                                                // let token = Token::new();
+                                                // pub token_id: usize,
+                                                // pub text: String,
+                                                // pub terminal: RuleElement<String>,
+                                                // pub weight: usize,
+                                                // define_symbol.expression_parser.process_token(token);
+
+                                                // let symbol:&DefineSymbol;
+                                                // {
+                                                //     symbol = defined_symbol_map.get(&output_text).unwrap();
+                                                // }
+                                                // let arena_clone = symbol.expression_parser.arena.clone();
+                                                // let ptr_node_id = symbol.expression_parser.ptr_node_id;
+
+                                                // if symbol.formal_parameter_map.len() == 0 {
+                                                //     output_text = symbol.definition.clone();
+                                                // } else {
+                                                    //panic!("Need to consume actual parameters!");
+
+                                                // TODO start a loop which keeps replacing symbols until
+                                                // there are no more symbols to replace!
+                                                // Edge Case: Brake cycles!
+                                                let mut replaced:bool = true;
+                                                while replaced {
+
+                                                    // DEBUG - BEFORE: output AST before replacement
+                                                    // if debug {
+                                                        define_symbol.expression_parser.print_dot();
+                                                    // }
+
+                                                    replaced = replace_symbols(
+                                                        &mut define_symbol.expression_parser.arena,
+                                                        &define_symbol.expression_parser.ptr_node_id,
+                                                        &mut defined_symbol_map,
+                                                        &lexer_dfa,
+                                                        debug);
+
+                                                    // DEBUG - AFTER: output AST after replacement
+                                                    // if debug {
+                                                        define_symbol.expression_parser.print_dot();
+                                                    // }
+                                                }
+
+                                                // // DEBUG - AFTER: output AST after replacement
+                                                // if debug {
+                                                //     define_symbol.expression_parser.print_dot();
+                                                // }
+
+                                                // expression_parser.print_console();
+
+                                                //fn output_prefix(data: &String) -> String {
+                                                //fn output_prefix(data: &i32) -> String {
+                                                fn output_prefix(data: &Token) -> String {
+                                                    //return data + 20i32;
+                                                    return String::new();
+                                                }
+                                                fn output_infix(data: &Token) -> String {
+                                                    match data.token_id {
+                                                        PP_CLOSED_BRACKET_PAIR_TOKEN_ID => {
+                                                            return String::from("(");
+                                                        }
+                                                        _ => {
+                                                            return String::from(&data.text);
+                                                        }
+                                                    }
+                                                    //return data + 20i32;
+                                                }
+                                                fn output_postfix(data: &Token) -> String {
+                                                    //return data + 20i32;
+                                                    //return String::new();
+                                                    match data.token_id {
+                                                        PP_CLOSED_BRACKET_PAIR_TOKEN_ID => {
+                                                            return String::from(")");
+                                                        }
+                                                        _ => {
+                                                            // return String::from(&data.text);
+                                                            return String::new();
+                                                        }
+                                                    }
+                                                }
+        // output_infix: &dyn Fn(&T) -> T,
+        // output_postfix: &dyn Fn(&T) -> T,
+
+                                                let mut string_buffer: String = String::new();
+                                                define_symbol.expression_parser.arena.recurse_arena(
+                                                    &output_prefix,
+                                                    &output_infix,
+                                                    &output_postfix,
+                                                    &define_symbol.expression_parser.ptr_node_id,
+                                                    &mut string_buffer
+                                                );
+
+                                                //output_text = String::from("hihih");
+                                                output_text = string_buffer;
+                                            }
+                                        }
+                                    }
+
                                     // 3. Write data
-                                    write!(writer, "{} ", token.text);
+                                    write!(writer, "{} ", output_text);
                                 }
                             }
                         }
@@ -871,19 +1141,19 @@ fn main() {
                             PP_WHITESPACE_TOKEN_ID => {
                                 // ignore
                             }
-
                             PP_NEWLINE_TOKEN_ID => {
                                 panic!("[PREPROCESSOR] Malformed #define found!");
                             }
-
                             PP_CLOSING_BRACKET_TOKEN_ID => {
                                 expression_parser.process_token(token);
 
-                                // enter DEFINE_DEFINITION mode (because the parameter list is consumed)
-                                preprocessor_operating_mode = PreprocessorOperatingMode::DefineDefinition;
-
+                                if !expression_parser.is_tree_imbalanced() {
+                                    // nothing
+                                } else {
+                                    // enter DEFINE_DEFINITION mode (because the parameter list is consumed)
+                                    preprocessor_operating_mode = PreprocessorOperatingMode::DefineDefinition;
+                                }
                             }
-
                             _ => {
                                 expression_parser.process_token(token);
                             }
@@ -926,7 +1196,10 @@ fn main() {
                                     // #define EXPR_A (2 + 3)
                                     // here, there is no interface other than the macro's name
                                     // the definition '(2 + 3)' has been falsely been parsed into
-                                    // the interface!
+                                    // the interface! The variable has_definition is true, if
+                                    // there is a definitino. If there is no definition but there
+                                    // is an interace, the interface is moved over to become the
+                                    // definition
 
                                     // first reset the state so that iteration can be performed
                                     // since state is used to remember which nodes in the AST
@@ -955,6 +1228,8 @@ fn main() {
                                     //     }
                                     // }
 
+                                    // convert the data that has been the interface into
+                                    // a string and assign that string to the definition
                                     let mut string_buffer: String = String::new();
 
                                     to_string_1(&expression_parser.arena,
@@ -962,14 +1237,30 @@ fn main() {
                                         &mut string_buffer
                                     );
 
-                                    println!("{}", string_buffer);
+                                    if debug {
+                                        println!("{}", string_buffer);
+                                    }
 
                                     let mut defined_symbol = DefineSymbol::new();
                                     defined_symbol.name = macro_name.clone();
+                                    defined_symbol.formal_parameter_map.clear(); // no interface
                                     defined_symbol.definition = string_buffer;
 
-                                    // insert the symbol into the symbol map
-                                    defined_symbol_map.insert(defined_symbol.name.clone(), defined_symbol);
+                                    let mut out_enable: bool = true;
+
+                                    // the body of an if-PPI is only enabled if it is enabled and
+                                    // if all if-PPI below it on the stack are also enabled!
+                                    for frame in &pp_if_frame_stack {
+                                        out_enable = frame.output_enabled;
+                                        if !out_enable {
+                                            break;
+                                        }
+                                    }
+
+                                    if out_enable {
+                                        // insert the symbol into the symbol map
+                                        defined_symbol_map.insert(defined_symbol.name.clone(), defined_symbol);
+                                    }
 
                                 } else {
 
@@ -1028,14 +1319,28 @@ fn main() {
                                         }
                                     }
 
-                                    // insert the symbol into the symbol map
-                                    defined_symbol_map.insert(defined_symbol.name.clone(), defined_symbol);
+                                    let mut out_enable: bool = true;
+
+                                    // the body of an if-PPI is only enabled if it is enabled and
+                                    // if all if-PPI below it on the stack are also enabled!
+                                    for frame in &pp_if_frame_stack {
+                                        out_enable = frame.output_enabled;
+                                        if !out_enable {
+                                            break;
+                                        }
+                                    }
+
+                                    if out_enable {
+                                        // insert the symbol into the symbol map
+                                        defined_symbol_map.insert(defined_symbol.name.clone(), defined_symbol);
+                                    }
                                 }
 
                                 // back to NORMAL mode because the #define has been consumed
                                 preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
 
                                 // reset
+                                expression_parser.reset();
                                 definition_string_buffer.clear();
                                 macro_name = String::from("");
                                 has_definition = false;
@@ -1052,98 +1357,29 @@ fn main() {
                                     definition_string_buffer.push_str(" ");
                                 }
                                 definition_string_buffer.push_str(token_text.as_str());
+                            }
+                        }
+                    }
 
-                            //     // DEBUG
-                            //     // println!("{}", token);
+                    PreprocessorOperatingMode::Undefine => {
 
-                            //     // perform lookahead:
-                            //     //
-                            //     // If the next token is an opening brace, parse the entire
-                            //     // parameter list. Otherwise, the interface consists of
-                            //     // a symbol name only
-                            //     // if define_mode == DefineMode::INTERFACE {
-                            //     match define_mode {
+                        // DEBUG
+                        if debug {
+                            println!("{}", token.text);
+                        }
 
-                            //         DefineMode::INTERFACE => {
+                        match token.token_id {
 
-                            //             // in interface mode, the expression_parser inserts
-                            //             // the token into the AST so that in the end, a
-                            //             // interface AST is created and the parameters and the
-                            //             // macro name can be extracted from that AST
-                            //             expression_parser.process_token(token);
+                            PP_NEWLINE_TOKEN_ID => {
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
+                            PP_WHITESPACE_TOKEN_ID => {
 
-                            //             // perform lookahead and store lookahead in buffered token
-                            //             buffered_token_option = preprocessor_lexer.next();
-                            //             if let Some(ref buffered_token) = buffered_token_option {
-
-                            //                 match buffered_token.token_id {
-
-                            //                     PP_OPENING_BRACKET_TOKEN_ID => {
-                            //                         // now the preprocessor knows that the define specification
-                            //                         // consists of an additional parameter list
-
-                            //                         // DEBUG
-                            //                         //if lexer_debug {
-                            //                             println!("INTERFACE STARTS WITH PARAMETERS");
-                            //                         //}
-
-                            //                         define_has_parameters = true;
-                            //                     }
-
-                            //                     PP_CLOSING_BRACKET_TOKEN_ID => {
-                            //                         // now the preprocessor knows that the define specification
-                            //                         // has a parameter list
-
-                            //                         // DEBUG
-                            //                         //if lexer_debug {
-                            //                             println!("INTERFACE OVER WITH PARAMETERS");
-                            //                         //}
-
-                            //                         // define_has_parameters = true;
-
-                            //                         // #define <interface> <definition>
-                            //                         // leave interface phase, enter definition phase
-                            //                         old_define_mode = define_mode;
-                            //                         define_mode = DefineMode::DEFINITION;
-                            //                     }
-
-                            //                     _ => {
-                            //                         // no opening bracket found. The define interface is over
-                            //                         // and the define defintion starts
-
-                            //                         //define_mode = DefineMode::DEFINITION;
-
-                            //                         // DEBUG
-                            //                         //if lexer_debug {
-                            //                             println!("INTERFACE OVER WITHOUT PARAMETERS");
-                            //                         //}
-
-                            //                         define_has_parameters = false;
-
-                            //                         // #define <interface> <definition>
-                            //                         // leave interface phase, enter definition phase
-                            //                         old_define_mode = define_mode;
-                            //                         define_mode = DefineMode::DEFINITION;
-                            //                     }
-                            //                 }
-                            //             }
-                            //         }
-
-                            //         _ => {
-                            //             // check if the algorithm just left INTERFACE mode
-                            //             if define_has_parameters && old_define_mode == DefineMode::INTERFACE && define_mode == DefineMode::DEFINITION {
-                            //                 // do not ad the closing bracket into the definition which terminates the interface
-                            //                 // into the definition. Only add it into the interface AST
-                            //                 expression_parser.process_token(token);
-                            //             } else {
-                            //                 definition_string_buffer.push_str(token_text.as_str());
-                            //                 definition_string_buffer.push_str(" ");
-                            //             }
-
-                            //             old_define_mode = define_mode;
-                            //         }
-                            //     }
-
+                            }
+                            _ => {
+                                if defined_symbol_map.contains_key(&token.text) {
+                                    defined_symbol_map.remove(&token.text);
+                                }
                             }
                         }
                     }
@@ -1155,13 +1391,30 @@ fn main() {
                             PP_WHITESPACE_TOKEN_ID => {
                                 // ignore
                             }
+                            PP_EXCLAMATION_MARK_TOKEN_ID => {
+                                // DEBUG - BEFORE
+                                if debug {
+                                    expression_parser.print_dot();
+                                }
+
+                                expression_parser.process_token(token);
+
+                                // DEBUG - AFTER
+                                if debug {
+                                    expression_parser.print_dot();
+                                }
+                            }
+                            PP_PPF_DEFINED_TOKEN_ID => {
+                                expression_parser.process_token(token);
+                            }
                             PP_NEWLINE_TOKEN_ID => {
 
                                 let mut if_statement_already_enabled: bool = false;
 
                                 if preprocessor_operating_mode == PreprocessorOperatingMode::Elif {
 
-                                    // remove the if stack frame which had been pushed by a preceding #if or #elif
+                                    // remove the if stack frame which had been pushed by a
+                                    // preceding #if or #elif
                                     let frame = pp_if_frame_stack.pop().unwrap();
                                     if frame.if_statement_already_enabled {
 
@@ -1173,12 +1426,21 @@ fn main() {
                                     }
                                 }
 
-                                // expression_parser.print_console();
-                                println!("RootNode: {}", expression_parser.ptr_node_id.index);
+                                // DEBUG - before
+                                if debug {
+                                    expression_parser.print_dot();
+                                    // expression_parser.print_console();
+                                }
+
+                                // DEBUG
+                                if debug {
+                                    println!("RootNode: {}", expression_parser.ptr_node_id.index);
+                                }
 
                                 if if_statement_already_enabled {
 
-                                    // add a new if frame!
+                                    // add a new if frame which is disabled since the entire
+                                    // if-statement is already covered
                                     let mut frame: PpIfFrame = PpIfFrame::new();
                                     frame.output_enabled = false;
                                     frame.if_statement_already_enabled = true;
@@ -1193,25 +1455,37 @@ fn main() {
                                     while replaced {
 
                                         // DEBUG - BEFORE: output AST before replacement
-                                        expression_parser.print_dot();
+                                        if debug {
+                                            expression_parser.print_dot();
+                                        }
 
                                         replaced = replace_symbols(&mut expression_parser.arena,
                                             &expression_parser.ptr_node_id,
                                             &mut defined_symbol_map,
-                                            &lexer_dfa);
+                                            &lexer_dfa,
+                                            debug);
 
                                         // DEBUG - AFTER: output AST after replacement
-                                        expression_parser.print_dot();
+                                        if debug {
+                                            expression_parser.print_dot();
+                                        }
+                                    }
 
-                                        println!("test");
+                                    // DEBUG - AFTER: output AST after replacement
+                                    if debug {
+                                        expression_parser.print_dot();
                                     }
 
                                     // evaluate the expression
                                     let eval_value = evaluate_expression(&expression_parser.arena,
                                         &expression_parser.ptr_node_id,
-                                        &defined_symbol_map);
+                                        &defined_symbol_map,
+                                        debug);
 
-                                    println!("eval_value: {}", eval_value);
+                                    // DEBUG
+                                    if debug {
+                                        println!("eval_value: {}", eval_value);
+                                    }
 
                                     // add a new if frame!
                                     let mut frame: PpIfFrame = PpIfFrame::new();
@@ -1253,6 +1527,94 @@ fn main() {
                     PreprocessorOperatingMode::Endif => {
                         // remove the if stack frame which had been pushed by a preceding #if or #elif
                         pp_if_frame_stack.pop();
+                    }
+
+                    PreprocessorOperatingMode::Pragma => {
+
+                        match token.token_id {
+
+                            PP_WHITESPACE_TOKEN_ID => {
+                                // ignore
+                            }
+                            PP_NEWLINE_TOKEN_ID => {
+                                // back to NORMAL mode because the #if has been consumed
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
+                            _ => {
+                                // ignoring pragmas for now
+                            }
+                        }
+
+                    }
+
+                    PreprocessorOperatingMode::Ifdef => {
+                        match token.token_id {
+                            PP_WHITESPACE_TOKEN_ID => {
+                                // ignore
+                            }
+                            PP_NEWLINE_TOKEN_ID => {
+
+                                let mut eval_value = 0;
+
+                                // check if the symbol is defined
+                                if defined_symbol_map.contains_key(&ifdef_token.text) {
+                                    eval_value = 1;
+                                }
+
+                                // add a new if frame!
+                                let mut frame: PpIfFrame = PpIfFrame::new();
+                                frame.output_enabled = false;
+                                frame.if_statement_already_enabled = false;
+                                if eval_value == 1 {
+                                    frame.output_enabled = true;
+                                    frame.if_statement_already_enabled = true;
+                                }
+                                pp_if_frame_stack.push(frame);
+
+                                // back to NORMAL mode because the #if has been consumed
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
+                            _ => {
+                                //expression_parser.process_token(token);
+                                ifdef_token = token;
+                            }
+                        }
+                    }
+
+                    PreprocessorOperatingMode::Ifndef => {
+                        match token.token_id {
+                            PP_WHITESPACE_TOKEN_ID => {
+                                // ignore
+                            }
+                            PP_NEWLINE_TOKEN_ID => {
+
+                                let mut eval_value = 0;
+
+                                // check if the symbol is NOT defined
+                                if defined_symbol_map.contains_key(&ifdef_token.text) {
+                                    eval_value = 0;
+                                } else {
+                                    eval_value = 1;
+                                }
+
+                                // add a new if frame!
+                                let mut frame: PpIfFrame = PpIfFrame::new();
+                                frame.output_enabled = false;
+                                frame.if_statement_already_enabled = false;
+                                if eval_value == 1 {
+                                    frame.output_enabled = true;
+                                    frame.if_statement_already_enabled = true;
+                                }
+                                pp_if_frame_stack.push(frame);
+
+                                // back to NORMAL mode because the #if has been consumed
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
+                            _ => {
+                                //expression_parser.process_token(token);
+                                ifdef_token = token;
+                            }
+                        }
                     }
                 }
 
@@ -1349,7 +1711,7 @@ fn main() {
     let mut parser: Parser<String> = Parser::<String>::new(parse_table);
 
     let lexer_debug: bool = false;
-    let lexer_token_debug: bool = true;
+    let lexer_token_debug: bool = false;
     let mut lexer: Lexer = Lexer::new(file_content, &lexer_dfa, lexer_debug, lexer_token_debug);
 
     let mut step: usize = 1;
@@ -1455,17 +1817,14 @@ fn main() {
         program_ast_node.node_type = AstNodeType::Program;
 
         // insert all nodes into program node
-        // if let Some(parser_unrwapped) = parser {
+        let mut done = false;
+        while !done {
 
-            let mut done = false;
-            while !done {
+            let body_ast_node_id = &parser.ast_stack.pop().unwrap();
+            program_ast_node.block_items.push(body_ast_node_id.clone());
 
-                let body_ast_node_id = &parser.ast_stack.pop().unwrap();
-                program_ast_node.block_items.push(body_ast_node_id.clone());
-
-                done = parser.ast_stack.len() == 0;
-            }
-        // }
+            done = parser.ast_stack.len() == 0;
+        }
 
         // place the root-program node onto the stack
         parser.ast_stack.push(program_ast_node_id);
@@ -1849,21 +2208,29 @@ pub fn to_string_1(
     }
 }
 
+/// Replaces macro names by their macro definition resolving formal
+/// parameters by actual parameters.
+///
+/// NOTE: One exception is implemented: Macro names inside the
+/// PPF defined are not replaced by the definition. The reason
+/// is that during evaluation, the PPF defined needs to check if
+/// the Macro is defined or not.
 pub fn replace_symbols(
+    // the arena contains the macro name and it contains the actual parameters!
+    // This means for a macro #define SQUARE(x) it has to contain the actual
+    // parameter passed into x. If SQUARE(4) is called, the arena needs to contain
+    // an AST which represents () - 4
     arena: &mut Arena<Token>,
     node_id: &NodeId,
     defined_symbol_map: &mut HashMap::<String, DefineSymbol>,
-    preprocessor_dfa: &EpsilonNfa<State, RegexBuildingBlock>)
+    preprocessor_dfa: &EpsilonNfa<State, RegexBuildingBlock>,
+    debug: bool)
     -> bool
 {
-    println!("replace!");
-
-    // output node
-    // println!("{:?}", parent_node.data);
-    // string_buffer.push_str(format!("{} [label=\"{} {}\"]\n",
-    //     node_id.index,
-    //     node_id.index,
-    //     &parent_node.data).as_str());
+    // DEBUG
+    if debug {
+        println!("replace!");
+    }
 
     let mut has_left_child:bool = false;
     let mut has_right_child:bool = false;
@@ -1876,48 +2243,74 @@ pub fn replace_symbols(
 
     let node: &Node<Token> = &arena.nodes[node_id.index].clone();
 
+    // retrieve the token which is stored inside the current node
+    let token: &Token = &node.data;
+
+    // #defined can only be evaluated if we leave the contained macro
+    // as it is without replacing it. Therefore abort here
+    // for the #defined PPF
+    match &token.terminal {
+
+        Terminal(val) => {
+
+            // DEBUG
+            // println!("val: {}", val);
+
+            // #defined can only be evaluated if we leave the macro
+            // as it is without replacing it. Therefore abort here
+            // for the #defined PPF
+            if *val == String::from("PPF_DEFINED") {
+                return false;
+            }
+        }
+        _ => {
+
+        }
+    }
+
     // LHS - replace symbols inside left child
     if let Some(left_id) = &node.left {
         has_left_child = true;
-        left_result = replace_symbols(arena, left_id, defined_symbol_map, preprocessor_dfa);
+        left_result = replace_symbols(arena, left_id, defined_symbol_map, preprocessor_dfa, debug);
         left_child_id = left_id.index;
     }
 
     // RHS - replace symbols inside right child
     if let Some(right_id) = &node.right {
         has_right_child = true;
-        right_result = replace_symbols(arena, right_id, defined_symbol_map, preprocessor_dfa);
+        right_result = replace_symbols(arena, right_id, defined_symbol_map, preprocessor_dfa, debug);
         right_child_id = right_id.index;
     }
 
     // retrieve the token which is stored inside the current node
-    let token:&Token = &node.data;
+    let token: &Token = &node.data;
 
     // DEBUG
-    println!("token: {:?}", token);
+    if debug {
+        println!("token: {:?}", token);
+    }
 
     match &token.terminal {
 
         Terminal(val) => {
 
             // DEBUG
-            println!("val: {}", val);
+            if debug {
+                println!("val: {}", val);
+            }
 
             if *val == String::from("IDENTIFIER") {
 
                 // DEBUG
-                println!("token.text: {}", token.text);
+                if debug {
+                    println!("token.text: {}", token.text);
+                }
 
                 // check if this string of text is a macro name
                 if defined_symbol_map.contains_key(&token.text) {
 
                     let defined_symbol_option = defined_symbol_map.get_mut(&token.text);
                     if let Some(define_symbol) = defined_symbol_option {
-
-                        // let define_symbol: &mut DefineSymbol =
-                        // let definition = define_symbol.definition.clone().trim();
-                        // // DEBUG
-                        // println!("definition: '{}'", definition);
 
                         //
                         // PHASE 0
@@ -1926,7 +2319,7 @@ pub fn replace_symbols(
                         //
 
                         // parse the definition into an AST, or reuse an AST optimally
-                        parse_definition_into_AST(define_symbol, preprocessor_dfa);
+                        parse_definition_into_AST(define_symbol, preprocessor_dfa, debug);
 
                         // pub struct DefineSymbol {
                         //     pub name: String,
@@ -1945,8 +2338,6 @@ pub fn replace_symbols(
                         // and then iterating the RHS subtree which contains the list of actual
                         // parameters
 
-                        /**/
-
                         //
                         // PHASE 1
                         //
@@ -1955,7 +2346,11 @@ pub fn replace_symbols(
                         //
 
                         let formal_parameter_count = define_symbol.formal_parameter_map.len();
-                        println!("Expecting {} parameters.", formal_parameter_count);
+
+                        // DEBUG
+                        if debug {
+                            println!("Expecting {} parameters.", formal_parameter_count);
+                        }
 
                         let mut replace_map = HashMap::<String, String>::new();
 
@@ -1973,29 +2368,29 @@ pub fn replace_symbols(
 
                             // retrieve parent
                             let parent_node: &Node<Token> = &arena_clone.nodes[node.parent.unwrap().index];
-                            //let end_token = parent_node.data.clone();
 
                             // descend into right child of parent
                             let right_node_id = parent_node.right.unwrap();
-                            println!("{:?}", &right_node_id);
+
+                            // DEBUG
+                            if debug {
+                                println!("{:?}", &right_node_id);
+                            }
+
                             let right_node: &Node<Token> = &arena_clone.nodes[right_node_id.index];
-                            println!("{:?}", &right_node);
-                            // let end_token = right_node.data.clone();
+
+                            // DEBUG
+                            if debug {
+                                println!("{:?}", &right_node);
+                            }
 
                             // set the start node id from where the iteration in the AST should start
-                            //define_symbol.expression_parser.arena.iterator_current_node_id = right_node_id.index;
                             arena_clone.iterator_current_node_id = right_node_id.index;
 
                             // first reset the state so that iteration can be performed
                             // since state is used to remember which nodes in the AST
                             // have been iterated over already
-                            //define_symbol.expression_parser.arena.set_visit_mode_for_all_nodes(right_node_id.index, VisitMode::VisitLeft);
                             arena_clone.set_visit_mode_for_all_nodes(right_node_id.index, VisitMode::VisitLeft);
-
-                            // // iterate
-                            // for token in arena.nodes.iter_mut() {
-                            //     println!("{}", token.data.text);
-                            // }
 
                             // DEBUG
                             //println!("{}", define_symbol.name);
@@ -2016,7 +2411,9 @@ pub fn replace_symbols(
                                 }
 
                                 // DEBUG
-                                println!("{}", token.data.text);
+                                if debug {
+                                    println!("{}", token.data.text);
+                                }
 
                                 if token.data.text != "," {
 
@@ -2042,10 +2439,6 @@ pub fn replace_symbols(
                             // replace formal parameters by actual parameters
                             //
 
-                            //let mut replace_map = HashMap::<String, String>::new();
-                            // replace_map.insert(String::from("x"), String::from("2"));
-                            // replace_map.insert(String::from("y"), String::from("3"));
-
                             let mut arena_replace_clone = define_symbol.expression_parser.arena.clone();
 
                             let mut root_index = 0;
@@ -2058,12 +2451,16 @@ pub fn replace_symbols(
                             }
 
                             // DEBUG - before
-                            print_arena_dot(&arena_replace_clone);
+                            if debug {
+                                print_arena_dot(&arena_replace_clone);
+                            }
 
                             replace_parameters(&mut arena_replace_clone, root_index, &replace_map);
 
                             // DEBUG - after
-                            print_arena_dot(&arena_replace_clone);
+                            if debug {
+                                print_arena_dot(&arena_replace_clone);
+                            }
 
                             //
                             // PHASE 3
@@ -2072,12 +2469,12 @@ pub fn replace_symbols(
                             // represents it's definition
                             //
 
-                            //let root_node: &Node<Token> = &define_symbol.expression_parser.arena.nodes[define_symbol.expression_parser.ptr_node_id.index];
                             let root_node: &Node<Token> = &arena_replace_clone.nodes[define_symbol.expression_parser.ptr_node_id.index];
 
-                            println!("Replacing node by AST ...");
-
-                            //let node: &Node<Token> = &arena.nodes[node_id.index].clone();
+                            // DEBUG
+                            if debug {
+                                println!("Replacing node by AST ...");
+                            }
 
                             // retrieve parent
                             let parent_node_id = node.parent.unwrap();
@@ -2088,9 +2485,7 @@ pub fn replace_symbols(
 
                             // copy LHS subtree and RHS subtree from src to dst
                             copy_tree(arena,
-                                //node_id,
                                 &parent_node_id,
-                                // &define_symbol.expression_parser.arena,
                                 &arena_replace_clone,
                                 &define_symbol.expression_parser.ptr_node_id);
 
@@ -2106,15 +2501,11 @@ pub fn replace_symbols(
                             //
 
                             let root_node: &Node<Token> = &define_symbol.expression_parser.arena.nodes[define_symbol.expression_parser.ptr_node_id.index];
-                            //let root_node: &Node<Token> = &arena_replace_clone.nodes[define_symbol.expression_parser.ptr_node_id.index];
 
-                            println!("Replacing node by AST ...");
-
-                            //let node: &Node<Token> = &arena.nodes[node_id.index].clone();
-
-                            // retrieve parent
-                            let parent_node_id = node.parent.unwrap();
-                            let parent_node: &Node<Token> = &arena.nodes[parent_node_id.index];
+                            // DEBUG
+                            if debug {
+                                println!("Replacing node by AST ...");
+                            }
 
                             // make the dst parent node the same as the source parent node
                             arena.change_payload(node_id, root_node.data.clone());
@@ -2122,9 +2513,7 @@ pub fn replace_symbols(
                             // copy LHS subtree and RHS subtree from src to dst
                             copy_tree(arena,
                                 node_id,
-                                //&parent_node_id,
                                 &define_symbol.expression_parser.arena,
-                                //&arena_replace_clone,
                                 &define_symbol.expression_parser.ptr_node_id);
 
                             // a symbol has been replaced.
@@ -2133,28 +2522,16 @@ pub fn replace_symbols(
                             return true;
                         }
                     }
-
-                    // example: - sample_2.pp
-                    //
-                    // #define ADD(x, y) (x + y)
-                    // #define EXPR_A (ADD(7, 8) + 2 + 3)
-                    // #define EXPR_B (EXPR_A * 4)
-                    //
-                    // #if EXPR_B == 80
-                    //     // This code WILL be included
-                    // #endif
                 }
                 return false;
 
             } else if *val == String::from("PPF_DEFINED") {
 
-                println!("token.text: {}", token.text);
-                // let right_node: &Node<Token> = &arena.nodes[right_child_id];
-                // if defined_symbol_map.contains_key(&right_node.data.text) {
-                //     return 1;
-                // } else {
-                //     return 0;
-                // }
+                // DEBUG
+                if debug {
+                    println!("token.text: {}", token.text);
+                }
+
                 return false;
             }
         }
@@ -2171,14 +2548,6 @@ pub fn replace_parameters(arena: &mut Arena<Token>,
     root_index: usize,
     replace_map: &HashMap::<String, String>)
 {
-    // // problem: iterator return copies of the nodes!
-    // for mut token in arena {
-    //     println!("{:?}", &token);
-    //     if token.data.text == "x" {
-    //         token.data.text = String::from("10");
-    //     }
-    // }
-
     // retrieve the current node
     let root_node: &mut Node<Token> = &mut arena.nodes[root_index].clone();
 
@@ -2189,11 +2558,8 @@ pub fn replace_parameters(arena: &mut Arena<Token>,
         replace_parameters(arena, right_node_id.index, replace_map);
     }
 
-    //if root_node.data.text == "x" {
     if replace_map.contains_key(&root_node.data.text) {
-        // root_node.data.text = String::from("123");
         let value = replace_map.get(&root_node.data.text).unwrap();
-        //arena.nodes[root_index].data.text = String::from("123");
         arena.nodes[root_index].data.text = value.clone();
     }
 }
@@ -2216,7 +2582,6 @@ pub fn copy_tree(
     if let Some(left_node_id) = src_node.left {
         let left_node: &Node<Token> = &src_arena.nodes[left_node_id.index];
         let dst_left_node_id = dst_arena.add_left(dst_node_id, left_node.data.clone());
-
         copy_tree(dst_arena, &dst_left_node_id, src_arena, &left_node_id);
     } else {
         dst_arena.remove_left(dst_node_id);
@@ -2226,7 +2591,6 @@ pub fn copy_tree(
     if let Some(right_node_id) = src_node.right {
         let right_node: &Node<Token> = &src_arena.nodes[right_node_id.index];
         let dst_right_node_id = dst_arena.add_right(dst_node_id, right_node.data.clone());
-
         copy_tree(dst_arena, &dst_right_node_id, src_arena, &right_node_id);
     } else {
         dst_arena.remove_right(dst_node_id);
@@ -2236,67 +2600,73 @@ pub fn copy_tree(
 pub fn evaluate_expression(
     arena: &Arena<Token>,
     node_id: &NodeId,
-    defined_symbol_map: &HashMap::<String, DefineSymbol>)
+    defined_symbol_map: &HashMap::<String, DefineSymbol>,
+    debug: bool)
     -> i32
 {
     let node: &Node<Token> = &arena.nodes[node_id.index];
 
-    // output node
-    // println!("{:?}", parent_node.data);
-    // string_buffer.push_str(format!("{} [label=\"{} {}\"]\n",
-    //     node_id.index,
-    //     node_id.index,
-    //     &parent_node.data).as_str());
+    let token: &Token = &node.data;
 
-    let mut has_left_child:bool = false;
-    let mut has_right_child:bool = false;
+    // DEBUG
+    if debug {
+        println!("token: {:?}", token);
+    }
 
-    let mut left_result:i32 = 0;
-    let mut right_result:i32 = 0;
+    let mut has_left_child: bool = false;
+    let mut has_right_child: bool = false;
 
-    let mut left_child_id:usize = 0;
-    let mut right_child_id:usize = 0;
+    let mut left_result: i32 = 0;
+    let mut right_result: i32 = 0;
+
+    let mut left_child_id: usize = 0;
+    let mut right_child_id: usize = 0;
 
     // LHS - output left child
     if let Some(left_id) = &node.left {
         has_left_child = true;
-        left_result = evaluate_expression(arena, left_id, defined_symbol_map);
+        left_result = evaluate_expression(arena, left_id, defined_symbol_map, debug);
         left_child_id = left_id.index;
     }
 
     // RHS - output right child
     if let Some(right_id) = &node.right {
         has_right_child = true;
-        right_result = evaluate_expression(arena, right_id, defined_symbol_map);
+        right_result = evaluate_expression(arena, right_id, defined_symbol_map, debug);
         right_child_id = right_id.index;
     }
 
-    println!("left_result: {:?}", left_result);
-    println!("right_result: {:?}", right_result);
-
-    let token:&Token = &node.data;
-
     // DEBUG
-    println!("token: {:?}", token);
+    if debug {
+        println!("left_result: {:?}", left_result);
+        println!("right_result: {:?}", right_result);
+    }
 
     match &token.terminal {
 
         Terminal(val) => {
 
             // DEBUG
-            println!("val: {}", val);
+            if debug {
+                println!("val: {}", val);
+            }
 
             if *val == String::from("IDENTIFIER") {
 
-                println!("token.text: {}", token.text);
+                // DEBUG
+                if debug {
+                    println!("token.text: {}", token.text);
+                }
 
                 // if the symbol is contained in the symbol_map return the value
                 if defined_symbol_map.contains_key(&token.text) {
-                    let defineSymbol:&DefineSymbol = defined_symbol_map.get(&token.text).unwrap();
+                    let defineSymbol: &DefineSymbol = defined_symbol_map.get(&token.text).unwrap();
                     let definition = defineSymbol.definition.trim();
 
                     // DEBUG
-                    println!("definition: '{}'", definition);
+                    if debug {
+                        println!("definition: '{}'", definition);
+                    }
 
                     match definition.parse::<i32>() {
                         Result::Ok(numeric_value) => {
@@ -2326,14 +2696,46 @@ pub fn evaluate_expression(
             } else if *val == String::from("PPF_DEFINED") {
 
                 // DEBUG
-                println!("token.text: {}", token.text);
+                if debug {
+                    println!("token.text: {}", token.text);
+                }
 
                 let right_node: &Node<Token> = &arena.nodes[right_child_id];
-                if defined_symbol_map.contains_key(&right_node.data.text) {
+
+                // DEBUG
+                if debug {
+                    println!("right_node.data.text: {}", right_node.data.text);
+                }
+
+                // brackets are optional:
+                // #if defined MACRO_1
+                // #if defined(MACRO_1)
+                //
+                // jump over brackets and directly access the macro identifier
+
+                let mut macro_identifier: String = String::new();
+
+                if right_node.data.text == "()" {
+                    let right_sub_node: &Node<Token> = &arena.nodes[right_node.right.unwrap().index];
+                    macro_identifier = right_sub_node.data.text.clone();
+                } else {
+                    macro_identifier = right_node.data.text.clone();
+                }
+
+                if defined_symbol_map.contains_key(&macro_identifier) {
                     return 1;
                 } else {
                     return 0;
                 }
+
+            } else if *val == String::from("EXCLAMATION_MARK") {
+
+                // zero means false and is inverted to true
+                if right_result == 0 {
+                    return 1;
+                };
+                // any non-zero value means true and is inverted to false
+                return 0;
 
             } else if *val == String::from("NUMERIC") {
 
@@ -2381,8 +2783,15 @@ pub fn evaluate_expression(
 /// in a #if, #elif PPI in which case it has to be well-formed
 /// because it needs to be evaluated. Only well-formed
 /// definitions can be evaluated
-fn parse_definition_into_AST(define_symbol: &mut DefineSymbol,
-    preprocessor_dfa: &EpsilonNfa<State, RegexBuildingBlock>) {
+fn parse_definition_into_AST(
+
+    // has to be mutable, because this function will parse the definition into an AST
+    // and that AST is stored inside the expression parser which therefore will be
+    // mutated which means the Define Symbol will be mutated
+    define_symbol: &mut DefineSymbol,
+
+    preprocessor_dfa: &EpsilonNfa<State, RegexBuildingBlock>,
+    debug: bool) {
 
     // the expression parser stores the AST in it's internal arena.
     // If the arena is empty, the macro defintion has not been
@@ -2390,10 +2799,12 @@ fn parse_definition_into_AST(define_symbol: &mut DefineSymbol,
     if define_symbol.expression_parser.arena.is_empty() {
 
         // DEBUG
-        // println!("macro definition:'{}'", define_symbol.definition);
+        if debug {
+            println!("macro definition:'{}'", define_symbol.definition);
+        }
 
         let lexer_debug: bool = false;
-        let lexer_token_debug: bool = true;
+        let lexer_token_debug: bool = debug;
 
         let internal_lexer: Lexer = Lexer::new(
             define_symbol.definition.clone(),
@@ -2435,159 +2846,48 @@ pub fn print_arena_dot(arena: &Arena<Token>) {
 }
 
 
-/*
-                        let mut ast_string_buffer = String::from("");
 
-                        let root = NodeId { index: arena.iterator_current_node_id, };
+// example: - sample_2.pp
+                    //
+                    // #define ADD(x, y) (x + y)
+                    // #define EXPR_A (ADD(7, 8) + 2 + 3)
+                    // #define EXPR_B (EXPR_A * 4)
+                    //
+                    // #if EXPR_B == 80
+                    //     // This code WILL be included
+                    // #endif
 
-                        // serialize the AST into .dot graphviz format
-                        ast_string_buffer.push_str("digraph {\n");
-                        recurse_arena_dot(&arena, &root, &mut ast_string_buffer);
-                        ast_string_buffer.push_str("}");
 
-                        // 1. Create or overwrite the file
-                        let file = File::create("preprocessor_tree.dot").expect("Create file failed!");
+                    // output node
+    // println!("{:?}", parent_node.data);
+    // string_buffer.push_str(format!("{} [label=\"{} {}\"]\n",
+    //     node_id.index,
+    //     node_id.index,
+    //     &parent_node.data).as_str());
 
-                        // 2. Wrap the file in a BufWriter
-                        let mut writer = BufWriter::new(file);
 
-                        // 3. Write data
-                        write!(writer, "{}", ast_string_buffer);
-
-                        // 4. Explicitly flush the remaining data to disk
-                        writer.flush().expect("flush failed!");
-                        */
-
+                        // let define_symbol: &mut DefineSymbol =
+                        // let definition = define_symbol.definition.clone().trim();
                         // // DEBUG
-                        // define_symbol.expression_parser.print_dot();
-                        // define_symbol.expression_parser.print_console();
+                        // println!("definition: '{}'", definition);
 
-                        // let mut ast_string_buffer = String::from("");
-                        // // serialize the AST into .dot graphviz format
-                        // ast_string_buffer.push_str("digraph {\n");
-                        // if let Some(body_ast_node) = arena.nodes.get(node_id.index) {
-                        //     body_ast_node.pretty_print_ast_dot(&mut ast_string_buffer, &node_map);
-                        // }
-                        // ast_string_buffer.push_str("}");
+                        // // defined can only be evaluated if we leave the macro
+            // // as it is without replacing it. Therefore abort here
+            // // for the defined PPF
+            // if *val == String::from("PPF_DEFINED") {
+            //     return false;
+            // }
 
+            // let right_node: &Node<Token> = &arena.nodes[right_child_id];
+                // if defined_symbol_map.contains_key(&right_node.data.text) {
+                //     return 1;
+                // } else {
+                //     return 0;
+                // }
 
-
-                        /*
-    let lexer_debug: bool = false;
-    let lexer_token_debug: bool = true;
-    let mut preprocessor_lexer: Lexer = Lexer::new(input_tuple.0.clone(),
-        preprocessor_dfa, lexer_debug, lexer_token_debug);
-
-    let mut step: usize = 1;
-
-    let mut parser: Parser<String> = Parser::<String>::new(parse_table.clone());
-    // TODO: improve the parser/lexer API. Currently the lexer always needs a parser to function
-    parser.disabled = true; // do not take real parser action
-
-    let mut debug_node_string_buffer = String::from("");
-    let mut debug_node_stack = Vec::<DebugNode>::new();
-
-    let mut line_number: usize = 1;
-
-    let mut node_map = Box::new(HashMap::<usize, AstNode>::new());
-
-    let mut character_iterator = input_tuple.0.chars();
-    let mut lexer_done: bool = false;
-    while !lexer_done {
-
-        let character_option = character_iterator.next();
-        if let Some(character) = character_option {
-
-            println!("{}", character);
-
-            preprocessor_lexer.consume_character(
-                character,
-                &mut step,
-                &mut parser,
-                &rule_map,
-                &mut debug_node_string_buffer,
-                &mut debug_node_stack,
-                &input_tuple.1,
-                line_number,
-                &mut node_map
-            );
-
-            if character == '\n' {
-                line_number = line_number + 1;
-            }
-        } else {
-            lexer_done = true;
-        }
-    }
-*/
-
-/*
-    // input_tuple.0 is the input data that results from loading a text file (.c / .h)
-    for character in input_tuple.0.chars() {
-
-        // DEBUG
-        if debug {
-            println!("CHAR: {}", character);
-        }
-
-        preprocessor_lexer.consume_character(
-            character,
-            &mut step,
-            &mut parser,
-            &rule_map,
-            &mut debug_node_string_buffer,
-            &mut debug_node_stack,
-            &input_tuple.1,
-            line_number,
-            &mut node_map
-        );
-
-        if character == '\n' {
-            line_number = line_number + 1;
-        }
-    }
-
-    // Consume a last EOF character to flush out the last token
-    preprocessor_lexer.consume_character(
-        '\n', // dummy character
-        &mut step,
-        &mut parser,
-        &rule_map,
-        &mut debug_node_string_buffer,
-        &mut debug_node_stack,
-        &input_tuple.1,
-        line_number,
-        &mut node_map
-    );
- */
-
- // // DEBUG
-    // let lexer_debug: bool = false;
-    // if lexer_debug {
-    //     println!("[LEXER] Emitting '{}'. Token-Id: {}, Token-Name: {}", token_string_buffer, dfa.states[&current_state_id].token_id, dfa.states[&current_state_id].token_name);
-    //     println!("");
-    // }
-
-
-
-    // // DEBUG - this outputs the string and the token generated from the string
-    // // This is a good starting point for debugging
-    // if lexer_token_debug {
-    //     println!("[LEXER.TRAP_STATE] {:?} ---> {:?} | File: {:?}, Line: {:?}",
-    //         lookahead_character,
-    //         RuleElement::Terminal(lexer.dfa.states[&lexer.current_state_id].token_name.clone()),
-    //         &input_tuple.1,
-    //         line_number
-    //     );
-    // }
-
-    // // provide the last token to the parser
-    // lexer.parser_provide_input(
-    //     &mut parser,
-    //     &mut step,
-    //     &rule_map,
-    //     &RuleElement::Terminal(lexer.dfa.states[&lexer.current_state_id].token_name.clone()),
-    //     &mut debug_node_string_buffer,
-    //     &mut debug_node_stack,
-    //     &mut node_map
-    // );
+                // output node
+    // println!("{:?}", parent_node.data);
+    // string_buffer.push_str(format!("{} [label=\"{} {}\"]\n",
+    //     node_id.index,
+    //     node_id.index,
+    //     &parent_node.data).as_str());
