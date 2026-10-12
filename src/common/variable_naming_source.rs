@@ -238,7 +238,6 @@ impl VariableNamingSource {
 
     pub fn print_variable_naming_source(&mut self) {
 
-
         for varname_map_entry_ref_cell in self.varname_map_stack.iter_mut() {
 
             let varname_map_entry = varname_map_entry_ref_cell.borrow_mut();

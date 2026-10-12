@@ -2648,3 +2648,69 @@ match asm_ast_instruction.binary_operator {
                         }
                     }
 */
+
+
+
+// example: - sample_2.pp
+                    //
+                    // #define ADD(x, y) (x + y)
+                    // #define EXPR_A (ADD(7, 8) + 2 + 3)
+                    // #define EXPR_B (EXPR_A * 4)
+                    //
+                    // #if EXPR_B == 80
+                    //     // This code WILL be included
+                    // #endif
+
+
+                    // output node
+    // println!("{:?}", parent_node.data);
+    // string_buffer.push_str(format!("{} [label=\"{} {}\"]\n",
+    //     node_id.index,
+    //     node_id.index,
+    //     &parent_node.data).as_str());
+
+
+                        // let define_symbol: &mut DefineSymbol =
+                        // let definition = define_symbol.definition.clone().trim();
+                        // // DEBUG
+                        // println!("definition: '{}'", definition);
+
+                        // // defined can only be evaluated if we leave the macro
+            // // as it is without replacing it. Therefore abort here
+            // // for the defined PPF
+            // if *val == String::from("PPF_DEFINED") {
+            //     return false;
+            // }
+
+            // let right_node: &Node<Token> = &arena.nodes[right_child_id];
+                // if defined_symbol_map.contains_key(&right_node.data.text) {
+                //     return 1;
+                // } else {
+                //     return 0;
+                // }
+
+                // output node
+    // println!("{:?}", parent_node.data);
+    // string_buffer.push_str(format!("{} [label=\"{} {}\"]\n",
+    //     node_id.index,
+    //     node_id.index,
+    //     &parent_node.data).as_str());
+
+    // let token = Token::new();
+                                                // pub token_id: usize,
+                                                // pub text: String,
+                                                // pub terminal: RuleElement<String>,
+                                                // pub weight: usize,
+                                                // define_symbol.expression_parser.process_token(token);
+
+                                                // let symbol:&DefineSymbol;
+                                                // {
+                                                //     symbol = defined_symbol_map.get(&output_text).unwrap();
+                                                // }
+                                                // let arena_clone = symbol.expression_parser.arena.clone();
+                                                // let ptr_node_id = symbol.expression_parser.ptr_node_id;
+
+                                                // if symbol.formal_parameter_map.len() == 0 {
+                                                //     output_text = symbol.definition.clone();
+                                                // } else {
+                                                    //panic!("Need to consume actual parameters!");

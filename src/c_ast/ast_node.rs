@@ -531,7 +531,6 @@ impl fmt::Debug for AstNode {
 
                 // type
                 if let Some(left_node_id) = self.lhs {
-                    // let left_node = node_map.get(left_node_id).unwrap();
                     println!("left_node_id: {:?}", left_node_id);
                 }
                 // identifier

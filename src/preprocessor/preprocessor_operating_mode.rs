@@ -72,7 +72,10 @@ pub enum PreprocessorOperatingMode {
     Endif,
 
     // #pragma,
-    Pragma
+    Pragma,
+
+    // #include
+    Include
 }
 
 impl fmt::Display for PreprocessorOperatingMode {
@@ -101,6 +104,8 @@ impl fmt::Display for PreprocessorOperatingMode {
             PreprocessorOperatingMode::Endif => { write!(f, "ENDIF").expect("Write failed!"); }
 
             PreprocessorOperatingMode::Pragma => { write!(f, "PRAGMA").expect("Write failed!"); }
+
+            PreprocessorOperatingMode::Include => { write!(f, "INCLUDE").expect("Write failed!"); }
         }
 
         Ok(())
