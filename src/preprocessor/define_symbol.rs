@@ -45,6 +45,5 @@ impl fmt::Display for DefineSymbol {
         write!(f, " -> {}", self.definition);
 
         Ok(())
-
     }
 }

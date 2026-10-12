@@ -1721,5 +1721,5 @@ pub fn transition_dfa(dfa: &EpsilonNfa::<State, RegexBuildingBlock>,
         return val.clone().into_iter().next().unwrap();
     }
 
-    panic!("");
+    panic!("Cannot transition given input {:?}", input);
 }

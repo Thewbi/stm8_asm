@@ -6941,13 +6941,17 @@ impl Parser<String> {
         let mut consumed = false;
         while !consumed {
 
+            // DEBUG
             if debug {
-                // println!("");
                 println!("[provide_input] Step: {}, TerminalValue: {}", *step, terminal_value);
             }
 
             if self.lexer_produce_type_name {
-                println!("test {:?}", terminal_token_rule_element);
+
+                // DEBUG
+                if debug {
+                    println!("test {:?}", terminal_token_rule_element);
+                }
 
                 // terminal_token_rule_element = &RuleElement::Terminal(String::from("TYPE_NAME"));
 

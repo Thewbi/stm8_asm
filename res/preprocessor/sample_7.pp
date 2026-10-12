@@ -1,0 +1,8 @@
+#if !_USE_DECLSPECS_FOR_SAL // [
+#if !_USE_ATTRIBUTES_FOR_SAL // [
+#undef _USE_ATTRIBUTES_FOR_SAL
+#define _USE_ATTRIBUTES_FOR_SAL 1
+#endif // ]
+#endif // ]
+
+Macro: _USE_ATTRIBUTES_FOR_SAL

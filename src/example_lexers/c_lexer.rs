@@ -23,9 +23,9 @@ pub const FLOAT_NUMERIC_TOKEN_ID: usize = 601;
 pub const HEX_NUMERIC_TOKEN_ID: usize = 602;
 pub const STRING_LITERAL_TOKEN_ID: usize = 610;
 
-pub const SINGLELINE_COMMENT_START_TOKEN_ID: usize = 800;
-pub const MULTILINE_COMMENT_START_TOKEN_ID: usize = 801;
-pub const MULTILINE_COMMENT_END_TOKEN_ID: usize = 802;
+// pub const SINGLELINE_COMMENT_START_TOKEN_ID: usize = 800;
+// pub const MULTILINE_COMMENT_START_TOKEN_ID: usize = 801;
+// pub const MULTILINE_COMMENT_END_TOKEN_ID: usize = 802;
 
 // Defines token for a lexer.
 // The grammar is defined in produce_grammar_c_full_if_else_4(); (c_full_if_else_4.rs)

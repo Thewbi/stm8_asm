@@ -27,11 +27,13 @@ pub const PP_CLOSED_BRACKET_PAIR_TOKEN_ID: usize = 80;
 
 pub const PP_EXCLAMATION_MARK_TOKEN_ID: usize = 34;
 
+pub const PP_GREATER_THAN_TOKEN_ID: usize = 42;
 pub const PP_QUESTION_MARK_TOKEN_ID: usize = 45;
 pub const PP_WHITESPACE_TOKEN_ID: usize = 46;
 pub const PP_NEWLINE_TOKEN_ID: usize = 47;
 pub const PP_HASHTAG_TOKEN_ID: usize = 48;
 pub const PP_BACKSLASH_TOKEN_ID: usize = 49;
+pub const PP_ELLIPSIS_TOKEN_ID: usize = 53;
 
 pub const PP_PPF_DEFINED_TOKEN_ID: usize = 100;
 
@@ -176,6 +178,7 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\\'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('/'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('#'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('\''));
 
     // "\n" | "\r\n" | "\r"
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\n'));
@@ -342,17 +345,19 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "/", "SLASH", 39);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "%", "PERCENT", 40);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "<", "LT", 41);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ">", "GT", 42);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ">", "GT", PP_GREATER_THAN_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\^", "CIRCUMFLEX", 43); // used in Regex as NEGATION operator
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\|", "OR", 44); // used in Regex as OR operator
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\?", "QUESTION_MARK", PP_QUESTION_MARK_TOKEN_ID); // used in Regex as Repeat(0, 1)
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#", "HASHTAG", PP_HASHTAG_TOKEN_ID);
-
     //
     // Backslash
     //
-
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\", "BACKSLASH", PP_BACKSLASH_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\'", "SINGLE_QUOTE", 50);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "&", "AMPERSAND", 51);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "@", "COMMERCIAL_AT", 52);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "...", "ELLIPSIS", PP_ELLIPSIS_TOKEN_ID);
 
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, " ", "WHITESPACE", PP_WHITESPACE_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\n|\r\n|\r", "NEWLINE", PP_NEWLINE_TOKEN_ID);

@@ -48,9 +48,9 @@ pub enum PreprocessorOperatingMode {
     // normal operation, no preprocessor instruction
     Normal,
 
-    // comment
-    IgnoreSingleLineComment,
-    IgnoreMultiLineComment,
+    // // comment
+    // IgnoreSingleLineComment,
+    // IgnoreMultiLineComment,
 
     // if-defined, if-not-defined
     Ifdef,
@@ -82,8 +82,8 @@ impl fmt::Display for PreprocessorOperatingMode {
 
             PreprocessorOperatingMode::Normal => { write!(f, "NORMAL").expect("Write failed!"); }
 
-            PreprocessorOperatingMode::IgnoreSingleLineComment => { write!(f, "IGNORE_SINGLE_LINE_COMMENT").expect("Write failed!"); }
-            PreprocessorOperatingMode::IgnoreMultiLineComment => { write!(f, "IGNORE_MULTI_LINE_COMMENT").expect("Write failed!"); }
+            // PreprocessorOperatingMode::IgnoreSingleLineComment => { write!(f, "IGNORE_SINGLE_LINE_COMMENT").expect("Write failed!"); }
+            // PreprocessorOperatingMode::IgnoreMultiLineComment => { write!(f, "IGNORE_MULTI_LINE_COMMENT").expect("Write failed!"); }
 
             PreprocessorOperatingMode::Ifdef => { write!(f, "IF DEFINED").expect("Write failed!"); }
             PreprocessorOperatingMode::Ifndef => { write!(f, "IF NOT DEFINED").expect("Write failed!"); }

@@ -33,6 +33,8 @@ use crate::example_lexers::preprocessor_lexer::PP_QUESTION_MARK_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_HASHTAG_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_BACKSLASH_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_PRAGMA_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_ELLIPSIS_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_GREATER_THAN_TOKEN_ID;
 
 use crate::regex::arena::recurse_arena;
 use crate::regex::arena::{Arena, NodeId, recurse_arena_dot};
@@ -70,11 +72,7 @@ impl ExpressionParser {
         }
     }
 
-    pub fn is_tree_imbalanced(&mut self) -> bool {
-
-        //let text = self.arena.nodes[self.ptr_node_id.index].data.text.clone();
-
-        //return text != "()";
+    pub fn is_tree_balanced(&mut self) -> bool {
         return self.bracket_balance == 0
     }
 
@@ -111,6 +109,9 @@ impl ExpressionParser {
                 token.weight = 180;
             }
             PP_GE_OP_TOKEN_ID => {
+                token.weight = 180;
+            }
+            PP_GREATER_THAN_TOKEN_ID => {
                 token.weight = 180;
             }
             PP_EQ_OP_TOKEN_ID => {
@@ -166,11 +167,14 @@ impl ExpressionParser {
             PP_NUMERIC_TOKEN_ID => {
                 token.weight = 998;
             }
-
-            SINGLELINE_COMMENT_START => {
-                token.weight = 0;
-                self.ignore_input_due_to_single_line_comment = true;
+            PP_ELLIPSIS_TOKEN_ID => {
+                token.weight = 997;
             }
+
+            // SINGLELINE_COMMENT_START => {
+            //     token.weight = 0;
+            //     self.ignore_input_due_to_single_line_comment = true;
+            // }
 
             _ => {
                 panic!("Cannot assign weight to token.token_id: {} token.text: {}", token.token_id, token.text);

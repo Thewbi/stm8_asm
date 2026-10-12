@@ -596,7 +596,6 @@ impl InfixPostfixConverter {
                     '+' => { self.process_literal_character('+'); }
                     '*' => { self.process_literal_character('*'); }
                     '^' => { self.process_literal_character('^'); }
-                    //'s' => { self.process_literal_character(r"\s"); }
                     '(' => { self.process_literal_character('('); }
                     ')' => { self.process_literal_character(')'); }
                     '{' => { self.process_literal_character('{'); }
@@ -606,7 +605,11 @@ impl InfixPostfixConverter {
                     '!' => { self.process_literal_character('!'); }
                     '?' => { self.process_literal_character('?'); }
                     '#' => { self.process_literal_character('#'); }
+                    '\'' => { self.process_literal_character('\''); }
+
+                    //'s' => { self.process_literal_character(r"\s"); }
                     //'\\' => { self.process_literal_character('\\'); }
+
                     _ => { panic!("[infix_to_postfix] unhandled character sequence: {}", c); }
                 }
 

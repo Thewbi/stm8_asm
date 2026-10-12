@@ -81,8 +81,8 @@ use crate::example_lexers::preprocessor_lexer::PP_BACKSLASH_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_IDENTIFIER_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_IFDEF_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_IFNDEF_TOKEN_ID;
-use crate::example_lexers::preprocessor_lexer::PP_SINGLELINE_COMMENT_START_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_WHITESPACE_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_SINGLELINE_COMMENT_START_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_MULTILINE_COMMENT_START_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_MULTILINE_COMMENT_END_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_NEWLINE_TOKEN_ID;
@@ -97,6 +97,7 @@ use crate::example_lexers::preprocessor_lexer::PP_OPENING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_CLOSING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_CLOSED_BRACKET_PAIR_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_PRAGMA_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_ELLIPSIS_TOKEN_ID;
 
 use crate::example_lexers::preprocessor_lexer::PP_PPF_DEFINED_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_EXCLAMATION_MARK_TOKEN_ID;
@@ -493,8 +494,8 @@ fn main() {
     let preprocessor_temp_q0 = State::new(0);
     let mut preprocessor_dfa = EpsilonNfa::new(preprocessor_temp_q0);
 
-    // let generate_preprocessor_lexer = true;
-    let generate_preprocessor_lexer = false;
+    let generate_preprocessor_lexer = true;
+    // let generate_preprocessor_lexer = false;
     if generate_preprocessor_lexer {
         preprocessor_dfa = produce_preprocessor_lexer();
         // store into file
@@ -590,6 +591,9 @@ fn main() {
 
         let mut ifdef_token: Token = Token::new();
 
+        let mut single_line_comment_mode: bool = false;
+        let mut multi_line_comment_mode: bool = false;
+
         let mut lexer_done: bool = false;
         while !lexer_done {
 
@@ -612,6 +616,53 @@ fn main() {
                     println!("Token consumed: {}", token_text);
                 }
 
+                // PRE-PREPROCESSING: Handle single line comments
+                //
+                // Handle comments before the actual content processing starts
+                // to keep all comment handling out of the processing
+                //
+                if !multi_line_comment_mode {
+                    match token.token_id {
+                        PP_SINGLELINE_COMMENT_START_TOKEN_ID => {
+                            single_line_comment_mode = true;
+                            continue;
+                        }
+                        PP_NEWLINE_TOKEN_ID => {
+                            single_line_comment_mode = false;
+                        }
+                        _ => {
+                            if single_line_comment_mode {
+                                continue;
+                            }
+                        }
+                    }
+                }
+
+                // PRE-PREPROCESSING: Handle multi line comments
+                //
+                // Handle comments before the actual content processing starts
+                // to keep all comment handling out of the processing
+                //
+                if !single_line_comment_mode {
+                    match token.token_id {
+                        PP_MULTILINE_COMMENT_START_TOKEN_ID => {
+                            multi_line_comment_mode = true;
+                            continue;
+                        }
+                        PP_MULTILINE_COMMENT_END_TOKEN_ID => {
+                            multi_line_comment_mode = false;
+                            continue;
+                        }
+                        _ => {
+                            if multi_line_comment_mode {
+                                continue;
+                            }
+                        }
+                    }
+                }
+
+                // PRE-PREPROCESSING: Handle backslash
+                //
                 // the backslash character is used to extend a single define
                 // across several lines. If the backslash is used, the next
                 // newline is ignored
@@ -773,29 +824,20 @@ fn main() {
                                 preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
                             }
 
+/*
                             //
                             // Comments
                             //
                             PP_SINGLELINE_COMMENT_START_TOKEN_ID => {
-                                // a comment is replaced by a single space character
-                                // TODO output a space into the output token stream
-
-                                // println!(" ");
-
                                 preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreSingleLineComment;
                             }
                             PP_MULTILINE_COMMENT_START_TOKEN_ID => {
-                                // a comment is replaced by a single space character
-                                // TODO output a space into the output token stream
-
-                                // println!(" ");
-
                                 preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreMultiLineComment;
                             }
                             PP_MULTILINE_COMMENT_END_TOKEN_ID => {
                                 preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
                             }
-
+*/
                             //
                             // Pragma
                             //
@@ -841,13 +883,15 @@ fn main() {
 
                                 if oe {
 
-                                    // TODO check if token is part of the data store and replace it
-                                    // output the token to the result
+                                    // check if a terminal is in fact a macro
+                                    // If it is a macro, the macro is encountered in plain output area.
+                                    // Check if token is part of the data store and replace it.
+                                    // Output the token to the result.
 
                                     // DEBUG
-                                    // if debug {
+                                    if debug {
                                         println!("OUT: '{}'", token.text);
-                                    // }
+                                    }
 
                                     let mut output_text = String::new();
 
@@ -867,31 +911,28 @@ fn main() {
 
                                                 let mut formal_parameter_count = temp.formal_parameter_map.len();
 
-                                                println!("parameter_count: {}", formal_parameter_count);
-
-
-
-
-
+                                                // DEBUG
+                                                if debug {
+                                                    println!("parameter_count: {}", formal_parameter_count);
+                                                }
 
                                                 let mut define_symbol: DefineSymbol = DefineSymbol::new();
 
-                                                //define_symbol.name = String::from("SQUARE");
                                                 define_symbol.name = output_text.clone();
-                                                // define_symbol.formal_parameter_map = BTreeMap::<usize, String>::new();
-                                                define_symbol.formal_parameter_map.insert(0, String::from("x"));
-                                                define_symbol.definition = String::from("((x) * (x))");
+                                                // define_symbol.formal_parameter_map.insert(0, String::from("x"));
+                                                // define_symbol.definition = String::from("((x) * (x))");
 
                                                 // macro name
                                                 define_symbol.expression_parser.process_token(macro_name_token);
 
                                                 let mut consumed_parameter = 0;
                                                 if formal_parameter_count > 0 {
+
                                                     // opening bracket
                                                     let token_opening_bracket = preprocessor_lexer.next().unwrap();
                                                     define_symbol.expression_parser.process_token(token_opening_bracket);
+
                                                     // all actual parameters
-                                                    //for i in [0..formal_parameter_count] {
                                                     while formal_parameter_count > 0 {
 
                                                         if consumed_parameter > 0 {
@@ -904,40 +945,22 @@ fn main() {
 
                                                         formal_parameter_count = formal_parameter_count - 1;
                                                     }
+
                                                     // closing bracket
                                                     let token_closing_bracket = preprocessor_lexer.next().unwrap();
                                                     define_symbol.expression_parser.process_token(token_closing_bracket);
                                                 }
 
-                                                // let token = Token::new();
-                                                // pub token_id: usize,
-                                                // pub text: String,
-                                                // pub terminal: RuleElement<String>,
-                                                // pub weight: usize,
-                                                // define_symbol.expression_parser.process_token(token);
-
-                                                // let symbol:&DefineSymbol;
-                                                // {
-                                                //     symbol = defined_symbol_map.get(&output_text).unwrap();
-                                                // }
-                                                // let arena_clone = symbol.expression_parser.arena.clone();
-                                                // let ptr_node_id = symbol.expression_parser.ptr_node_id;
-
-                                                // if symbol.formal_parameter_map.len() == 0 {
-                                                //     output_text = symbol.definition.clone();
-                                                // } else {
-                                                    //panic!("Need to consume actual parameters!");
-
-                                                // TODO start a loop which keeps replacing symbols until
+                                                // start a loop which keeps replacing symbols until
                                                 // there are no more symbols to replace!
-                                                // Edge Case: Brake cycles!
+                                                // TODO: Edge Case: Brake cycles!
                                                 let mut replaced:bool = true;
                                                 while replaced {
 
                                                     // DEBUG - BEFORE: output AST before replacement
-                                                    // if debug {
+                                                    if debug {
                                                         define_symbol.expression_parser.print_dot();
-                                                    // }
+                                                    }
 
                                                     replaced = replace_symbols(
                                                         &mut define_symbol.expression_parser.arena,
@@ -947,9 +970,9 @@ fn main() {
                                                         debug);
 
                                                     // DEBUG - AFTER: output AST after replacement
-                                                    // if debug {
+                                                    if debug {
                                                         define_symbol.expression_parser.print_dot();
-                                                    // }
+                                                    }
                                                 }
 
                                                 // // DEBUG - AFTER: output AST after replacement
@@ -957,12 +980,7 @@ fn main() {
                                                 //     define_symbol.expression_parser.print_dot();
                                                 // }
 
-                                                // expression_parser.print_console();
-
-                                                //fn output_prefix(data: &String) -> String {
-                                                //fn output_prefix(data: &i32) -> String {
                                                 fn output_prefix(data: &Token) -> String {
-                                                    //return data + 20i32;
                                                     return String::new();
                                                 }
                                                 fn output_infix(data: &Token) -> String {
@@ -974,23 +992,17 @@ fn main() {
                                                             return String::from(&data.text);
                                                         }
                                                     }
-                                                    //return data + 20i32;
                                                 }
                                                 fn output_postfix(data: &Token) -> String {
-                                                    //return data + 20i32;
-                                                    //return String::new();
                                                     match data.token_id {
                                                         PP_CLOSED_BRACKET_PAIR_TOKEN_ID => {
                                                             return String::from(")");
                                                         }
                                                         _ => {
-                                                            // return String::from(&data.text);
                                                             return String::new();
                                                         }
                                                     }
                                                 }
-        // output_infix: &dyn Fn(&T) -> T,
-        // output_postfix: &dyn Fn(&T) -> T,
 
                                                 let mut string_buffer: String = String::new();
                                                 define_symbol.expression_parser.arena.recurse_arena(
@@ -1001,7 +1013,6 @@ fn main() {
                                                     &mut string_buffer
                                                 );
 
-                                                //output_text = String::from("hihih");
                                                 output_text = string_buffer;
                                             }
                                         }
@@ -1014,12 +1025,12 @@ fn main() {
                         }
                     }
 
+/*
                     PreprocessorOperatingMode::IgnoreSingleLineComment => {
                         match token.token_id {
                             PP_NEWLINE_TOKEN_ID => {
                                 // a comment is replaced by a single space character
-
-                                // panic!("I need to output a space!");
+                                // output a space into the output token stream
 
                                 // 3. Write data
                                 write!(writer, " ");
@@ -1027,8 +1038,6 @@ fn main() {
                                 preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
                             }
                             _ => {
-                                // not PPI, not PPF
-                                // println!("{}", token.text);
                             }
                         }
                     }
@@ -1037,9 +1046,7 @@ fn main() {
                         match token.token_id {
                             PP_MULTILINE_COMMENT_END_TOKEN_ID => {
                                 // a comment is replaced by a single space character
-                                // TODO output a space into the output token stream
-                                // println!(" ");
-                                // panic!("I need to output a space!");
+                                // output a space into the output token stream
 
                                 // 3. Write data
                                 write!(writer, " ");
@@ -1047,12 +1054,10 @@ fn main() {
                                 preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
                             }
                             _ => {
-                                // not PPI, not PPF
-                                // println!("{}", token.text);
                             }
                         }
                     }
-
+ */
                     PreprocessorOperatingMode::DefineWaitingForName => {
                         match token.token_id {
                             PP_WHITESPACE_TOKEN_ID => {
@@ -1147,7 +1152,12 @@ fn main() {
                             PP_CLOSING_BRACKET_TOKEN_ID => {
                                 expression_parser.process_token(token);
 
-                                if !expression_parser.is_tree_imbalanced() {
+                                // DEBUG - AFTER
+                                if debug {
+                                    expression_parser.print_dot();
+                                }
+
+                                if !expression_parser.is_tree_balanced() {
                                     // nothing
                                 } else {
                                     // enter DEFINE_DEFINITION mode (because the parameter list is consumed)
@@ -1155,7 +1165,18 @@ fn main() {
                                 }
                             }
                             _ => {
+
+                                // DEBUG - BEFORE
+                                if debug {
+                                    expression_parser.print_dot();
+                                }
+
                                 expression_parser.process_token(token);
+
+                                // DEBUG - AFTER
+                                if debug {
+                                    expression_parser.print_dot();
+                                }
                             }
                         }
                     }
@@ -1297,9 +1318,12 @@ fn main() {
 
                                             // filter away all token which are not terminals
                                             match node.data.token_id {
+
                                                 PP_IDENTIFIER_TOKEN_ID => {
                                                     // DEBUG
-                                                    // println!("{:?}", node);
+                                                    if debug {
+                                                        println!("{:?}", node);
+                                                    }
 
                                                     // first terminal is the name of the interface
                                                     // all subsequent terminals are parameters
@@ -1311,6 +1335,19 @@ fn main() {
                                                         terminal_index = terminal_index + 1;
                                                     }
                                                 }
+
+                                                PP_ELLIPSIS_TOKEN_ID => {
+                                                    // first terminal is the name of the interface
+                                                    // all subsequent terminals are parameters
+                                                    if terminal_index == -1 {
+                                                        defined_symbol.name = node.data.text.clone();
+                                                        terminal_index = terminal_index + 1;
+                                                    } else {
+                                                        defined_symbol.formal_parameter_map.insert(terminal_index as usize, node.data.text.clone());
+                                                        terminal_index = terminal_index + 1;
+                                                    }
+                                                }
+
                                                 _ => {
                                                 }
                                             }
@@ -1418,10 +1455,9 @@ fn main() {
                                     let frame = pp_if_frame_stack.pop().unwrap();
                                     if frame.if_statement_already_enabled {
 
-                                        // the last branch was enabled.
+                                        // a prior branch was enabled.
                                         // This means that this #elif-branch should be disabled because
                                         // only a single branch can be enabled per if
-
                                         if_statement_already_enabled = true;
                                     }
                                 }
@@ -1448,9 +1484,9 @@ fn main() {
 
                                 } else {
 
-                                    // TODO start a loop which keeps replacing symbols until
+                                    // start a loop which keeps replacing symbols until
                                     // there are no more symbols to replace!
-                                    // Edge Case: Brake cycles!
+                                    // TODO Edge Case: Brake cycles!
                                     let mut replaced:bool = true;
                                     while replaced {
 
@@ -2241,14 +2277,20 @@ pub fn replace_symbols(
     let mut left_child_id:usize = 0;
     let mut right_child_id:usize = 0;
 
+    // if there is no AST to replacing symbols in, return
+    if arena.nodes.len() == 0 {
+        return false;
+    }
+
     let node: &Node<Token> = &arena.nodes[node_id.index].clone();
 
     // retrieve the token which is stored inside the current node
     let token: &Token = &node.data;
 
-    // #defined can only be evaluated if we leave the contained macro
-    // as it is without replacing it. Therefore abort here
-    // for the #defined PPF
+    // #defined can only be evaluated if the contained macro is left
+    // as it is without replacing it.
+    // Therefore when #defined PPF is executed, exit early without
+    // replacing #defined.
     match &token.terminal {
 
         Terminal(val) => {
@@ -2604,6 +2646,7 @@ pub fn evaluate_expression(
     debug: bool)
     -> i32
 {
+
     let node: &Node<Token> = &arena.nodes[node_id.index];
 
     let token: &Token = &node.data;
@@ -2891,3 +2934,22 @@ pub fn print_arena_dot(arena: &Arena<Token>) {
     //     node_id.index,
     //     node_id.index,
     //     &parent_node.data).as_str());
+
+    // let token = Token::new();
+                                                // pub token_id: usize,
+                                                // pub text: String,
+                                                // pub terminal: RuleElement<String>,
+                                                // pub weight: usize,
+                                                // define_symbol.expression_parser.process_token(token);
+
+                                                // let symbol:&DefineSymbol;
+                                                // {
+                                                //     symbol = defined_symbol_map.get(&output_text).unwrap();
+                                                // }
+                                                // let arena_clone = symbol.expression_parser.arena.clone();
+                                                // let ptr_node_id = symbol.expression_parser.ptr_node_id;
+
+                                                // if symbol.formal_parameter_map.len() == 0 {
+                                                //     output_text = symbol.definition.clone();
+                                                // } else {
+                                                    //panic!("Need to consume actual parameters!");
