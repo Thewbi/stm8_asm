@@ -74,6 +74,9 @@ pub enum PreprocessorOperatingMode {
     // #pragma,
     Pragma,
 
+    // #error
+    Error,
+
     // #include
     Include
 }
@@ -106,6 +109,8 @@ impl fmt::Display for PreprocessorOperatingMode {
             PreprocessorOperatingMode::Pragma => { write!(f, "PRAGMA").expect("Write failed!"); }
 
             PreprocessorOperatingMode::Include => { write!(f, "INCLUDE").expect("Write failed!"); }
+
+            PreprocessorOperatingMode::Error => { write!(f, "ERROR").expect("Write failed!"); }
         }
 
         Ok(())

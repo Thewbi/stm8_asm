@@ -17,6 +17,7 @@ use std::io::Write;
 use crate::example_lexers::preprocessor_lexer::PP_AND_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_GE_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_EQ_OP_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_NE_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_CLOSING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_OPENING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_OR_OP_TOKEN_ID;
@@ -117,6 +118,9 @@ impl ExpressionParser {
             PP_EQ_OP_TOKEN_ID => {
                 token.weight = 179;
             }
+            PP_NE_OP_TOKEN_ID => {
+                token.weight = 190;
+            }
             PP_SEMICOLON_TOKEN_ID => {
                 token.weight = 182;
             }
@@ -171,13 +175,8 @@ impl ExpressionParser {
                 token.weight = 997;
             }
 
-            // SINGLELINE_COMMENT_START => {
-            //     token.weight = 0;
-            //     self.ignore_input_due_to_single_line_comment = true;
-            // }
-
             _ => {
-                panic!("Cannot assign weight to token.token_id: {} token.text: {}", token.token_id, token.text);
+                panic!("Cannot assign weight to token.token_id: {} token.text: {}, file: {}, line: {}", token.token_id, token.text, token.file, token.line);
             }
         }
 
@@ -417,7 +416,7 @@ impl ExpressionParser {
         ast_string_buffer.push_str("}");
 
         // 1. Create or overwrite the file
-        let file = File::create("preprocessor_tree.dot").expect("Create file failed!");
+        let file = File::create("dot/preprocessor_tree.dot").expect("Create file failed!");
 
         // 2. Wrap the file in a BufWriter
         let mut writer = BufWriter::new(file);

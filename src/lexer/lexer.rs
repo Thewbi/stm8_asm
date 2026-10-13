@@ -65,6 +65,9 @@ pub struct Lexer<'a> {
     pub lexer_token_debug: bool,
     buffered_character_option: Option<char>,
     done: bool,
+
+    pub file: String,
+    pub line: usize,
 }
 
 impl<'a> Lexer<'a> {
@@ -99,6 +102,9 @@ impl<'a> Lexer<'a> {
             lexer_token_debug: lexer_token_debug_param,
             buffered_character_option: None,
             done: false,
+
+            file: String::new(),
+            line: 1usize, // line count starts with 1 not 0!
         };
 
         // https://stackoverflow.com/questions/28672190/how-do-i-set-the-lifetime-of-a-return-value-as-the-lifetime-of-the-variable-i-mo
@@ -119,6 +125,9 @@ impl<'a> Lexer<'a> {
 
         // TODO: write line and file into the token before passing it to the parser
         // so that the parser has line and file information
+
+        self.file = file.clone();
+        self.line = line;
 
         // check if there is a valid transition for the next character
         // greedily consume it and do not directly feed a half finished token to the parser
@@ -359,6 +368,8 @@ pub struct Token {
     pub token_id: usize,
     pub text: String,
     pub terminal: RuleElement<String>,
+    pub file: String,
+    pub line: usize,
     pub weight: usize,
 }
 
@@ -369,6 +380,8 @@ impl Token {
             token_id: 0,
             text: String::new(),
             terminal: RuleElement::Unknown,
+            file: String::new(),
+            line: 0usize,
             weight: 0,
         }
     }
@@ -456,6 +469,11 @@ impl Iterator for Lexer<'_> {
             //     println!("newline");
             // }
 
+            // for debugging, increase line number
+            if current_character == '\n' {
+                self.line = self.line + 1;
+            }
+
             let mut next_state_id = self.current_state_id;
 
             let mut char_consumed = false;
@@ -524,6 +542,8 @@ impl Iterator for Lexer<'_> {
                         token_id: self.dfa.states[&self.current_state_id].token_id,
                         text: self.token_string_buffer.clone(),
                         terminal: terminal.clone(),
+                        file: self.file.clone(),
+                        line: self.line,
                         weight: 0usize,
                     };
 

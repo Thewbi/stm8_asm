@@ -44,7 +44,7 @@ use crate::common::file_handling::write_string_to_file;
 mod regex;
 use crate::preprocessor::define_mode::DefineMode;
 use crate::preprocessor::define_symbol::{self, DefineSymbol};
-use crate::preprocessor::preprocessor::Preprocessor;
+use crate::preprocessor::preprocessor::{PpiIncludeMode, Preprocessor};
 use crate::preprocessor::preprocessor_operating_mode::PreprocessorOperatingMode::{DefineIfcOrDefinition, Normal};
 use crate::regex::infix_postfix_converter::InfixPostfixConverter;
 use crate::regex::regex_building_block::RegexBuildingBlock;
@@ -567,7 +567,14 @@ fn main() {
 
         let mut defined_symbol_map: HashMap<String, DefineSymbol> = HashMap::<String, DefineSymbol>::new();
 
+        let mut include_path: Vec<String> = Vec::<String>::new();
+        include_path.push(String::from("C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\ucrt"));
+        include_path.push(String::from("C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\shared"));
+        include_path.push(String::from("C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\14.44.35207\\include"));
+
         let preprocessor: Preprocessor = Preprocessor::new(&preprocessor_dfa,
+            // PpiIncludeMode::UNKNOWN,
+            &include_path,
             input_tuple.1);
         preprocessor.process(&mut writer, &mut defined_symbol_map);
 

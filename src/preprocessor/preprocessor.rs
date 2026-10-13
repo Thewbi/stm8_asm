@@ -1,26 +1,15 @@
 use std::{
-    collections::HashMap,
-    fs::{self, File},
-    io::{
-        BufReader,
-        BufRead,
-        BufWriter,
-        Write,
-    },
+    collections::HashMap, fmt, fs::{self, File}, io::{
+        BufRead, BufReader, BufWriter, Write,
+    }, path::Path,
 };
 
 use crate::{
-        PpIfFrame,
-        common::string_handling::rem_first_and_last,
-        example_lexers::preprocessor_lexer::PP_INCLUDE_TOKEN_ID,
-        lexer::lexer::{Lexer, Token},
-        parser::rule::RuleElement::Terminal,
-        preprocessor::{
+        PpIfFrame, common::string_handling::rem_first_and_last, lexer::lexer::{Lexer, Token}, parser::rule::RuleElement::Terminal, preprocessor::{
             define_symbol::DefineSymbol,
             expression_parser::ExpressionParser,
             preprocessor_operating_mode::PreprocessorOperatingMode
-        },
-        regex::{
+        }, regex::{
             arena::{Arena, Node, NodeId, VisitMode, recurse_arena_dot},
             enfa::{EpsilonNfa, State},
             regex_building_block::RegexBuildingBlock
@@ -42,6 +31,8 @@ use crate::example_lexers::preprocessor_lexer::PP_IF_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_ELIF_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_ELSE_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_ENDIF_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_ERROR_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_INCLUDE_TOKEN_ID;
 
 use crate::example_lexers::preprocessor_lexer::PP_OPENING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_CLOSING_BRACKET_TOKEN_ID;
@@ -52,38 +43,44 @@ use crate::example_lexers::preprocessor_lexer::PP_ELLIPSIS_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_PPF_DEFINED_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_EXCLAMATION_MARK_TOKEN_ID;
 
+static ERROR_ON_DUPLICATE_HEADER_FILES: bool = false;
+
+pub enum PpiIncludeMode {
+    // include from local code base
+    LOCAL,
+    // include from include path passed to the preprocessor
+    GLOBAL,
+    // explode
+    UNKNOWN
+}
+
+impl fmt::Display for PpiIncludeMode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PpiIncludeMode::GLOBAL => write!(f, "GLOBAL"),
+            PpiIncludeMode::LOCAL => write!(f, "LOCAL"),
+            PpiIncludeMode::UNKNOWN => write!(f, "UNKNOWN"),
+        }
+    }
+}
+
 pub struct Preprocessor<'a> {
-
     pub filename: String,
-
-    // pub defined_symbol_map: HashMap<String, DefineSymbol>,
-
     pub preprocessor_dfa: &'a EpsilonNfa<State, RegexBuildingBlock>,
-
-    // pub preprocessor_operating_mode: PreprocessorOperatingMode,
-
-    // // the expression parser is used to parse well-formed text to an AST for evaluation
-    // // Well-formed text appears in all PPI that need to be evaluated such as #if, #elif
-    // // Note that the #define PPI only has well-formed text in the macro_interface part
-    // // but the macro_definition can be free-form text of any kind and does not have to
-    // // be well-formed
-    // pub expression_parser: ExpressionParser,
-
+    pub include_path: &'a Vec<String>,
     pub debug: bool,
-
 }
 
 impl<'a> Preprocessor<'a> {
 
     pub fn new(preprocessor_dfa_param: &'a EpsilonNfa<State, RegexBuildingBlock>,
-        // defined_symbol_map_param: HashMap<String, DefineSymbol>,
-        filename_param: String) -> Self {
+        include_path_param: &'a Vec<String>,
+        filename_param: String
+    ) -> Self {
         Preprocessor {
-            // preprocessor_operating_mode: PreprocessorOperatingMode::Normal,
-            // expression_parser: ExpressionParser::new(),
             preprocessor_dfa: preprocessor_dfa_param,
-            // defined_symbol_map: defined_symbol_map_param,
             filename: filename_param,
+            include_path: include_path_param,
             debug: false,
         }
     }
@@ -92,42 +89,46 @@ impl<'a> Preprocessor<'a> {
         writer: &mut BufWriter<File>,
         defined_symbol_map: &mut HashMap<String, DefineSymbol>)
     {
-
-        let mut preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
-
         // the expression parser is used to parse well-formed text to an AST for evaluation
         // Well-formed text appears in all PPI that need to be evaluated such as #if, #elif
         // Note that the #define PPI only has well-formed text in the macro_interface part
         // but the macro_definition can be free-form text of any kind and does not have to
         // be well-formed
         let mut expression_parser = ExpressionParser::new();
-
+        let mut preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
         let mut buffered_token_option: Option<Token> = None;
-
         let mut definition_string_buffer: String = String::new();
-
         let mut ignore_next_newline: bool = false;
-
         let mut has_definition: bool = false;
         let mut macro_name: String = String::from("UNKNOWN");
-
         let mut pp_if_frame_stack = Vec::<PpIfFrame>::new();
-
         let mut ifdef_token: Token = Token::new();
-
         let mut single_line_comment_mode: bool = false;
         let mut multi_line_comment_mode: bool = false;
-
         let mut include_file_buffer: String = String::new();
+        let mut error_msg_buffer: String = String::new();
 
-        let data: String = fs::read_to_string(self.filename.clone()).expect("file cannot be read!");
+        // TODO: check if the path is absolute or relative
 
+        let data: String = match fs::read_to_string(self.filename.clone()) {
+            Ok(data) => {
+                data
+            }
+            Err(err) => {
+                panic!("[PREPROCESSOR] Cannot load file: '{}'! Error: {}", self.filename.clone(), err);
+            }
+        };
+
+        // create a lexer which returns the required token for preprocessing
+        // the underlying input file into an output file
         let lexer_debug: bool = false;
         let lexer_token_debug: bool = false;
         let mut preprocessor_lexer: Lexer = Lexer::new(data,
             &self.preprocessor_dfa,
             lexer_debug,
             lexer_token_debug);
+
+        preprocessor_lexer.file = self.filename.clone();
 
         let mut lexer_done: bool = false;
         while !lexer_done {
@@ -262,20 +263,21 @@ impl<'a> Preprocessor<'a> {
 
                                 if out_enable {
                                     preprocessor_operating_mode = PreprocessorOperatingMode::DefineWaitingForName;
-                                } else {
-                                    // the if-frame is disabled
-                                    // do not perform the define but consume and ignore all token
-                                    // up to the next newline which returns the state back to
-                                    // normal
-                                    match token.token_id {
-                                        PP_WHITESPACE_TOKEN_ID => {
-                                            preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
-                                        }
-                                        _ => {
-                                            // ignore
-                                        }
-                                    }
                                 }
+                                // else {
+                                //     // the if-frame is disabled
+                                //     // do not perform the define but consume and ignore all token
+                                //     // up to the next newline which returns the state back to
+                                //     // normal
+                                //     match token.token_id {
+                                //         PP_WHITESPACE_TOKEN_ID => {
+                                //             preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                                //         }
+                                //         _ => {
+                                //             // ignore
+                                //         }
+                                //     }
+                                // }
                             }
 
                             //
@@ -359,20 +361,6 @@ impl<'a> Preprocessor<'a> {
                                 preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
                             }
 
-/*
-                            //
-                            // Comments
-                            //
-                            PP_SINGLELINE_COMMENT_START_TOKEN_ID => {
-                                preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreSingleLineComment;
-                            }
-                            PP_MULTILINE_COMMENT_START_TOKEN_ID => {
-                                preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreMultiLineComment;
-                            }
-                            PP_MULTILINE_COMMENT_END_TOKEN_ID => {
-                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
-                            }
-*/
                             //
                             // Pragma
                             //
@@ -385,6 +373,28 @@ impl<'a> Preprocessor<'a> {
                             //
                             PP_INCLUDE_TOKEN_ID => {
                                 preprocessor_operating_mode = PreprocessorOperatingMode::Include;
+                            }
+
+                            //
+                            // Error
+                            //
+                            PP_ERROR_TOKEN_ID => {
+                                let mut out_enabled: bool = true;
+
+                                // the body of an if-PPI is only enabled if it is enabled and
+                                // if all if-PPI below it on the stack are also enabled!
+                                for frame in &pp_if_frame_stack {
+                                    out_enabled = frame.output_enabled;
+                                    if !out_enabled {
+                                        break;
+                                    }
+                                }
+
+                                if out_enabled {
+
+                                    preprocessor_operating_mode = PreprocessorOperatingMode::Error;
+
+                                }
                             }
 
                             //
@@ -567,39 +577,6 @@ impl<'a> Preprocessor<'a> {
                         }
                     }
 
-/*
-                    PreprocessorOperatingMode::IgnoreSingleLineComment => {
-                        match token.token_id {
-                            PP_NEWLINE_TOKEN_ID => {
-                                // a comment is replaced by a single space character
-                                // output a space into the output token stream
-
-                                // 3. Write data
-                                write!(writer, " ");
-
-                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
-                            }
-                            _ => {
-                            }
-                        }
-                    }
-
-                    PreprocessorOperatingMode::IgnoreMultiLineComment => {
-                        match token.token_id {
-                            PP_MULTILINE_COMMENT_END_TOKEN_ID => {
-                                // a comment is replaced by a single space character
-                                // output a space into the output token stream
-
-                                // 3. Write data
-                                write!(writer, " ");
-
-                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
-                            }
-                            _ => {
-                            }
-                        }
-                    }
- */
                     PreprocessorOperatingMode::DefineWaitingForName => {
                         match token.token_id {
                             PP_WHITESPACE_TOKEN_ID => {
@@ -987,7 +964,6 @@ impl<'a> Preprocessor<'a> {
                                 expression_parser.process_token(token);
                             }
                             PP_NEWLINE_TOKEN_ID => {
-
                                 let mut if_statement_already_enabled: bool = false;
 
                                 if preprocessor_operating_mode == PreprocessorOperatingMode::Elif {
@@ -1150,7 +1126,6 @@ impl<'a> Preprocessor<'a> {
                                 preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
                             }
                             _ => {
-                                //expression_parser.process_token(token);
                                 ifdef_token = token;
                             }
                         }
@@ -1194,26 +1169,133 @@ impl<'a> Preprocessor<'a> {
 
                     PreprocessorOperatingMode::Include => {
                         match token.token_id {
+
+                            // execut the #include PPI
                             PP_NEWLINE_TOKEN_ID => {
+
+                                // DEBUG
                                 if self.debug {
                                     println!("including file: {}", include_file_buffer);
                                 }
 
-                                // let trimmed = include_file_buffer.trim_matches('"');
+                                // when it comes to resolving relative paths to include files,
+                                // there is a difference between
+                                // #include "something.h"
+                                // and
+                                // #include <something.h>
+                                //
+                                // The quoted version causes the preprocessor to look for
+                                // the header file in the local directory. This means in order
+                                // to turn the relative path into an absolute path, the
+                                // preprocessor prepends the current directory to the relative path
+                                // to create the absolute path. The current directory is PWD, the
+                                // directory in which the executable has been executed.
+                                //
+                                // The angle-bracketed version causes the preprocessor to turn
+                                // relative into absolute paths by refering to the include path.
+                                // The include path is a list of absolute paths. The preprocessor
+                                // iterates this list and uses each path to produce an absolute
+                                // path from the relative path. It tries to load the include file
+                                // from that absolute path.
+                                // Using IncludePath is referred to as GLOBAL includes!
+                                let mut ppi_include_mode: PpiIncludeMode = PpiIncludeMode::UNKNOWN;
+                                if include_file_buffer.starts_with("<") {
+                                    // use include path
+                                    ppi_include_mode = PpiIncludeMode::GLOBAL;
+                                } else {
+                                    // include from local code base
+                                    ppi_include_mode = PpiIncludeMode::LOCAL;
+                                }
+
                                 let trimmed = rem_first_and_last(&include_file_buffer);
 
-                                let preprocessor: Preprocessor = Preprocessor::new(&self.preprocessor_dfa,
-                                    String::from(trimmed));
+                                // ignore some header files!
+                                if trimmed != "CodeAnalysis/sourceannotations.h" {
 
+                                    let mut absolute_path = String::new();
+                                    let mut final_include_filename = String::new();
 
-                                //preprocessor.process(&mut writer, &mut defined_symbol_map);
-                                preprocessor.process(writer, defined_symbol_map);
+                                    // turn relative paths into absolute paths
+                                    match ppi_include_mode {
+
+                                        PpiIncludeMode::GLOBAL => {
+                                            // include using the include path
+
+                                            let mut file_found_counter: usize = 0;
+
+                                            // resolve the file for each path in the include path.
+                                            // If the file is found in two or more directories, explode
+                                            // in order to safe the user from include-hell!
+                                            for include_path_element in self.include_path {
+
+                                                absolute_path = include_path_element.clone();
+
+                                                absolute_path.push_str("\\");
+                                                absolute_path.push_str(trimmed.clone());
+
+                                                println!("{:?}", &absolute_path);
+
+                                                let path = Path::new(absolute_path.as_str());
+                                                if path.exists() {
+                                                    if file_found_counter > 0 {
+
+                                                        println!("");
+                                                        println!("Found here - {}", final_include_filename);
+                                                        println!("Found here - {}", absolute_path);
+
+                                                        if ERROR_ON_DUPLICATE_HEADER_FILES {
+                                                            panic!("Include file '{}' is found in more than one folder in the include path!", trimmed);
+                                                        }
+                                                    }
+                                                    file_found_counter = file_found_counter + 1;
+
+                                                    final_include_filename = absolute_path;
+                                                }
+                                            }
+
+                                            if file_found_counter == 0 {
+                                                panic!("Cannot find file '{}' in include path!", trimmed)
+                                            }
+                                        }
+                                        PpiIncludeMode::LOCAL => {
+                                            // include relative to the local code base
+                                            todo!();
+                                        }
+                                        _=> {
+                                            panic!("Cannot process include mode: {}", ppi_include_mode);
+                                        }
+                                    }
+
+                                    let preprocessor: Preprocessor = Preprocessor::new(
+                                        &self.preprocessor_dfa,
+                                        // ppi_include_mode,
+                                        &self.include_path,
+                                        String::from(final_include_filename));
+                                    preprocessor.process(writer, defined_symbol_map);
+                                }
 
                                 include_file_buffer.clear();
+
+                                // back to NORMAL mode because the #include has been consumed
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
                             }
                             _ => {
                                 // println!("Token: {}", token.text);
                                 include_file_buffer.push_str(token.text.clone().trim());
+                            }
+                        }
+                    }
+
+                    PreprocessorOperatingMode::Error => {
+
+                        match token.token_id {
+                            // execut the #include PPI
+                            PP_NEWLINE_TOKEN_ID => {
+                                panic!("[PREPROCESSOR::error]: '{}'", error_msg_buffer.as_str());
+                                // preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
+                            _ => {
+                                error_msg_buffer.push_str(token.text.as_str());
                             }
                         }
                     }
@@ -1671,7 +1753,6 @@ impl<'a> Preprocessor<'a> {
         debug: bool)
         -> i32
     {
-
         let node: &Node<Token> = &arena.nodes[node_id.index];
 
         let token: &Token = &node.data;
@@ -1821,13 +1902,36 @@ impl<'a> Preprocessor<'a> {
 
                     return right_result;
 
-                }  else if *val == String::from("EQ_OP") {
+                } else if *val == String::from("EQ_OP") {
 
                     if right_result == left_result {
                         return 1;
                     };
                     return 0;
 
+                } else if *val == String::from("NE_OP") {
+
+                    if right_result != left_result {
+                        return 1;
+                    };
+                    return 0;
+
+                } else if *val == String::from("AND_OP") {
+
+                    if right_result != 0 && left_result != 0 {
+                        return 1;
+                    };
+                    return 0;
+
+                } else if *val == String::from("OR_OP") {
+
+                    if right_result != 0 || left_result != 0 {
+                        return 1;
+                    };
+                    return 0;
+
+                } else {
+                    panic!("Unhandled: {}", *val);
                 }
             }
 
@@ -1901,7 +2005,7 @@ impl<'a> Preprocessor<'a> {
         ast_string_buffer.push_str("}");
 
         // 1. Create or overwrite the file
-        let file = File::create("preprocessor_tree.dot").expect("Create file failed!");
+        let file = File::create("dot/preprocessor_tree.dot").expect("Create file failed!");
 
         // 2. Wrap the file in a BufWriter
         let mut writer = BufWriter::new(file);
@@ -1912,5 +2016,54 @@ impl<'a> Preprocessor<'a> {
         // 4. Explicitly flush the remaining data to disk
         writer.flush().expect("flush failed!");
     }
-
 }
+
+
+/*
+                    PreprocessorOperatingMode::IgnoreSingleLineComment => {
+                        match token.token_id {
+                            PP_NEWLINE_TOKEN_ID => {
+                                // a comment is replaced by a single space character
+                                // output a space into the output token stream
+
+                                // 3. Write data
+                                write!(writer, " ");
+
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
+                            _ => {
+                            }
+                        }
+                    }
+
+                    PreprocessorOperatingMode::IgnoreMultiLineComment => {
+                        match token.token_id {
+                            PP_MULTILINE_COMMENT_END_TOKEN_ID => {
+                                // a comment is replaced by a single space character
+                                // output a space into the output token stream
+
+                                // 3. Write data
+                                write!(writer, " ");
+
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
+                            _ => {
+                            }
+                        }
+                    }
+ */
+
+ /*
+                            //
+                            // Comments
+                            //
+                            PP_SINGLELINE_COMMENT_START_TOKEN_ID => {
+                                preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreSingleLineComment;
+                            }
+                            PP_MULTILINE_COMMENT_START_TOKEN_ID => {
+                                preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreMultiLineComment;
+                            }
+                            PP_MULTILINE_COMMENT_END_TOKEN_ID => {
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
+*/

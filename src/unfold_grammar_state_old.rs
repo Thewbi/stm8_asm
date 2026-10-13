@@ -2326,7 +2326,7 @@ match asm_ast_instruction.binary_operator {
                         ast_string_buffer.push_str("}");
 
                         // 1. Create or overwrite the file
-                        let file = File::create("preprocessor_tree.dot").expect("Create file failed!");
+                        let file = File::create("dot/preprocessor_tree.dot").expect("Create file failed!");
 
                         // 2. Wrap the file in a BufWriter
                         let mut writer = BufWriter::new(file);
