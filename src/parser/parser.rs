@@ -6953,8 +6953,6 @@ impl Parser<String> {
                     println!("test {:?}", terminal_token_rule_element);
                 }
 
-                // terminal_token_rule_element = &RuleElement::Terminal(String::from("TYPE_NAME"));
-
                 consumed = self.consume(RuleElement::Terminal(String::from("TYPE_NAME")),
                     &terminal_value,
                     &rule_map,

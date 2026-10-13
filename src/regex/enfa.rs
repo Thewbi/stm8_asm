@@ -12,6 +12,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering}
 };
 
+use crate::common::string_handling::{rem_first_and_last, rem_first_and_last_matches};
 use crate::regex::infix_postfix_converter::InfixPostfixConverter;
 use crate::regex::regex_building_block::RegexBuildingBlock;
 use crate::regex::arena::Arena;
@@ -129,11 +130,31 @@ where
         self.accept_states.clear();
     }
 
+    pub fn contains_transition(&mut self, start_id: usize, input: Input<T>, end_id: usize) -> bool
+        where T:std::fmt::Debug
+    {
+        // // DEBUG output all key-value pairs
+        // println!("-----------------------------------------------------------------");
+        // //for (key, value) in self.transitions.into_iter() {
+        // for ((key_key, key_value), value) in self.transitions.clone().into_iter() {
+        //     println!("key_key: {:?}, key_value: {:?}, value: {:?}", key_key, key_value, value);
+        // }
+        // println!("-----------------------------------------------------------------");
+
+        self.transitions.contains_key(&(start_id, input))
+    }
+
+    /// INPUT: touple of (start_state_id, input_character)
+    /// OUTPUT: HashSet of all target_state_ids that the ENFA will transition to if it sees the input
+    pub fn get_transition(&mut self, start_id: usize, input: Input<T>, end_id: usize) -> Option<&HashSet<usize>> {
+        self.transitions.get(&(start_id, input))
+    }
+
     pub fn add_transition(&mut self, start_id: usize, input: Input<T>, end_id: usize) {
         self.transitions
-             .entry((start_id, input))
-             .or_insert_with(HashSet::new)
-             .insert(end_id);
+             .entry((start_id, input)) // retrieve the key value pair (entry() returns the key-value-pair)
+             .or_insert_with(HashSet::new) // if it does not exist yet, insert the key and use a new HashSet as value
+             .insert(end_id); // insert the value into the HashSet
     }
 
     pub fn add_state(&mut self, state: S) -> usize {
@@ -218,6 +239,11 @@ pub fn enfa_serialize(enfa: &mut EpsilonNfa<State, RegexBuildingBlock>, filename
     // 2. Wrap the file in a BufWriter
     let mut writer = BufWriter::new(file);
 
+    //
+    // states
+    //
+    // The character 'S' stands for state
+    //
     // iterate over states
     //
     // Example Debug Format when outputting a state to the console:
@@ -277,7 +303,10 @@ pub fn enfa_serialize(enfa: &mut EpsilonNfa<State, RegexBuildingBlock>, filename
         }
     }
 
+    //
     // transitions
+    //
+    // The character 'T' stands for transition
     //
     // Example:
     // (1273, Symbol(w)) {1182}
@@ -292,9 +321,21 @@ pub fn enfa_serialize(enfa: &mut EpsilonNfa<State, RegexBuildingBlock>, filename
 
         // alphabet symbol
         match transition_id.1 {
+
             Input::Symbol(RegexBuildingBlock::CharacterLiteral(char_value)) => {
+
                 if char_value == ';' {
+                    // the semicolon character needs to be escaped or transformed
+                    // because it itself is use as separator in the line-format of
+                    // the ENFA serialization
                     string_buffer.push_str("SEMICOLON");
+                // } else if char_value == '\\' {
+                //     // \ and \\ are both converted to the same char!
+                //     // This means they form the same transition!
+                //     // When the transition is inserted into the ENFA during deserialization
+                //     // the set of transitions does not grow since the transition are the same!
+                //     // To get around this problem, insert a keyword instead of \ or \\
+                //     string_buffer.push_str("DOUBLE_BACKSLASH");
                 } else {
                     string_buffer.push_str(format!("{:?}", char_value).as_str());
                 }
@@ -339,7 +380,13 @@ pub fn enfa_serialize(enfa: &mut EpsilonNfa<State, RegexBuildingBlock>, filename
     writer.flush().expect("flush failed!");
 }
 
-// File-Format: See comment on function enfa_serialize()
+/// File-Format: See comment on function enfa_serialize()
+///
+/// S stands for state
+/// S;<state_id>;<token_id>;<token_name>;<start_state>;<end_state>;<trap_state>
+///
+/// T stands for transition
+/// T;<start_state_id>;<symbol>;<target_state_id_0>;<target_state_id_1>;...;<target_state_id_n>
 pub fn enfa_deserialize(enfa: &mut EpsilonNfa<State, RegexBuildingBlock>, filename: &str) {
 
     let debug: bool = false;
@@ -360,6 +407,20 @@ pub fn enfa_deserialize(enfa: &mut EpsilonNfa<State, RegexBuildingBlock>, filena
 
             // DEBUG
             // println!("{:?}", line);
+
+            // if line == "T;970;'\\'';973" {
+            //     println!("test");
+            // }
+
+            // if line == "T;1237;'E';1171" {
+            //     println!("{:?}", line);
+            //     println!("test");
+            // }
+
+            // if line.starts_with("T;1237;") {
+            //     println!("{:?}", line);
+            //     println!("test");
+            // }
 
             let row_split: Vec<_> = line.split(';').collect();
 
@@ -385,27 +446,69 @@ pub fn enfa_deserialize(enfa: &mut EpsilonNfa<State, RegexBuildingBlock>, filena
                 }
 
                 "T" => {
-                    let string_val = row_split[2].trim_matches('\'');
+
+                    //
+                    // parse the character which triggers the transition
+                    //
+
+                    // let string_val = row_split[2].trim_matches('\'');
+                    // let string_val = rem_first_and_last(row_split[2]);
+                    let string_val = rem_first_and_last_matches(row_split[2], '\'');
 
                     let mut char_val = ' ';
                     if string_val == "SEMICOLON" {
                         char_val = ';';
                     }
-                    else if string_val.starts_with("\\\\") {
+                    //else if string_val.starts_with("\\\\") {
+                    else if string_val.eq("\\\\") {
+                        // println!("{}", line);
                         char_val = '\\';
                     }
+                    // else if string_val.starts_with("DOUBLE_BACKSLASH") {
+                    //     char_val = '\\';
+                    // }
                     else if string_val.starts_with("\\r") {
                         char_val = '\r';
                     }
                     else if string_val.starts_with("\\n") {
                         char_val = '\n';
                     }
+                    else if string_val.starts_with("\\'") {
+                        char_val = '\'';
+                    }
                     else {
                         char_val = string_val.chars().next().unwrap();
                     }
 
-                    let start_state_id:usize = usize::from_str_radix(row_split[1], 10).expect("Number conversion failed!");
-                    let end_state_id:usize = usize::from_str_radix(row_split[3], 10).expect("Number conversion failed!");
+                    // println!("string_val: {}, char_val: {}", string_val, char_val);
+
+                    //
+                    // parse start state
+                    //
+
+                    //let start_state_id: usize = usize::from_str_radix(row_split[1], 10).expect("Number conversion failed!");
+                    let start_state_id = match usize::from_str_radix(row_split[1], 10) {
+                        Ok(val) => {
+                            val
+                        }
+                        Err(err) => {
+                            panic!("test: {}. string is '{}'. Entire input line is '{}", err, row_split[1], line);
+                        }
+                    };
+
+                    //
+                    // parse end state
+                    //
+
+                    //let end_state_id: usize = usize::from_str_radix(row_split[3], 10).expect("Number conversion failed!");
+                    let end_state_id = match usize::from_str_radix(row_split[3], 10) {
+                        Ok(val) => {
+                            val
+                        }
+                        Err(err) => {
+                            panic!("test: {}. string is '{}'. Entire input line is '{}", err, row_split[3], line);
+                        }
+                    };
 
                     // // DEBUG
                     // if start_state_id == 1246 && end_state_id == 1171 {
@@ -413,9 +516,30 @@ pub fn enfa_deserialize(enfa: &mut EpsilonNfa<State, RegexBuildingBlock>, filena
                     //     println!("test");
                     // }
 
+                    // // if start_state_id == 953 && string_val.starts_with("\\\\") {
+                    // if start_state_id == 953 && string_val.starts_with("\\") {
+                    // //if start_state_id == 953 && end_state_id == 973 && string_val.starts_with("\\\\") {
+                    //     println!("test character: '{}'", string_val);
+                    // }
+
+                    // if string_val.starts_with("\\") {
+                    // //if start_state_id == 953 && end_state_id == 973 && string_val.starts_with("\\\\") {
+                    //     println!("test character: '{}', original_line: '{}'", string_val, line);
+                    // }
+
+                    // \ and \\ are both converted to the same char!
+
+                    let input = Input::Symbol(RegexBuildingBlock::CharacterLiteral(char_val));
+
+                    if enfa.contains_transition(start_state_id, input, end_state_id) {
+                        if let Some(hash_map) = enfa.get_transition(start_state_id, input, end_state_id) {
+                            println!("{:?}", hash_map);
+                        }
+                    }
+
                     let before = enfa.transitions.len();
 
-                    enfa.add_transition(start_state_id, Input::Symbol(RegexBuildingBlock::CharacterLiteral(char_val)), end_state_id);
+                    enfa.add_transition(start_state_id, input, end_state_id);
 
                     let after = enfa.transitions.len();
 
@@ -426,6 +550,7 @@ pub fn enfa_deserialize(enfa: &mut EpsilonNfa<State, RegexBuildingBlock>, filena
                         println!("Same");
 
                         panic!("DFA transition did not increase overall amount of transitions! This cannot be! Some characters are interpreted incorrectly! FIX ME!")
+                        //println!("[ENFA_DESERIALIZE] filename: '{}' DFA transition did not increase overall amount of transitions! This cannot be! Some characters are interpreted incorrectly! FIX ME!", filename);
                     }
 
                     transition_count = transition_count + 1;

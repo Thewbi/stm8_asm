@@ -158,6 +158,9 @@ const BASE_PATH: &'static str = "";
 static RULE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static STATE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
+// static REGENERATE_LEXER_PARSER: bool = true;
+static REGENERATE_LEXER_PARSER: bool = false;
+
 pub fn print_ast(program_ast_node_id: &usize, node_map: &Box<HashMap::<usize, AstNode>>, filename: &str) {
 
     let debug = false;
@@ -249,7 +252,8 @@ fn main() {
     //
 
     // let generate_lalr_1 = true;
-    let generate_lalr_1 = false;
+    //let generate_lalr_1 = false;
+    let generate_lalr_1 = REGENERATE_LEXER_PARSER;
     if generate_lalr_1 {
 
         let mut grammar_rules = Vec::<Rule<String>>::new();
@@ -464,7 +468,8 @@ fn main() {
     let mut lexer_dfa = EpsilonNfa::new(temp_q0);
 
     // let generate_lexer = true;
-    let generate_lexer = false;
+    // let generate_lexer = false;
+    let generate_lexer = REGENERATE_LEXER_PARSER;
     if generate_lexer {
         lexer_dfa = produce_c_lexer();
         // store into file
@@ -493,8 +498,9 @@ fn main() {
     let preprocessor_temp_q0 = State::new(0);
     let mut preprocessor_dfa = EpsilonNfa::new(preprocessor_temp_q0);
 
-    let generate_preprocessor_lexer = true;
-    // let generate_preprocessor_lexer = false;
+    // let generate_preprocessor_lexer = true;
+    let generate_preprocessor_lexer = false;
+    // let generate_preprocessor_lexer = REGENERATE_LEXER_PARSER;
     if generate_preprocessor_lexer {
         preprocessor_dfa = produce_preprocessor_lexer();
         // store into file

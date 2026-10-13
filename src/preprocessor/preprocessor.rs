@@ -10,15 +10,21 @@ use std::{
 };
 
 use crate::{
-    PpIfFrame, example_lexers::preprocessor_lexer::PP_INCLUDE_TOKEN_ID, lexer::lexer::{Lexer, Token}, parser::rule::RuleElement::Terminal, preprocessor::{
-        define_symbol::DefineSymbol,
-        expression_parser::ExpressionParser,
-        preprocessor_operating_mode::PreprocessorOperatingMode
-    }, regex::{
-        arena::{Arena, Node, NodeId, VisitMode, recurse_arena_dot},
-        enfa::{EpsilonNfa, State},
-        regex_building_block::RegexBuildingBlock
-    }
+        PpIfFrame,
+        common::string_handling::rem_first_and_last,
+        example_lexers::preprocessor_lexer::PP_INCLUDE_TOKEN_ID,
+        lexer::lexer::{Lexer, Token},
+        parser::rule::RuleElement::Terminal,
+        preprocessor::{
+            define_symbol::DefineSymbol,
+            expression_parser::ExpressionParser,
+            preprocessor_operating_mode::PreprocessorOperatingMode
+        },
+        regex::{
+            arena::{Arena, Node, NodeId, VisitMode, recurse_arena_dot},
+            enfa::{EpsilonNfa, State},
+            regex_building_block::RegexBuildingBlock
+        }
 };
 
 use crate::example_lexers::preprocessor_lexer::PP_BACKSLASH_TOKEN_ID;
@@ -1193,7 +1199,8 @@ impl<'a> Preprocessor<'a> {
                                     println!("including file: {}", include_file_buffer);
                                 }
 
-                                let trimmed = include_file_buffer.trim_matches('"');
+                                // let trimmed = include_file_buffer.trim_matches('"');
+                                let trimmed = rem_first_and_last(&include_file_buffer);
 
                                 let preprocessor: Preprocessor = Preprocessor::new(&self.preprocessor_dfa,
                                     String::from(trimmed));
