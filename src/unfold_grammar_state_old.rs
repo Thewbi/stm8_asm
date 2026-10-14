@@ -2714,3 +2714,70 @@ match asm_ast_instruction.binary_operator {
                                                 //     output_text = symbol.definition.clone();
                                                 // } else {
                                                     //panic!("Need to consume actual parameters!");
+
+
+/*
+                    PreprocessorOperatingMode::IgnoreSingleLineComment => {
+                        match token.token_id {
+                            PP_NEWLINE_TOKEN_ID => {
+                                // a comment is replaced by a single space character
+                                // output a space into the output token stream
+
+                                // 3. Write data
+                                write!(writer, " ");
+
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
+                            _ => {
+                            }
+                        }
+                    }
+
+                    PreprocessorOperatingMode::IgnoreMultiLineComment => {
+                        match token.token_id {
+                            PP_MULTILINE_COMMENT_END_TOKEN_ID => {
+                                // a comment is replaced by a single space character
+                                // output a space into the output token stream
+
+                                // 3. Write data
+                                write!(writer, " ");
+
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
+                            _ => {
+                            }
+                        }
+                    }
+ */
+
+ /*
+                            //
+                            // Comments
+                            //
+                            PP_SINGLELINE_COMMENT_START_TOKEN_ID => {
+                                preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreSingleLineComment;
+                            }
+                            PP_MULTILINE_COMMENT_START_TOKEN_ID => {
+                                preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreMultiLineComment;
+                            }
+                            PP_MULTILINE_COMMENT_END_TOKEN_ID => {
+                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                            }
+*/
+
+// // ignore comma which separates formal parameters
+// if consumed_parameter > 0 {
+//     let token = preprocessor_lexer.next().unwrap();
+//     println!("token-text: '{}'", token.text);
+// }
+
+// // read next actual parameter
+// let token = preprocessor_lexer.next().unwrap();
+// println!("token-text: '{}'", token.text);
+
+// // put next actual parameter into the symbol
+// define_symbol.expression_parser.process_token(token);
+
+// consumed_parameter = consumed_parameter + 1;
+
+// formal_parameter_count = formal_parameter_count - 1;

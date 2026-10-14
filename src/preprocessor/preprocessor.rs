@@ -18,6 +18,7 @@ use crate::{
 
 use crate::example_lexers::preprocessor_lexer::PP_BACKSLASH_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_IDENTIFIER_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_NUMERIC_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_IFDEF_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_IFNDEF_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_WHITESPACE_TOKEN_ID;
@@ -129,6 +130,7 @@ impl<'a> Preprocessor<'a> {
             lexer_token_debug);
 
         preprocessor_lexer.file = self.filename.clone();
+        preprocessor_lexer.line = 1;
 
         let mut lexer_done: bool = false;
         while !lexer_done {
@@ -264,20 +266,6 @@ impl<'a> Preprocessor<'a> {
                                 if out_enable {
                                     preprocessor_operating_mode = PreprocessorOperatingMode::DefineWaitingForName;
                                 }
-                                // else {
-                                //     // the if-frame is disabled
-                                //     // do not perform the define but consume and ignore all token
-                                //     // up to the next newline which returns the state back to
-                                //     // normal
-                                //     match token.token_id {
-                                //         PP_WHITESPACE_TOKEN_ID => {
-                                //             preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
-                                //         }
-                                //         _ => {
-                                //             // ignore
-                                //         }
-                                //     }
-                                // }
                             }
 
                             //
@@ -417,23 +405,18 @@ impl<'a> Preprocessor<'a> {
                                 // Handle if stack frame
                                 //
 
-                                let mut oe: bool = true;
-
-                                // if !pp_if_frame_stack.is_empty() {
-                                //     let top_frame = &pp_if_frame_stack[pp_if_frame_stack.len() - 1];
-                                //     oe = top_frame.output_enabled;
-                                // }
+                                let mut out_enabled: bool = true;
 
                                 // the body of an if-PPI is only enabled if it is enabled and
                                 // if all if-PPI below it on the stack are also enabled!
                                 for frame in &pp_if_frame_stack {
-                                    oe = frame.output_enabled;
-                                    if !oe {
+                                    out_enabled = frame.output_enabled;
+                                    if !out_enabled {
                                         break;
                                     }
                                 }
 
-                                if oe {
+                                if out_enabled {
 
                                     // check if a terminal is in fact a macro
                                     // If it is a macro, the macro is encountered in plain output area.
@@ -459,9 +442,13 @@ impl<'a> Preprocessor<'a> {
                                             output_text = token.text;
                                             if defined_symbol_map.contains_key(&output_text) {
 
-                                                let temp = defined_symbol_map.get(&output_text).unwrap();
+                                                // println!("plain text token recognized as symbol/macro: {}", output_text);
 
-                                                let mut formal_parameter_count = temp.formal_parameter_map.len();
+                                                let macro_symbol = defined_symbol_map.get(&output_text).unwrap();
+
+                                                println!("plain text token '{}' recognized as symbol/macro: {:?}", output_text, macro_symbol);
+
+                                                let mut formal_parameter_count = macro_symbol.formal_parameter_map.len();
 
                                                 // DEBUG
                                                 if self.debug {
@@ -471,8 +458,6 @@ impl<'a> Preprocessor<'a> {
                                                 let mut define_symbol: DefineSymbol = DefineSymbol::new();
 
                                                 define_symbol.name = output_text.clone();
-                                                // define_symbol.formal_parameter_map.insert(0, String::from("x"));
-                                                // define_symbol.definition = String::from("((x) * (x))");
 
                                                 // macro name
                                                 define_symbol.expression_parser.process_token(macro_name_token);
@@ -487,15 +472,24 @@ impl<'a> Preprocessor<'a> {
                                                     // all actual parameters
                                                     while formal_parameter_count > 0 {
 
-                                                        if consumed_parameter > 0 {
-                                                            preprocessor_lexer.next();
-                                                        }
                                                         let token = preprocessor_lexer.next().unwrap();
-                                                        define_symbol.expression_parser.process_token(token);
+                                                        println!("{}", token.token_id);
+                                                        match token.token_id {
 
-                                                        consumed_parameter = consumed_parameter + 1;
+                                                            PP_NUMERIC_TOKEN_ID | PP_IDENTIFIER_TOKEN_ID => {
+                                                                // put next actual parameter into the symbol
+                                                                define_symbol.expression_parser.process_token(token);
 
-                                                        formal_parameter_count = formal_parameter_count - 1;
+                                                                consumed_parameter = consumed_parameter + 1;
+
+                                                                formal_parameter_count = formal_parameter_count - 1;
+                                                            }
+
+                                                            _ => {
+                                                                // ignore
+                                                                println!("test");
+                                                            }
+                                                        }
                                                     }
 
                                                     // closing bracket
@@ -519,6 +513,7 @@ impl<'a> Preprocessor<'a> {
                                                         &define_symbol.expression_parser.ptr_node_id,
                                                         defined_symbol_map,
                                                         &self.preprocessor_dfa,
+                                                        &preprocessor_lexer,
                                                         self.debug);
 
                                                     // DEBUG - AFTER: output AST after replacement
@@ -1017,6 +1012,7 @@ impl<'a> Preprocessor<'a> {
                                             &expression_parser.ptr_node_id,
                                             defined_symbol_map,
                                             &self.preprocessor_dfa,
+                                            &preprocessor_lexer,
                                             self.debug);
 
                                         // DEBUG - AFTER: output AST after replacement
@@ -1268,7 +1264,6 @@ impl<'a> Preprocessor<'a> {
 
                                     let preprocessor: Preprocessor = Preprocessor::new(
                                         &self.preprocessor_dfa,
-                                        // ppi_include_mode,
                                         &self.include_path,
                                         String::from(final_include_filename));
                                     preprocessor.process(writer, defined_symbol_map);
@@ -1292,7 +1287,6 @@ impl<'a> Preprocessor<'a> {
                             // execut the #include PPI
                             PP_NEWLINE_TOKEN_ID => {
                                 panic!("[PREPROCESSOR::error]: '{}'", error_msg_buffer.as_str());
-                                // preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
                             }
                             _ => {
                                 error_msg_buffer.push_str(token.text.as_str());
@@ -1365,7 +1359,9 @@ impl<'a> Preprocessor<'a> {
         node_id: &NodeId,
         defined_symbol_map: &mut HashMap::<String, DefineSymbol>,
         preprocessor_dfa: &EpsilonNfa<State, RegexBuildingBlock>,
-        debug: bool)
+        preprocessor_lexer: &Lexer,
+        debug: bool
+    )
         -> bool
     {
         // DEBUG
@@ -1382,9 +1378,14 @@ impl<'a> Preprocessor<'a> {
         let mut left_child_id:usize = 0;
         let mut right_child_id:usize = 0;
 
-        // if there is no AST to replacing symbols in, return
+        // if there is no AST to replace symbols in, early out
         if arena.nodes.len() == 0 {
             return false;
+        }
+
+        // DEBUG
+        if debug {
+            self.print_arena_dot(&arena);
         }
 
         let node: &Node<Token> = &arena.nodes[node_id.index].clone();
@@ -1392,7 +1393,7 @@ impl<'a> Preprocessor<'a> {
         // retrieve the token which is stored inside the current node
         let token: &Token = &node.data;
 
-        // #defined can only be evaluated if the contained macro is left
+        // #defined can only be evaluated if the contained macro remains
         // as it is without replacing it.
         // Therefore when #defined PPF is executed, exit early without
         // replacing #defined.
@@ -1418,14 +1419,16 @@ impl<'a> Preprocessor<'a> {
         // LHS - replace symbols inside left child
         if let Some(left_id) = &node.left {
             has_left_child = true;
-            left_result = self.replace_symbols(arena, left_id, defined_symbol_map, preprocessor_dfa, debug);
+            left_result = self.replace_symbols(arena,
+                left_id, defined_symbol_map, preprocessor_dfa, preprocessor_lexer, debug);
             left_child_id = left_id.index;
         }
 
         // RHS - replace symbols inside right child
         if let Some(right_id) = &node.right {
             has_right_child = true;
-            right_result = self.replace_symbols(arena, right_id, defined_symbol_map, preprocessor_dfa, debug);
+            right_result = self.replace_symbols(arena,
+                right_id, defined_symbol_map, preprocessor_dfa, preprocessor_lexer, debug);
             right_child_id = right_id.index;
         }
 
@@ -1437,6 +1440,8 @@ impl<'a> Preprocessor<'a> {
             println!("token: {:?}", token);
         }
 
+        // check if this literal is not a text but a preprocessor defined macro/symbol
+        // If it is a macro/symbol, replace it
         match &token.terminal {
 
             Terminal(val) => {
@@ -1463,20 +1468,16 @@ impl<'a> Preprocessor<'a> {
                             // PHASE 0
                             //
                             // parse the definition into an AST, or reuse an AST optimally
+                            // so that later actual parameters can be inserted into the
+                            // AST and further symbols can be replaced.
                             //
 
-                            // parse the definition into an AST, or reuse an AST optimally
-                            self.parse_definition_into_AST(define_symbol, preprocessor_dfa, debug);
+                            let file = preprocessor_lexer.file.clone();
+                            let line = preprocessor_lexer.line;
+                            self.parse_definition_into_AST(define_symbol, preprocessor_dfa, &file, line, debug);
 
-                            // pub struct DefineSymbol {
-                            //     pub name: String,
-                            //     pub formal_parameter_map: BTreeMap::<usize, String>,
-                            //     pub definition: String,
-                            //     pub expression_parser: ExpressionParser, // stores the AST parsed form the definition in it's internal arena
-                            // }
-
-                            // TODO replace the formal parameter occurences by actual parameters
-                            // continue here: replace formal parameters
+                            //
+                            // replace the formal parameter occurences by actual parameters
                             //
                             // define_symbol is the formal symbol_definition with formal parameters.
                             // In it's formal_parameter_map contains the amount of formal parameters.
@@ -1484,6 +1485,7 @@ impl<'a> Preprocessor<'a> {
                             // the actual parameters need to be retrieved by ascending to the parent
                             // and then iterating the RHS subtree which contains the list of actual
                             // parameters
+                            //
 
                             //
                             // PHASE 1
@@ -1507,9 +1509,14 @@ impl<'a> Preprocessor<'a> {
                             if formal_parameter_count > 0 {
 
                                 // clone because an iterator is used later and the iterator
-                                // wants to own the object it iterates exclusively so that
+                                // wants to own the object it iterates over exclusively so that
                                 // the underlying object does not change during iteration
                                 let mut arena_clone = arena.clone();
+
+                                // DEBUG
+                                if debug {
+                                    self.print_arena_dot(&arena_clone);
+                                }
 
                                 let end_token = node.data.clone();
 
@@ -1531,6 +1538,11 @@ impl<'a> Preprocessor<'a> {
                                     println!("{:?}", &right_node);
                                 }
 
+                                //
+                                // Start to iterate the RHS subtree which contains all the
+                                // actual parameters
+                                //
+
                                 // set the start node id from where the iteration in the AST should start
                                 arena_clone.iterator_current_node_id = right_node_id.index;
 
@@ -1542,8 +1554,15 @@ impl<'a> Preprocessor<'a> {
                                 // DEBUG
                                 //println!("{}", define_symbol.name);
 
+                                // DEBUG
+                                if debug {
+                                    self.print_arena_dot(&arena_clone);
+                                }
+
                                 let mut actual_parameter_count: usize = 0;
-                                for token in arena_clone {
+                                for token_node in arena_clone {
+
+                                    let token = token_node.data;
 
                                     // the iterator over the tree nodes is implemented in a weird way.
                                     // It will loop back to the left node once it has iterated over the
@@ -1553,21 +1572,33 @@ impl<'a> Preprocessor<'a> {
                                     //
                                     // TODO: find a cleaner way to extract the formal parameters.
                                     // They are the leaves of the subtree...
-                                    if token.data == end_token {
+                                    if token == end_token {
                                         break;
                                     }
 
                                     // DEBUG
                                     if debug {
-                                        println!("{}", token.data.text);
+                                        println!("{}", token.text);
                                     }
 
-                                    if token.data.text != "," {
+                                    if token.text == "," {
+
+                                        // ignore comma (parameter separator)
+
+                                    } else {
 
                                         // fill formal and actual values into the replace_map
                                         let key_option = define_symbol.formal_parameter_map.get(&actual_parameter_count);
-                                        let key = key_option.unwrap().clone();
-                                        let value = token.data.text.clone();
+                                        //let key = key_option.unwrap().clone();
+                                        let mut key = String::new();
+                                        if let Some(key_from_option) = key_option {
+                                            key = key_from_option.clone();
+                                        } else {
+                                            println!("\n\n---\n{:?}\n---\n\n", define_symbol);
+                                            panic!("File: {}, Line: {}", token.file, token.line);
+                                        }
+
+                                        let value = token.text.clone();
                                         replace_map.insert(key, value);
 
                                         // increment index
@@ -1577,7 +1608,7 @@ impl<'a> Preprocessor<'a> {
 
                                 // semantic analysis
                                 if actual_parameter_count != formal_parameter_count {
-                                    panic!("[ERR] Incorrect use of preprocessor macro \"{}\"! Parameter count mismatch!", define_symbol.name);
+                                    panic!("[ERR] Incorrect use of preprocessor macro \"{}\"! Parameter count mismatch! actual_parameter_count:{}, formal_parameter_count:{}", define_symbol.name, actual_parameter_count, formal_parameter_count);
                                 }
 
                                 //
@@ -1930,6 +1961,20 @@ impl<'a> Preprocessor<'a> {
                     };
                     return 0;
 
+                } else if *val == String::from("GT") {
+
+                    if right_result > left_result {
+                        return 1;
+                    };
+                    return 0;
+
+                } else if *val == String::from("LT") {
+
+                    if right_result < left_result {
+                        return 1;
+                    };
+                    return 0;
+
                 } else {
                     panic!("Unhandled: {}", *val);
                 }
@@ -1956,15 +2001,15 @@ impl<'a> Preprocessor<'a> {
     /// because it needs to be evaluated. Only well-formed
     /// definitions can be evaluated
     fn parse_definition_into_AST(&self,
-
         // has to be mutable, because this function will parse the definition into an AST
         // and that AST is stored inside the expression parser which therefore will be
         // mutated which means the Define Symbol will be mutated
         define_symbol: &mut DefineSymbol,
-
         preprocessor_dfa: &EpsilonNfa<State, RegexBuildingBlock>,
-        debug: bool) {
-
+        file: &String,
+        line: usize,
+        debug: bool)
+    {
         // the expression parser stores the AST in it's internal arena.
         // If the arena is empty, the macro defintion has not been
         // parsed into an AST yet!
@@ -1978,11 +2023,14 @@ impl<'a> Preprocessor<'a> {
             let lexer_debug: bool = false;
             let lexer_token_debug: bool = debug;
 
-            let internal_lexer: Lexer = Lexer::new(
+            let mut internal_lexer: Lexer = Lexer::new(
                 define_symbol.definition.clone(),
                 preprocessor_dfa,
                 lexer_debug,
                 lexer_token_debug);
+
+            internal_lexer.file = file.clone();
+            internal_lexer.line = line;
 
             for token in internal_lexer {
                 define_symbol.expression_parser.process_token(token);
@@ -1995,6 +2043,7 @@ impl<'a> Preprocessor<'a> {
     }
 
     pub fn print_arena_dot(&self, arena: &Arena<Token>) {
+
         let mut ast_string_buffer = String::from("");
 
         let root = NodeId { index: arena.iterator_current_node_id, };
@@ -2018,52 +2067,3 @@ impl<'a> Preprocessor<'a> {
     }
 }
 
-
-/*
-                    PreprocessorOperatingMode::IgnoreSingleLineComment => {
-                        match token.token_id {
-                            PP_NEWLINE_TOKEN_ID => {
-                                // a comment is replaced by a single space character
-                                // output a space into the output token stream
-
-                                // 3. Write data
-                                write!(writer, " ");
-
-                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
-                            }
-                            _ => {
-                            }
-                        }
-                    }
-
-                    PreprocessorOperatingMode::IgnoreMultiLineComment => {
-                        match token.token_id {
-                            PP_MULTILINE_COMMENT_END_TOKEN_ID => {
-                                // a comment is replaced by a single space character
-                                // output a space into the output token stream
-
-                                // 3. Write data
-                                write!(writer, " ");
-
-                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
-                            }
-                            _ => {
-                            }
-                        }
-                    }
- */
-
- /*
-                            //
-                            // Comments
-                            //
-                            PP_SINGLELINE_COMMENT_START_TOKEN_ID => {
-                                preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreSingleLineComment;
-                            }
-                            PP_MULTILINE_COMMENT_START_TOKEN_ID => {
-                                preprocessor_operating_mode = PreprocessorOperatingMode::IgnoreMultiLineComment;
-                            }
-                            PP_MULTILINE_COMMENT_END_TOKEN_ID => {
-                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
-                            }
-*/

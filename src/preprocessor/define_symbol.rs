@@ -22,6 +22,32 @@ impl DefineSymbol {
     }
 }
 
+impl fmt::Debug for DefineSymbol {
+
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+
+        write!(f, "{}", self.name);
+
+        let mut count = 0;
+
+        if self.formal_parameter_map.len() > 0 {
+            write!(f, " (");
+            for (key, value) in &self.formal_parameter_map {
+                if count > 0 {
+                    write!(f, ", ");
+                }
+                write!(f, "{}", value);
+                count = count + 1;
+            }
+            write!(f, ")");
+        }
+
+        write!(f, " -> {}", self.definition);
+
+        Ok(())
+    }
+}
+
 impl fmt::Display for DefineSymbol {
 
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

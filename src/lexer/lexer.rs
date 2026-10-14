@@ -510,12 +510,12 @@ impl Iterator for Lexer<'_> {
                     // DEBUG
                     if self.lexer_debug {
                         println!("[LEXER.TRAP_STATE] Emitting '{}', Token-Id: {},
-                            Token-Name: {}", // | File: {:?}, Line: {:?}",
+                            Token-Name: {} | File: {:?}, Line: {:?}",
                             self.token_string_buffer,
                             self.dfa.states[&self.current_state_id].token_id,
                             self.dfa.states[&self.current_state_id].token_name,
-                            // file,
-                            // line
+                            self.file,
+                            self.line
                         );
                         println!("");
                     }
@@ -527,15 +527,20 @@ impl Iterator for Lexer<'_> {
                     // DEBUG - this outputs the string and the token generated from the string
                     // This is a good starting point for debugging
                     if self.lexer_token_debug {
-                        println!("[LEXER.TRAP_STATE] {:?} ---> {:?}", // | File: {:?}, Line: {:?}",
+                        println!("[LEXER.TRAP_STATE] {:?} ---> {:?} | File: {:?}, Line: {:?}",
                             self.token_string_buffer,
                             terminal,
-                            // file,
-                            // line
+                            self.file,
+                            self.line
                         );
                     }
 
                     self.buffered_character_option = Some(current_character);
+
+                    // make sure there is a valid reference to a file (convenient debugging)
+                    if self.file.is_empty() {
+                        panic!();
+                    }
 
                     // create token
                     let token = Token {

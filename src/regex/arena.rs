@@ -426,7 +426,6 @@ where T:std::fmt::Debug, T:std::fmt::Display
     let parent_node: &Node<T> = &arena.nodes[parent_node_id.index];
 
     // output node
-    // println!("{:?}", parent_node.data);
     string_buffer.push_str(format!("{} [label=\"{} {}\"]\n",
         parent_node_id.index,
         parent_node_id.index,
