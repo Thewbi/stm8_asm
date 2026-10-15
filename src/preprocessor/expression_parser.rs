@@ -21,6 +21,7 @@ use crate::example_lexers::preprocessor_lexer::PP_LT_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_NE_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_OPENING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_CLOSING_BRACKET_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_CLOSED_BRACKET_PAIR_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_OR_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_SEMICOLON_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_COMMA_TOKEN_ID;
@@ -37,6 +38,7 @@ use crate::example_lexers::preprocessor_lexer::PP_BACKSLASH_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_PRAGMA_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_ELLIPSIS_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_GREATER_THAN_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_CONCATENATION_TOKEN_ID;
 
 use crate::regex::arena::recurse_arena;
 use crate::regex::arena::{Arena, NodeId, recurse_arena_dot};
@@ -48,6 +50,7 @@ enum Operation {
     ADD_RIGHT,
     ADD_LEFT,
     CLOSE_BRACKETS,
+    CONCATENATE,
     NO_ACTION
 }
 
@@ -93,6 +96,7 @@ impl ExpressionParser {
 
         match token.token_id {
 
+            // whitespace
             PP_WHITESPACE_TOKEN_ID => {
                 token.weight = 0;
             }
@@ -100,14 +104,23 @@ impl ExpressionParser {
                 token.weight = 0;
                 self.ignore_input_due_to_single_line_comment = false;
             }
+
+            // string literal / identifier
             PP_IDENTIFIER_TOKEN_ID => {
-                // token.weight = 11111;
                 token.weight = 99999;
             }
-            PP_AND_OP_TOKEN_ID => { // AND_OP
+            PP_STRING_LITERAL_TOKEN_ID => {
+                token.weight = 999;
+            }
+            PP_NUMERIC_TOKEN_ID => {
+                token.weight = 998;
+            }
+
+            // logical operators
+            PP_AND_OP_TOKEN_ID => {
                 token.weight = 180;
             }
-            PP_OR_OP_TOKEN_ID => { // OR_OP
+            PP_OR_OP_TOKEN_ID => {
                 token.weight = 180;
             }
             PP_GE_OP_TOKEN_ID => {
@@ -125,25 +138,25 @@ impl ExpressionParser {
             PP_LT_OP_TOKEN_ID => {
                 token.weight = 190;
             }
+
             PP_SEMICOLON_TOKEN_ID => {
                 token.weight = 182;
             }
-            PP_COMMA_TOKEN_ID => { // COMMA
+            PP_COMMA_TOKEN_ID => {
                 token.weight = 182;
             }
             PP_COLON_TOKEN_ID => {
                 token.weight = 182;
             }
-            PP_OPENING_BRACKET_TOKEN_ID => { // OPENING_BRACKET
-                //token.weight = 1;
+
+            // Brackets
+            PP_OPENING_BRACKET_TOKEN_ID => {
                 token.weight = 11111;
-                //token.weight = 99999;
             }
-            PP_CLOSING_BRACKET_TOKEN_ID => { // CLOSING_BRACKET
-                //token.weight = 1;
+            PP_CLOSING_BRACKET_TOKEN_ID => {
                 token.weight = 11111;
-                //token.weight = 99999;
             }
+
             34 => { // EXCLAMATION_MARK !
                 token.weight = 430;
             }
@@ -171,12 +184,7 @@ impl ExpressionParser {
             200 => { // DEFINE (Preprocessor Instruction (PPI))
                 token.weight = 500;
             }
-            PP_STRING_LITERAL_TOKEN_ID => {
-                token.weight = 999;
-            }
-            PP_NUMERIC_TOKEN_ID => {
-                token.weight = 998;
-            }
+
             PP_ELLIPSIS_TOKEN_ID => {
                 token.weight = 997;
             }
@@ -228,12 +236,6 @@ impl ExpressionParser {
 
                         Operation::REPARENT => {
 
-                            // if token_text == ")" {
-                            //     self.bracket_balance = self.bracket_balance - 1;
-                            //     println!("[bracket_balance]: {:?}", self.bracket_balance);
-                            // }
-
-                            // TODO: assumption, reparent at root!
                             if self.arena.has_parent(&insert_node_id) {
 
                                 // create a new node for the inserted token
@@ -243,12 +245,11 @@ impl ExpressionParser {
                                 // TODO: Assumes right child
                                 // TODO: check if left or right!
 
+                                // insert new node into old parent
                                 // will also update the parent link
                                 self.arena.insert_right(&parent_node_id, new_node_id);
 
-                                // copy parent pointer from child
-                                //arena.nodes[insert_node_id.index].parent = arena.nodes[insert_node_id.index].parent;
-
+                                // insert old node into new node
                                 // will also update the parent link
                                 self.arena.insert_left(&new_node_id, insert_node_id);
 
@@ -316,6 +317,52 @@ impl ExpressionParser {
                             }
                         }
 
+                        Operation::CONCATENATE => {
+                            println!("test");
+                            if self.arena.has_parent(&insert_node_id) {
+
+                                // let parent_node = &self.arena.nodes[insert_node_id.index];
+                                let parent_node_id = self.arena.nodes[insert_node_id.index].parent.unwrap();
+
+                                // new node for concatenation
+                                let mut concatenate_token: Token = Token::new();
+                                concatenate_token.text = String::from("#");
+                                concatenate_token.token_id = PP_CONCATENATION_TOKEN_ID;
+                                let concatenate_token_id = self.arena.new_node(concatenate_token);
+
+                                self.arena.insert_right(&parent_node_id, concatenate_token_id);
+
+                                // insert the old node into the left of the new token
+                                // will also update the parent link
+                                self.arena.insert_left(&concatenate_token_id, insert_node_id);
+
+                                // aim the pointer at the new concatenation node
+                                self.ptr_node_id.index = concatenate_token_id.index;
+
+                                // new node for the inserted token
+                                let new_node_id = self.arena.new_node(token);
+                                self.arena.insert_right(&self.ptr_node_id, new_node_id);
+
+                            } else {
+
+                                // new parent
+                                let mut concatenate_token: Token = Token::new();
+                                concatenate_token.text = String::from("#");
+                                concatenate_token.token_id = PP_CONCATENATION_TOKEN_ID;
+
+                                // aim the pointer at the new concatenation node
+                                self.ptr_node_id.index = self.arena.new_node(concatenate_token).index;
+
+                                // insert the old node into the left of the token
+                                // will also update the parent link
+                                self.arena.insert_left(&self.ptr_node_id, insert_node_id);
+
+                                // new node for the inserted token
+                                let new_node_id = self.arena.new_node(token);
+                                self.arena.insert_right(&self.ptr_node_id, new_node_id);
+                            }
+                        }
+
                         Operation::NO_ACTION => {
                         }
                     }
@@ -332,11 +379,22 @@ impl ExpressionParser {
         }
     }
 
+    /// Given a token to insert and a node_id to insert into, will
+    /// determine the child node to insert into by diving into the tree
+    /// and return an operation to perform.
+    ///
+    /// Will not execute the insert immediately!
     fn insert_into_pp_ast(&self,
+        // the node to insert into (Most likely the node that the insert pointer points to)
         node_id: &NodeId,
-        token: &Token)
-        -> ( Operation, NodeId )
+        // the new object to insert
+        token: &Token) -> ( Operation, NodeId )
     {
+
+        if token.text == "d" {
+            println!("test");
+        }
+
         loop {
 
             let payload: &Token = self.arena.get_payload(&node_id);
@@ -363,6 +421,25 @@ impl ExpressionParser {
 
                 PP_CLOSING_BRACKET_TOKEN_ID => {
                     println!("test");
+                }
+
+                PP_CLOSED_BRACKET_PAIR_TOKEN_ID => {
+                    if token.token_id == PP_IDENTIFIER_TOKEN_ID {
+                        return ( Operation::CONCATENATE, node_id.clone() );
+                    } else {
+                        // let rhs_node_id = self.arena.get_right_id(&node_id).unwrap();
+                        // return self.insert_into_pp_ast(rhs_node_id, token);
+                        return ( Operation::REPARENT, node_id.clone() );
+                    }
+                }
+
+                PP_CONCATENATION_TOKEN_ID => {
+                    if token.token_id == PP_IDENTIFIER_TOKEN_ID {
+                        return ( Operation::CONCATENATE, node_id.clone() );
+                    } else {
+                        let rhs_node_id = self.arena.get_right_id(&node_id).unwrap();
+                        return self.insert_into_pp_ast(rhs_node_id, token);
+                    }
                 }
 
                 _ => {
@@ -398,6 +475,14 @@ impl ExpressionParser {
                         // same weight
 
                         let existing_node_id = &self.arena.nodes[node_id.index];
+
+                        // check if an identifier meets an identifier
+                        if existing_node_id.data.token_id == PP_IDENTIFIER_TOKEN_ID {
+                            if token.token_id == PP_IDENTIFIER_TOKEN_ID {
+                                return ( Operation::CONCATENATE, node_id.clone() );
+                            }
+                        }
+
                         match existing_node_id.data.token_id {
 
                             PP_OPENING_BRACKET_TOKEN_ID => { // OPENING_BRACKET

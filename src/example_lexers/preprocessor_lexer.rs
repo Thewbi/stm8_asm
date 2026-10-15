@@ -68,6 +68,8 @@ pub const PP_SINGLELINE_COMMENT_START_TOKEN_ID: usize = 800;
 pub const PP_MULTILINE_COMMENT_START_TOKEN_ID: usize = 801;
 pub const PP_MULTILINE_COMMENT_END_TOKEN_ID: usize = 802;
 
+pub const PP_CONCATENATION_TOKEN_ID: usize = 1000;
+
 // Defines token for a lexer.
 // The grammar is defined in produce_grammar_c_full_if_else_4(); (c_full_if_else_4.rs)
 pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {

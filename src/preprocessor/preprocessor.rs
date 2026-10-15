@@ -2002,7 +2002,7 @@ impl<'a> Preprocessor<'a> {
         // DEBUG
         if debug {
             let root = arena.find_root();
-            self.print_arena_dot(arena, root);
+            print_arena_dot(arena, root);
         }
 
         let node: &Node<Token> = &arena.nodes[node_id.index];
@@ -2263,12 +2263,11 @@ impl<'a> Preprocessor<'a> {
         // define_symbol.expression_parser.print_dot();
         // define_symbol.expression_parser.print_console();
     }
+}
 
-    pub fn print_arena_dot(&self, arena: &Arena<Token>, node_id: usize) {
+pub fn print_arena_dot(arena: &Arena<Token>, node_id: usize) {
 
         let mut ast_string_buffer = String::from("");
-
-        // let root = NodeId { index: arena.iterator_current_node_id, };
 
         let root = NodeId { index: node_id };
 
@@ -2289,5 +2288,4 @@ impl<'a> Preprocessor<'a> {
         // 4. Explicitly flush the remaining data to disk
         writer.flush().expect("flush failed!");
     }
-}
 
