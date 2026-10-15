@@ -1304,9 +1304,9 @@ impl<'a> Preprocessor<'a> {
                     let macro_symbol = defined_symbol_map.get(&token.text).unwrap();
 
                     // DEBUG
-                    if self.debug {
+                    // if self.debug {
                         println!("plain text token '{}' recognized as symbol/macro: {:?}", token.text, macro_symbol);
-                    }
+                    // }
 
                     //
                     // parse the macro call into an AST
@@ -1327,25 +1327,46 @@ impl<'a> Preprocessor<'a> {
                     define_symbol.definition = macro_symbol.definition.clone();
                     define_symbol.formal_parameter_map = macro_symbol.formal_parameter_map.clone();
 
+                    println!("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+
                     // if there are formal parameters, let the lexer consume them.
                     // Each parameter might be a complex subtree itself!
                     if formal_parameter_count > 0 {
 
-                        let token = preprocessor_lexer.next().unwrap();
-                        define_symbol.expression_parser.process_token(token);
-
-                        // DEBUG - print dot of macro/symbol
-                        // let root_id = define_symbol.expression_parser.arena.find_root();
-                        // self.print_arena_dot(&define_symbol.expression_parser.arena, root_id);
-
-                        while !define_symbol.expression_parser.is_tree_balanced() {
-                            let token = preprocessor_lexer.next().unwrap();
+                        let mut token = Token::new();
+                        if first_iteration {
+                            token = preprocessor_lexer.next().unwrap();
+                            // println!("1: '{}'", token.text);
                             define_symbol.expression_parser.process_token(token);
 
                             // DEBUG - print dot of macro/symbol
                             // let root_id = define_symbol.expression_parser.arena.find_root();
                             // self.print_arena_dot(&define_symbol.expression_parser.arena, root_id);
+                            while !define_symbol.expression_parser.is_tree_balanced() {
+                                let mut token = Token::new();
+                                token = preprocessor_lexer.next().unwrap();
+                                println!("2: '{}'", token.text);
+                                define_symbol.expression_parser.process_token(token);
+
+                                // DEBUG - print dot of macro/symbol
+                                // let root_id = define_symbol.expression_parser.arena.find_root();
+                                // self.print_arena_dot(&define_symbol.expression_parser.arena, root_id);
+                            }
+                        } else {
+                            // token = new_preprocessor_lexer.next().unwrap();
+                            // for token in new_preprocessor_lexer {
+                            //     define_symbol.expression_parser.process_token(token);
+                            // }
+
+                            loop {
+                                if let Some(token) = new_preprocessor_lexer.next() {
+                                    define_symbol.expression_parser.process_token(token);
+                                } else {
+                                    break;
+                                }
+                            }
                         }
+
                     }
 
                     // DEBUG - print dot of macro/symbol

@@ -241,6 +241,10 @@ fn main() {
 
     println!("start");
 
+
+
+
+
     let mut parse_table = HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>::new();
 
     //
@@ -513,6 +517,39 @@ fn main() {
     if debug {
         println!("*********************************************************************************");
     }
+
+    println!("x+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+x");
+
+    // let data = String::from("a+b");
+
+    let data = String::from("_SAL2_Source_(
+          _In_reads_or_z_opt_,
+         (size),
+         _In_opt_     _When_(_String_length_(_Curr_) < (size), _Pre_z_)     _When_( _String_length_(_Curr_) >= (size), _Pre1_impl_(__count_impl(size)) )
+     )");
+
+    //let data = String::from("_In_opt_     _When_(_String_length_(_Curr_) < (size), _Pre_z_)");
+
+    // create a lexer which returns the required token for preprocessing
+    // the underlying input file into an output file
+    let lexer_debug: bool = false;
+    let lexer_token_debug: bool = false;
+    let mut preprocessor_lexer: Lexer = Lexer::new(data,
+        &preprocessor_dfa,
+        lexer_debug,
+        lexer_token_debug);
+    preprocessor_lexer.file = String::from("main");
+    preprocessor_lexer.line = 1;
+
+    let mut expression_parser = ExpressionParser::new();
+
+    for token in preprocessor_lexer {
+        expression_parser.process_token(token);
+    }
+
+    expression_parser.print_dot();
+
+    println!("x+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+x");
 
     //
     // Process some input for the preprocessor

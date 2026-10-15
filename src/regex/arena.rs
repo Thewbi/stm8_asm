@@ -321,6 +321,10 @@ impl<T> Arena<T> {
     }
 
     pub fn find_root(&self) -> usize {
+
+        if self.nodes.len() == 0 {
+            panic!("test");
+        }
         let mut iterator_current_node_id = self.iterator_current_node_id;
         loop {
             let current_node: &Node<T> = &self.nodes[iterator_current_node_id];
@@ -458,12 +462,12 @@ where T:std::fmt::Debug, T:std::fmt::Display
     // LHS - output left child
     if let Some(left_id) = &parent_node.left {
         recurse_arena_dot(arena, left_id, string_buffer);
-        string_buffer.push_str(format!("{} -> {}\n", parent_node_id.index, left_id.index).as_str());
+        string_buffer.push_str(format!("{} -> {} [label=\"LHS\"]\n", parent_node_id.index, left_id.index).as_str());
     }
 
     // RHS - output right child
     if let Some(right_id) = &parent_node.right {
         recurse_arena_dot(arena, right_id, string_buffer);
-        string_buffer.push_str(format!("{} -> {}\n", parent_node_id.index, right_id.index).as_str());
+        string_buffer.push_str(format!("{} -> {} [label=\"RHS\"]\n", parent_node_id.index, right_id.index).as_str());
     }
 }

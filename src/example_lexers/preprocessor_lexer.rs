@@ -28,6 +28,7 @@ pub const PP_CLOSED_BRACKET_PAIR_TOKEN_ID: usize = 80;
 
 pub const PP_EXCLAMATION_MARK_TOKEN_ID: usize = 34;
 
+pub const PP_LT_OP_TOKEN_ID: usize = 41;
 pub const PP_GREATER_THAN_TOKEN_ID: usize = 42;
 pub const PP_QUESTION_MARK_TOKEN_ID: usize = 45;
 pub const PP_WHITESPACE_TOKEN_ID: usize = 46;
@@ -345,7 +346,7 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\*", "ASTERISK", 38); // used in Regex as Repeat(0, std::usize::MAX)
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "/", "SLASH", 39);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "%", "PERCENT", 40);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "<", "LT", 41);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "<", "LT", PP_LT_OP_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ">", "GT", PP_GREATER_THAN_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\^", "CIRCUMFLEX", 43); // used in Regex as NEGATION operator
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\|", "OR", 44); // used in Regex as OR operator
