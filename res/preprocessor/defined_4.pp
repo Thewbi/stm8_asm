@@ -1,4 +1,5 @@
 #define TEST
+//#undef TEST
 
 int main() {
 

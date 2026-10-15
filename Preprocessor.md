@@ -1,7 +1,10 @@
 # Preprocessor
 
+The compilation of the core of the C programming language does not contain comments and
+also it does not specify header files! The compiled C code only consists of .c files containing pure C code! The compiler itself will not deal with includes, comments or preprocessor instructions! The C language specification instead defines a preprocessor which takes care of including files, removing comments and replacing macros.
+
 The preprocessor takes a singular .c file as an input and starts to form a compilation unit.
-It is not possible to specify more than a single .c file as input at a time.
+It is not possible to specify more than a single .c file as input to the preprocessor at a time.
 
 The preprocessor now starts to process the compilation unit and it will extend it
 by resolving included (#include) header files (recursively, if a header includes another header)
@@ -13,35 +16,29 @@ The output of the preprocessor is one large .c file that contains the entire
 compilation unit and adheres to some type of the C-specification (e.g. C99) which
 can then be processed by a C-compiler that also adheres to that same type of specification.
 
-Confusion: The C language specification specifies a set of standard header files that need
-to be provided and implemented by a C-runtime distributed alongside the compiler for the
-compiler to be a conforming C compiler! The C language specification also defines a preprocessor.
-But the compilation of the core of the C programming language does not contain comments and
-also it does not specify header files! The compiled C code only consists of .c files
-containing pure C code! The compiler itself will not deal with includes, comments or preprocessor
-instructions!
+At this point, there are no more .h files to process as the preprocessor has pasted the .h
+files into the compilation unit. The C-compiler will never touch any .h files! The compiler's
+output is a single object (.o) file per preprocessed .c file / compilation unit.
 
-At this point, there are no more .h files in the set of files to compile as the
-preprocessor has pasted the .h files into the compilation unit. The C-compiler will
-never touch any .h files! The compiler's output is one object (.o) file per preprocessed
-.c file / compilation unit.
-
-Now, there are a set of .o files, one .o per compilation unit. This means that the
+After preprocessing, there is a set of .o files, one .o per compilation unit. This means that the
 preprocessor does not combine all input .c files into one large compilation unit but
-instead the preprocessor outputs a distinct compilation unit per input .c file!
-And this also means that the compiler will not compile several .c compilation units
+instead it outputs a distinct compilation unit per input .c file!
+
+This also means that the compiler will not compile several .c compilation units
 into one large .o file but the compiler will output one object file per input compilation unit.
+Every call to the compiler will have a single .c file as input.
 
 Finally the linker will combine all .o files along with specified library files into a
 final library or executable.
 
 
-
 ## Preprocessor Instructions (PPI)
 
-A preprocessor instruction (ppi) extends over a single line only!
-The line has to start with a pound (#) sign (whitespace are allowed). If a line does not start with a pound sign, it is not a PPI line.
-A newline terminates the line!
+A preprocessor instruction (PPI) extends over a single line only! The line has to start with a pound (#) sign (whitespace are allowed). If a line does not start with a pound sign, it is not a PPI line. A newline terminates the line!
+
+The \ character makes the preprocessor ignore the next newline character while it parses PPI. This is used to write PPI spanning several lines and make the preprocessor treat the entire definition as a single line definition. This is a convenience feature to improve the readabilty of the source-code but will not otherwise affect the functionality of the preprocessor.
+
+### List of PPI
 
 These PPI exist:
 
@@ -87,20 +84,73 @@ A special type of #if exists:
 
 This special type checks if a symbol is defined using the operator defined(<symbol>)
 
+The stringizer operator #
+
+### Stringizing
+
+Stringizing is performed using the operator #.
+
+```
+#define stringer( x ) printf_s( #x "\n" )
+```
+
+The stringizer operator (#) will
+- wrap all arguments in double quotes
+- escape special characters encountered in the arguments
+
+Input:
+
+```
+// stringizer.cpp
+#include <stdio.h>
+#define stringer( x ) printf_s( #x "\n" )
+int main() {
+    stringer ( In quotes in the printf function call );
+    stringer ( "In quotes when printed to the screen" );
+    stringer ( "This: \" prints an escaped double quote" );
+}
+```
+
+Output:
+
+```
+int main() {
+    printf_s ( "In quotes in the printf function call" "\n" );
+    printf_s ( "\"In quotes when printed to the screen\"" "\n" );
+    printf_s ( "\"This: \\\" prints an escaped double quote"" "\n" );
+}
+```
 
 
 
 
-## Parsing and applying PPI
 
-The Preprocessor uses a lexer.
-The lexer has to feed individual token to the lexer.
+
+# Parsing and applying PPI
+
+The Preprocessor uses a lexer (but no parser since no grammar can be formulated as some parts
+of the input are allowed to be free-text without any formal specification to them).
+
+The lexer has to feed individual token to the preprocessor.
+
+The preprocessor consumes PPI until the current line is over.
+
+Once consumed, the preprocessor changes roles away from being a parser and now shows the
+behaviour of an interpreter. It will execute PPI such as #if, #elif, #ifdef, #ifndef, #define,
+#undef and others. As an interpreter it uses the information it has learned from the execution
+of PPI on previous lines and execute the current PPI.
+
+The preprocessor will not output new PPI which means that after the first pass, the preprocessor is done with a file.
 
 # Parsing PP instructions (PPI)
 
 ## Expression Parser
 
-The expression parser uses the following priorities:
+In order to execute #if statements for example, the if-predicate has to be evaluated to a true or
+false value. To interpret the predicate it is converted into a tree. The predicate therefore
+needs to be well-formed. It is the expression parsers job to convert the predicate into a tree.
+
+The expression parser uses the following priorities for token:
 (A higher number sinks down into the tree further/deeper than a smaller number.)
 
 ```
@@ -133,17 +183,28 @@ defined - 500
 
 The expression parser outputs an AST-Node of trees that represents the expression.
 
+To improve the parsing, an opening bracket temporarily becomes the new point of
+insertion into the tree by moving the insertion pointer to that opening bracket node.
+Any subsequent token are inserted at the node pointed to by the insertion pointer and
+not at the root node. Once the closing bracket is matche by a opening bracket, the
+opening bracket node changes into a () node and the insertion pointer is moved up the
+tree to the previous opening bracket node.
+
 ## Parsing the #define PPI
 
 The format is:
 
 ```
-#define <macro_interface> <macro_definition>...<macro_definition>
+#define <macro_interface> <replacement_text>
 ```
 
-Note that there are zero, one or more <macro_definition>S.
-Each <macro_definition> needs to be parsed into an AST and then
-each of these ASTs needs to be inserted into a list for later retrieval.
+The <macro_interface> consists of the mandatory macro name followed
+by optional parameters. The parameters are a comma separated list wrapped
+in brackets. The <replacement_text> is free-form text and does not have
+to be well-formed i.e. needs to be convertible into a binary tree. The
+<replacement_text> is optional. If a macro is not defined at all or is
+defined without <replacement_text>, it's value is defined to be 0 when
+evaluated.
 
 To manage all defines, the preprocessor uses a struct for defines.
 A define is implemented as a struct that looks like this:
@@ -152,7 +213,7 @@ A define is implemented as a struct that looks like this:
 {
     name
     list_of_parameters
-    list_of_ASTs
+    definition/replacement_text
 }
 ```
 
@@ -161,15 +222,8 @@ define struct for fast lookup and retrieval of defines, when they are encountere
 in the source code and when each individual token in the input stream needs
 to be checked if it is a defined symbol.
 
-The #define PP instruction consists of two parts.
-The <macro_interface> is the first AST parsed from the input.
-The <macro_definition>S are the rest of the ASTs parsed from the input.
-
-The <macro_interface> AST is parsed into the 'name' of the define struct and also into
-the 'list_of_parameters' of the define struct.
-
-As an example, the following define is a #define which actually has
-an interface and a definition which are well-formed and could in theory
+As an example, the following define has an interface consisting of name and
+parameter list and a definition which additionally is well-formed and could in theory
 be parsed by an expression parser:
 
 ```
@@ -193,15 +247,16 @@ This define yields a <macro_interface> which is the following AST:
 The define struct's name is filled with the extracted value 'max'.
 The efine struct's list_of_parameters is extracted from the AST to be 'a', 'b' in exactly that order.
 
-The list_of_ASTs is filled with all the ASTs that follow the <macro_interface>
-
-The following define is different:
+The following define is different to the first example:
 
 ```
 #define _SAL1_Source_(Name, args, annotes) _SA_annotes3(SAL_name, #Name, "", "1") _GrouP_(annotes _SAL_nop_impl_)
 ```
 
-Here, there are two <macro_definition>S.
+While it also has a <macro_interface> with name and parameter list, it's <replacement_text>
+is free-form text and not well-formed text. The <replacement_text> cannot be parsed into
+a binary tree!
+
 A normal Expression parser cannot correctly parse both expressions because it does
 not use a grammar and no recursive decent parser or the likes. A grammar cannot
 be use since anything can be put in a #define and there is no grammar that
@@ -281,7 +336,8 @@ When a defined symbol is detected in the token stream,
 
 ## Parsing if-instruction
 
-The #if PP instruction consists of a single part, which is parsed using the expression parser
+The #if PP instruction consists of a single part called the predicate,
+which is parsed using the expression parser.
 
 The format is:
 
@@ -289,7 +345,7 @@ The format is:
 #if <expression>
 ```
 
-### Resolving a if-instruction (when it is found in the token stream)
+### Resolving an if-instruction (when it is found in the token stream)
 
 When a #if symbol is detected in the token stream,
 1. the #if content is parsed using an expression parser

@@ -1,0 +1,5 @@
+#define BLIB SQUARE
+#define DIMENSION BLIB
+#define SQUARE DIMENSION
+
+Macro: SQUARE

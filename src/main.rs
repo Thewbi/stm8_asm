@@ -573,7 +573,6 @@ fn main() {
         include_path.push(String::from("C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\14.44.35207\\include"));
 
         let preprocessor: Preprocessor = Preprocessor::new(&preprocessor_dfa,
-            // PpiIncludeMode::UNKNOWN,
             &include_path,
             input_tuple.1);
         preprocessor.process(&mut writer, &mut defined_symbol_map);

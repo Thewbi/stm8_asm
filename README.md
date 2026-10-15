@@ -1,3 +1,25 @@
+# C Compiler build according to Nora Sandler's Book - Writing a C Compiler
+
+This is a C compiler written in Rust for the C programming language.
+
+# Disclaimer
+
+```
+Roses are red, violets are blue... Unexpected ‘{‘ on line 32.
+```
+
+I am not an expert compiler designer! Read with caution!
+Also excuse the horrible drawings! I am not a graphics designer by any means! I just do not know how to generate nice digital images. Having analog drawings is better than nothing.
+
+Other than that. I hope you like this document. Thanks for reading. Enjoy.
+
+If you do not know about automata, please first consult the internet or the analog computer science literature. There is plenty of information out there. Automata are the formal theoretical basis of lexing and parsing. Same goes for context free grammars.
+
+And the LALR(1) parser used in this document is generally outdated (but works for the grammar used). Maybe you want to look into other types of parsers.
+
+
+
+
 # TODO
 
 Why does the symbol_table in type_checking_visitor need to be used via borrow_mut() instead of just borrow()?
@@ -47,24 +69,6 @@ The solution is ??? I am not sure. The symbol table entry needs to be pointer-to
 stack offset value for pointers needs to always return 64 bit (8 byte) for pointers no matter to
 which type the point to!
 
-# C Compiler build according to Nora Sandler's Book - Writing a C Compiler
-
-This is a C compiler written in Rust for the C programming language.
-
-# Disclaimer
-
-```
-Roses are red, violets are blue... Unexpected ‘{‘ on line 32.
-```
-
-I am not an expert compiler designer! Read with caution!
-Also excuse the horrible drawings! I am not a graphics designer by any means! I just do not know how to generate nice digital images. Having analog drawings is better than nothing.
-
-Other than that. I hope you like this document. Thanks for reading. Enjoy.
-
-If you do not know about automata, please first consult the internet or the analog computer science literature. There is plenty of information out there. Automata are the formal theoretical basis of lexing and parsing. Same goes for context free grammars.
-
-And the LALR(1) parser used in this document is generally outdated (but works for the grammar used). Maybe you want to look into other types of parsers.
 
 
 

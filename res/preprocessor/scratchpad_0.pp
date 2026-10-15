@@ -1,3 +1,5 @@
-#define _SAL2_Source_(Name, args, annotes) _SA_annotes3(SAL_name, #Name, "", "2") _GrouP_(annotes _SAL_nop_impl_)
+#define BLIB(a, b) BLOB(a, b)
+#define DIMENSION(a, b) BLIB(a, b)
+#define SQUARE(a, b) DIMENSION(a, b)
 
-_SAL2_Source_(Name_param, args_param, annotes_param)
+Macro: SQUARE(1, 2)

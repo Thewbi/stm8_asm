@@ -18,8 +18,8 @@ use crate::example_lexers::preprocessor_lexer::PP_AND_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_GE_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_EQ_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_NE_OP_TOKEN_ID;
-use crate::example_lexers::preprocessor_lexer::PP_CLOSING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_OPENING_BRACKET_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_CLOSING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_OR_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_SEMICOLON_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_COMMA_TOKEN_ID;
@@ -131,10 +131,12 @@ impl ExpressionParser {
                 token.weight = 182;
             }
             PP_OPENING_BRACKET_TOKEN_ID => { // OPENING_BRACKET
+                //token.weight = 1;
                 token.weight = 11111;
                 //token.weight = 99999;
             }
-            29 => { // CLOSING_BRACKET
+            PP_CLOSING_BRACKET_TOKEN_ID => { // CLOSING_BRACKET
+                //token.weight = 1;
                 token.weight = 11111;
                 //token.weight = 99999;
             }
@@ -200,8 +202,15 @@ impl ExpressionParser {
             _ => {
                 // println!("Token: {:?}", token);
 
-                if token.text == "(" {
+                let token_text = token.text.clone();
+
+                if token_text == "(" {
                     self.bracket_balance = self.bracket_balance + 1;
+                    println!("[bracket_balance]: {:?}", self.bracket_balance);
+                }
+                if token.text == ")" {
+                    self.bracket_balance = self.bracket_balance - 1;
+                    println!("[bracket_balance]: {:?}", self.bracket_balance);
                 }
 
                 if self.arena.is_empty() {
@@ -214,6 +223,11 @@ impl ExpressionParser {
                     match operation {
 
                         Operation::REPARENT => {
+
+                            // if token_text == ")" {
+                            //     self.bracket_balance = self.bracket_balance - 1;
+                            //     println!("[bracket_balance]: {:?}", self.bracket_balance);
+                            // }
 
                             // TODO: assumption, reparent at root!
                             if self.arena.has_parent(&insert_node_id) {
@@ -236,6 +250,12 @@ impl ExpressionParser {
 
                                 // change reparented node's parent
                                 // arena.nodes[insert_node_id.index].parent = Some(new_node_id.clone());
+
+                                // move the current pointer to the opening bracket so that
+                                // all subsequent inserts go into this node
+                                if token_text == "(" {
+                                    self.ptr_node_id = new_node_id;
+                                }
 
                             } else {
                                 // new parent
@@ -262,7 +282,8 @@ impl ExpressionParser {
                         Operation::CLOSE_BRACKETS => {
                             // println!("CLOSE_BRACKETS");
 
-                            self.bracket_balance = self.bracket_balance - 1;
+                            // self.bracket_balance = self.bracket_balance - 1;
+                            // println!("[bracket_balance]: {:?}", self.bracket_balance);
 
                             let mut current_node = &mut self.arena.nodes[self.ptr_node_id.index];
                             current_node.data.token_id = 80usize; // 80 for close bracke-pair "()"
@@ -298,6 +319,11 @@ impl ExpressionParser {
 
                 // DEBUG - print the arena to the console after a new node has been inserted
                 //recurse_arena(&arena, &ptr_node_id);
+
+                // if token_text == ")" {
+                //     self.bracket_balance = self.bracket_balance - 1;
+                //     println!("[bracket_balance]: {:?}", self.bracket_balance);
+                // }
             }
         }
     }
@@ -312,7 +338,7 @@ impl ExpressionParser {
             let payload: &Token = self.arena.get_payload(&node_id);
             match payload.token_id {
 
-                PP_OPENING_BRACKET_TOKEN_ID => { // OPENING_BRACKET
+                PP_OPENING_BRACKET_TOKEN_ID => {
 
                     // ) received
                     if token.token_id == PP_CLOSING_BRACKET_TOKEN_ID {
@@ -331,7 +357,10 @@ impl ExpressionParser {
                     }
                 }
 
-                // 200 - DEFINE
+                PP_CLOSING_BRACKET_TOKEN_ID => {
+                    println!("test");
+                }
+
                 _ => {
 
                     if payload.weight > token.weight {
@@ -367,8 +396,8 @@ impl ExpressionParser {
                         let existing_node_id = &self.arena.nodes[node_id.index];
                         match existing_node_id.data.token_id {
 
-                            28 => { // OPENING_BRACKET
-                                if token.token_id == 29 { // CLOSING_BRACKET
+                            PP_OPENING_BRACKET_TOKEN_ID => { // OPENING_BRACKET
+                                if token.token_id == PP_CLOSING_BRACKET_TOKEN_ID { // CLOSING_BRACKET
                                     // println!("test");
 
                                     // Do not insert a new node but change the current node

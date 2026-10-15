@@ -1,11 +1,11 @@
 use std::{
     collections::HashMap, fmt, fs::{self, File}, io::{
         BufRead, BufReader, BufWriter, Write,
-    }, path::Path,
+    }, path::Path, result,
 };
 
 use crate::{
-        PpIfFrame, common::string_handling::rem_first_and_last, lexer::lexer::{Lexer, Token}, parser::rule::RuleElement::Terminal, preprocessor::{
+        PpIfFrame, common::string_handling::rem_first_and_last, example_lexers::preprocessor_lexer::PP_COMMA_TOKEN_ID, lexer::lexer::{Lexer, Token}, parser::rule::RuleElement::Terminal, preprocessor::{
             define_symbol::DefineSymbol,
             expression_parser::ExpressionParser,
             preprocessor_operating_mode::PreprocessorOperatingMode
@@ -108,6 +108,7 @@ impl<'a> Preprocessor<'a> {
         let mut multi_line_comment_mode: bool = false;
         let mut include_file_buffer: String = String::new();
         let mut error_msg_buffer: String = String::new();
+        let mut undef_has_been_performed: bool = false;
 
         // TODO: check if the path is absolute or relative
 
@@ -116,7 +117,7 @@ impl<'a> Preprocessor<'a> {
                 data
             }
             Err(err) => {
-                panic!("[PREPROCESSOR] Cannot load file: '{}'! Error: {}", self.filename.clone(), err);
+                panic!("[ERR][PREPROCESSOR] Cannot load file: '{}'! Error: {}", self.filename.clone(), err);
             }
         };
 
@@ -128,7 +129,6 @@ impl<'a> Preprocessor<'a> {
             &self.preprocessor_dfa,
             lexer_debug,
             lexer_token_debug);
-
         preprocessor_lexer.file = self.filename.clone();
         preprocessor_lexer.line = 1;
 
@@ -163,6 +163,8 @@ impl<'a> Preprocessor<'a> {
                     match token.token_id {
                         PP_SINGLELINE_COMMENT_START_TOKEN_ID => {
                             single_line_comment_mode = true;
+                            // output a space
+                            //write!(writer, "2\n");
                             continue;
                         }
                         PP_NEWLINE_TOKEN_ID => {
@@ -185,11 +187,22 @@ impl<'a> Preprocessor<'a> {
                     match token.token_id {
                         PP_MULTILINE_COMMENT_START_TOKEN_ID => {
                             multi_line_comment_mode = true;
+                            // // output a space
+                            // write!(writer, "2-start\n");
                             continue;
                         }
                         PP_MULTILINE_COMMENT_END_TOKEN_ID => {
                             multi_line_comment_mode = false;
+                            // // output a space
+                            // write!(writer, "2-end\n");
                             continue;
+                        }
+                        PP_NEWLINE_TOKEN_ID => {
+                            if multi_line_comment_mode {
+                                // output a space
+                                write!(writer, "\n");
+                                continue;
+                            }
                         }
                         _ => {
                             if multi_line_comment_mode {
@@ -279,7 +292,7 @@ impl<'a> Preprocessor<'a> {
 
                                 let mut out_enable: bool = true;
 
-                                // the body of an if-PPI is only enabled if it is enabled and
+                                // the body of an if-PPI is only enabled if itself is enabled and
                                 // if all if-PPI below it on the stack are also enabled!
                                 for frame in &pp_if_frame_stack {
                                     out_enable = frame.output_enabled;
@@ -397,9 +410,11 @@ impl<'a> Preprocessor<'a> {
                                 }
 
                                 // DEBUG build ASTNODE
-                                // This is for testing the expression parser using normal input
-                                // from a .pp file (pp == preprocessor)
-                                //expression_parser.process_token(token);
+                                if self.debug {
+                                    // This is for testing the expression parser using normal input
+                                    // from a .pp file (pp == preprocessor)
+                                    expression_parser.process_token(token.clone());
+                                }
 
                                 //
                                 // Handle if stack frame
@@ -438,135 +453,19 @@ impl<'a> Preprocessor<'a> {
                                             output_text = token.text;
                                         }
                                         _ => {
-                                            let macro_name_token = token.clone();
-                                            output_text = token.text;
+                                            // let macro_name_token = token.clone();
+                                            output_text = token.text.clone();
                                             if defined_symbol_map.contains_key(&output_text) {
 
-                                                // println!("plain text token recognized as symbol/macro: {}", output_text);
+                                                output_text = self.start_replace_loop(
+                                                    &mut preprocessor_lexer, &token, defined_symbol_map, &output_text);
 
-                                                let macro_symbol = defined_symbol_map.get(&output_text).unwrap();
-
-                                                println!("plain text token '{}' recognized as symbol/macro: {:?}", output_text, macro_symbol);
-
-                                                let mut formal_parameter_count = macro_symbol.formal_parameter_map.len();
-
-                                                // DEBUG
-                                                if self.debug {
-                                                    println!("parameter_count: {}", formal_parameter_count);
-                                                }
-
-                                                let mut define_symbol: DefineSymbol = DefineSymbol::new();
-
-                                                define_symbol.name = output_text.clone();
-
-                                                // macro name
-                                                define_symbol.expression_parser.process_token(macro_name_token);
-
-                                                let mut consumed_parameter = 0;
-                                                if formal_parameter_count > 0 {
-
-                                                    // opening bracket
-                                                    let token_opening_bracket = preprocessor_lexer.next().unwrap();
-                                                    define_symbol.expression_parser.process_token(token_opening_bracket);
-
-                                                    // all actual parameters
-                                                    while formal_parameter_count > 0 {
-
-                                                        let token = preprocessor_lexer.next().unwrap();
-                                                        println!("{}", token.token_id);
-                                                        match token.token_id {
-
-                                                            PP_NUMERIC_TOKEN_ID | PP_IDENTIFIER_TOKEN_ID => {
-                                                                // put next actual parameter into the symbol
-                                                                define_symbol.expression_parser.process_token(token);
-
-                                                                consumed_parameter = consumed_parameter + 1;
-
-                                                                formal_parameter_count = formal_parameter_count - 1;
-                                                            }
-
-                                                            _ => {
-                                                                // ignore
-                                                                println!("test");
-                                                            }
-                                                        }
-                                                    }
-
-                                                    // closing bracket
-                                                    let token_closing_bracket = preprocessor_lexer.next().unwrap();
-                                                    define_symbol.expression_parser.process_token(token_closing_bracket);
-                                                }
-
-                                                // start a loop which keeps replacing symbols until
-                                                // there are no more symbols to replace!
-                                                // TODO: Edge Case: Brake cycles!
-                                                let mut replaced:bool = true;
-                                                while replaced {
-
-                                                    // DEBUG - BEFORE: output AST before replacement
-                                                    if self.debug {
-                                                        define_symbol.expression_parser.print_dot();
-                                                    }
-
-                                                    replaced = self.replace_symbols(
-                                                        &mut define_symbol.expression_parser.arena,
-                                                        &define_symbol.expression_parser.ptr_node_id,
-                                                        defined_symbol_map,
-                                                        &self.preprocessor_dfa,
-                                                        &preprocessor_lexer,
-                                                        self.debug);
-
-                                                    // DEBUG - AFTER: output AST after replacement
-                                                    if self.debug {
-                                                        define_symbol.expression_parser.print_dot();
-                                                    }
-                                                }
-
-                                                // DEBUG - AFTER: output AST after replacement
-                                                if self.debug {
-                                                    define_symbol.expression_parser.print_dot();
-                                                }
-
-                                                fn output_prefix(data: &Token) -> String {
-                                                    return String::new();
-                                                }
-                                                fn output_infix(data: &Token) -> String {
-                                                    match data.token_id {
-                                                        PP_CLOSED_BRACKET_PAIR_TOKEN_ID => {
-                                                            return String::from("(");
-                                                        }
-                                                        _ => {
-                                                            return String::from(&data.text);
-                                                        }
-                                                    }
-                                                }
-                                                fn output_postfix(data: &Token) -> String {
-                                                    match data.token_id {
-                                                        PP_CLOSED_BRACKET_PAIR_TOKEN_ID => {
-                                                            return String::from(")");
-                                                        }
-                                                        _ => {
-                                                            return String::new();
-                                                        }
-                                                    }
-                                                }
-
-                                                let mut string_buffer: String = String::new();
-                                                define_symbol.expression_parser.arena.recurse_arena(
-                                                    &output_prefix,
-                                                    &output_infix,
-                                                    &output_postfix,
-                                                    &define_symbol.expression_parser.ptr_node_id,
-                                                    &mut string_buffer
-                                                );
-
-                                                output_text = string_buffer;
                                             }
                                         }
                                     }
 
                                     // 3. Write data
-                                    write!(writer, "{} ", output_text);
+                                    write!(writer, "{}", output_text);
                                 }
                             }
                         }
@@ -625,6 +524,9 @@ impl<'a> Preprocessor<'a> {
 
                                 // back to NORMAL mode
                                 preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+
+                                // output a space
+                                write!(writer, "\n");
                             }
 
                             PP_OPENING_BRACKET_TOKEN_ID => {
@@ -890,6 +792,9 @@ impl<'a> Preprocessor<'a> {
                                 // back to NORMAL mode because the #define has been consumed
                                 preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
 
+                                // output a space
+                                write!(writer, "\n");
+
                                 // reset
                                 expression_parser.reset();
                                 definition_string_buffer.clear();
@@ -922,7 +827,12 @@ impl<'a> Preprocessor<'a> {
                         match token.token_id {
 
                             PP_NEWLINE_TOKEN_ID => {
-                                preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                                if undef_has_been_performed {
+                                    preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+                                    undef_has_been_performed = false;
+                                } else {
+                                    panic!("[ERR-PREPROCESSOR] Cannot process #undef! File: {}, Line: {}", preprocessor_lexer.file, preprocessor_lexer.line-1);
+                                }
                             }
                             PP_WHITESPACE_TOKEN_ID => {
 
@@ -931,6 +841,7 @@ impl<'a> Preprocessor<'a> {
                                 if defined_symbol_map.contains_key(&token.text) {
                                     defined_symbol_map.remove(&token.text);
                                 }
+                                undef_has_been_performed = true;
                             }
                         }
                     }
@@ -1052,6 +963,9 @@ impl<'a> Preprocessor<'a> {
 
                                 // back to NORMAL mode because the #if has been consumed
                                 preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+
+                                // output a space
+                                write!(writer, "\n");
                             }
                             _ => {
                                 expression_parser.process_token(token);
@@ -1120,6 +1034,9 @@ impl<'a> Preprocessor<'a> {
 
                                 // back to NORMAL mode because the #if has been consumed
                                 preprocessor_operating_mode = PreprocessorOperatingMode::Normal;
+
+                                // output a space
+                                write!(writer, "\n");
                             }
                             _ => {
                                 ifdef_token = token;
@@ -1215,7 +1132,10 @@ impl<'a> Preprocessor<'a> {
                                     match ppi_include_mode {
 
                                         PpiIncludeMode::GLOBAL => {
+
+                                            //
                                             // include using the include path
+                                            //
 
                                             let mut file_found_counter: usize = 0;
 
@@ -1254,7 +1174,11 @@ impl<'a> Preprocessor<'a> {
                                             }
                                         }
                                         PpiIncludeMode::LOCAL => {
+
+                                            //
                                             // include relative to the local code base
+                                            //
+
                                             todo!();
                                         }
                                         _=> {
@@ -1299,6 +1223,279 @@ impl<'a> Preprocessor<'a> {
                 lexer_done = true;
             }
         }
+    }
+
+    pub fn start_replace_loop(&self,
+        preprocessor_lexer: &mut Lexer,
+        initial_token: &Token,
+        defined_symbol_map: &mut HashMap<String, DefineSymbol>,
+        data: &String) -> String
+    {
+        let mut result_string_buffer: String = data.clone();
+        let mut first_iteration: bool = true;
+        let mut before_iteration_text: String = String::new();
+
+        let mut iteration: usize = 0;
+
+        let mut cycle_detection_set: Vec<String> = Vec::new();
+
+        // cycle_detection_set.push(data.clone());
+
+        loop {
+
+            println!("Iteration: {}, Input: '{}'", iteration, result_string_buffer);
+
+            iteration = iteration + 1;
+
+            let lexer_debug: bool = false;
+            let lexer_token_debug: bool = false;
+            let mut new_preprocessor_lexer: Lexer = Lexer::new(result_string_buffer.clone(),
+                    &self.preprocessor_dfa,
+                    lexer_debug,
+                    lexer_token_debug);
+
+            let mut output_text_before = String::new();
+
+            if first_iteration {
+                // nothing
+            } else {
+                new_preprocessor_lexer = Lexer::new(result_string_buffer.clone(),
+                    &self.preprocessor_dfa,
+                    lexer_debug,
+                    lexer_token_debug);
+                new_preprocessor_lexer.file = self.filename.clone();
+                new_preprocessor_lexer.line = 1;
+            }
+
+            let mut lexer_done: bool = false;
+            while !lexer_done {
+
+                let mut token_option: Option<Token> = None;
+
+                if first_iteration {
+                    token_option = Some(initial_token.clone());
+                    before_iteration_text = initial_token.text.clone();
+                    output_text_before = defined_symbol_map.get(&initial_token.text.clone()).unwrap().definition.clone();
+                } else {
+                    token_option = new_preprocessor_lexer.next();
+                }
+
+                if let Some(token) = token_option {
+
+                    // 1. check if the token is a macro/symbol and start next iteration if not
+                    if !defined_symbol_map.contains_key(&token.text) {
+                        continue;
+                    }
+
+                    // DEBUG
+                    if self.debug {
+                        println!("plain text token recognized as symbol/macro: {}", &token.text);
+                    }
+
+                    if cycle_detection_set.contains(&token.text) {
+                        println!("[ERR][PREPROCESSOR] Cycle Detected while replacing '{}'", &token.text);
+                        println!("[ERR][PREPROCESSOR] List of visited token is: {:?}", &cycle_detection_set);
+                        panic!("[ERR][PREPROCESSOR] Cycle Detected! Already replaced token is: {}", &token.text);
+                    }
+
+                    cycle_detection_set.push(token.text.clone());
+
+                    // 2. retrieve macro/symbol definition
+                    let macro_symbol = defined_symbol_map.get(&token.text).unwrap();
+
+                    // DEBUG
+                    if self.debug {
+                        println!("plain text token '{}' recognized as symbol/macro: {:?}", token.text, macro_symbol);
+                    }
+
+                    //
+                    // parse the macro call into an AST
+                    //
+
+                    let formal_parameter_count = macro_symbol.formal_parameter_map.len();
+
+                    // DEBUG
+                    if self.debug {
+                        println!("parameter_count: {}", formal_parameter_count);
+                    }
+
+                    // create new instance because the defintion will be manipulated
+                    // by replacing formal with actual parameters and the original
+                    // definition in the defined_symbol_map is supposed to remain unchanged
+                    let mut define_symbol: DefineSymbol = DefineSymbol::new();
+                    define_symbol.name = token.text.clone();
+                    define_symbol.definition = macro_symbol.definition.clone();
+                    define_symbol.formal_parameter_map = macro_symbol.formal_parameter_map.clone();
+
+                    // if there are formal parameters, let the lexer consume them.
+                    // Each parameter might be a complex subtree itself!
+                    if formal_parameter_count > 0 {
+
+                        let token = preprocessor_lexer.next().unwrap();
+                        define_symbol.expression_parser.process_token(token);
+
+                        // DEBUG - print dot of macro/symbol
+                        // let root_id = define_symbol.expression_parser.arena.find_root();
+                        // self.print_arena_dot(&define_symbol.expression_parser.arena, root_id);
+
+                        while !define_symbol.expression_parser.is_tree_balanced() {
+                            let token = preprocessor_lexer.next().unwrap();
+                            define_symbol.expression_parser.process_token(token);
+
+                            // DEBUG - print dot of macro/symbol
+                            // let root_id = define_symbol.expression_parser.arena.find_root();
+                            // self.print_arena_dot(&define_symbol.expression_parser.arena, root_id);
+                        }
+                    }
+
+                    // DEBUG - print dot of macro/symbol
+                    // let root_id = define_symbol.expression_parser.arena.find_root();
+                    // self.print_arena_dot(&define_symbol.expression_parser.arena, root_id);
+
+                    //
+                    // build actual parameter map
+                    //
+
+                    let formal_parameter_count = macro_symbol.formal_parameter_map.len();
+
+                    // DEBUG
+                    if self.debug {
+                        println!("parameter_count: {}", formal_parameter_count);
+                    }
+
+                    // DEBUG
+                    // for token in define_symbol.expression_parser.arena.clone() {
+                    //     println!("{}", token.data);
+                    // }
+
+                    let mut replace_map = HashMap::<String, String>::new();
+
+                    if formal_parameter_count > 0 {
+                        self.fill_parameter_map(&mut define_symbol, &mut replace_map);
+                        // // DEBUG - output formal parameters
+                        // for (key, value) in replace_map.into_iter() {
+                        //     println!("{} / {}", key, value);
+                        // }
+                    }
+
+                    // DEBUG - output definition
+                    if self.debug {
+                        println!("define_symbol.definition: {}", define_symbol.definition);
+                    }
+
+                    let mut output_text = define_symbol.definition.clone();
+                    for (key, value) in replace_map.into_iter() {
+                        output_text = output_text.replace(key.as_str(), value.as_str());
+                    }
+
+                    if output_text != before_iteration_text {
+                        before_iteration_text = output_text_before.clone();
+                        result_string_buffer = result_string_buffer.replace(token.text.as_str(), output_text.as_str());
+                        first_iteration = false;
+                        lexer_done = true;
+                        continue;
+                    } else {
+                        return output_text;
+                    }
+
+                } else {
+                    lexer_done = true;
+                    return result_string_buffer;
+                }
+            }
+
+            first_iteration = false;
+        }
+    }
+
+    pub fn fill_parameter_map(&self,
+        define_symbol: &DefineSymbol,
+        replace_map: &mut HashMap::<String, String>)
+    {
+        let current_parameter_index: usize = 0;
+
+        let arena = &define_symbol.expression_parser.arena;
+
+        // retrieve RHS of root
+        let root_id = arena.find_root();
+        if let Some(right_node_id) = arena.get_right_id(&NodeId { index:root_id }) {
+
+            let rhs_node = &arena.nodes[right_node_id.index];
+            if rhs_node.data.text == "," {
+                self.fill_parameter_map_comma(define_symbol, replace_map, current_parameter_index, right_node_id);
+            } else {
+                let formal_parameter_name = define_symbol.formal_parameter_map.get(&current_parameter_index);
+                replace_map.insert(formal_parameter_name.unwrap().clone(), rhs_node.data.text.clone());
+            }
+        }
+    }
+
+    pub fn fill_parameter_map_comma(&self,
+        define_symbol: &DefineSymbol,
+        replace_map: &mut HashMap::<String, String>,
+        current_parameter_index: usize,
+        node_id: &NodeId) -> usize
+    {
+        let arena = &define_symbol.expression_parser.arena;
+        let current_node = &arena.nodes[node_id.index];
+
+        let mut new_parameter_index = current_parameter_index;
+
+        if current_node.data.text == "," {
+
+            if let Some(lhs_node) = arena.get_left_id(node_id) {
+                new_parameter_index = self.fill_parameter_map_comma(define_symbol, replace_map, new_parameter_index, lhs_node);
+                new_parameter_index = new_parameter_index + 1;
+            }
+
+            if let Some(rhs_node) = arena.get_right_id(node_id) {
+                new_parameter_index = self.fill_parameter_map_comma(define_symbol, replace_map, new_parameter_index, rhs_node);
+            }
+
+        } else {
+
+            fn output_prefix(data: &Token) -> String {
+                return String::new();
+            }
+            fn output_infix(data: &Token) -> String {
+                match data.token_id {
+                    PP_CLOSED_BRACKET_PAIR_TOKEN_ID => {
+                        return String::from("(");
+                    }
+                    _ => {
+                        return String::from(&data.text);
+                    }
+                }
+            }
+            fn output_postfix(data: &Token) -> String {
+                match data.token_id {
+                    PP_CLOSED_BRACKET_PAIR_TOKEN_ID => {
+                        return String::from(")");
+                    }
+                    _ => {
+                        return String::new();
+                    }
+                }
+            }
+
+            let root_id_index = define_symbol.expression_parser.arena.find_root();
+            let root_id = NodeId { index: root_id_index };
+            let mut string_buffer: String = String::new();
+            define_symbol.expression_parser.arena.recurse_arena(
+                &output_prefix,
+                &output_infix,
+                &output_postfix,
+                node_id,
+                &mut string_buffer
+            );
+
+            let formal_parameter_name = define_symbol.formal_parameter_map.get(&current_parameter_index);
+            replace_map.insert(formal_parameter_name.unwrap().clone(), string_buffer);
+
+            //println!("{}:{} -> {}", formal_parameter_name.unwrap().clone(), current_parameter_index, string_buffer);
+        }
+
+        new_parameter_index
     }
 
     pub fn to_string_1(&self,
@@ -1360,9 +1557,7 @@ impl<'a> Preprocessor<'a> {
         defined_symbol_map: &mut HashMap::<String, DefineSymbol>,
         preprocessor_dfa: &EpsilonNfa<State, RegexBuildingBlock>,
         preprocessor_lexer: &Lexer,
-        debug: bool
-    )
-        -> bool
+        debug: bool) -> bool
     {
         // DEBUG
         if debug {
@@ -1383,10 +1578,10 @@ impl<'a> Preprocessor<'a> {
             return false;
         }
 
-        // DEBUG
-        if debug {
-            self.print_arena_dot(&arena);
-        }
+        // // DEBUG
+        // if debug {
+        //     self.print_arena_dot(&arena);
+        // }
 
         let node: &Node<Token> = &arena.nodes[node_id.index].clone();
 
@@ -1513,10 +1708,10 @@ impl<'a> Preprocessor<'a> {
                                 // the underlying object does not change during iteration
                                 let mut arena_clone = arena.clone();
 
-                                // DEBUG
-                                if debug {
-                                    self.print_arena_dot(&arena_clone);
-                                }
+                                // // DEBUG
+                                // if debug {
+                                //     self.print_arena_dot(&arena_clone);
+                                // }
 
                                 let end_token = node.data.clone();
 
@@ -1554,10 +1749,10 @@ impl<'a> Preprocessor<'a> {
                                 // DEBUG
                                 //println!("{}", define_symbol.name);
 
-                                // DEBUG
-                                if debug {
-                                    self.print_arena_dot(&arena_clone);
-                                }
+                                // // DEBUG
+                                // if debug {
+                                //     self.print_arena_dot(&arena_clone);
+                                // }
 
                                 let mut actual_parameter_count: usize = 0;
                                 for token_node in arena_clone {
@@ -1589,7 +1784,6 @@ impl<'a> Preprocessor<'a> {
 
                                         // fill formal and actual values into the replace_map
                                         let key_option = define_symbol.formal_parameter_map.get(&actual_parameter_count);
-                                        //let key = key_option.unwrap().clone();
                                         let mut key = String::new();
                                         if let Some(key_from_option) = key_option {
                                             key = key_from_option.clone();
@@ -1628,17 +1822,17 @@ impl<'a> Preprocessor<'a> {
                                     }
                                 }
 
-                                // DEBUG - before
-                                if debug {
-                                    self.print_arena_dot(&arena_replace_clone);
-                                }
+                                // // DEBUG - before
+                                // if debug {
+                                //     self.print_arena_dot(&arena_replace_clone);
+                                // }
 
                                 self.replace_parameters(&mut arena_replace_clone, root_index, &replace_map);
 
-                                // DEBUG - after
-                                if debug {
-                                    self.print_arena_dot(&arena_replace_clone);
-                                }
+                                // // DEBUG - after
+                                // if debug {
+                                //     self.print_arena_dot(&arena_replace_clone);
+                                // }
 
                                 //
                                 // PHASE 3
@@ -1784,6 +1978,12 @@ impl<'a> Preprocessor<'a> {
         debug: bool)
         -> i32
     {
+        // DEBUG
+        if debug {
+            let root = arena.find_root();
+            self.print_arena_dot(arena, root);
+        }
+
         let node: &Node<Token> = &arena.nodes[node_id.index];
 
         let token: &Token = &node.data;
@@ -1977,6 +2177,7 @@ impl<'a> Preprocessor<'a> {
 
                 } else {
                     panic!("Unhandled: {}", *val);
+                    //println!("Unhandled: {}", *val);
                 }
             }
 
@@ -2042,11 +2243,13 @@ impl<'a> Preprocessor<'a> {
         // define_symbol.expression_parser.print_console();
     }
 
-    pub fn print_arena_dot(&self, arena: &Arena<Token>) {
+    pub fn print_arena_dot(&self, arena: &Arena<Token>, node_id: usize) {
 
         let mut ast_string_buffer = String::from("");
 
-        let root = NodeId { index: arena.iterator_current_node_id, };
+        // let root = NodeId { index: arena.iterator_current_node_id, };
+
+        let root = NodeId { index: node_id };
 
         // serialize the AST into .dot graphviz format
         ast_string_buffer.push_str("digraph {\n");

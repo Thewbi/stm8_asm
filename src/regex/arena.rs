@@ -137,7 +137,7 @@ impl<T> Arena<T> {
         &self.nodes[index].data
     }
 
-    pub fn get_left_id(&mut self, parent_node_id: &NodeId) -> Option<&NodeId> {
+    pub fn get_left_id(&self, parent_node_id: &NodeId) -> Option<&NodeId> {
         let parent_node: &Node<T> = &self.nodes[parent_node_id.index];
         parent_node.left.as_ref()
     }
@@ -307,6 +307,30 @@ impl<T> Arena<T> {
         // output_postfix(&parent_node.data);
         // string_buffer.push_str(&output_prefix(&12i32));
         string_buffer.push_str(&output_postfix(&parent_node.data));
+    }
+
+    pub fn reset_to_root(&mut self) {
+        loop {
+            let current_node: &Node<T> = &self.nodes[self.iterator_current_node_id];
+            if let Some(parent_id) = current_node.parent {
+                self.iterator_current_node_id = parent_id.index;
+            } else {
+                break;
+            }
+        }
+    }
+
+    pub fn find_root(&self) -> usize {
+        let mut iterator_current_node_id = self.iterator_current_node_id;
+        loop {
+            let current_node: &Node<T> = &self.nodes[iterator_current_node_id];
+            if let Some(parent_id) = current_node.parent {
+                iterator_current_node_id = parent_id.index;
+            } else {
+                break;
+            }
+        }
+        iterator_current_node_id
     }
 }
 
