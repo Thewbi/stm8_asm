@@ -593,20 +593,21 @@ impl<'a> Preprocessor<'a> {
                                                             &self.preprocessor_dfa,
                                                             &preprocessor_lexer,
                                                             &mut cycle_detection_set,
+                                                            true,
                                                             self.debug);
 
                                                         // DEBUG - AFTER: output AST after replacement
-                                                        if self.debug {
+                                                        //if self.debug {
                                                             //define_symbol.expression_parser.print_dot();
                                                             let root_id = define_symbol.expression_parser.arena.find_root();
                                                             print_arena_dot(&define_symbol.expression_parser.arena, root_id);
-                                                        }
+                                                        //}
                                                     }
 
                                                     // DEBUG - AFTER: output AST after replacement
-                                                    if self.debug {
+                                                    // if self.debug {
                                                         define_symbol.expression_parser.print_dot();
-                                                    }
+                                                    // }
 
                                                     fn output_prefix(data: &Token) -> String {
                                                         return String::new();
@@ -1105,7 +1106,7 @@ impl<'a> Preprocessor<'a> {
 
                                         // DEBUG - BEFORE: output AST before replacement
                                         if self.debug {
-                                            expression_parser.print_dot();
+                                            print_arena_dot(&expression_parser.arena, expression_parser.arena.find_root());
                                         }
 
                                         // if cycle_detection_set.contains(&define_symbol.name) {
@@ -1121,18 +1122,24 @@ impl<'a> Preprocessor<'a> {
                                             &self.preprocessor_dfa,
                                             &preprocessor_lexer,
                                             &mut cycle_detection_set,
+                                            true,
                                             self.debug);
 
                                         // DEBUG - AFTER: output AST after replacement
-                                        if self.debug {
-                                            expression_parser.print_dot();
-                                        }
+                                        //if self.debug {
+                                            print_arena_dot(&expression_parser.arena, expression_parser.arena.find_root());
+                                        //}
                                     }
+
+                                    expression_parser.arena.reset_to_root();
 
                                     // DEBUG - AFTER: output AST after replacement
                                     if self.debug {
-                                        expression_parser.print_dot();
+                                        // expression_parser.print_dot();
+                                        print_arena_dot(&expression_parser.arena, expression_parser.arena.find_root());
                                     }
+
+                                    expression_parser.ptr_node_id = NodeId { index: expression_parser.arena.find_root() };
 
                                     // evaluate the expression
                                     let eval_value = self.evaluate_expression(&expression_parser.arena,
@@ -1899,12 +1906,13 @@ impl<'a> Preprocessor<'a> {
         preprocessor_dfa: &EpsilonNfa<State, RegexBuildingBlock>,
         preprocessor_lexer: &Lexer,
         cycle_detection_set: &mut Vec<String>,
+        at_root: bool,
         debug: bool) -> bool
     {
         // DEBUG
-        // if debug {
+        if debug {
             println!("replace!");
-        // }
+        }
 
         let mut has_left_child:bool = false;
         let mut has_right_child:bool = false;
@@ -1957,17 +1965,30 @@ impl<'a> Preprocessor<'a> {
         if let Some(left_id) = &node.left {
             has_left_child = true;
             left_result = self.replace_symbols(arena, left_id, defined_symbol_map,
-                preprocessor_dfa, preprocessor_lexer, cycle_detection_set, debug);
+                preprocessor_dfa, preprocessor_lexer, cycle_detection_set, false, debug);
             left_child_id = left_id.index;
         }
 
-        // RHS - replace symbols inside right child
-        if let Some(right_id) = &node.right {
-            has_right_child = true;
-            right_result = self.replace_symbols(arena, right_id, defined_symbol_map,
-                preprocessor_dfa, preprocessor_lexer, cycle_detection_set, debug);
-            right_child_id = right_id.index;
+        if left_result {
+        // if at_root && left_result {
+        //     //panic!();
+        //     println!("Bonk!");
+        } else {
+
+            // RHS - replace symbols inside right child
+            if let Some(right_id) = &node.right {
+                has_right_child = true;
+                right_result = self.replace_symbols(arena, right_id, defined_symbol_map,
+                    preprocessor_dfa, preprocessor_lexer, cycle_detection_set, false, debug);
+                right_child_id = right_id.index;
+            }
+
         }
+
+        // DEBUG
+        // if self.debug {
+            print_arena_dot(arena, arena.find_root());
+        // }
 
         // retrieve the token which is stored inside the current node
         let token: &Token = &node.data;
@@ -1990,13 +2011,18 @@ impl<'a> Preprocessor<'a> {
 
                 if *val == String::from("IDENTIFIER") {
 
-                    // DEBUG
-                    if debug {
-                        println!("token.text: {}", token.text);
-                    }
+                    // // DEBUG
+                    // if debug {
+                    //     println!("token.text: {}", token.text);
+                    // }
 
                     // check if this string of text is a macro name
                     if defined_symbol_map.contains_key(&token.text) {
+
+                        // DEBUG
+                        // if debug {
+                            println!("Found Macro: token.text: {}", token.text);
+                        // }
 
                         // if cycle_detection_set.contains(&token.text) {
                         //     println!("[ERR][PREPROCESSOR] Cycle detected while replacing '{}'", &token.text);
@@ -2207,7 +2233,7 @@ impl<'a> Preprocessor<'a> {
                                 }
 
                                 // find the id of the root node of the macro/symbol definition AST
-                                let root_index = arena_replace_clone.find_root();
+                                let clone_root_index = arena_replace_clone.find_root();
                                 // loop {
                                 //     if let Some(root_index_temp) = arena_replace_clone.nodes[root_index].parent {
                                 //         root_index = root_index_temp.index;
@@ -2218,15 +2244,16 @@ impl<'a> Preprocessor<'a> {
 
                                 // DEBUG - before
                                 if debug {
-                                    print_arena_dot(&arena_replace_clone, root_index);
+                                    print_arena_dot(&arena_replace_clone, clone_root_index);
                                 }
 
-                                self.replace_parameters(&mut arena_replace_clone, root_index, &replace_map);
+                                self.replace_parameters(&mut arena_replace_clone, clone_root_index, &replace_map);
 
                                 // DEBUG - after
-                                if debug {
-                                    print_arena_dot(&arena_replace_clone, root_index);
-                                }
+                                // if debug {
+                                    print_arena_dot(&arena_replace_clone, arena_replace_clone.find_root());
+                                    print_arena_dot(&arena, arena.find_root());
+                                // }
 
                                 //
                                 // PHASE 3
@@ -2235,33 +2262,67 @@ impl<'a> Preprocessor<'a> {
                                 // represents it's definition
                                 //
 
-                                *arena = arena_replace_clone.clone();
 
-                                /*
-                                // let root_node: &Node<Token> =
-                                //     &arena_replace_clone.nodes[define_symbol.expression_parser.ptr_node_id.index];
 
-                                let root_node: &Node<Token> =
-                                    &arena_replace_clone.nodes[root_index];
+                                // if !at_root {
+                                //     panic!()
+                                // }
 
-                                // DEBUG
-                                if debug {
-                                    println!("Replacing node by AST ...");
+                                // let mut under_root: bool = false;
+
+                                // let curr_node = &arena_replace_clone.nodes[node_id.index];
+                                // if let Some(parent_node_id) = curr_node.parent {
+                                //     let curr_parent_node = &arena_replace_clone.nodes[parent_node_id.index];
+                                //     under_root = curr_parent_node.parent.is_none();
+                                // }
+
+                                if right_result == false && left_result == false {
+                                    // panic!();
                                 }
 
-                                // retrieve parent
-                                let parent_node_id = node.parent.unwrap();
-                                let parent_node: &Node<Token> = &arena.nodes[parent_node_id.index];
+                                //if at_root || under_root {
+                                if at_root {
+                                    *arena = arena_replace_clone.clone();
+                                } else {
+                                    /**/
+                                    // let root_node: &Node<Token> =
+                                    //     &arena_replace_clone.nodes[define_symbol.expression_parser.ptr_node_id.index];
 
-                                // make the dst parent node the same as the source parent node
-                                arena.change_payload(node_id, root_node.data.clone());
+                                    let clone_root_node: &Node<Token> = &arena_replace_clone.nodes[clone_root_index];
+                                    //let root_node: &Node<Token> = &arena.nodes[node_id.index];
 
-                                // copy LHS subtree and RHS subtree from src to dst
-                                self.copy_tree(arena,
-                                    &parent_node_id,
-                                    &arena_replace_clone,
-                                    &define_symbol.expression_parser.ptr_node_id);
-                                */
+                                    // DEBUG
+                                    if debug {
+                                        println!("Replacing node by AST ...");
+                                    }
+
+                                    // retrieve parent
+                                    let parent_node_id = node.parent.unwrap();
+                                    let parent_node: &Node<Token> = &arena.nodes[parent_node_id.index];
+
+                                    // This will change the original arena!
+                                    // This will insert the new subtree created by resolving a symbol
+                                    // into the original arena!
+                                    //
+                                    // make the dst parent node the same as the source parent node
+                                    arena.change_payload(node_id, clone_root_node.data.clone());
+
+                                    let cid = NodeId { index: clone_root_index };
+
+                                    // copy LHS subtree and RHS subtree from src to dst
+                                    self.copy_tree(arena,
+                                        &parent_node_id,
+                                        &arena_replace_clone,
+                                        // &define_symbol.expression_parser.ptr_node_id
+                                        &cid
+                                    );
+
+                                    // DEBUG
+                                    // if self.debug {
+                                        print_arena_dot(&arena, arena.find_root());
+                                    // }
+
+                                }
 
                                 return true;
 
@@ -2409,6 +2470,11 @@ impl<'a> Preprocessor<'a> {
             has_left_child = true;
             left_result = self.evaluate_expression(arena, left_id, defined_symbol_map, debug);
             left_child_id = left_id.index;
+
+            // DEBUG
+            if debug {
+                println!("LHS-NodeId: {}, left_result: {:?}", left_child_id, left_result);
+            }
         }
 
         // RHS - output right child
@@ -2416,12 +2482,17 @@ impl<'a> Preprocessor<'a> {
             has_right_child = true;
             right_result = self.evaluate_expression(arena, right_id, defined_symbol_map, debug);
             right_child_id = right_id.index;
+
+            // DEBUG
+            if debug {
+                println!("RHS-NodeId: {}, right_result: {:?}", right_child_id, right_result);
+            }
         }
 
         // DEBUG
         if debug {
-            println!("left_result: {:?}", left_result);
-            println!("right_result: {:?}", right_result);
+            println!("LHS-NodeId: {}, left_result: {:?}", left_child_id, left_result);
+            println!("RHS-NodeId: {}, right_result: {:?}", right_child_id, right_result);
         }
 
         match &token.terminal {
@@ -2462,7 +2533,7 @@ impl<'a> Preprocessor<'a> {
                             }
                         }
                     } else {
-                        match token.text.parse::<i32>() {
+                        match token.text.trim().parse::<i32>() {
                             Result::Ok(numeric_value) => {
                                 return numeric_value;
                             }
@@ -2470,7 +2541,8 @@ impl<'a> Preprocessor<'a> {
                                 // TODO before returning true, try to evaluate the definition!
                                 // e.g. if the definition is 1 + 1, then this could be evaluated
                                 // to 2 and 2 could be returned!
-                                return 0;
+                                // return 0;
+                                panic!("Cannot parse string '{}' to i32", token.text)
                             }
                         }
                     }

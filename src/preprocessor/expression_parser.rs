@@ -346,8 +346,6 @@ impl ExpressionParser {
                                     break;
                                 }
                             }
-
-
                         }
 
                         Operation::CONCATENATE => {
@@ -367,8 +365,6 @@ impl ExpressionParser {
                                 // insert the old node into the left of the new token
                                 // will also update the parent link
                                 self.arena.insert_left(&concatenate_token_id, insert_node_id);
-
-
 
                                 // new node for the inserted token
                                 let new_node_id = self.arena.new_node(token);
@@ -431,11 +427,9 @@ impl ExpressionParser {
         // the new object to insert
         token: &Token) -> ( Operation, NodeId )
     {
-
-        if token.text == ")" {
-            println!("test");
-        }
-
+        // if token.text == ")" {
+        //     println!("test");
+        // }
         loop {
 
             let payload: &Token = self.arena.get_payload(&node_id);
