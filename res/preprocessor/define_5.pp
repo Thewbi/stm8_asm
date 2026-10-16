@@ -6,4 +6,4 @@
                                             _In_opt_ _When_(_String_length_(_Curr_) < (size), _Pre_z_) _When_(_String_length_(_Curr_) >= (size), _Pre1_impl_(__count_impl(size))) \
                                        )
 
-Macro: _In_reads_or_z_opt_(100)
+Macro: _In_reads_or_z_opt_(911119)

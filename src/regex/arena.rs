@@ -19,24 +19,28 @@ pub struct Node<T> {
     pub right: Option<NodeId>,
     pub parent: Option<NodeId>,
     pub data: T, // payload
-    //pub data: RefCell<T>,
     pub visit_mode: VisitMode,
 }
 
-impl<T> Node<T> {
+impl<T: ToString> Node<T> {
     pub fn new(data_param: T) -> Node<T> {
         Node {
             left: None,
             right: None,
             parent: None,
             data: data_param,
-            //data: RefCell::new(data_param),
             visit_mode: VisitMode::VisitLeft,
         }
     }
 
     pub fn is_leaf(&self) -> bool {
         return self.left.is_none() && self.right.is_none()
+    }
+
+    pub fn data_to_string(&self) -> String {
+        let mut value = self.data.to_string();
+        value = value.replace("\"", "\\\""); // escape for dot file format
+        value
     }
 }
 
@@ -46,11 +50,7 @@ pub struct Arena<T> {
     pub iterator_current_node_id: usize,
 }
 
-// fn returns_closure() -> impl Fn(i32) -> i32 {
-//     |x| x + 1
-// }
-
-impl<T> Arena<T> {
+impl<T: ToString> Arena<T> {
 
     pub fn new() -> Self {
         Self {
@@ -256,23 +256,16 @@ impl<T> Arena<T> {
 
     pub fn recurse_arena(&self,
 
-        // output_prefix: &dyn Fn(&T) -> T,
-        // output_infix: &dyn Fn(&T) -> T,
-        // output_postfix: &dyn Fn(&T) -> T,
-
-        // output_prefix: &dyn Fn(&i32) -> String,
-        // output_infix: &dyn Fn(&i32) -> String,
-        // output_postfix: &dyn Fn(&i32) -> String,
-
         output_prefix: &dyn Fn(&T) -> String,
         output_infix: &dyn Fn(&T) -> String,
         output_postfix: &dyn Fn(&T) -> String,
 
         parent_node_id: &NodeId,
-        string_buffer: &mut String)
-    where T:std::fmt::Display,
+        string_buffer: &mut String) where T:std::fmt::Display,
     {
         let parent_node: &Node<T> = &self.nodes[parent_node_id.index];
+
+        string_buffer.push_str(" ");
 
         // output node (Prefix)
         //println!("{:?}", parent_node.data);
@@ -350,7 +343,7 @@ impl<T> Arena<T> {
 // do not contain the original left and right children!
 // The left and right pointers are None-options!
 impl<T> Iterator for Arena<T>
-where T: Clone
+where T: Clone, T: ToString
 {
     type Item = Node<T>;
 
@@ -453,11 +446,16 @@ where T:std::fmt::Debug, T:std::fmt::Display
 
     let parent_node: &Node<T> = &arena.nodes[parent_node_id.index];
 
+    // let mut text_data = parent_node.data;
+    // if text_data == "\"" {
+    //     text_data = "double_quote";
+    // }
+
     // output node
     string_buffer.push_str(format!("{} [label=\"{} {}\"]\n",
         parent_node_id.index,
         parent_node_id.index,
-        &parent_node.data).as_str());
+        &parent_node.data_to_string()).as_str());
 
     // LHS - output left child
     if let Some(left_id) = &parent_node.left {

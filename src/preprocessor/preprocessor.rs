@@ -1,7 +1,11 @@
 use std::{
-    collections::HashMap, fmt, fs::{self, File}, io::{
+    collections::{ BTreeMap, HashMap },
+    fmt, fs::{self, File},
+    io::{
         BufRead, BufReader, BufWriter, Write,
-    }, path::Path, result,
+    },
+    path::Path,
+    result,
 };
 
 use crate::{
@@ -45,6 +49,7 @@ use crate::example_lexers::preprocessor_lexer::PP_PPF_DEFINED_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_EXCLAMATION_MARK_TOKEN_ID;
 
 static ERROR_ON_DUPLICATE_HEADER_FILES: bool = false;
+static USE_PLAIN_TEXT_REPLACE: bool = false;
 
 pub enum PpiIncludeMode {
     // include from local code base
@@ -453,12 +458,173 @@ impl<'a> Preprocessor<'a> {
                                             output_text = token.text;
                                         }
                                         _ => {
-                                            // let macro_name_token = token.clone();
-                                            output_text = token.text.clone();
-                                            if defined_symbol_map.contains_key(&output_text) {
 
-                                                output_text = self.start_replace_loop(
-                                                    &mut preprocessor_lexer, &token, defined_symbol_map, &output_text);
+                                            if USE_PLAIN_TEXT_REPLACE {
+
+                                                output_text = token.text.clone();
+                                                if defined_symbol_map.contains_key(&output_text) {
+                                                    output_text = self.start_replace_loop(
+                                                        &mut preprocessor_lexer, &token, defined_symbol_map, &output_text);
+                                                }
+
+                                            } else {
+
+                                                let macro_name_token = token.clone();
+                                                output_text = token.text;
+                                                if defined_symbol_map.contains_key(&output_text) {
+
+                                                    // println!("plain text token recognized as symbol/macro: {}", output_text);
+
+                                                    let macro_symbol = defined_symbol_map.get(&output_text).unwrap();
+
+                                                    println!("plain text token '{}' recognized as symbol/macro: {:?}", output_text, macro_symbol);
+
+                                                    let mut formal_parameter_count = macro_symbol.formal_parameter_map.len();
+
+                                                    // DEBUG
+                                                    if self.debug {
+                                                        println!("parameter_count: {}", formal_parameter_count);
+                                                    }
+
+                                                    // build a custom define_symbol for the macro/symbol
+                                                    let mut define_symbol: DefineSymbol = DefineSymbol::new();
+                                                    define_symbol.name = output_text.clone();
+
+                                                    // macro name
+                                                    define_symbol.expression_parser.process_token(macro_name_token);
+
+                                                    // println!("balanced: {}", define_symbol.expression_parser.is_tree_balanced());
+
+                                                    loop {
+
+                                                        let token = preprocessor_lexer.next().unwrap();
+                                                        if token.text != "\\" {
+                                                            define_symbol.expression_parser.process_token(token);
+
+                                                            let balanced = define_symbol.expression_parser.is_tree_balanced();
+                                                            // println!("balanced: {}", balanced);
+
+                                                            if balanced {
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // DEBUG:
+                                                    if self.debug {
+                                                        define_symbol.expression_parser.print_dot();
+                                                    }
+
+                                                    /*
+                                                    let mut consumed_parameter = 0;
+                                                    if formal_parameter_count > 0 {
+
+                                                        // opening bracket
+                                                        let token_opening_bracket = preprocessor_lexer.next().unwrap();
+                                                        define_symbol.expression_parser.process_token(token_opening_bracket);
+
+                                                        // all actual parameters
+                                                        while formal_parameter_count > 0 {
+
+                                                            let token = preprocessor_lexer.next().unwrap();
+
+                                                            // DEBUG
+                                                            if self.debug {
+                                                                println!("{}", token.token_id);
+                                                            }
+
+                                                            match token.token_id {
+
+                                                                PP_NUMERIC_TOKEN_ID | PP_IDENTIFIER_TOKEN_ID => {
+                                                                    // put next actual parameter into the symbol
+                                                                    define_symbol.expression_parser.process_token(token);
+
+                                                                    consumed_parameter = consumed_parameter + 1;
+
+                                                                    formal_parameter_count = formal_parameter_count - 1;
+                                                                }
+
+                                                                _ => {
+                                                                    // ignore
+                                                                    println!("test");
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // closing bracket
+                                                        let token_closing_bracket = preprocessor_lexer.next().unwrap();
+                                                        define_symbol.expression_parser.process_token(token_closing_bracket);
+                                                    }
+                                                    */
+
+                                                    // start a loop which keeps replacing symbols until
+                                                    // there are no more symbols to replace!
+                                                    // TODO: Edge Case: Brake cycles!
+                                                    let mut replaced: bool = true;
+                                                    while replaced {
+
+                                                        // DEBUG - BEFORE: output AST before replacement
+                                                        // if self.debug {
+                                                            define_symbol.expression_parser.print_dot();
+                                                        // }
+
+                                                        replaced = self.replace_symbols(
+                                                            &mut define_symbol.expression_parser.arena,
+                                                            &define_symbol.expression_parser.ptr_node_id,
+                                                            defined_symbol_map,
+                                                            &self.preprocessor_dfa,
+                                                            &preprocessor_lexer,
+                                                            self.debug);
+
+                                                        // DEBUG - AFTER: output AST after replacement
+                                                        // if self.debug {
+                                                            define_symbol.expression_parser.print_dot();
+                                                        // }
+                                                    }
+
+                                                    // DEBUG - AFTER: output AST after replacement
+                                                    if self.debug {
+                                                        define_symbol.expression_parser.print_dot();
+                                                    }
+
+                                                    fn output_prefix(data: &Token) -> String {
+                                                        return String::new();
+                                                    }
+                                                    fn output_infix(data: &Token) -> String {
+                                                        match data.token_id {
+                                                            PP_CLOSED_BRACKET_PAIR_TOKEN_ID => {
+                                                                return String::from("(");
+                                                            }
+                                                            _ => {
+                                                                // if data.text == "#" {
+                                                                //     return String::from(" hAsHtAg ");
+                                                                // }
+                                                                return String::from(&data.text);
+                                                            }
+                                                        }
+                                                    }
+                                                    fn output_postfix(data: &Token) -> String {
+                                                        match data.token_id {
+                                                            PP_CLOSED_BRACKET_PAIR_TOKEN_ID => {
+                                                                return String::from(")");
+                                                            }
+                                                            _ => {
+                                                                return String::new();
+                                                            }
+                                                        }
+                                                    }
+
+                                                    let mut string_buffer: String = String::new();
+                                                    define_symbol.expression_parser.arena.recurse_arena(
+                                                        &output_prefix,
+                                                        &output_infix,
+                                                        &output_postfix,
+                                                        &define_symbol.expression_parser.ptr_node_id,
+                                                        &mut string_buffer
+                                                    );
+
+                                                    output_text = string_buffer;
+                                                }
 
                                             }
                                         }
@@ -1147,7 +1313,7 @@ impl<'a> Preprocessor<'a> {
                                                 absolute_path = include_path_element.clone();
 
                                                 absolute_path.push_str("\\");
-                                                absolute_path.push_str(trimmed.clone());
+                                                absolute_path.push_str(trimmed);
 
                                                 println!("{:?}", &absolute_path);
 
@@ -1239,8 +1405,6 @@ impl<'a> Preprocessor<'a> {
 
         let mut cycle_detection_set: Vec<String> = Vec::new();
 
-        // cycle_detection_set.push(data.clone());
-
         loop {
 
             println!("Iteration: {}, Input: '{}'", iteration, result_string_buffer);
@@ -1304,9 +1468,9 @@ impl<'a> Preprocessor<'a> {
                     let macro_symbol = defined_symbol_map.get(&token.text).unwrap();
 
                     // DEBUG
-                    // if self.debug {
+                    if self.debug {
                         println!("plain text token '{}' recognized as symbol/macro: {:?}", token.text, macro_symbol);
-                    // }
+                    }
 
                     //
                     // parse the macro call into an AST
@@ -1561,6 +1725,132 @@ impl<'a> Preprocessor<'a> {
         }
     }
 
+    fn node_to_text(&self,
+        arena: &Arena<Token>, node: &Node<Token>, node_id: &NodeId, string_buffer: &mut String) {
+
+        // // LHS - replace symbols inside left child
+        // if let Some(left_id) = &node.left {
+        //     has_left_child = true;
+        //     left_result = self.replace_symbols(arena,
+        //         left_id, defined_symbol_map, preprocessor_dfa, preprocessor_lexer, debug);
+        //     left_child_id = left_id.index;
+        // }
+
+        // // RHS - replace symbols inside right child
+        // if let Some(right_id) = &node.right {
+        //     has_right_child = true;
+        //     right_result = self.replace_symbols(arena,
+        //         right_id, defined_symbol_map, preprocessor_dfa, preprocessor_lexer, debug);
+        //     right_child_id = right_id.index;
+        // }
+
+        fn output_prefix(data: &Token) -> String {
+            return String::new();
+        }
+        fn output_infix(data: &Token) -> String {
+            match data.token_id {
+                PP_CLOSED_BRACKET_PAIR_TOKEN_ID => {
+                    return String::from("(");
+                }
+                _ => {
+                    return String::from(&data.text);
+                }
+            }
+            // data.terminal.to_string()
+        }
+        fn output_postfix(data: &Token) -> String {
+            match data.token_id {
+                PP_CLOSED_BRACKET_PAIR_TOKEN_ID => {
+                    return String::from(")");
+                }
+                _ => {
+                    return String::new();
+                }
+            }
+        }
+
+        // let mut string_buffer: String = String::new();
+        arena.recurse_arena(
+            &output_prefix,
+            &output_infix,
+            &output_postfix,
+            &node_id,
+            string_buffer
+        );
+    }
+
+    fn extract_actual_parameters(&self,
+        arena: &Arena<Token>, node: &Node<Token>, node_id: &NodeId,
+        replace_map: &mut HashMap::<String, String>,
+        formal_parameter_map: &BTreeMap::<usize, String>,
+        actual_parameter_index: &mut usize)
+    {
+        // println!("node.data.text: {}", node.data.text);
+
+        if node.data.text == "," {
+
+            let mut has_left_child:bool = false;
+            let mut has_right_child:bool = false;
+
+            let mut left_result:bool = false;
+            let mut right_result:bool = false;
+
+            let mut left_child_id:usize = 0;
+            let mut right_child_id:usize = 0;
+
+            // LHS - replace symbols inside left child
+            if let Some(left_node_id) = &node.left {
+                has_left_child = true;
+
+                left_child_id = left_node_id.index;
+                let left_node = &arena.nodes[left_child_id];
+
+                self.extract_actual_parameters(
+                    arena,
+                    &left_node,
+                    left_node_id,
+                    replace_map,
+                    formal_parameter_map,
+                    actual_parameter_index
+                );
+            }
+
+            // RHS - replace symbols inside right child
+            if let Some(right_node_id) = &node.right {
+                has_right_child = true;
+
+                right_child_id = right_node_id.index;
+                let right_node = &arena.nodes[right_child_id];
+
+                self.extract_actual_parameters(
+                    arena,
+                    &right_node,
+                    right_node_id,
+                    replace_map,
+                    formal_parameter_map,
+                    actual_parameter_index
+                );
+            }
+        } else {
+            let mut value: String = String::new();
+            self.node_to_text(&arena, &node, &node_id, &mut value);
+            println!("Actual parameter found: '{}'", value);
+
+            let key = formal_parameter_map.get(actual_parameter_index).unwrap();
+
+            // DEBUG
+            println!("[Param-Replace-Map: Index: {}] key: '{}', value: '{}'",
+                actual_parameter_index, key, value);
+
+            // insert formal parameter as key and
+            // actual parameter-value as value into the
+            // parameter replace map
+            replace_map.insert(key.clone(), value);
+
+            *actual_parameter_index = *actual_parameter_index + 1usize;
+        }
+    }
+
     /// Replaces macro names by their macro definition resolving formal
     /// parameters by actual parameters.
     ///
@@ -1640,13 +1930,13 @@ impl<'a> Preprocessor<'a> {
             left_child_id = left_id.index;
         }
 
-        // RHS - replace symbols inside right child
-        if let Some(right_id) = &node.right {
-            has_right_child = true;
-            right_result = self.replace_symbols(arena,
-                right_id, defined_symbol_map, preprocessor_dfa, preprocessor_lexer, debug);
-            right_child_id = right_id.index;
-        }
+        // // RHS - replace symbols inside right child
+        // if let Some(right_id) = &node.right {
+        //     has_right_child = true;
+        //     right_result = self.replace_symbols(arena,
+        //         right_id, defined_symbol_map, preprocessor_dfa, preprocessor_lexer, debug);
+        //     right_child_id = right_id.index;
+        // }
 
         // retrieve the token which is stored inside the current node
         let token: &Token = &node.data;
@@ -1690,7 +1980,8 @@ impl<'a> Preprocessor<'a> {
 
                             let file = preprocessor_lexer.file.clone();
                             let line = preprocessor_lexer.line;
-                            self.parse_definition_into_AST(define_symbol, preprocessor_dfa, &file, line, debug);
+                            self.parse_definition_into_AST(define_symbol,
+                                preprocessor_dfa, &file, line, debug);
 
                             //
                             // replace the formal parameter occurences by actual parameters
@@ -1717,8 +2008,6 @@ impl<'a> Preprocessor<'a> {
                                 println!("Expecting {} parameters.", formal_parameter_count);
                             }
 
-                            let mut replace_map = HashMap::<String, String>::new();
-
                             // only extract and check for formal parameters if they are actually there!
                             // Some macros do not have formal parameters
                             // e.g. "#define EXPR_B 10"
@@ -1740,6 +2029,9 @@ impl<'a> Preprocessor<'a> {
                                 let parent_node: &Node<Token> = &arena_clone.nodes[node.parent.unwrap().index];
 
                                 // descend into right child of parent
+                                // the right node contains the list of actual parameters in
+                                // comma-separated form
+                                // the left node contains the macro/symbol's name
                                 let right_node_id = parent_node.right.unwrap();
 
                                 // DEBUG
@@ -1765,17 +2057,23 @@ impl<'a> Preprocessor<'a> {
                                 // first reset the state so that iteration can be performed
                                 // since state is used to remember which nodes in the AST
                                 // have been iterated over already
-                                arena_clone.set_visit_mode_for_all_nodes(right_node_id.index, VisitMode::VisitLeft);
+//                                arena_clone.set_visit_mode_for_all_nodes(right_node_id.index, VisitMode::VisitLeft);
 
                                 // DEBUG
                                 //println!("{}", define_symbol.name);
 
-                                // // DEBUG
+                                // DEBUG - output the entire tree
                                 // if debug {
-                                //     self.print_arena_dot(&arena_clone);
+                                    print_arena_dot(&arena_clone, arena_clone.find_root());
                                 // }
 
-                                let mut actual_parameter_count: usize = 0;
+                                let mut replace_map = HashMap::<String, String>::new();
+                                let mut actual_parameter_index: usize = 0;
+
+                                self.extract_actual_parameters(&arena_clone, right_node, &right_node_id, &mut replace_map, &define_symbol.formal_parameter_map, &mut actual_parameter_index);
+
+/*
+                                // walk the tree to fill the parameter replace map
                                 for token_node in arena_clone {
 
                                     let token = token_node.data;
@@ -1793,18 +2091,24 @@ impl<'a> Preprocessor<'a> {
                                     }
 
                                     // DEBUG
-                                    if debug {
+                                    // if debug {
                                         println!("{}", token.text);
-                                    }
+                                    // }
 
                                     if token.text == "," {
 
                                         // ignore comma (parameter separator)
 
-                                    } else {
+                                    }
+                                    else if token.text == "#" {
+
+                                        panic!("######");
+
+                                    }
+                                    else {
 
                                         // fill formal and actual values into the replace_map
-                                        let key_option = define_symbol.formal_parameter_map.get(&actual_parameter_count);
+                                        let key_option = define_symbol.formal_parameter_map.get(&actual_parameter_index);
                                         let mut key = String::new();
                                         if let Some(key_from_option) = key_option {
                                             key = key_from_option.clone();
@@ -1813,17 +2117,40 @@ impl<'a> Preprocessor<'a> {
                                             panic!("File: {}, Line: {}", token.file, token.line);
                                         }
 
-                                        let value = token.text.clone();
+                                        // let value = token.text.clone();
+
+                                        // convert the entire subtree into a string
+                                        let value = "";
+                                        while
+
+                                        // DEBUG
+                                        println!("[Param-Replace-Map: Index: {}] key: '{}', value: '{}'", actual_parameter_index, key, value);
+
+                                        // insert formal parameter as key and
+                                        // actual parameter-value as value into the
+                                        // parameter replace map
                                         replace_map.insert(key, value);
 
                                         // increment index
-                                        actual_parameter_count = actual_parameter_count + 1;
+                                        actual_parameter_index = actual_parameter_index + 1;
                                     }
                                 }
+ */
+                                // DEBUG print parameter replace map
+                                // if self.debug {
+                                    println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+                                    for (key, value) in replace_map.clone().into_iter() {
+                                        println!("key: {}, value: {}", key, value);
+                                    }
+                                    println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+                                // }
 
                                 // semantic analysis
-                                if actual_parameter_count != formal_parameter_count {
-                                    panic!("[ERR] Incorrect use of preprocessor macro \"{}\"! Parameter count mismatch! actual_parameter_count:{}, formal_parameter_count:{}", define_symbol.name, actual_parameter_count, formal_parameter_count);
+                                if actual_parameter_index != formal_parameter_count {
+                                    panic!("[ERR] Incorrect use of preprocessor macro \"{}\"!
+                                        Parameter count mismatch! actual_parameter_count:{},
+                                        formal_parameter_count:{}",
+                                        define_symbol.name, actual_parameter_index, formal_parameter_count);
                                 }
 
                                 //
@@ -1832,27 +2159,30 @@ impl<'a> Preprocessor<'a> {
                                 // replace formal parameters by actual parameters
                                 //
 
+                                // this is the AST that represents the defintion of the macro/symbol
+                                // that is currently resolved
                                 let mut arena_replace_clone = define_symbol.expression_parser.arena.clone();
 
-                                let mut root_index = 0;
-                                loop {
-                                    if let Some(root_index_temp) = arena_replace_clone.nodes[root_index].parent {
-                                        root_index = root_index_temp.index;
-                                    } else {
-                                        break;
-                                    }
-                                }
+                                // find the id of the root node of the macro/symbol definition AST
+                                let root_index = arena_replace_clone.find_root();
+                                // loop {
+                                //     if let Some(root_index_temp) = arena_replace_clone.nodes[root_index].parent {
+                                //         root_index = root_index_temp.index;
+                                //     } else {
+                                //         break;
+                                //     }
+                                // }
 
-                                // // DEBUG - before
+                                // DEBUG - before
                                 // if debug {
-                                //     self.print_arena_dot(&arena_replace_clone);
+                                    print_arena_dot(&arena_replace_clone, root_index);
                                 // }
 
                                 self.replace_parameters(&mut arena_replace_clone, root_index, &replace_map);
 
-                                // // DEBUG - after
+                                // DEBUG - after
                                 // if debug {
-                                //     self.print_arena_dot(&arena_replace_clone);
+                                    print_arena_dot(&arena_replace_clone, root_index);
                                 // }
 
                                 //
@@ -1862,7 +2192,11 @@ impl<'a> Preprocessor<'a> {
                                 // represents it's definition
                                 //
 
-                                let root_node: &Node<Token> = &arena_replace_clone.nodes[define_symbol.expression_parser.ptr_node_id.index];
+                                // let root_node: &Node<Token> =
+                                //     &arena_replace_clone.nodes[define_symbol.expression_parser.ptr_node_id.index];
+
+                                let root_node: &Node<Token> =
+                                    &arena_replace_clone.nodes[root_index];
 
                                 // DEBUG
                                 if debug {
@@ -1893,7 +2227,8 @@ impl<'a> Preprocessor<'a> {
                                 // represents it's definition
                                 //
 
-                                let root_node: &Node<Token> = &define_symbol.expression_parser.arena.nodes[define_symbol.expression_parser.ptr_node_id.index];
+                                let root_node: &Node<Token> =
+                                    &define_symbol.expression_parser.arena.nodes[define_symbol.expression_parser.ptr_node_id.index];
 
                                 // DEBUG
                                 if debug {
@@ -1996,8 +2331,7 @@ impl<'a> Preprocessor<'a> {
         arena: &Arena<Token>,
         node_id: &NodeId,
         defined_symbol_map: &HashMap::<String, DefineSymbol>,
-        debug: bool)
-        -> i32
+        debug: bool) -> i32
     {
         // DEBUG
         if debug {
@@ -2206,8 +2540,6 @@ impl<'a> Preprocessor<'a> {
                 panic!("test");
             }
         }
-
-        0
     }
 
     /// first, checks if the macro definition is already available
@@ -2260,8 +2592,10 @@ impl<'a> Preprocessor<'a> {
         }
 
         // DEBUG
-        // define_symbol.expression_parser.print_dot();
-        // define_symbol.expression_parser.print_console();
+        if self.debug {
+            let root_id = define_symbol.expression_parser.arena.find_root();
+            print_arena_dot(&define_symbol.expression_parser.arena, root_id);
+        }
     }
 }
 

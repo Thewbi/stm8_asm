@@ -241,10 +241,6 @@ fn main() {
 
     println!("start");
 
-
-
-
-
     let mut parse_table = HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>::new();
 
     //
@@ -518,73 +514,88 @@ fn main() {
         println!("*********************************************************************************");
     }
 
-    println!("x+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+x");
+    // static TEST_PREPROCESSOR_TREE_CONVERSION: bool = true;
+    static TEST_PREPROCESSOR_TREE_CONVERSION: bool = false;
+    if TEST_PREPROCESSOR_TREE_CONVERSION {
 
-    // let data = String::from("a+b");
+        println!("x+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+x");
 
-    // let data = String::from("_SAL2_Source_(a, b, c)");
-    // let data = String::from("_SAL2_Source_(_In_reads_or_z_opt_, (size), c");
-    // let data = String::from("_SAL2_Source_(_In_reads_or_z_opt_, (size), c)");
-    // let data = String::from("_SAL2_Source_(_In_reads_or_z_opt_, (size), c d");
-    // let data = String::from("_SAL2_Source_(_In_reads_or_z_opt_, (size), c d)");
+        // let data = String::from("a+b");
+        // let data = String::from("a * (b + c)");
+        // let data = String::from("(a + b) * c");
 
-    //let data = String::from("_SAL2_Source_(_In_reads_or_z_opt_, (size), c _When_(_String_length_(_Curr_) < (size), _Pre_z_))");
+        // let data = String::from("_SAL2_Source_(a, b, c)");
+        // let data = String::from("_SAL2_Source_(_In_reads_or_z_opt_, (size), c");
+        // let data = String::from("_SAL2_Source_(_In_reads_or_z_opt_, (size), c)");
+        // let data = String::from("_SAL2_Source_(_In_reads_or_z_opt_, (size), c d");
+        // let data = String::from("_SAL2_Source_(_In_reads_or_z_opt_, (size), c d)");
 
-    let data = String::from("_SAL2_Source_(
-        _In_reads_or_z_opt_,
-        (size),
-        _In_opt_     _When_(_String_length_(_Curr_) < (size), _Pre_z_)     _When_( _String_length_(_Curr_) >= (size), _Pre1_impl_(__count_impl(size)) )
-    )");
+        //let data = String::from("_SAL2_Source_(_In_reads_or_z_opt_, (size), c _When_(_String_length_(_Curr_) < (size), _Pre_z_))");
+        let data = String::from("_SAL2_Source_(
+            _In_reads_or_z_opt_,
+            (size),
+            _In_opt_     _When_(_String_length_(_Curr_) < (size), _Pre_z_)     _When_( _String_length_(_Curr_) >= (size), _Pre1_impl_(__count_impl(size)) )
+        )");
 
-    // let data = String::from("_When_(_String_length_(_Curr_) < (size), _Pre_z_)");
-    // let data = String::from("_When_( _String_length_(_Curr_) >= (size), _Pre1_impl_(__count_impl(size)) )");
+        // let data = String::from("_When_(_String_length_(_Curr_) < (size), _Pre_z_)");
+        // let data = String::from("_When_( _String_length_(_Curr_) >= (size), _Pre1_impl_(__count_impl(size)) )");
 
-    // let data = String::from("__count_impl(size) token_1");
-    // let data = String::from("__count_impl(size) __count_impl(size)");
-    // let data = String::from("_When_(_String_length_(_Curr_) < (size), _Pre_z_) _When_( _String_length_(_Curr_) >= (size), _Pre1_impl_(__count_impl(size)) )");
+        // let data = String::from("__count_impl(size) token_1");
+        // let data = String::from("__count_impl(size) __count_impl(size)");
+        // let data = String::from("_When_(_String_length_(_Curr_) < (size), _Pre_z_) _When_( _String_length_(_Curr_) >= (size), _Pre1_impl_(__count_impl(size)) )");
 
-    // let data = String::from("_In_opt_ _When_");
-    // let data = String::from("_In_opt_ _When_(");
-    // let data = String::from("_In_opt_ _When_(_String_length_");
-    // let data = String::from("_In_opt_ _When_(_String_length_(");
-    // let data = String::from("_In_opt_ _When_(_String_length_(_Curr_");
-    // let data = String::from("_In_opt_ _When_(_String_length_(_Curr_)");
-    // let data = String::from("_In_opt_ _When_(_String_length_(_Curr_) <");
-    // let data = String::from("_In_opt_ _When_(_String_length_(_Curr_) < (size)");
-    // let data = String::from("_In_opt_     _When_(_String_length_(_Curr_) < (size), _Pre_z_)");
+        // let data = String::from("_In_opt_ _When_");
+        // let data = String::from("_In_opt_ _When_(");
+        // let data = String::from("_In_opt_ _When_(_String_length_");
+        // let data = String::from("_In_opt_ _When_(_String_length_(");
+        // let data = String::from("_In_opt_ _When_(_String_length_(_Curr_");
+        // let data = String::from("_In_opt_ _When_(_String_length_(_Curr_)");
+        // let data = String::from("_In_opt_ _When_(_String_length_(_Curr_) <");
+        // let data = String::from("_In_opt_ _When_(_String_length_(_Curr_) < (size)");
+        // let data = String::from("_In_opt_     _When_(_String_length_(_Curr_) < (size), _Pre_z_)");
 
-    // let data = String::from("_In_opt_     _When_(_String_length_(_Curr_) < (size), _Pre_z_)   token_1 token_2");
+        // let data = String::from("_In_opt_     _When_(_String_length_(_Curr_) < (size), _Pre_z_)   token_1 token_2");
 
-    // let data = String::from("token_1 token_2");
-    // let data = String::from("token_1 token_2 token_3 token_4 token_5");
+        // let data = String::from("token_1 token_2");
+        // let data = String::from("token_1 token_2 token_3 token_4 token_5");
 
-    //let data = String::from("_In_opt_     _When_(_String_length_(_Curr_) < (size), _Pre_z_)");
-    //let data = String::from("_In_opt_     _When_(_String_length_(_Curr_) < (size), _Pre_z_) token_1 token_2");
+        // let data = String::from("_In_opt_     _When_");
+        // let data = String::from("_In_opt_     _When_(");
+        // let data = String::from("_In_opt_     _When_() Ende");
+        // let data = String::from("_In_opt_     _When_(_String_length_(_Curr_))");
+        // let data = String::from("_In_opt_     _When_(_String_length_(_Curr_) < (size), _Pre_z_)");
+        // let data = String::from("_In_opt_     _When_(_String_length_(_Curr_) < (size), _Pre_z_) token_1 token_2");
 
-    // create a lexer which returns the required token for preprocessing
-    // the underlying input file into an output file
-    let lexer_debug: bool = false;
-    let lexer_token_debug: bool = false;
-    let mut preprocessor_lexer: Lexer = Lexer::new(data,
-        &preprocessor_dfa,
-        lexer_debug,
-        lexer_token_debug);
-    preprocessor_lexer.file = String::from("main");
-    preprocessor_lexer.line = 1;
+        // let data = String::from("_GrouP_(annotes _SAL_nop_impl_");
+        // let data = String::from("_GrouP_(annotes _SAL_nop_impl_)");
+        // let data = String::from("_SA_annotes3(SAL_name, #Name, \"\", \"2\") _GrouP_(annotes _SAL_nop_impl_)");
 
-    let mut expression_parser = ExpressionParser::new();
+        // create a lexer which returns the required token for preprocessing
+        // the underlying input file into an output file
+        let lexer_debug: bool = false;
+        let lexer_token_debug: bool = false;
+        let mut preprocessor_lexer: Lexer = Lexer::new(data,
+            &preprocessor_dfa,
+            lexer_debug,
+            lexer_token_debug);
+        preprocessor_lexer.file = String::from("dummy_file"); // dummy file
+        preprocessor_lexer.line = 1; // dummy line
 
-    for token in preprocessor_lexer {
-        expression_parser.process_token(token);
+        let mut expression_parser = ExpressionParser::new();
+
+        for token in preprocessor_lexer {
+            if token.text == ")" {
+                println!("test");
+            }
+            expression_parser.process_token(token);
+        }
+
+        // DEBUG
+        let root_id = expression_parser.arena.find_root();
+        print_arena_dot(&expression_parser.arena, root_id);
+
+        println!("x+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+x");
     }
-
-    // expression_parser.print_dot();
-    //print expression_parser.arena
-
-    let root_id = expression_parser.arena.find_root();
-    print_arena_dot(&expression_parser.arena, root_id);
-
-    println!("x+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+x");
 
     //
     // Process some input for the preprocessor
