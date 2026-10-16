@@ -1,11 +1,7 @@
 use std::{
-    collections::{ BTreeMap, HashMap },
-    fmt, fs::{self, File},
-    io::{
+    collections::{ BTreeMap, HashMap }, fmt, fs::{self, File}, io::{
         BufRead, BufReader, BufWriter, Write,
-    },
-    path::Path,
-    result,
+    }, panic::AssertUnwindSafe, path::Path, result,
 };
 
 use crate::{
@@ -497,16 +493,20 @@ impl<'a> Preprocessor<'a> {
 
                                                     loop {
 
-                                                        let token = preprocessor_lexer.next().unwrap();
-                                                        if token.text != "\\" {
-                                                            define_symbol.expression_parser.process_token(token);
+                                                        // let token = preprocessor_lexer.next().unwrap();
+                                                        if let Some(token) = preprocessor_lexer.next() {
+                                                            if token.text != "\\" {
+                                                                define_symbol.expression_parser.process_token(token);
 
-                                                            let balanced = define_symbol.expression_parser.is_tree_balanced();
-                                                            // println!("balanced: {}", balanced);
+                                                                let balanced = define_symbol.expression_parser.is_tree_balanced();
+                                                                // println!("balanced: {}", balanced);
 
-                                                            if balanced {
-                                                                break;
+                                                                if balanced {
+                                                                    break;
+                                                                }
                                                             }
+                                                        } else {
+                                                            break;
                                                         }
                                                     }
 
@@ -578,7 +578,10 @@ impl<'a> Preprocessor<'a> {
 
                                                         // DEBUG - AFTER: output AST after replacement
                                                         // if self.debug {
-                                                            define_symbol.expression_parser.print_dot();
+                                                            //define_symbol.expression_parser.print_dot();
+
+                                                            let root_id = define_symbol.expression_parser.arena.find_root();
+                                                            print_arena_dot(&define_symbol.expression_parser.arena, root_id);
                                                         // }
                                                     }
 
@@ -619,7 +622,7 @@ impl<'a> Preprocessor<'a> {
                                                         &output_prefix,
                                                         &output_infix,
                                                         &output_postfix,
-                                                        &define_symbol.expression_parser.ptr_node_id,
+                                                        &NodeId { index: define_symbol.expression_parser.arena.find_root() },
                                                         &mut string_buffer
                                                     );
 
@@ -1871,9 +1874,9 @@ impl<'a> Preprocessor<'a> {
         debug: bool) -> bool
     {
         // DEBUG
-        if debug {
+        // if debug {
             println!("replace!");
-        }
+        // }
 
         let mut has_left_child:bool = false;
         let mut has_right_child:bool = false;
@@ -1930,13 +1933,13 @@ impl<'a> Preprocessor<'a> {
             left_child_id = left_id.index;
         }
 
-        // // RHS - replace symbols inside right child
-        // if let Some(right_id) = &node.right {
-        //     has_right_child = true;
-        //     right_result = self.replace_symbols(arena,
-        //         right_id, defined_symbol_map, preprocessor_dfa, preprocessor_lexer, debug);
-        //     right_child_id = right_id.index;
-        // }
+        // RHS - replace symbols inside right child
+        if let Some(right_id) = &node.right {
+            has_right_child = true;
+            right_result = self.replace_symbols(arena,
+                right_id, defined_symbol_map, preprocessor_dfa, preprocessor_lexer, debug);
+            right_child_id = right_id.index;
+        }
 
         // retrieve the token which is stored inside the current node
         let token: &Token = &node.data;
@@ -2163,6 +2166,11 @@ impl<'a> Preprocessor<'a> {
                                 // that is currently resolved
                                 let mut arena_replace_clone = define_symbol.expression_parser.arena.clone();
 
+                                // DEBUG - output the entire tree
+                                // if debug {
+                                    print_arena_dot(&arena_replace_clone, arena_replace_clone.find_root());
+                                // }
+
                                 // find the id of the root node of the macro/symbol definition AST
                                 let root_index = arena_replace_clone.find_root();
                                 // loop {
@@ -2192,6 +2200,9 @@ impl<'a> Preprocessor<'a> {
                                 // represents it's definition
                                 //
 
+                                *arena = arena_replace_clone.clone();
+
+                                /*
                                 // let root_node: &Node<Token> =
                                 //     &arena_replace_clone.nodes[define_symbol.expression_parser.ptr_node_id.index];
 
@@ -2215,6 +2226,7 @@ impl<'a> Preprocessor<'a> {
                                     &parent_node_id,
                                     &arena_replace_clone,
                                     &define_symbol.expression_parser.ptr_node_id);
+                                */
 
                                 return true;
 
