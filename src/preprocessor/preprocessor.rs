@@ -475,7 +475,7 @@ impl<'a> Preprocessor<'a> {
 
                                                     println!("plain text token '{}' recognized as symbol/macro: {:?}", output_text, macro_symbol);
 
-                                                    let mut formal_parameter_count = macro_symbol.formal_parameter_map.len();
+                                                    let formal_parameter_count = macro_symbol.formal_parameter_map.len();
 
                                                     // DEBUG
                                                     if self.debug {
@@ -557,16 +557,34 @@ impl<'a> Preprocessor<'a> {
                                                     }
                                                     */
 
+                                                    let mut cycle_detection_set: Vec<String> = Vec::new();
+
+                                                    let mut cycle_breaker: usize = 0;
+
                                                     // start a loop which keeps replacing symbols until
                                                     // there are no more symbols to replace!
                                                     // TODO: Edge Case: Brake cycles!
                                                     let mut replaced: bool = true;
                                                     while replaced {
 
+                                                        if cycle_breaker == 30 {
+                                                            panic!("[PREPROCESSOR] Cycle breaker broke the loop after {} cycles of symbol resolution! Either the preprocessor is buggy or there is a cycle in your set of macros!", cycle_breaker);
+                                                        }
+                                                        cycle_breaker = cycle_breaker + 1;
+
                                                         // DEBUG - BEFORE: output AST before replacement
-                                                        // if self.debug {
-                                                            define_symbol.expression_parser.print_dot();
+                                                        if self.debug {
+                                                            // define_symbol.expression_parser.print_dot();
+                                                            let root_id = define_symbol.expression_parser.arena.find_root();
+                                                            print_arena_dot(&define_symbol.expression_parser.arena, root_id);
+                                                        }
+
+                                                        // if cycle_detection_set.contains(&define_symbol.name) {
+                                                        //     println!("[ERR][PREPROCESSOR] Cycle detected while replacing '{}'", &define_symbol.name);
+                                                        //     println!("[ERR][PREPROCESSOR] List of visited token is: {:?}", &cycle_detection_set);
+                                                        //     panic!("[ERR][PREPROCESSOR] Cycle detected! Already replaced token is: {}", &define_symbol.name);
                                                         // }
+                                                        // cycle_detection_set.push(define_symbol.name.clone());
 
                                                         replaced = self.replace_symbols(
                                                             &mut define_symbol.expression_parser.arena,
@@ -574,15 +592,15 @@ impl<'a> Preprocessor<'a> {
                                                             defined_symbol_map,
                                                             &self.preprocessor_dfa,
                                                             &preprocessor_lexer,
+                                                            &mut cycle_detection_set,
                                                             self.debug);
 
                                                         // DEBUG - AFTER: output AST after replacement
-                                                        // if self.debug {
+                                                        if self.debug {
                                                             //define_symbol.expression_parser.print_dot();
-
                                                             let root_id = define_symbol.expression_parser.arena.find_root();
                                                             print_arena_dot(&define_symbol.expression_parser.arena, root_id);
-                                                        // }
+                                                        }
                                                     }
 
                                                     // DEBUG - AFTER: output AST after replacement
@@ -1077,6 +1095,8 @@ impl<'a> Preprocessor<'a> {
 
                                 } else {
 
+                                    let mut cycle_detection_set: Vec<String> = Vec::new();
+
                                     // start a loop which keeps replacing symbols until
                                     // there are no more symbols to replace!
                                     // TODO Edge Case: Brake cycles!
@@ -1088,11 +1108,19 @@ impl<'a> Preprocessor<'a> {
                                             expression_parser.print_dot();
                                         }
 
+                                        // if cycle_detection_set.contains(&define_symbol.name) {
+                                        //     println!("[ERR][PREPROCESSOR] Cycle detected while replacing '{}'", &token.text);
+                                        //     println!("[ERR][PREPROCESSOR] List of visited token is: {:?}", &cycle_detection_set);
+                                        //     panic!("[ERR][PREPROCESSOR] Cycle detected! Already replaced token is: {}", &token.text);
+                                        // }
+                                        // cycle_detection_set.push(define_symbol.name.clone());
+
                                         replaced = self.replace_symbols(&mut expression_parser.arena,
                                             &expression_parser.ptr_node_id,
                                             defined_symbol_map,
                                             &self.preprocessor_dfa,
                                             &preprocessor_lexer,
+                                            &mut cycle_detection_set,
                                             self.debug);
 
                                         // DEBUG - AFTER: output AST after replacement
@@ -1406,7 +1434,7 @@ impl<'a> Preprocessor<'a> {
 
         let mut iteration: usize = 0;
 
-        let mut cycle_detection_set: Vec<String> = Vec::new();
+        // let mut cycle_detection_set: Vec<String> = Vec::new();
 
         loop {
 
@@ -1459,13 +1487,12 @@ impl<'a> Preprocessor<'a> {
                         println!("plain text token recognized as symbol/macro: {}", &token.text);
                     }
 
-                    if cycle_detection_set.contains(&token.text) {
-                        println!("[ERR][PREPROCESSOR] Cycle Detected while replacing '{}'", &token.text);
-                        println!("[ERR][PREPROCESSOR] List of visited token is: {:?}", &cycle_detection_set);
-                        panic!("[ERR][PREPROCESSOR] Cycle Detected! Already replaced token is: {}", &token.text);
-                    }
-
-                    cycle_detection_set.push(token.text.clone());
+                    // if cycle_detection_set.contains(&token.text) {
+                    //     println!("[ERR][PREPROCESSOR] Cycle detected while replacing '{}'", &token.text);
+                    //     println!("[ERR][PREPROCESSOR] List of visited token is: {:?}", &cycle_detection_set);
+                    //     panic!("[ERR][PREPROCESSOR] Cycle detected! Already replaced token is: {}", &token.text);
+                    // }
+                    // cycle_detection_set.push(token.text.clone());
 
                     // 2. retrieve macro/symbol definition
                     let macro_symbol = defined_symbol_map.get(&token.text).unwrap();
@@ -1871,6 +1898,7 @@ impl<'a> Preprocessor<'a> {
         defined_symbol_map: &mut HashMap::<String, DefineSymbol>,
         preprocessor_dfa: &EpsilonNfa<State, RegexBuildingBlock>,
         preprocessor_lexer: &Lexer,
+        cycle_detection_set: &mut Vec<String>,
         debug: bool) -> bool
     {
         // DEBUG
@@ -1928,16 +1956,16 @@ impl<'a> Preprocessor<'a> {
         // LHS - replace symbols inside left child
         if let Some(left_id) = &node.left {
             has_left_child = true;
-            left_result = self.replace_symbols(arena,
-                left_id, defined_symbol_map, preprocessor_dfa, preprocessor_lexer, debug);
+            left_result = self.replace_symbols(arena, left_id, defined_symbol_map,
+                preprocessor_dfa, preprocessor_lexer, cycle_detection_set, debug);
             left_child_id = left_id.index;
         }
 
         // RHS - replace symbols inside right child
         if let Some(right_id) = &node.right {
             has_right_child = true;
-            right_result = self.replace_symbols(arena,
-                right_id, defined_symbol_map, preprocessor_dfa, preprocessor_lexer, debug);
+            right_result = self.replace_symbols(arena, right_id, defined_symbol_map,
+                preprocessor_dfa, preprocessor_lexer, cycle_detection_set, debug);
             right_child_id = right_id.index;
         }
 
@@ -1969,6 +1997,13 @@ impl<'a> Preprocessor<'a> {
 
                     // check if this string of text is a macro name
                     if defined_symbol_map.contains_key(&token.text) {
+
+                        // if cycle_detection_set.contains(&token.text) {
+                        //     println!("[ERR][PREPROCESSOR] Cycle detected while replacing '{}'", &token.text);
+                        //     println!("[ERR][PREPROCESSOR] List of visited token is: {:?}", &cycle_detection_set);
+                        //     panic!("[ERR][PREPROCESSOR] Cycle detected! Already replaced token is: {}", &token.text);
+                        // }
+                        // cycle_detection_set.push(token.text.clone());
 
                         let defined_symbol_option = defined_symbol_map.get_mut(&token.text);
                         if let Some(define_symbol) = defined_symbol_option {
@@ -2066,9 +2101,9 @@ impl<'a> Preprocessor<'a> {
                                 //println!("{}", define_symbol.name);
 
                                 // DEBUG - output the entire tree
-                                // if debug {
+                                if debug {
                                     print_arena_dot(&arena_clone, arena_clone.find_root());
-                                // }
+                                }
 
                                 let mut replace_map = HashMap::<String, String>::new();
                                 let mut actual_parameter_index: usize = 0;
@@ -2167,9 +2202,9 @@ impl<'a> Preprocessor<'a> {
                                 let mut arena_replace_clone = define_symbol.expression_parser.arena.clone();
 
                                 // DEBUG - output the entire tree
-                                // if debug {
+                                if debug {
                                     print_arena_dot(&arena_replace_clone, arena_replace_clone.find_root());
-                                // }
+                                }
 
                                 // find the id of the root node of the macro/symbol definition AST
                                 let root_index = arena_replace_clone.find_root();
@@ -2182,16 +2217,16 @@ impl<'a> Preprocessor<'a> {
                                 // }
 
                                 // DEBUG - before
-                                // if debug {
+                                if debug {
                                     print_arena_dot(&arena_replace_clone, root_index);
-                                // }
+                                }
 
                                 self.replace_parameters(&mut arena_replace_clone, root_index, &replace_map);
 
                                 // DEBUG - after
-                                // if debug {
+                                if debug {
                                     print_arena_dot(&arena_replace_clone, root_index);
-                                // }
+                                }
 
                                 //
                                 // PHASE 3
@@ -2531,6 +2566,13 @@ impl<'a> Preprocessor<'a> {
                 } else if *val == String::from("GT") {
 
                     if right_result > left_result {
+                        return 1;
+                    };
+                    return 0;
+
+                } else if *val == String::from("GE_OP") {
+
+                    if right_result >= left_result {
                         return 1;
                     };
                     return 0;

@@ -5,8 +5,6 @@
     // This code WILL be included
 #endif
 
-
-
 #define VAL 1+1
 
 int main() {

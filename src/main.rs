@@ -570,6 +570,10 @@ fn main() {
         // let data = String::from("_GrouP_(annotes _SAL_nop_impl_)");
         // let data = String::from("_SA_annotes3(SAL_name, #Name, \"\", \"2\") _GrouP_(annotes _SAL_nop_impl_)");
 
+        // let data = String::from("(ADD(7, 8) + 2 + 3)");
+        // let data = String::from("(x + y)");
+        let data = String::from("(EXPR_A * 4)");
+
         // create a lexer which returns the required token for preprocessing
         // the underlying input file into an output file
         let lexer_debug: bool = false;

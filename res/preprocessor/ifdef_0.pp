@@ -1,5 +1,7 @@
 #pragma once
 
+//#define _SAL_VERSION 15
+
 #ifdef _SAL_VERSION
 #define _SAL_VERSION 20
 #endif

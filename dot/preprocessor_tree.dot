@@ -1,11 +1,9 @@
 digraph {
-1 [label="1 ()"]
-0 [label="0 BLOB"]
-1 -> 0 [label="LHS"]
-3 [label="3 ,"]
-2 [label="2    122"]
-3 -> 2 [label="LHS"]
-4 [label="4    2333"]
-3 -> 4 [label="RHS"]
-1 -> 3 [label="RHS"]
+0 [label="0 ()"]
+2 [label="2 *"]
+1 [label="1 EXPR_A"]
+2 -> 1 [label="LHS"]
+3 [label="3 4"]
+2 -> 3 [label="RHS"]
+0 -> 2 [label="RHS"]
 }
