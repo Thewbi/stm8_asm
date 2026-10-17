@@ -44,7 +44,7 @@ use crate::common::file_handling::write_string_to_file;
 mod regex;
 use crate::preprocessor::define_mode::DefineMode;
 use crate::preprocessor::define_symbol::{self, DefineSymbol};
-use crate::preprocessor::preprocessor::{PpiIncludeMode, Preprocessor, print_arena_dot};
+use crate::preprocessor::preprocessor::{PpiIncludeMode, Preprocessor, print_arena_dot, print_arena_dot_mark};
 use crate::preprocessor::preprocessor_operating_mode::PreprocessorOperatingMode::{DefineIfcOrDefinition, Normal};
 use crate::regex::infix_postfix_converter::InfixPostfixConverter;
 use crate::regex::regex_building_block::RegexBuildingBlock;
@@ -537,7 +537,7 @@ fn main() {
             _In_opt_     _When_(_String_length_(_Curr_) < (size), _Pre_z_)     _When_( _String_length_(_Curr_) >= (size), _Pre1_impl_(__count_impl(size)) )
         )");
 
-        // let data = String::from("_When_(_String_length_(_Curr_) < (size), _Pre_z_)");
+        //let data = String::from("_When_(_String_length_(_Curr_) < (size), _Pre_z_)");
         // let data = String::from("_When_( _String_length_(_Curr_) >= (size), _Pre1_impl_(__count_impl(size)) )");
 
         // let data = String::from("__count_impl(size) token_1");
@@ -572,7 +572,16 @@ fn main() {
 
         // let data = String::from("(ADD(7, 8) + 2 + 3)");
         // let data = String::from("(x + y)");
-        let data = String::from("(EXPR_A * 4)");
+        // let data = String::from("(EXPR_A * 4)");
+
+        // MACRO(val_a_1 val_a_2, val_b, val_c)
+        //let data = String::from("MACRO");
+        // let data = String::from("MACRO(val_a_1 val_a_2)");
+        // let data = String::from("MACRO(val_a_1 val_a_2,");
+        // let data = String::from("MACRO(val_a_1 val_a_2, val_b");
+        // let data = String::from("MACRO(val_a_1 val_a_2, val_b)");
+
+        // let data = String::from("MACRO(val_a_1, val_b)");
 
         // create a lexer which returns the required token for preprocessing
         // the underlying input file into an output file
@@ -594,9 +603,19 @@ fn main() {
             expression_parser.process_token(token);
         }
 
+        // //
+        // // insert another token without using the lexer for testing
+        // //
+
+        // let mut token: Token = Token::new();
+        // token.text = String::from("text");
+        // token.token_id = PP_IDENTIFIER_TOKEN_ID;
+
+        // expression_parser.process_token(token);
+
         // DEBUG
         let root_id = expression_parser.arena.find_root();
-        print_arena_dot(&expression_parser.arena, root_id);
+        print_arena_dot_mark(&expression_parser.arena, root_id, expression_parser.ptr_node_id.index);
 
         println!("x+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+x");
     }
@@ -640,6 +659,7 @@ fn main() {
         //
         // START TIME - PREPROCESSOR
         //
+        println!("START - PREPROCESSOR.");
 
         let now = Instant::now();
 

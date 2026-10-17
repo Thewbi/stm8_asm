@@ -336,7 +336,7 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ";", "SEMICOLON", PP_SEMICOLON_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\{", "OPENING_CURLY_BRACKET", 23);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\}", "CLOSING_CURLY_BRACKET", 24);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ",", "COMMA", PP_OR_OP_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ",", "COMMA", PP_COMMA_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ":", "COLON", PP_COLON_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "=", "EQUALS_SIGN", 27);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\(", "OPENING_BRACKET", PP_OPENING_BRACKET_TOKEN_ID); // used in Regex to build blocks

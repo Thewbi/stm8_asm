@@ -1,3 +1,3 @@
-#define max(a,b) ((a) >= (b) ? (a) : (b))
+#define max(a, b) ((a) >= (b) ? (a) : (b))
 
-Macro: max(1,2)
+Macro: max(1, 2)
