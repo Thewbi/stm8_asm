@@ -19,6 +19,7 @@ use crate::example_lexers::preprocessor_lexer::PP_GE_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_EQ_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_LT_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_NE_OP_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_LEFT_OP_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_OPENING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_CLOSING_BRACKET_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_CLOSED_BRACKET_PAIR_TOKEN_ID;
@@ -39,6 +40,8 @@ use crate::example_lexers::preprocessor_lexer::PP_PRAGMA_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_ELLIPSIS_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_GREATER_THAN_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_CONCATENATION_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_PPF_DEFINED_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_BINARY_OP_TOKEN_ID;
 
 use crate::regex::arena::recurse_arena;
 use crate::regex::arena::{Arena, NodeId, recurse_arena_dot};
@@ -140,6 +143,14 @@ impl ExpressionParser {
                 token.weight = 190;
             }
 
+            PP_LEFT_OP_TOKEN_ID => {
+                token.weight = 195;
+            }
+
+            PP_BINARY_OP_TOKEN_ID => {
+                token.weight = 180;
+            }
+
             PP_SEMICOLON_TOKEN_ID => {
                 token.weight = 182;
             }
@@ -179,10 +190,10 @@ impl ExpressionParser {
             PP_BACKSLASH_TOKEN_ID => {
                 token.weight = 420;
             }
-            100 => { // DEFINED (Preprocessor Function (PPF))
+            PP_PPF_DEFINED_TOKEN_ID => { // DEFINED (Preprocessor Function (PPF))
                 token.weight = 499;
             }
-            200 => { // DEFINE (Preprocessor Instruction (PPI))
+            PP_DEFINE_TOKEN_ID => { // DEFINE (Preprocessor Instruction (PPI))
                 token.weight = 500;
             }
 

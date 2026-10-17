@@ -473,7 +473,10 @@ impl<'a> Preprocessor<'a> {
 
                                                     let macro_symbol = defined_symbol_map.get(&output_text).unwrap();
 
-                                                    println!("plain text token '{}' recognized as symbol/macro: {:?}", output_text, macro_symbol);
+                                                    // DEBUG
+                                                    if self.debug {
+                                                        println!("plain text token '{}' recognized as symbol/macro: {:?}", output_text, macro_symbol);
+                                                    }
 
                                                     let formal_parameter_count = macro_symbol.formal_parameter_map.len();
 
@@ -597,17 +600,17 @@ impl<'a> Preprocessor<'a> {
                                                             self.debug);
 
                                                         // DEBUG - AFTER: output AST after replacement
-                                                        //if self.debug {
+                                                        if self.debug {
                                                             //define_symbol.expression_parser.print_dot();
                                                             let root_id = define_symbol.expression_parser.arena.find_root();
                                                             print_arena_dot(&define_symbol.expression_parser.arena, root_id);
-                                                        //}
+                                                        }
                                                     }
 
                                                     // DEBUG - AFTER: output AST after replacement
-                                                    // if self.debug {
+                                                    if self.debug {
                                                         define_symbol.expression_parser.print_dot();
-                                                    // }
+                                                    }
 
                                                     fn output_prefix(data: &Token) -> String {
                                                         return String::new();
@@ -1327,7 +1330,17 @@ impl<'a> Preprocessor<'a> {
                                 let trimmed = rem_first_and_last(&include_file_buffer);
 
                                 // ignore some header files!
-                                if trimmed != "CodeAnalysis/sourceannotations.h" {
+                                if trimmed == "CodeAnalysis/sourceannotations.h" {
+
+                                    println!("Ignoring: CodeAnalysis/sourceannotations.h")
+
+                                } else {
+
+                                    println!("");
+                                    println!("");
+                                    println!("");
+                                    println!("");
+                                    println!("Trying to include {:?}", trimmed);
 
                                     let mut absolute_path = String::new();
                                     let mut final_include_filename = String::new();
@@ -1349,20 +1362,20 @@ impl<'a> Preprocessor<'a> {
                                             for include_path_element in self.include_path {
 
                                                 absolute_path = include_path_element.clone();
-
                                                 absolute_path.push_str("\\");
                                                 absolute_path.push_str(trimmed);
 
-                                                println!("{:?}", &absolute_path);
+                                                println!("Trying path: {:?}", &absolute_path);
 
                                                 let path = Path::new(absolute_path.as_str());
                                                 if path.exists() {
+
+                                                    println!("<<<");
+                                                    println!("Found here - {}", final_include_filename);
+                                                    println!("Found here - {}", absolute_path);
+                                                    println!(">>>");
+
                                                     if file_found_counter > 0 {
-
-                                                        println!("");
-                                                        println!("Found here - {}", final_include_filename);
-                                                        println!("Found here - {}", absolute_path);
-
                                                         if ERROR_ON_DUPLICATE_HEADER_FILES {
                                                             panic!("Include file '{}' is found in more than one folder in the include path!", trimmed);
                                                         }
@@ -1370,11 +1383,15 @@ impl<'a> Preprocessor<'a> {
                                                     file_found_counter = file_found_counter + 1;
 
                                                     final_include_filename = absolute_path;
+                                                } else {
+                                                    println!("NOT FOUND: {:?}", &absolute_path);
                                                 }
                                             }
 
                                             if file_found_counter == 0 {
                                                 panic!("Cannot find file '{}' in include path!", trimmed)
+                                            } else {
+
                                             }
                                         }
                                         PpiIncludeMode::LOCAL => {
@@ -1414,7 +1431,8 @@ impl<'a> Preprocessor<'a> {
                         match token.token_id {
                             // execut the #include PPI
                             PP_NEWLINE_TOKEN_ID => {
-                                panic!("[PREPROCESSOR::error]: '{}'", error_msg_buffer.as_str());
+                                panic!("[PREPROCESSOR::error]: '{}'. File: {}, Line: {}",
+                                    error_msg_buffer.as_str(), token.file, token.line);
                             }
                             _ => {
                                 error_msg_buffer.push_str(token.text.as_str());
@@ -1829,8 +1847,8 @@ impl<'a> Preprocessor<'a> {
             let mut has_left_child:bool = false;
             let mut has_right_child:bool = false;
 
-            let mut left_result:bool = false;
-            let mut right_result:bool = false;
+            // let mut left_result:bool = false;
+            // let mut right_result:bool = false;
 
             let mut left_child_id:usize = 0;
             let mut right_child_id:usize = 0;
@@ -1871,13 +1889,19 @@ impl<'a> Preprocessor<'a> {
         } else {
             let mut value: String = String::new();
             self.node_to_text(&arena, &node, &node_id, &mut value);
-            println!("Actual parameter found: '{}'", value);
+
+            // DEBUG
+            if self.debug {
+                println!("Actual parameter found: '{}'", value);
+            }
 
             let key = formal_parameter_map.get(actual_parameter_index).unwrap();
 
             // DEBUG
-            println!("[Param-Replace-Map: Index: {}] key: '{}', value: '{}'",
-                actual_parameter_index, key, value);
+            if self.debug {
+                println!("[Param-Replace-Map: Index: {}] key: '{}', value: '{}'",
+                    actual_parameter_index, key, value);
+            }
 
             // insert formal parameter as key and
             // actual parameter-value as value into the
@@ -1986,9 +2010,9 @@ impl<'a> Preprocessor<'a> {
         }
 
         // DEBUG
-        // if self.debug {
+        if self.debug {
             print_arena_dot(arena, arena.find_root());
-        // }
+        }
 
         // retrieve the token which is stored inside the current node
         let token: &Token = &node.data;
@@ -2020,9 +2044,9 @@ impl<'a> Preprocessor<'a> {
                     if defined_symbol_map.contains_key(&token.text) {
 
                         // DEBUG
-                        // if debug {
+                        if debug {
                             println!("Found Macro: token.text: {}", token.text);
-                        // }
+                        }
 
                         // if cycle_detection_set.contains(&token.text) {
                         //     println!("[ERR][PREPROCESSOR] Cycle detected while replacing '{}'", &token.text);
@@ -2201,13 +2225,13 @@ impl<'a> Preprocessor<'a> {
                                 }
  */
                                 // DEBUG print parameter replace map
-                                // if self.debug {
+                                if self.debug {
                                     println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
                                     for (key, value) in replace_map.clone().into_iter() {
                                         println!("key: {}, value: {}", key, value);
                                     }
                                     println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-                                // }
+                                }
 
                                 // semantic analysis
                                 if actual_parameter_index != formal_parameter_count {
@@ -2443,8 +2467,13 @@ impl<'a> Preprocessor<'a> {
     {
         // DEBUG
         if debug {
-            let root = arena.find_root();
-            print_arena_dot(arena, root);
+            println!("[evaluate_expression] node_id: {}", node_id.index);
+        }
+
+        // DEBUG
+        if debug {
+            let root_node_id = arena.find_root();
+            print_arena_dot(arena, root_node_id);
         }
 
         let node: &Node<Token> = &arena.nodes[node_id.index];
@@ -2538,11 +2567,19 @@ impl<'a> Preprocessor<'a> {
                                 return numeric_value;
                             }
                             Result::Err(_) => {
+
+                                // DEBUG
+                                if self.debug {
+                                    print_arena_dot(arena, arena.find_root());
+                                }
+
                                 // TODO before returning true, try to evaluate the definition!
                                 // e.g. if the definition is 1 + 1, then this could be evaluated
                                 // to 2 and 2 could be returned!
-                                // return 0;
-                                panic!("Cannot parse string '{}' to i32", token.text)
+
+                                // undefined symbols have the value 0 per definition in the specification
+                                return 0;
+                                //panic!("Cannot parse string '{}' to i32. NodeId:{}", token.text, node_id.index)
                             }
                         }
                     }

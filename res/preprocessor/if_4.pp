@@ -1,0 +1,10 @@
+//#define RC_INVOKED
+
+#if defined(RC_INVOKED) || defined(Q_MOC_RUN)
+#define _VCRT_COMPILER_PREPROCESSOR 0
+#else
+#define _VCRT_COMPILER_PREPROCESSOR 1
+#endif
+#endif // _VCRT_COMPILER_PREPROCESSOR
+
+Macro: _VCRT_COMPILER_PREPROCESSOR

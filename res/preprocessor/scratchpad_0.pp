@@ -1,5 +1,8 @@
-#define BLIB(a, b) BLOB(a, b)
-#define DIMENSION(a, b) BLIB(a, b)
-#define SQUARE(a, b) DIMENSION(a, b)
+#define _M_X64
 
-Macro: SQUARE(1, 2)
+#include <stdio.h>
+
+int main() {
+    printf("test\n");
+    return 0;
+}

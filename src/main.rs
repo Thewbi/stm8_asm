@@ -499,8 +499,8 @@ fn main() {
     let mut preprocessor_dfa = EpsilonNfa::new(preprocessor_temp_q0);
 
     // let generate_preprocessor_lexer = true;
-    let generate_preprocessor_lexer = false;
-    // let generate_preprocessor_lexer = REGENERATE_LEXER_PARSER;
+    // let generate_preprocessor_lexer = false;
+    let generate_preprocessor_lexer = REGENERATE_LEXER_PARSER;
     if generate_preprocessor_lexer {
         preprocessor_dfa = produce_preprocessor_lexer();
         // store into file

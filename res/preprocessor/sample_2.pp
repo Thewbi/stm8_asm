@@ -6,7 +6,7 @@ int main() {
 
 #if EXPR_B == 80
     // This code WILL be included
-    printf("test");
+    printf("test_80");
 #endif
 
     return 0;

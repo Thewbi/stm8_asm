@@ -162,7 +162,9 @@ impl<'a> Lexer<'a> {
 
             next_state_id = transition_dfa(&self.dfa,
                 self.current_state_id,
-                &RegexBuildingBlock::CharacterLiteral(current_character));
+                &RegexBuildingBlock::CharacterLiteral(current_character),
+                &self.file,
+                self.line);
 
             // DEBUG
             if self.lexer_debug {
@@ -494,7 +496,9 @@ impl Iterator for Lexer<'_> {
 
                 next_state_id = transition_dfa(&mut self.dfa,
                     self.current_state_id,
-                    &RegexBuildingBlock::CharacterLiteral(current_character));
+                    &RegexBuildingBlock::CharacterLiteral(current_character),
+                    &self.file,
+                    self.line);
 
                 // DEBUG
                 if self.lexer_debug {

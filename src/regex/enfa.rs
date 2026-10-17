@@ -1836,7 +1836,7 @@ pub fn enfa_to_dfa(enfa: &mut EpsilonNfa::<State, RegexBuildingBlock>,
 
 // try to transition the large lexer DFA to produce a token for the input
 pub fn transition_dfa(dfa: &EpsilonNfa::<State, RegexBuildingBlock>,
-    start_id: usize, input: &RegexBuildingBlock) -> usize {
+    start_id: usize, input: &RegexBuildingBlock, file: &String, line: usize) -> usize {
 
     if dfa.transitions.contains_key(&(start_id, Input::Symbol(*input))) {
         let temp = dfa.transitions.get(&(start_id, Input::Symbol(*input)));
@@ -1846,5 +1846,5 @@ pub fn transition_dfa(dfa: &EpsilonNfa::<State, RegexBuildingBlock>,
         return val.clone().into_iter().next().unwrap();
     }
 
-    panic!("Cannot transition given input {:?}", input);
+    panic!("Cannot transition given input '{:?}'. File: {}, Line: {}", input, file, line);
 }

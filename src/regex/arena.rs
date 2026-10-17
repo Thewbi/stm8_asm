@@ -255,11 +255,9 @@ impl<T: ToString> Arena<T> {
     }
 
     pub fn recurse_arena(&self,
-
         output_prefix: &dyn Fn(&T) -> String,
         output_infix: &dyn Fn(&T) -> String,
         output_postfix: &dyn Fn(&T) -> String,
-
         parent_node_id: &NodeId,
         string_buffer: &mut String) where T:std::fmt::Display,
     {

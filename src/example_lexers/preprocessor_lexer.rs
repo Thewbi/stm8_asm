@@ -13,6 +13,7 @@ use crate::regex::enfa::recurse_postfix_build_fragment_stack;
 use crate::Input;
 use crate::example_lexers::common::add_token_definition;
 
+pub const PP_LEFT_OP_TOKEN_ID: usize = 12;
 pub const PP_AND_OP_TOKEN_ID: usize = 16;
 pub const PP_OR_OP_TOKEN_ID: usize = 17;
 pub const PP_GE_OP_TOKEN_ID: usize = 19;
@@ -30,12 +31,14 @@ pub const PP_EXCLAMATION_MARK_TOKEN_ID: usize = 34;
 
 pub const PP_LT_OP_TOKEN_ID: usize = 41;
 pub const PP_GREATER_THAN_TOKEN_ID: usize = 42;
+pub const PP_BINARY_OP_TOKEN_ID: usize = 44;
 pub const PP_QUESTION_MARK_TOKEN_ID: usize = 45;
 pub const PP_WHITESPACE_TOKEN_ID: usize = 46;
 pub const PP_NEWLINE_TOKEN_ID: usize = 47;
 pub const PP_HASHTAG_TOKEN_ID: usize = 48;
 pub const PP_BACKSLASH_TOKEN_ID: usize = 49;
 pub const PP_ELLIPSIS_TOKEN_ID: usize = 53;
+pub const PP_BACK_TICK_TOKEN_ID: usize = 53;
 
 pub const PP_PPF_DEFINED_TOKEN_ID: usize = 100;
 
@@ -183,6 +186,7 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('/'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('#'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\''));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('`'));
 
     // "\n" | "\r\n" | "\r"
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\n'));
@@ -319,7 +323,7 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\^=", "XOR_ASSIGN", 9); // used in Regex as NEGATION operator
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\|=", "OR_ASSIGN", 10); // used in Regex as OR operator
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ">>", "RIGHT_OP", 11);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "<<", "LEFT_OP", 12);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "<<", "LEFT_OP", PP_LEFT_OP_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\+\\+", "INC_OP", 13); // used in Regex as Repeat(1, std::usize::MAX)
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\-\\-", "DEC_OP", 14); // used in Regex to build character classes
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\->", "PTR_OP", 15);
@@ -351,8 +355,10 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "<", "LT", PP_LT_OP_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ">", "GT", PP_GREATER_THAN_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\^", "CIRCUMFLEX", 43); // used in Regex as NEGATION operator
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\|", "OR", 44); // used in Regex as OR operator
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\|", "OR", PP_BINARY_OP_TOKEN_ID); // used in Regex as OR operator
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\?", "QUESTION_MARK", PP_QUESTION_MARK_TOKEN_ID); // used in Regex as Repeat(0, 1)
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, " ", "WHITESPACE", PP_WHITESPACE_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\n|\r\n|\r", "NEWLINE", PP_NEWLINE_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#", "HASHTAG", PP_HASHTAG_TOKEN_ID);
     //
     // Backslash
@@ -362,9 +368,10 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "&", "AMPERSAND", 51);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "@", "COMMERCIAL_AT", 52);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "...", "ELLIPSIS", PP_ELLIPSIS_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "`", "BACK_TICK", PP_BACK_TICK_TOKEN_ID);
 
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, " ", "WHITESPACE", PP_WHITESPACE_TOKEN_ID);
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\n|\r\n|\r", "NEWLINE", PP_NEWLINE_TOKEN_ID);
+
+
 
     // //
     // // Whitespace
