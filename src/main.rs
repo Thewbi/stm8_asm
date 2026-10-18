@@ -44,7 +44,7 @@ use crate::common::file_handling::write_string_to_file;
 mod regex;
 use crate::preprocessor::define_mode::DefineMode;
 use crate::preprocessor::define_symbol::{self, DefineSymbol};
-use crate::preprocessor::preprocessor::{PpiIncludeMode, Preprocessor, print_arena_dot, print_arena_dot_mark};
+use crate::preprocessor::preprocessor::{PpiIncludeMode, Preprocessor, print_arena_dot};
 use crate::preprocessor::preprocessor_operating_mode::PreprocessorOperatingMode::{DefineIfcOrDefinition, Normal};
 use crate::regex::infix_postfix_converter::InfixPostfixConverter;
 use crate::regex::regex_building_block::RegexBuildingBlock;
@@ -583,6 +583,12 @@ fn main() {
 
         // let data = String::from("MACRO(val_a_1, val_b)");
 
+        let data = String::from("__DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0(
+        _Success_(return != 0)
+        wchar_t*, __RETURN_POLICY_DST, _ACRTIMP, _wtmpnam,
+        _Pre_maybenull_ _Always_(_Post_z_), wchar_t, _Buffer
+        )");
+
         // create a lexer which returns the required token for preprocessing
         // the underlying input file into an output file
         let lexer_debug: bool = false;
@@ -615,7 +621,8 @@ fn main() {
 
         // DEBUG
         let root_id = expression_parser.arena.find_root();
-        print_arena_dot_mark(&expression_parser.arena, root_id, expression_parser.ptr_node_id.index);
+        //print_arena_dot_mark(&expression_parser.arena, root_id, expression_parser.ptr_node_id.index);
+        print_arena_dot(&expression_parser.arena, root_id);
 
         println!("x+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+x");
     }

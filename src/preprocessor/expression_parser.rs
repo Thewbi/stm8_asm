@@ -31,6 +31,7 @@ use crate::example_lexers::preprocessor_lexer::PP_DEFINE_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_WHITESPACE_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_IDENTIFIER_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_NUMERIC_TOKEN_ID;
+use crate::example_lexers::preprocessor_lexer::PP_HEX_NUMERIC_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_NEWLINE_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_STRING_LITERAL_TOKEN_ID;
 use crate::example_lexers::preprocessor_lexer::PP_QUESTION_MARK_TOKEN_ID;
@@ -48,12 +49,15 @@ use crate::regex::arena::{Arena, NodeId, recurse_arena_dot};
 
 use crate::lexer::lexer::Token;
 
+use crate::Node;
+
 enum Operation {
     REPARENT,
     ADD_RIGHT,
     ADD_LEFT,
     CLOSE_BRACKETS,
     CONCATENATE,
+    // JOIN,
     CLOSE_BRACKETS_UPWARDS,
     NO_ACTION
 }
@@ -117,7 +121,10 @@ impl ExpressionParser {
                 token.weight = 999;
             }
             PP_NUMERIC_TOKEN_ID => {
-                token.weight = 998;
+                token.weight = 999;
+            }
+            PP_HEX_NUMERIC_TOKEN_ID => {
+                token.weight = 999;
             }
 
             // logical operators
@@ -250,6 +257,8 @@ impl ExpressionParser {
 
                             if self.arena.has_parent(&insert_node_id) {
 
+                                let token_id = token.token_id;
+
                                 // create a new node for the inserted token
                                 let new_node_id = self.arena.new_node(token);
                                 let parent_node_id = self.arena.nodes[insert_node_id.index].parent.unwrap();
@@ -268,16 +277,23 @@ impl ExpressionParser {
                                 // change reparented node's parent
                                 // arena.nodes[insert_node_id.index].parent = Some(new_node_id.clone());
 
+                                //self.ptr_node_id = NodeId { index: self.arena.find_root() };
+                                // self.ptr_node_id =  NodeId { index: token_id };
+
                                 // move the current pointer to the opening bracket so that
                                 // all subsequent inserts go into this node
                                 if token_text == "(" {
                                     self.ptr_node_id = new_node_id;
                                 }
 
+                                //self.ascend_to_opening_bracket(&self.ptr_node_id.clone(), false);
+
                             } else {
+
                                 // new parent
                                 self.ptr_node_id.index = self.arena.new_node(token).index;
                                 self.arena.insert_left(&self.ptr_node_id, insert_node_id);
+
                             }
                         }
 
@@ -339,7 +355,7 @@ impl ExpressionParser {
                                     // update pointer
                                     self.ptr_node_id.index = parent_token.index;
 
-                                    // retrieve the new pointed node
+                                    // retrieve the new current node
                                     current_node = &mut self.arena.nodes[self.ptr_node_id.index];
 
                                     // if the new node is an opening bracket, abort
@@ -357,6 +373,8 @@ impl ExpressionParser {
                                     break;
                                 }
                             }
+
+                            //self.ascend_to_opening_bracket(&self.ptr_node_id.clone(), true);
                         }
 
                         Operation::CONCATENATE => {
@@ -411,6 +429,21 @@ impl ExpressionParser {
                             }
                         }
 
+                        // Operation::JOIN => {
+                        //     // let current_node = self.arena.nodes[insert_node_id.index];
+
+                        //     let payload = self.arena.get_payload_by_index(insert_node_id.index);
+                        //     // let mut new_payload = String::new();
+                        //     // new_payload.push_str("test");
+
+                        //     let mut new_token = payload.clone();
+                        //     new_token.text.push_str(" ");
+                        //     new_token.text.push_str("#");
+                        //     new_token.text.push_str(" ");
+                        //     new_token.text.push_str(&token.text);
+                        //     self.arena.set_payload_by_index(insert_node_id.index, new_token);
+                        // }
+
                         Operation::NO_ACTION => {
                         }
                     }
@@ -427,6 +460,42 @@ impl ExpressionParser {
         }
     }
 
+    // fn ascend_to_opening_bracket(&mut self, insert_node_id: &NodeId, close_brackets: bool) {
+
+    //     let current_node: &mut Node<Token> = &mut self.arena.nodes[insert_node_id.index];
+    //     let mut temp_node = current_node;
+
+    //     // walk up the tree to the next open bracket or to the root node
+    //     loop {
+
+    //         if let Some(parent_token) = temp_node.parent {
+    //             // the node has a parent
+
+    //             // update pointer
+    //             self.ptr_node_id.index = parent_token.index;
+
+    //             // retrieve the new pointed node
+    //             temp_node = &mut self.arena.nodes[self.ptr_node_id.index];
+
+    //             // if the new node is an opening bracket, abort
+    //             if temp_node.data.token_id == PP_OPENING_BRACKET_TOKEN_ID { // OPENING_BRACKET
+
+    //                 if close_brackets {
+    //                     // let mut current_node = &mut self.arena.nodes[self.ptr_node_id.index];
+    //                     temp_node.data.token_id = 80usize; // 80 for close bracke-pair "()"
+    //                     temp_node.data.text = String::from("()");
+    //                 }
+
+    //                 break;
+    //             }
+
+    //         } else {
+    //             // the node has no parent
+    //             break;
+    //         }
+    //     }
+    // }
+
     /// Given a token to insert and a node_id to insert into, will
     /// determine the child node to insert into by diving into the tree
     /// and return an operation to perform.
@@ -438,11 +507,16 @@ impl ExpressionParser {
         // the new object to insert
         token: &Token) -> ( Operation, NodeId )
     {
-        // if token.text == ")" {
+        //println!("node_id: {}", node_id.index);
+
+        // // DEBUG
+        // if token.text == "," {
         //     println!("test");
         // }
+
         loop {
 
+            // determine the current node's payload
             let payload: &Token = self.arena.get_payload(&node_id);
             match payload.token_id {
 
@@ -484,7 +558,11 @@ impl ExpressionParser {
                         return ( Operation::CONCATENATE, node_id.clone() );
                     } else if token.token_id == PP_CLOSING_BRACKET_TOKEN_ID {
                         return ( Operation::CLOSE_BRACKETS_UPWARDS, node_id.clone() );
-                    } else {
+                    }
+                    else if token.token_id == PP_COMMA_TOKEN_ID {
+                        return ( Operation::REPARENT, node_id.clone() );
+                    }
+                    else {
                         let rhs_node_id = self.arena.get_right_id(&node_id).unwrap();
                         return self.insert_into_pp_ast(rhs_node_id, token);
                     }
@@ -528,6 +606,7 @@ impl ExpressionParser {
                         if existing_node_id.data.token_id == PP_IDENTIFIER_TOKEN_ID {
                             if token.token_id == PP_IDENTIFIER_TOKEN_ID {
                                 return ( Operation::CONCATENATE, node_id.clone() );
+                                //return ( Operation::JOIN, node_id.clone() );
                             }
                         }
 
@@ -574,7 +653,7 @@ impl ExpressionParser {
 
         // serialize the AST into .dot graphviz format
         ast_string_buffer.push_str("digraph {\n");
-        recurse_arena_dot(&self.arena, &self.ptr_node_id, &mut ast_string_buffer);
+        recurse_arena_dot(&self.arena, &self.ptr_node_id, &mut ast_string_buffer, self.ptr_node_id.index);
         ast_string_buffer.push_str("}");
 
         // 1. Create or overwrite the file

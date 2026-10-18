@@ -137,6 +137,10 @@ impl<T: ToString> Arena<T> {
         &self.nodes[index].data
     }
 
+    pub fn set_payload_by_index(&mut self, index: usize, new_payload: T) {
+        self.nodes[index].data = new_payload;
+    }
+
     pub fn get_left_id(&self, parent_node_id: &NodeId) -> Option<&NodeId> {
         let parent_node: &Node<T> = &self.nodes[parent_node_id.index];
         parent_node.left.as_ref()
@@ -435,7 +439,8 @@ where T:std::fmt::Debug,
 ///
 pub fn recurse_arena_dot<T>(arena: &Arena<T>,
     parent_node_id: &NodeId,
-    string_buffer: &mut String)
+    string_buffer: &mut String,
+    mark_node_id: usize)
 where T:std::fmt::Debug, T:std::fmt::Display
 {
     if arena.is_empty() {
@@ -450,20 +455,27 @@ where T:std::fmt::Debug, T:std::fmt::Display
     // }
 
     // output node
-    string_buffer.push_str(format!("{} [label=\"{} {}\"]\n",
-        parent_node_id.index,
-        parent_node_id.index,
-        &parent_node.data_to_string()).as_str());
+    if parent_node_id.index == mark_node_id {
+        string_buffer.push_str(format!("{} [label=\"{} {}\", peripheries = 2]\n",
+            parent_node_id.index,
+            parent_node_id.index,
+            &parent_node.data_to_string()).as_str());
+    } else {
+        string_buffer.push_str(format!("{} [label=\"{} {}\"]\n",
+            parent_node_id.index,
+            parent_node_id.index,
+            &parent_node.data_to_string()).as_str());
+    }
 
     // LHS - output left child
     if let Some(left_id) = &parent_node.left {
-        recurse_arena_dot(arena, left_id, string_buffer);
+        recurse_arena_dot(arena, left_id, string_buffer, mark_node_id);
         string_buffer.push_str(format!("{} -> {} [label=\"LHS\"]\n", parent_node_id.index, left_id.index).as_str());
     }
 
     // RHS - output right child
     if let Some(right_id) = &parent_node.right {
-        recurse_arena_dot(arena, right_id, string_buffer);
+        recurse_arena_dot(arena, right_id, string_buffer, mark_node_id);
         string_buffer.push_str(format!("{} -> {} [label=\"RHS\"]\n", parent_node_id.index, right_id.index).as_str());
     }
 }
