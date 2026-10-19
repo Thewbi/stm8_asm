@@ -3626,13 +3626,15 @@ impl Parser<String> {
 
                                             // take old node from stack - declaration_specifiers
                                             let old_debug_node = debug_node_stack.pop().unwrap();
+                                            println!("Label: {}", old_debug_node.label);
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
                                             // take old node from stack - init_declarator_list
                                             let old_debug_node = debug_node_stack.pop().unwrap();
+                                            println!("Label: {}", old_debug_node.label);
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
-                                            // ;
+                                            // SEMICOLON (;)
                                             // create new node id
                                             // create new node with node id and label
                                             let semicolon_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -3865,14 +3867,59 @@ impl Parser<String> {
                                                 ast_node.string_val = new_type_string;
 
                                                 self.ast_stack.push(ast_node_id);
-
-                                                // node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
                                         // declaration_specifiers -> type_specifier
                                         82 => {
                                             self.node_to_node("declaration_specifiers", found_rule.original_id, string_buffer, debug_node_stack);
+                                        }
+
+                                        // 83; declaration_specifiers -> type_qualifier declaration_specifiers
+                                        83 => {
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("declaration_specifiers"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("declaration_specifiers")).as_str());
+
+                                            // declaration_specifiers
+                                            // take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            println!("Label: {}", old_debug_node.label);
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // type_qualifier
+                                            // take old node from stack
+                                            let declarator_node = debug_node_stack.pop().unwrap();
+                                            println!("Label: {}", declarator_node.label);
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, declarator_node.id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            // println!("{:?}", debug_node_id);
+
+                                            //
+                                            // AST - declaration_specifiers -> type_qualifier declaration_specifiers
+                                            //
+
+                                            if self.construct_ast {
+
+                                                // TODO: check if the node in the hash_map is really updated or not!
+
+                                                let ast_node_id = self.ast_stack.pop().unwrap();
+                                                let mut ast_node = node_map.get(&ast_node_id).unwrap().clone();
+
+                                                // add UInt, ULong
+                                                let temp_string = ast_node.string_val.clone();
+                                                let mut new_type_string = String::from("U");
+                                                new_type_string.push_str(&temp_string);
+                                                ast_node.string_val = new_type_string;
+
+                                                self.ast_stack.push(ast_node_id);
+                                            }
                                         }
 
                                         // init_declarator_list -> init_declarator COMMA init_declarator_list
@@ -3970,8 +4017,6 @@ impl Parser<String> {
                                                         let mut expr_ast_node: AstNode = AstNode::new(node_id);
                                                         expr_ast_node.node_type = AstNodeType::Expression;
                                                         expr_ast_node.lhs = Some(initializer_ast_node_id);
-
-
 
                                                         compound_init_ast_node.block_items.push(expr_ast_node.id);
 
@@ -4805,6 +4850,45 @@ impl Parser<String> {
                                         // struct_declarator -> declarator
                                         120 => {
                                             self.node_to_node("struct_declarator", found_rule.original_id, string_buffer, debug_node_stack);
+                                        }
+
+                                        // 130;type_qualifier -> CONST
+                                        130 => {
+                                            //self.node_to_node("type_qualifier", found_rule.original_id, string_buffer, debug_node_stack);
+
+                                            // let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // println!("Label: {}", old_debug_node.label);
+
+                                            // push node onto stack
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_qualifier"));
+                                            // print node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("type_qualifier")).as_str());
+
+                                            let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let type_node = DebugNode::new(type_node_id, String::from("CONST"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, String::from("CONST")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
+
+                                            debug_node_stack.push(debug_node);
+                                        }
+
+                                        // 131;type_qualifier -> VOLATILE
+                                        131 => {
+                                            //self.node_to_node("type_qualifier", found_rule.original_id, string_buffer, debug_node_stack);
+
+                                            // push node onto stack
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_qualifier"));
+                                            // print node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("type_qualifier")).as_str());
+
+                                            let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let type_node = DebugNode::new(type_node_id, String::from("VOLATILE"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, String::from("VOLATILE")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
+
+                                            debug_node_stack.push(debug_node);
                                         }
 
                                         // declarator -> pointer direct_declarator

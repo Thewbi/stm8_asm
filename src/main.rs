@@ -681,10 +681,13 @@ fn main() {
 
         let mut defined_symbol_map: HashMap<String, DefineSymbol> = HashMap::<String, DefineSymbol>::new();
 
+        // let mut include_path: Vec<String> = Vec::<String>::new();
+        // include_path.push(String::from("C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\ucrt"));
+        // include_path.push(String::from("C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\shared"));
+        // include_path.push(String::from("C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\14.44.35207\\include"));
+
         let mut include_path: Vec<String> = Vec::<String>::new();
-        include_path.push(String::from("C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\ucrt"));
-        include_path.push(String::from("C:\\Program Files (x86)\\Windows Kits\\10\\Include\\10.0.26100.0\\shared"));
-        include_path.push(String::from("C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Tools\\MSVC\\14.44.35207\\include"));
+        include_path.push(String::from("res\\libc"));
 
         let preprocessor: Preprocessor = Preprocessor::new(&preprocessor_dfa,
             &include_path,

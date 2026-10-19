@@ -1,3 +1,37 @@
+# Microsoft SAL in UCRT
+
+UCRT is the new C runtime / standard library of Microsoft on windows. The U stands for unified.
+
+UCRT is partly defined in header files which contain a feature called SAL, the Source Code Annotation Langauge.
+
+SAL adds token into the source code which are read by static code analysis in order to improve stability of C-Code during the development phase. SAL allows to flag parameters as optional or mandatory so that static code analysis can check if a mandatory paramater has a NULL value assigned. Another check is if parameters are in range or if strings are zero-terminated.
+
+The token are only understood by Microsoft's MSVC (Visual Studio) compiler. GCC, clang and other compilers will not understand the token and throw syntax errors.
+
+Some SAL token are:
+
+_In_opt_z_
+
+_In_ (Input) - a function will only read this parameter. The callee expects the caller to provide valid data.
+
+_opt_ (Optional) - a parameter is optional. If it is a pointer, the pointer is allowed to be NULL or nullptr.
+
+_z_ (Null-terminated) - the callee expects a zero/null-terminated string.
+
+_Field_range_(min, max) - e.g. _Field_range_(1, 1024) the variable is allowed to have a value in the range of [1, 1024].
+
+_Printf_format_string_ - ???
+
+ _Printf_format_string_params_(2) - states how many parameters are expected for a function call. Used with variadic functions such as printf() in order to check if a parameter is provided for each placeholder in the format string.
+
+ _Scanf_format_string_params_(2) - ???
+
+ _Check_return_ - ???
+
+ __declspec(noinline) __inline
+
+ wint_t __cdecl
+
 # Testing the Preprocessor
 
 A quick way of testing the output of the preprocessor without installing any software or figuring out compiler flags is to enable the preprocessor tool in the online compiler explorer (aka. godbolt).

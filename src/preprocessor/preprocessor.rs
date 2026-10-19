@@ -91,6 +91,13 @@ impl<'a> Preprocessor<'a> {
         writer: &mut BufWriter<File>,
         defined_symbol_map: &mut HashMap<String, DefineSymbol>)
     {
+        // DEBUG - output all symbols so far
+        println!("DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG");
+        for (key, value) in defined_symbol_map.into_iter() {
+            println!("{} / {}", key, value);
+        }
+        println!("DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG");
+
         // the expression parser is used to parse well-formed text to an AST for evaluation
         // Well-formed text appears in all PPI that need to be evaluated such as #if, #elif
         //
@@ -411,6 +418,8 @@ impl<'a> Preprocessor<'a> {
                                     println!("not PPI, not PPF: '{}'", token.text);
                                 }
 
+
+
                                 // DEBUG build ASTNODE
                                 if self.debug {
                                     // This is for testing the expression parser using normal input
@@ -434,6 +443,10 @@ impl<'a> Preprocessor<'a> {
                                 }
 
                                 if out_enabled {
+
+                                    // if token.text == "_ACRTIMP" {
+                                    //     println!("et");
+                                    // }
 
                                     // check if a terminal is in fact a macro
                                     // If it is a macro, the macro is encountered in plain output area.
@@ -469,12 +482,14 @@ impl<'a> Preprocessor<'a> {
                                                 let defined_symbol = defined_symbol_map.get(&macro_name).unwrap();
 
                                                 // clone DefineSymbol.definition into new_string
-                                                let mut new_string = defined_symbol.definition.clone();
+                                                let mut new_string = String::from("");
 
-                                                if defined_symbol.formal_parameter_map.len() == 0 {
-                                                    //output_text = defined_symbol.definition.clone();
+                                                // do not output zero
+                                                if defined_symbol.has_defined_value {
+                                                    new_string = defined_symbol.definition.clone();
+                                                }
 
-                                                    //output_text = defined_symbol.definition.clone();
+                                                if defined_symbol.formal_parameter_map_index_to_param.len() == 0 {
 
                                                 } else {
 
@@ -482,108 +497,402 @@ impl<'a> Preprocessor<'a> {
                                                     // advance lexer doing so
                                                     let actual_parameter_map = self.scrape_parameters(&mut preprocessor_lexer);
 
+                                                    println!("actual_parameter_map: {:?}", &actual_parameter_map);
+                                                    println!("formal_parameter_map_index_to_param: {:?}", &defined_symbol.formal_parameter_map_index_to_param);
+                                                    println!("formal_parameter_map_param_to_index: {:?}", &defined_symbol.formal_parameter_map_param_to_index);
+
                                                     // // clone DefineSymbol.definition into new_string
                                                     // let mut new_string = defined_symbol.definition.clone();
 
+                                                    //
+                                                    // In rust, the replace() method will replace any matching substring!
+                                                    // Example Input:
+                                                    // ```
+                                                    // #define _SAL2_Source_(Name, args, annotes)      _SA_annotes3(SAL_name, #Name, "", "2")
+                                                    // ```
+                                                    //
+                                                    // Here, when the parameter 'annotes' is replaced by it's value using rust's replace()
+                                                    // method, then this will replace the value into the function name '_SA_annotes3'.
+                                                    // The formal parameter 'annotes' should not be lead to a replacement of the function
+                                                    // name '_SA_annotes3'!
+                                                    //
+                                                    // To get around the problem, split the string by space and compare strings to
+                                                    // perform a replace based on exact matches!
+                                                    //
+
+                                                    //new_string = new_string.replace(formal_param_name.as_str(), value.as_str());
+
+                                                    let mut concat: bool = false;
+                                                    let mut stringize: bool = false;
+
+                                                    println!("{}", new_string);
+
+                                                    let mut string_buf = String::new();
+                                                    for text_data in new_string.split(&[' ']) {
+
+                                                        // println!("text_data: {}", text_data);
+                                                        // println!("{} - {}", &text_data, formal_param_name);
+
+                                                        if text_data == "##" {
+                                                            // println!("Concat detected!");
+                                                            concat = true;
+                                                            stringize = false;
+                                                        } else if text_data == "#" {
+                                                            //  println!("Stringize detected!");
+                                                             stringize = true;
+                                                        } else {
+                                                            // string_buf.push_str(" ");
+                                                            if let Some(formal_param_index) = defined_symbol.formal_parameter_map_param_to_index.get(text_data) {
+                                                                let actual_value = actual_parameter_map.get(formal_param_index).unwrap();
+
+                                                                if concat {
+                                                                    concat = false;
+                                                                    string_buf.push_str(actual_value.trim());
+
+                                                                } else if stringize {
+                                                                    stringize = false;
+
+                                                                    string_buf.push_str("\"");
+                                                                    string_buf.push_str(actual_value.trim());
+                                                                    string_buf.push_str("\"");
+                                                                } else {
+                                                                    string_buf.push_str(actual_value);
+                                                                }
+                                                            } else {
+                                                                string_buf.push_str(" ");
+                                                                string_buf.push_str(text_data);
+                                                            }
+                                                        }
+
+                                                        // // string_buf.push_str(" ");
+                                                        // if text_data == formal_param_name {
+                                                        //     string_buf.push_str(value.as_str());
+                                                        // } else {
+                                                        //     string_buf.push_str(text_data);
+                                                        // }
+                                                    }
+                                                    new_string = string_buf;
+
+                                                    /*
                                                     // replace scraped parameters in new_string
                                                     for (key, value) in actual_parameter_map.into_iter() {
-                                                        let formal_param_name = defined_symbol.formal_parameter_map.get(&key).unwrap();
-                                                        new_string = new_string.replace(formal_param_name.as_str(), value.as_str());
+
+                                                        let formal_param_name = defined_symbol.formal_parameter_map_index_to_param.get(&key).unwrap();
+
+                                                        // println!("");
+                                                        println!("{} --> {}", formal_param_name, value);
+                                                        // println!("b: {}", new_string);
+
+                                                        //
+                                                        // In rust, the replace() method will replace any matching substring!
+                                                        // Example Input:
+                                                        // ```
+                                                        // #define _SAL2_Source_(Name, args, annotes)      _SA_annotes3(SAL_name, #Name, "", "2")
+                                                        // ```
+                                                        //
+                                                        // Here, when the parameter 'annotes' is replaced by it's value using rust's replace()
+                                                        // method, then this will replace the value into the function name '_SA_annotes3'.
+                                                        // The formal parameter 'annotes' should not be lead to a replacement of the function
+                                                        // name '_SA_annotes3'!
+                                                        //
+                                                        // To get around the problem, split the string by space and compare strings to
+                                                        // perform a replace based on exact matches!
+                                                        //
+
+                                                        //new_string = new_string.replace(formal_param_name.as_str(), value.as_str());
+
+                                                        let mut string_buf = String::new();
+                                                        for text_data in new_string.split(&[' ']) {
+
+                                                            // println!("{} - {}", &text_data, formal_param_name);
+
+                                                            if text_data == "#" {
+                                                                println!("Stringize detected for value: '{}'", value);
+                                                            }
+
+                                                            // string_buf.push_str(" ");
+                                                            if text_data == formal_param_name {
+                                                                string_buf.push_str(value.as_str());
+                                                            } else {
+                                                                string_buf.push_str(text_data);
+                                                            }
+                                                        }
+                                                        new_string = string_buf;
+
+                                                        // println!("a: {}", new_string);
                                                     }
+                                                    */
                                                 }
 
-                                                    // println!("{}", new_string);
+                                                // println!("{}", new_string);
 
-                                                    // create string_buffer
-                                                    let mut string_buffer: String = String::new();
+                                                // create string_buffer
+                                                let mut string_buffer: String = String::new();
 
+                                                // let mut current_token: String = String::new();
 
+                                                // (LOOP):
+                                                loop {
 
-                                                    // (LOOP):
+                                                    // println!("");
+                                                    // println!("");
+                                                    // println!("");
+                                                    // println!("");
+                                                    // println!("Iteration ----------------------------------------------------");
+                                                    //println!("Input: {}", new_string);
+
+                                                    //
+                                                    // clear string_buffer
+                                                    string_buffer.clear();
+                                                    //
+                                                    // create local_lexer on new_string
+                                                    let lexer_debug: bool = false;
+                                                    let lexer_token_debug: bool = false;
+                                                    let mut local_lexer: Lexer = Lexer::new(new_string,
+                                                        &self.preprocessor_dfa,
+                                                        lexer_debug,
+                                                        lexer_token_debug);
+                                                    local_lexer.file = self.filename.clone();
+                                                    local_lexer.line = 1;
+                                                    //
+                                                    let mut changes_detected: bool = false;
+
+                                                    //
+                                                    // (START): iterate over token output by local_lexer
+                                                    //for token in local_lexer {
                                                     loop {
-                                                        //
-                                                        // clear string_buffer
-                                                        string_buffer.clear();
-                                                        //
-                                                        // create local_lexer on new_string
-                                                        let lexer_debug: bool = false;
-                                                        let lexer_token_debug: bool = false;
-                                                        let mut local_lexer: Lexer = Lexer::new(new_string,
-                                                            &self.preprocessor_dfa,
-                                                            lexer_debug,
-                                                            lexer_token_debug);
-                                                        local_lexer.file = self.filename.clone();
-                                                        local_lexer.line = 1;
-                                                        //
-                                                        let mut changes_detected: bool = false;
-                                                        //
-                                                        // (START): iterate over token output by local_lexer
-                                                        //for token in local_lexer {
-                                                        loop {
 
-                                                            let token_option = local_lexer.next();
-                                                            if let Some(token) = token_option {
+                                                        let token_option = local_lexer.next();
+                                                        if let Some(token) = token_option {
 
-                                                                // println!("{}", token.text);
+                                                            // println!("'{}'", token.text);
 
-                                                                if defined_symbol_map.contains_key(&token.text) {
+                                                            // if token.text == "_ACRTIMP" {
+                                                            //     println!("Test");
+                                                            // }
 
-                                                                    let defined_symbol = defined_symbol_map.get(&token.text).unwrap();
+                                                            if defined_symbol_map.contains_key(&token.text) {
 
-                                                                    //      3. clone DefineSymbol.definition into temp_string
-                                                                    let mut temp_string = defined_symbol.definition.clone();
+                                                                // println!("");
+                                                                // println!("DETECTED TOKEN: '{}'", token.text);
 
-                                                                    if defined_symbol.formal_parameter_map.len() == 0 {
-                                                                        // clone DefineSymbol.definition into new_string
-                                                                       // let mut new_string = defined_symbol.definition.clone();
+                                                                // current_token = token.text.clone();
+
+                                                                let local_defined_symbol = defined_symbol_map.get(&token.text).unwrap();
+
+                                                                //      3. clone DefineSymbol.definition into temp_string
+                                                                let mut temp_string = local_defined_symbol.definition.clone();
+
+                                                                let formal_parameter_count = local_defined_symbol.formal_parameter_map_index_to_param.len();
+                                                                // println!("formal_parameter_count: '{}'", &formal_parameter_count);
+                                                                if formal_parameter_count == 0 {
+
+                                                                    // if "_In_opt_" == local_defined_symbol.name {
+                                                                    //     println!("test");
+                                                                    // }
+
+                                                                    // clone DefineSymbol.definition into new_string
+                                                                    let df = defined_symbol_map.get(&local_defined_symbol.name).unwrap();
+                                                                    let aaa = df.definition.clone();
+
+                                                                    // do not output zero
+                                                                    if df.has_defined_value {
+                                                                        string_buffer.push_str(aaa.as_str());
+                                                                    }
+
+                                                                } else {
+
+                                                                    //      1. scrape actual parameters into parameter map
+                                                                    //      advance local_lexer doing so
+                                                                    let actual_parameter_map = self.scrape_parameters(&mut local_lexer);
+                                                                    let actual_parameter_count = actual_parameter_map.len();
+
+                                                                    // println!("");
+                                                                    // println!("actual_parameter_map:");
+                                                                    // println!("{:?}", actual_parameter_map);
+                                                                    // println!("actual_parameter_count: {:?}", &actual_parameter_count);
+
+                                                                    // dumb way to prevent resolving a macro name which is used without parameters
+                                                                    if actual_parameter_count != formal_parameter_count {
+
+                                                                        // println!("Before: '{}'", &temp_string);
+                                                                        // println!("After: '{}'", &temp_string);
+                                                                        // println!("");
+
+                                                                        // do not output zero
+                                                                        if local_defined_symbol.has_defined_value {
+                                                                            string_buffer.push_str(token.text.clone().as_str());
+                                                                        }
+
                                                                     } else {
 
                                                                         // token is macro ->
                                                                         //      0. changes_detected = true
                                                                         changes_detected = true;
-                                                                        //      1. scrape actual parameters into parameter map
-                                                                        //      advance local_lexer doing so
-                                                                        let actual_parameter_map = self.scrape_parameters(&mut local_lexer);
+
                                                                         //      2. load definition from defined_symbol_map for
                                                                         //      the macro_name
-                                                                        let defined_symbol = defined_symbol_map.get(&macro_name).unwrap();
+                                                                        // println!("macro_name: {}", &token.text);
+                                                                        let temp_defined_symbol = defined_symbol_map.get(&token.text).unwrap();
+
+
+
+                                                                        //
+                                                                        // In rust, the replace() method will replace any matching substring!
+                                                                        // Example Input:
+                                                                        // ```
+                                                                        // #define _SAL2_Source_(Name, args, annotes)      _SA_annotes3(SAL_name, #Name, "", "2")
+                                                                        // ```
+                                                                        //
+                                                                        // Here, when the parameter 'annotes' is replaced by it's value using rust's replace()
+                                                                        // method, then this will replace the value into the function name '_SA_annotes3'.
+                                                                        // The formal parameter 'annotes' should not be lead to a replacement of the function
+                                                                        // name '_SA_annotes3'!
+                                                                        //
+                                                                        // To get around the problem, split the string by space and compare strings to
+                                                                        // perform a replace based on exact matches!
+                                                                        //
+
+                                                                        //new_string = new_string.replace(formal_param_name.as_str(), value.as_str());
+
+                                                                        // //      3. clone DefineSymbol.definition into temp_string
+                                                                        //let mut temp_string = defined_symbol.definition.clone();
+                                                                        //      4. replace scraped parameters in temp_string
+                                                                        let mut concat: bool = false;
+                                                                        let mut stringize: bool = false;
+
+                                                                        let mut string_buf = String::new();
+                                                                        for text_data in temp_string.split(&[' ']) {
+
+                                                                            // println!("text_data: {}", text_data);
+                                                                            // println!("{} - {}", &text_data, formal_param_name);
+
+                                                                            if text_data == "##" {
+                                                                                // println!("Concat detected!");
+                                                                                concat = true;
+                                                                                stringize = false;
+                                                                            } else if text_data == "#" {
+                                                                                // println!("Stringize detected!");
+                                                                                concat = false;
+                                                                                stringize = true;
+                                                                            } else {
+                                                                                if let Some(formal_param_index) = temp_defined_symbol.formal_parameter_map_param_to_index.get(text_data) {
+                                                                                    let actual_value = actual_parameter_map.get(formal_param_index).unwrap();
+
+                                                                                    if concat {
+                                                                                        concat = false;
+                                                                                        string_buf.push_str(actual_value.trim());
+
+                                                                                    } else if stringize {
+                                                                                        stringize = false;
+
+                                                                                        string_buf.push_str("\"");
+                                                                                        string_buf.push_str(actual_value.trim());
+                                                                                        string_buf.push_str("\"");
+                                                                                    } else {
+                                                                                        string_buf.push_str(actual_value.trim());
+                                                                                    }
+                                                                                } else {
+                                                                                    string_buf.push_str(" ");
+                                                                                    string_buf.push_str(text_data);
+                                                                                }
+                                                                            }
+
+                                                                            // // string_buf.push_str(" ");
+                                                                            // if text_data == formal_param_name {
+                                                                            //     string_buf.push_str(value.as_str());
+                                                                            // } else {
+                                                                            //     string_buf.push_str(text_data);
+                                                                            // }
+                                                                        }
+                                                                        // new_string = string_buf;
+                                                                        temp_string = string_buf;
+
+
+                                                                        /*
                                                                         // //      3. clone DefineSymbol.definition into temp_string
                                                                         // let mut temp_string = defined_symbol.definition.clone();
                                                                         //      4. replace scraped parameters in temp_string
                                                                         for (key, value) in actual_parameter_map.into_iter() {
-                                                                            let formal_param_name = defined_symbol.formal_parameter_map.get(&key).unwrap();
-                                                                            temp_string = temp_string.replace(formal_param_name.as_str(), value.as_str());
+
+                                                                            let formal_param_name = temp_defined_symbol.formal_parameter_map_index_to_param.get(&key).unwrap();
+
+                                                                            // println!("");
+                                                                            // println!("Replacing formal-param: '{}' with '{}'", &formal_param_name, &value);
+
+                                                                            //
+                                                                            // In rust, the replace() method will replace any matching substring!
+                                                                            // Example Input:
+                                                                            // ```
+                                                                            // #define _SAL2_Source_(Name, args, annotes)      _SA_annotes3(SAL_name, #Name, "", "2")
+                                                                            // ```
+                                                                            //
+                                                                            // Here, when the parameter 'annotes' is replaced by it's value using rust's replace()
+                                                                            // method, then this will replace the value into the function name '_SA_annotes3'.
+                                                                            // The formal parameter 'annotes' should not be lead to a replacement of the function
+                                                                            // name '_SA_annotes3'!
+                                                                            //
+                                                                            // To get around the problem, split the string by space and compare strings to
+                                                                            // perform a replace based on exact matches!
+                                                                            //
+
+                                                                            //temp_string = temp_string.replace(formal_param_name.as_str(), value.as_str());
+
+                                                                            // println!("Before: '{}'", &temp_string);
+                                                                            let mut string_buf = String::new();
+                                                                            for text_data in temp_string.split(&[' ']) {
+                                                                                // println!("{} - {}", &text_data, formal_param_name);
+                                                                                // string_buf.push_str(" ");
+                                                                                if text_data == formal_param_name {
+                                                                                    string_buf.push_str(value.as_str());
+                                                                                } else {
+                                                                                    string_buf.push_str(text_data);
+                                                                                }
+                                                                            }
+                                                                            temp_string = string_buf;
+                                                                            // println!("After: '{}'", &temp_string);
+                                                                            // println!("");
                                                                         }
+                                                                        */
+
+                                                                        //      5. output entire temp_string into string_buffer
+                                                                        string_buffer.push_str(temp_string.clone().as_str());
                                                                     }
-                                                                    //      5. output entire temp_string into string_buffer
-                                                                    string_buffer.push_str(temp_string.clone().as_str());
-                                                                    //      6. back to (START)
 
-                                                                } else {
-
-                                                                    // token is not macro ->
-                                                                    //      1. insert token into string_buffer
-                                                                    string_buffer.push_str(token.text.clone().as_str());
-                                                                    //      2. back to (START)
 
                                                                 }
-                                                            } else {
-                                                                break;
-                                                            }
-                                                        }
-                                                        //
-                                                        // Copy string_buffer into new_string
-                                                        new_string = string_buffer.clone();
-                                                        //
-                                                        if !changes_detected {
-                                                             break;
-                                                        }
-                                                        //
-                                                    // Back to (LOOP)
-                                                    }
 
-                                                    output_text = string_buffer;
+                                                                //      6. back to (START)
+                                                                // println!("6. back to (START)");
+
+                                                            } else {
+
+                                                                // token is not macro ->
+                                                                //      1. insert token into string_buffer
+                                                                string_buffer.push_str(token.text.clone().as_str());
+                                                                //      2. back to (START)
+
+                                                            }
+
+
+                                                        } else {
+                                                            // println!("done. string_buffer={}", string_buffer);
+                                                            break;
+                                                        }
+                                                    }
+                                                    //
+                                                    // Copy string_buffer into new_string
+                                                    new_string = string_buffer.clone();
+                                                    //
+                                                    if !changes_detected {
+                                                            break;
+                                                    }
+                                                    //
+                                                // Back to (LOOP)
                                                 }
+
+                                                output_text = string_buffer;
+                                            }
 
                                             // }
 /*
@@ -832,6 +1141,7 @@ impl<'a> Preprocessor<'a> {
                                 let mut defined_symbol = DefineSymbol::new();
                                 defined_symbol.name = String::from("UNKNOWN");
                                 defined_symbol.definition = String::from("0");
+                                defined_symbol.has_defined_value = false;
                                 if let Some(node) = expression_parser.arena.next() {
                                     defined_symbol.name = node.data.text.clone();
                                 }
@@ -1003,7 +1313,8 @@ impl<'a> Preprocessor<'a> {
 
                                     let mut defined_symbol = DefineSymbol::new();
                                     defined_symbol.name = macro_name.clone();
-                                    defined_symbol.formal_parameter_map.clear(); // no interface
+                                    defined_symbol.formal_parameter_map_index_to_param.clear(); // no interface
+                                    defined_symbol.formal_parameter_map_param_to_index.clear();
                                     defined_symbol.definition = string_buffer;
 
                                     let mut out_enable: bool = true;
@@ -1070,7 +1381,8 @@ impl<'a> Preprocessor<'a> {
                                                         defined_symbol.name = node.data.text.clone();
                                                         terminal_index = terminal_index + 1;
                                                     } else {
-                                                        defined_symbol.formal_parameter_map.insert(terminal_index as usize, node.data.text.clone());
+                                                        defined_symbol.formal_parameter_map_index_to_param.insert(terminal_index as usize, node.data.text.clone());
+                                                        defined_symbol.formal_parameter_map_param_to_index.insert(node.data.text.clone(), terminal_index as usize);
                                                         terminal_index = terminal_index + 1;
                                                     }
                                                 }
@@ -1082,7 +1394,8 @@ impl<'a> Preprocessor<'a> {
                                                         defined_symbol.name = node.data.text.clone();
                                                         terminal_index = terminal_index + 1;
                                                     } else {
-                                                        defined_symbol.formal_parameter_map.insert(terminal_index as usize, node.data.text.clone());
+                                                        defined_symbol.formal_parameter_map_index_to_param.insert(terminal_index as usize, node.data.text.clone());
+                                                        defined_symbol.formal_parameter_map_param_to_index.insert(node.data.text.clone(), terminal_index as usize);
                                                         terminal_index = terminal_index + 1;
                                                     }
                                                 }
@@ -1461,12 +1774,26 @@ impl<'a> Preprocessor<'a> {
 
                                 let trimmed = rem_first_and_last(&include_file_buffer);
 
+                                println!("trimmed: '{}'", trimmed);
+
                                 // ignore some header files!
                                 if trimmed == "CodeAnalysis/sourceannotations.h" {
 
-                                    println!("Ignoring: CodeAnalysis/sourceannotations.h")
+                                    println!("Ignoring: CodeAnalysis/sourceannotations.h");
 
-                                } else {
+                                }
+                                // else if trimmed == "sal.h" {
+
+                                //     let final_include_filename = "res\\preprocessor\\sal.h";
+
+                                //     let preprocessor: Preprocessor = Preprocessor::new(
+                                //         &self.preprocessor_dfa,
+                                //         &self.include_path,
+                                //         String::from(final_include_filename));
+                                //     preprocessor.process(writer, defined_symbol_map);
+
+                                // }
+                                else {
 
                                     println!("");
                                     println!("");
@@ -1583,20 +1910,57 @@ impl<'a> Preprocessor<'a> {
 
         let mut actual_parameter_map = HashMap::<usize, String>::new();
 
+        //
+        // Phase 1: Look at the next token to find the opening bracket which starts
+        // the comma separated list of actual parameters.
+        //
+        // If the first non-blank token is not a opening bracket, push it back into
+        // the lexer so it can be consume again after exiting this function.
+        //
+
         // (
-        if let Some(token) = preprocessor_lexer.next() {
-            // println!("{}", token.text);
+        loop {
+            if let Some(token) = preprocessor_lexer.next() {
+
+                // println!("{}", token.text);
+
+                match token.token_id {
+                    PP_BACKSLASH_TOKEN_ID => {
+                        // ignore
+                    }
+                    PP_NEWLINE_TOKEN_ID => {
+                        // ignore
+                    }
+                    PP_WHITESPACE_TOKEN_ID => {
+                        // ignore
+                    }
+                    PP_IDENTIFIER_TOKEN_ID => {
+                        // If the first non-blank token is not a opening bracket, push it back into
+                        // the lexer so it can be consume again after exiting this function.
+                        preprocessor_lexer.set_push_back(token.clone());
+                        return actual_parameter_map;
+                    }
+                    PP_OPENING_BRACKET_TOKEN_ID => {
+                        break;
+                    }
+                    _ => {
+                        // If the first non-blank token is not a opening bracket, push it back into
+                        // the lexer so it can be consume again after exiting this function.
+                        preprocessor_lexer.set_push_back(token.clone());
+                        return actual_parameter_map;
+                    }
+                }
+            }
         }
+
+        //
+        // Phase 2 - consume the comma separated list of actual parameters (this is the
+        // scraping part)
+        //
 
         let mut level: usize = 0;
         let mut param_index: usize = 0;
         let mut string_buffer: String = String::new();
-
-        // __DEFINE_CPP_OVERLOAD_STANDARD_FUNC_0_0( \
-        //     _Success_(return != 0) \
-        //     wchar_t*, __RETURN_POLICY_DST, _ACRTIMP, _wtmpnam, \
-        //     _Pre_maybenull_ _Always_(_Post_z_), wchar_t, _Buffer \
-        //     )
 
         loop {
             if let Some(token) = preprocessor_lexer.next() {
@@ -1730,7 +2094,7 @@ impl<'a> Preprocessor<'a> {
                     // parse the macro call into an AST
                     //
 
-                    let formal_parameter_count = macro_symbol.formal_parameter_map.len();
+                    let formal_parameter_count = macro_symbol.formal_parameter_map_index_to_param.len();
 
                     // DEBUG
                     if self.debug {
@@ -1743,7 +2107,7 @@ impl<'a> Preprocessor<'a> {
                     let mut define_symbol: DefineSymbol = DefineSymbol::new();
                     define_symbol.name = token.text.clone();
                     define_symbol.definition = macro_symbol.definition.clone();
-                    define_symbol.formal_parameter_map = macro_symbol.formal_parameter_map.clone();
+                    define_symbol.formal_parameter_map_index_to_param = macro_symbol.formal_parameter_map_index_to_param.clone();
 
                     println!("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
 
@@ -1795,7 +2159,7 @@ impl<'a> Preprocessor<'a> {
                     // build actual parameter map
                     //
 
-                    let formal_parameter_count = macro_symbol.formal_parameter_map.len();
+                    let formal_parameter_count = macro_symbol.formal_parameter_map_index_to_param.len();
 
                     // DEBUG
                     if self.debug {
@@ -1863,7 +2227,7 @@ impl<'a> Preprocessor<'a> {
             if rhs_node.data.text == "," {
                 self.fill_parameter_map_comma(define_symbol, replace_map, current_parameter_index, right_node_id);
             } else {
-                let formal_parameter_name = define_symbol.formal_parameter_map.get(&current_parameter_index);
+                let formal_parameter_name = define_symbol.formal_parameter_map_index_to_param.get(&current_parameter_index);
                 replace_map.insert(formal_parameter_name.unwrap().clone(), rhs_node.data.text.clone());
             }
         }
@@ -1928,7 +2292,7 @@ impl<'a> Preprocessor<'a> {
                 &mut string_buffer
             );
 
-            let formal_parameter_name = define_symbol.formal_parameter_map.get(&current_parameter_index);
+            let formal_parameter_name = define_symbol.formal_parameter_map_index_to_param.get(&current_parameter_index);
             replace_map.insert(formal_parameter_name.unwrap().clone(), string_buffer);
 
             //println!("{}:{} -> {}", formal_parameter_name.unwrap().clone(), current_parameter_index, string_buffer);
@@ -2120,7 +2484,6 @@ impl<'a> Preprocessor<'a> {
 
             *actual_parameter_index = *actual_parameter_index + 1usize;
         }
-
     }
 
     fn extract_actual_parameters_rev1(&self,
@@ -2391,7 +2754,7 @@ impl<'a> Preprocessor<'a> {
                             // analysis / type checking
                             //
 
-                            let formal_parameter_count = define_symbol.formal_parameter_map.len();
+                            let formal_parameter_count = define_symbol.formal_parameter_map_index_to_param.len();
 
                             // DEBUG
                             if debug {
@@ -2460,7 +2823,7 @@ impl<'a> Preprocessor<'a> {
                                 let mut replace_map = HashMap::<String, String>::new();
                                 let mut actual_parameter_index: usize = 0;
 
-                                self.extract_actual_parameters(&arena_clone, right_node, &right_node_id, &mut replace_map, &define_symbol.formal_parameter_map, &mut actual_parameter_index);
+                                self.extract_actual_parameters(&arena_clone, right_node, &right_node_id, &mut replace_map, &define_symbol.formal_parameter_map_index_to_param, &mut actual_parameter_index);
 
 /*
                                 // walk the tree to fill the parameter replace map

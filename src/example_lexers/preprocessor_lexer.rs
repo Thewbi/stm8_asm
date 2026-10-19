@@ -39,6 +39,7 @@ pub const PP_HASHTAG_TOKEN_ID: usize = 48;
 pub const PP_BACKSLASH_TOKEN_ID: usize = 49;
 pub const PP_ELLIPSIS_TOKEN_ID: usize = 53;
 pub const PP_BACK_TICK_TOKEN_ID: usize = 53;
+pub const PP_HASHTAG_CONCATENATION_TOKEN_ID: usize = 54;
 
 pub const PP_PPF_DEFINED_TOKEN_ID: usize = 100;
 
@@ -360,6 +361,7 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, " ", "WHITESPACE", PP_WHITESPACE_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\n|\r\n|\r", "NEWLINE", PP_NEWLINE_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#", "HASHTAG", PP_HASHTAG_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\#\\#", "HASHTAG_CONCATENATION", PP_HASHTAG_CONCATENATION_TOKEN_ID);
     //
     // Backslash
     //

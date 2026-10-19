@@ -68,6 +68,7 @@ pub struct Lexer<'a> {
 
     pub file: String,
     pub line: usize,
+    push_back_option: Option<Token>,
 }
 
 impl<'a> Lexer<'a> {
@@ -105,10 +106,15 @@ impl<'a> Lexer<'a> {
 
             file: String::new(),
             line: 1usize, // line count starts with 1 not 0!
+            push_back_option: None,
         };
 
         // https://stackoverflow.com/questions/28672190/how-do-i-set-the-lifetime-of-a-return-value-as-the-lifetime-of-the-variable-i-mo
         lexer
+    }
+
+    pub fn set_push_back(&mut self, push_back_token: Token) {
+        self.push_back_option = Some(push_back_token);
     }
 
     pub fn consume_character(&mut self,
@@ -415,6 +421,11 @@ impl Iterator for Lexer<'_> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
+
+        if let Some(push_back) = &self.push_back_option.clone() {
+            self.push_back_option = None;
+            return Some(push_back.clone());
+        }
 
         while !self.done {
 

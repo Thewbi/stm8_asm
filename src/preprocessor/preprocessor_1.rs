@@ -610,6 +610,7 @@ impl<'a> Preprocessor<'a> {
                                 let mut defined_symbol = DefineSymbol::new();
                                 defined_symbol.name = String::from("UNKNOWN");
                                 defined_symbol.definition = String::from("0");
+                                defined_symbol.has_defined_value = false;
                                 if let Some(node) = expression_parser.arena.next() {
                                     defined_symbol.name = node.data.text.clone();
                                 }
