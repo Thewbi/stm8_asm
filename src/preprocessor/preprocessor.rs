@@ -93,6 +93,7 @@ impl<'a> Preprocessor<'a> {
     {
         // DEBUG - output all symbols so far
         println!("DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG");
+        println!("output all symbols so far: symbol count: {}", defined_symbol_map.len());
         for (key, value) in defined_symbol_map.into_iter() {
             println!("{} / {}", key, value);
         }
@@ -172,15 +173,21 @@ impl<'a> Preprocessor<'a> {
                     match token.token_id {
                         PP_SINGLELINE_COMMENT_START_TOKEN_ID => {
                             single_line_comment_mode = true;
-                            // output a space
+                            // output a newline
                             //write!(writer, "2\n");
                             continue;
                         }
                         PP_NEWLINE_TOKEN_ID => {
-                            single_line_comment_mode = false;
+                            if single_line_comment_mode {
+                                // output a newline
+                                write!(writer, "\n");
+                                single_line_comment_mode = false;
+                                continue;
+                            }
                         }
                         _ => {
                             if single_line_comment_mode {
+                                println!("in singleline comment: {}", &token.text);
                                 continue;
                             }
                         }
@@ -196,19 +203,19 @@ impl<'a> Preprocessor<'a> {
                     match token.token_id {
                         PP_MULTILINE_COMMENT_START_TOKEN_ID => {
                             multi_line_comment_mode = true;
-                            // // output a space
+                            // // output a newline
                             // write!(writer, "2-start\n");
                             continue;
                         }
                         PP_MULTILINE_COMMENT_END_TOKEN_ID => {
                             multi_line_comment_mode = false;
-                            // // output a space
+                            // // output a newline
                             // write!(writer, "2-end\n");
                             continue;
                         }
                         PP_NEWLINE_TOKEN_ID => {
                             if multi_line_comment_mode {
-                                // output a space
+                                // output a newline
                                 write!(writer, "\n");
                                 continue;
                             }
@@ -417,8 +424,6 @@ impl<'a> Preprocessor<'a> {
                                 if self.debug {
                                     println!("not PPI, not PPF: '{}'", token.text);
                                 }
-
-
 
                                 // DEBUG build ASTNODE
                                 if self.debug {
@@ -734,8 +739,6 @@ impl<'a> Preprocessor<'a> {
                                                                         //      the macro_name
                                                                         // println!("macro_name: {}", &token.text);
                                                                         let temp_defined_symbol = defined_symbol_map.get(&token.text).unwrap();
-
-
 
                                                                         //
                                                                         // In rust, the replace() method will replace any matching substring!

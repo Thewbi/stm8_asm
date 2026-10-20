@@ -25,7 +25,7 @@ The set of header files are listed:
 <setjmp.h>
 <signal.h>
 <stdalign.h>
-<stdarg.h>
+<stdarg.h> - page 269
 <stdatomic.h>
 <stdbool.h>
 <stddef.h>
@@ -289,21 +289,109 @@ double average(int count, ...)
 
 # <stdarg.h>
 
+Read this first:
+
+https://blog.nelhage.com/2010/10/amd64-and-va_arg/
+
+The gist is: a variadic function can have fixed parameters before the variadic parameters (...)
+An example is:
+
+```
+double average(int count, ...)
+```
+
+The C standard dictates that va_start and va_arg are implemented as macros.
+
+>> The va_start and va_arg macros described in this subclause shall be implemented
+as macros, not functions.
+
+In pure C code (after the va_arg macro is resolved), it is impossible to directly access
+CPU registers since C is target (CPU, MCU, ...) independent in that regard and cannot
+access registers directly (if we ignore inline assembly for the purpose of this discussion).
+
+When no access to registers is possible, then the va_arg macro can impossibly load
+the variadic parameters from the registers. Also how will it know how many fixed parameters
+exist and hence how many of the registers are used by the fixed parameters before the
+registers start to contain the variadic parameters?
+
+The task is to find a way to purely load all parameters (fixed and variadic) from
+memory addresses.
+
+C can access pointers (memory addresses) however.
+The solution is to make the compiler build a special
+stack frame for functions that use variadic parameters. The compiler will copy all
+'fixed' parameters from the registers onto the stack into the so-called register-save-area.
+The register-save-area is followd by the return address which is in turn followed by
+the variadic parameters that have overflowed onto the stack and have not had space in
+registers.
+
+Why copy fixed and variadic parameters to the stack? Why not only the variadic parameters?
+I do not know! In my opinion, copying the variadic parameters only would suffice and solve
+the issue.
+
+Now that all parameters are on the stack, it is simpler to point a pointer to the first
+variadic parameter and advance the pointer on each use of the va_arg macro.
+
+When the macro va_start is called with the last fixed parameter (aka. parmN) as argument,
+ap can be pointed to the address of parmN on the stack inside the register-save-area.
+Then whenever the va_arg macro is used, it can return a value and then increment the
+pointer according to the size of the data type passed to it as second paramter.
+
+```
+typedef struct {
+
+    // fp_offset and gp_offset are offsets into that register save area,
+    // indicating the next unused floating point and general-purpose register, respectively.
+    unsigned int gp_offset;
+    unsigned int fp_offset;
+
+    // overflow_arg_area points at the next stack-passed argument to the function,
+    // for arguments that didn’t fit into registers.
+    void *overflow_arg_area;
+
+    // reg_save_area points at the base of the register save area initialized
+    // at the start of the function by the compiler
+    void *reg_save_area;
+
+} va_list[1];
+```
+
+## Implementation steps:
+
+1. Update the compiler so it can produce a register frame layout with a register-save-area in addition to a standard stack frame layout.
+1. Test the register-save-area layout (access different amount of fixed and variadic parameters)
+1. Implement structs in the compiler (required prerequisit for the va_list type which is a struct)
+1. Implement the macros va_start, va_arg, va_end (they need to use the va_list type)
+
+
+
+# variadic implementations that have a design flaw and cannot be used
+
+The design flaw is that these solutions want to access CPU register from
+C code without inline assembly which is not possible! The implementations
+cannot be used!
+
 ## Implementation where va_list is a pointer
 
+```
 #define va_start(arg_ptr, last_fixed_param) \
 arg_ptr = &last_fixed_param; \
 arg_ptr += sizeof(last_fixed_param);
+```
 
+```
 // first line returns value, second line increments pointer
 #define va_arg(arg_ptr, data_type) \
 (* (* data_type) arg_ptr); \
 ((* data_type) arg_ptr)++;
+```
 
+```
 // first line returns value, second line increments pointer
 #define va_arg(arg_ptr, data_type) \
 (* (* data_type) arg_ptr); \
 arg_ptr += sizeof(data_type);
+```
 
 ## Implementation where va_list is a struct
 
@@ -311,11 +399,24 @@ The fastcall calling convention inserts the first four parameters
 into the registers RCX, RDX, R8 and R9 in that order. All additional
 parameters are placed on the stack.
 
-With fastcall, va_list needs to keep track of two information items
-1. The amount of registers read
-2. The address of the current variable parameter
+An initial call to va_start() will initialize the pointer. The
+first call takes the address of the last fixed parameter and skips
+over it to set the pointer to the beginning of the variable
+arguments.
 
-These two items are combined into a struct.
+To retrieve the next variadic parameter, the user calls va_arg() and
+passes in the va_list variable and the expected data_type. va_arg()
+now will return the next parameter cast to the data_type. The user
+is responsible to now in advance if all paramters have been consumed
+or if another call to va_arg() is in order.
+
+With fastcall, va_list variable needs to keep track of the following
+information items, so a call to va_arg() can be served
+1. The amount of registers read from so far (because the first four reeds go to registers)
+1. The address of the current variable parameter
+1. The size of the last fixed parameter (so it can be skipped correctly)
+
+These items are combined into a struct.
 
 ```
 typedef struct va_list {
@@ -335,7 +436,7 @@ typedef struct va_list {
 ```
 
 ```
-void va_start(arg_ptr &va_list_t, last_fixed_param &int) {
+void va_start(arg_ptr *va_list_t, last_fixed_param *int) {
 
     // no registers consumed initially
     arg_ptr->register_count = 0;
@@ -349,6 +450,11 @@ void va_start(arg_ptr &va_list_t, last_fixed_param &int) {
     // TODO: test with char, byte, int, long, float, double
     arg_ptr->last_fixed_parameter_size = sizeof(last_fixed_param);
 }
+
+#define va_start(arg_ptr, last_fixed_param) \
+    arg_ptr.register_count = 0; \
+    arg_ptr.stack_pointer = &last_fixed_param; \
+    arg_ptr.last_fixed_parameter_size = sizeof(last_fixed_param);
 ```
 
 ```
@@ -376,4 +482,8 @@ void* va_arg(va_list_t, data_type) {
         }
     }
 }
+```
+
+```
+#define va_end(ap) ;
 ```

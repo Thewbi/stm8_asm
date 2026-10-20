@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<!-- saved from url=(0050)https://blog.nelhage.com/2010/10/amd64-and-va_arg/ -->
+<html class="no-js" lang="en"><!--<![endif]--><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
+  <title>amd64 and va_arg - Made of Bugs</title>
+  <meta name="author" content="Nelson Elhage">
+
+  
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta property="og:url" content="https://blog.nelhage.com/2010/10/amd64-and-va_arg/">
+  <meta property="og:site_name" content="Made of Bugs">
+  <meta property="og:title" content="amd64 and va_arg">
+  <meta property="og:description" content="A while back, I was poking around LLVM bugs, and discovered, to my surprise, that LLVM doesn’t support the va_arg intrinsic, used by functions to accept multiple arguments, at all on amd64. It turns out that clang and llvm-gcc, the compilers that backend to LLVM, have their own implementations in the frontend, so this isn’t as big a deal as it might sound, but it was still a surprise to me.">
+  <meta property="og:locale" content="en_us">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="post">
+    <meta property="article:published_time" content="2010-10-04T00:14:28+00:00">
+    <meta property="article:modified_time" content="2010-10-04T00:14:28+00:00">
+
+
+  <meta name="generator" content="Hugo 0.127.0">
+
+  <link rel="canonical" href="https://blog.nelhage.com/2010/10/amd64-and-va_arg/">
+  <link href="https://blog.nelhage.com/favicon.png" rel="icon">
+  <link rel="stylesheet" href="./amd64 and va_arg - Made of Bugs_files/screen.cd5012c69afc96649a0c400877b7ca57102913923b5d7865ea2c6a00c86014e2.css" integrity="sha256-zVASxpr8lmSaDEAId7fKVxApE5I7XXhl6ixqAMhgFOI=">
+  <link href="https://blog.nelhage.com/atom.xml" rel="alternate" title="Made of Bugs" type="application/atom+xml">
+  
+  <link rel="stylesheet" href="./amd64 and va_arg - Made of Bugs_files/fonts.b428aca6651515b69efbc3270422da34019189b3e6682f16b10e4455d5834152.css" integrity="sha256-tCispmUVFbae+8MnBCLaNAGRibPmaC8WsQ5EVdWDQVI=">
+</head>
+<body class="collapse-sidebar sidebar-footer"><text-search-pro-shadow-root-ui style="float: right; overflow: visible; position: relative; width: 0px; height: 0px; display: block;"><template shadowrootmode="open"><style>/* WXT Shadow Root Reset */ :host{all:initial !important;}
+:host{--primary-shadow:#0000001f 0px 2px 4px, #00000014 0px 5px 13px -3px;--secondary-shadow:#0000001f 0px 3px 8px}.root{color:#000;flex-direction:column;width:auto;font-family:Poppins,Arial,Helvetica,sans-serif;transition:all .2s;display:flex;position:fixed;top:50px;right:50px}.root.dark{color:#fff}.visible{display:flex}.hidden{display:none}.root .RowOne{cursor:pointer;color:#000;min-height:42px;box-shadow:var(--primary-shadow);background-color:#fffffff7;border-radius:12px;padding:0 4px 0 12px;display:flex}.root.dark .RowOne{background-color:#1d1e22}.root .RowOne .right{align-items:center;height:42px;display:flex}.root .searchInputContainer{align-items:center;display:flex;position:relative}.root .searchInputContainer .errorMsg{color:#ff0000ad;margin-top:4px;font-size:10px;position:absolute;bottom:0;left:0}.root .searchInput{caret-color:#ababab;resize:none;word-wrap:break-word;white-space:pre-line;scrollbar-width:none;color:#000;background-color:#0000;border:none;outline:none;width:60px;min-height:24px;max-height:72px;margin-top:4px;margin-bottom:4px;margin-right:6px;font-size:13px;line-height:24px;transition:all .3s;overflow-y:auto}.root.dark .searchInput{color:#fff}.root .searchInput::-webkit-scrollbar{width:0;display:none}.root .searchInput::placeholder{color:#ababab}.root .searchInput.focus,.root .searchInput:focus{width:135px;transition:all .3s}.root .iconButton{cursor:pointer;color:#000;background-color:#0000;border:none;border-radius:8px;justify-content:center;align-items:center;width:25px;height:25px;margin:0 2px;padding:2px;transition:all .18s;display:flex}.root.dark .iconButton{color:#fff}.root .iconButton:active{transform:scale(.6)}.root .iconButton.active,.root .iconButton:hover{background-color:#65cbea;transition:all .3s}.root .iconButton:disabled{opacity:.3;cursor:not-allowed}.root .iconButton:disabled:hover{background-color:#0000}.root .iconButton.nav{margin:0}.root .iconButton.nav:hover{background-color:#c6c6c6;transition:all .3s}.root .tooltip-container{position:relative}.root .tooltip-container .tooltip{opacity:0;visibility:hidden;width:max-content;box-shadow:var(--secondary-shadow);background-color:#65cbea;border-radius:8px;padding:5px 8px;font-size:12px;transition:all .3s;position:absolute;top:-36px;left:50%;transform:translate(-50%)}.root .tooltip-container.nav .tooltip{background-color:#d0d0d0}.root .tooltip-container:hover .tooltip{opacity:.95;visibility:visible}.pay-container{justify-content:flex-start;align-items:center;width:100px;margin-right:10px;display:flex}.pay-btn{cursor:pointer;color:#c1a362;background-color:#0000;border:2px solid #c1a362;border-radius:11px;width:100%;height:30px;padding:2px 4px;font-size:13px;font-weight:600;transition:all .3s cubic-bezier(.23,1,.32,1);position:relative;left:-2px;overflow:hidden}.pay-btn:before{content:"";border-radius:inherit;z-index:-1;background-color:#c1a362;width:100px;height:20px;margin:auto;transition:all .6s cubic-bezier(.23,1,.32,1);position:absolute;inset:0;scale:0}.pay-btn:hover:before{scale:3}.pay-btn:hover{color:#212121;scale:1.1;box-shadow:0 0 20px #c1a36266}.pay-btn:active{scale:1}.root .RowTwo{color:#000;justify-content:space-between;height:0;display:flex}.root.dark .RowTwo{color:#fff}.root .RowTwo .result-counter{background:0 0;margin-top:4px}.root .RowTwo .result-counter span{cursor:pointer;min-width:65px;height:25px;box-shadow:var(--primary-shadow);color:#000;background-color:#fffffff7;border:none;border-radius:12px;justify-content:center;align-items:center;padding:0 8px;font-size:12px;display:flex}.root.dark .RowTwo .result-counter span{color:#fff;background-color:#1d1e22}.root .RowTwo .menu-container{margin-top:4px;display:grid}.root .RowTwo .menu-container .tip{color:#909090;text-align:right;width:120px;font-size:10px}.root .RowTwo .menu{flex-direction:column;justify-self:flex-end;align-items:flex-end;row-gap:4px;margin:4px 0;display:flex}.root .RowTwo .menu-item{box-shadow:var(--primary-shadow);color:#000;background-color:#fffffff7;border:none;border-radius:12px;justify-content:space-between;align-items:center;column-gap:4px;padding:6px 8px;font-size:12px;display:flex}.root.dark .RowTwo .menu-item{color:#fff;background-color:#1d1e22}.switch{width:3.5em;height:2em;font-size:11px;display:inline-block;position:relative}.switch input{opacity:0;width:0;height:0}.slider{--background:#28096b;cursor:pointer;background-color:var(--background);border-radius:30px;transition:all .5s;position:absolute;inset:0}.slider:before{content:"";background:var(--background);border-radius:50%;width:1.4em;height:1.4em;transition:all .5s;position:absolute;bottom:15%;left:10%;box-shadow:inset 8px -4px #fff000}input:checked+.slider{background-color:#522ba7}input:checked+.slider:before{transform:translate(100%);box-shadow:inset 15px -4px 0 15px #fff000}.license-btn{cursor:pointer;width:100%;height:22px;color:inherit;background:0 0;border:none;margin:0;padding:0;font-size:12px;position:relative}.license-btn span.pro{color:#c1a362}.license-btn span.free{color:#65cbea}
+/*$vite$:1*/</style><div><div><div class="hidden root light" style="opacity: 0; pointer-events: none; z-index: 2147483647;"><div class="RowOne" style="opacity: 0;"><div class="searchInputContainer"><textarea name="text" class="searchInput " placeholder="Search" rows="1" autocomplete="off" spellcheck="false" maxlength="1024"></textarea><span class="errorMsg"></span></div><div class="right"><div class="tooltip-container"><button type="button" class="iconButton"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg></button><div class="tooltip">Ctrl + Enter</div></div><div class="tooltip-container"><button type="button" class="iconButton "><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-case-sensitive" style="margin-top: 1.5px;"><path d="m3 15 4-8 4 8"></path><path d="M4 13h6"></path><circle cx="18" cy="12" r="3"></circle><path d="M21 9v6"></path></svg></button><div class="tooltip">Match Case</div></div><div class="tooltip-container"><button type="button" class="iconButton "><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-whole-word"><circle cx="7" cy="12" r="3"></circle><path d="M10 9v6"></path><circle cx="17" cy="12" r="3"></circle><path d="M14 7v8"></path><path d="M22 17v1c0 .5-.5 1-1 1H3c-.5 0-1-.5-1-1v-1"></path></svg></button><div class="tooltip">Match Whole Word</div></div><div class="tooltip-container"><button type="button" class="iconButton "><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-regex" style="margin-top: -1px;"><path d="M17 3v10"></path><path d="m12.67 5.5 8.66 5"></path><path d="m12.67 10.5 8.66-5"></path><path d="M9 17a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2z"></path></svg></button><div class="tooltip">Match Regex</div></div><div class="tooltip-container nav"><button type="button" class="iconButton nav"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></svg></button><div class="tooltip">Previous (Ctrl + ↑)</div></div><div class="tooltip-container nav"><button type="button" class="iconButton nav"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down"><path d="M12 5v14"></path><path d="m19 12-7 7-7-7"></path></svg></button><div class="tooltip">Next (Ctrl + ↓)</div></div><div class="tooltip-container nav"><button type="button" class="iconButton nav"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-to-line"><path d="M5 3h14"></path><path d="m18 13-6-6-6 6"></path><path d="M12 7v14"></path></svg></button><div class="tooltip">First</div></div><div class="tooltip-container nav"><button type="button" class="iconButton nav"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down-to-line"><path d="M12 17V3"></path><path d="m6 11 6 6 6-6"></path><path d="M19 21H5"></path></svg></button><div class="tooltip">Last</div></div><div class="tooltip-container nav"><button type="button" class="iconButton nav"><svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button><div class="tooltip">Close (Alt + F)</div></div><div class="tooltip-container nav"><button type="button" class="iconButton nav"><svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-vertical"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg></button><div class="tooltip">Menu</div></div></div></div><div class="RowTwo"><div class="result-counter" style="opacity: 0;"><span>No match</span></div><div class="menu-container" style="opacity: 0; pointer-events: none;"><div class="menu"><div class="menu-item"><span>Dark/Light</span><label class="switch"><input type="checkbox" checked=""><span class="slider"></span></label></div><div class="menu-item"><div style="display: flex; gap: 8px;"><a href="https://github.com/qiweiii/text-search-pro-wxt" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#000" viewBox="0 0 24 24" display="flex"><title>Github</title><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg></a><a href="https://x.com/qiweiiiy" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#000" viewBox="0 0 24 24" display="flex"><title>X</title><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"></path></svg></a><a href="https://discord.gg/X5EK8m2ksN" target="_blank" rel="noopener"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="#000" viewBox="0 0 24 24" display="flex"><title>Discord</title><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"></path></svg></a></div></div></div></div></div></div></div></div></template></text-search-pro-shadow-root-ui>
+  <header role="banner">
+    <hgroup>
+      <h1><a href="https://blog.nelhage.com/">Made of Bugs</a></h1>
+      <h3>It's software. It's made of bugs.</h3>
+    </hgroup>
+  </header>
+  <div class="navi">
+<ul>
+  <li><a href="https://blog.nelhage.com/post/">Archives</a></li>
+  <li><a href="https://blog.nelhage.com/subscribe">Subscribe</a></li>
+  <li><a href="https://nelhage.com/">Author</a></li>
+</ul>
+</div>
+
+  <div id="main">
+    <div id="content">
+
+
+<div>
+  <article class="hentry" role="article">
+    <header>
+  <h1 class="entry-title">amd64 and va_arg</h1>
+  <p class="meta">
+    
+    <time datetime="2010-10-04T00:14:28Z" pubdate="">
+      Oct  4, 2010
+    </time>
+    
+  </p>
+</header>
+
+<div class="entry-content">
+  <p>A while back, I was poking around <a href="http://llvm.org/">LLVM</a> bugs, and discovered,
+to my surprise, that LLVM <a href="http://llvm.org/bugs/show_bug.cgi?id=1740">doesn’t support</a> the <code>va_arg</code>
+intrinsic, used by functions to accept multiple arguments, at all on
+amd64. It turns out that <code>clang</code> and <code>llvm-gcc</code>, the compilers that
+backend to LLVM, have their own implementations in the frontend, so
+this isn’t as big a deal as it might sound, but it was still a
+surprise to me.</p>
+<p>Figuring that this might just be something no one got around to, and
+couldn’t actually be that hard, I pulled out my copy of the <a href="http://www.x86-64.org/documentation/abi.pdf">amd64
+ABI</a> specification, figuring that maybe I could throw
+together a patch and fix this issue.</p>
+<p>Maybe half an hour of reading later, I stopped in terror and gave up,
+repenting of my foolish ways to go work on something else. <code>va_arg</code> on
+amd64 is a hairy, hairy beast, and probably not something I was going
+to hack together in an evening. And so instead I decided to blog about
+it.</p>
+<h2 id="the-problem-argument-passing-on-amd64">The problem: Argument passing on amd64&nbsp;<a class="anchor" href="https://blog.nelhage.com/2010/10/amd64-and-va_arg/#the-problem-argument-passing-on-amd64"><i class="small linkify icon">	🔗︎</i></a> </h2>
+<p>On i386, because of the dearth of general-purpose registers, the
+calling convention passes all arguments on the stack. This makes the
+va_arg implementation easy – A <code>va_list</code> is simply a pointer into
+the stack, and <code>va_arg</code> just adds the size of the type to be retrieved
+to the <code>va_list</code>, and returns the old value. In fact, the i386 ABI
+reference simply specifies <code>va_arg</code> in terms of a single line of code:</p>
+<pre><code>#define va_arg(list, mode) ((mode *)(list = (char *)list + sizeof(mode)))[-1]
+</code></pre>
+<p>On amd64, the problem is much more complicated. To start, amd64
+specifies that up to 6 integer arguments and up to 8 floating-point
+arguments are passed to functions in registers, to take advantage of
+amd64’s larger number of registers. So, for a start, <code>va_arg</code> will
+have to deal with the fact that some arguments may have been passed in
+registers, and some on the stack.</p>
+<p>(One could imagine simplifying the problem by stipulating a different
+calling convention for variadic functions, but unfortunately, for
+historical reasons and otherwise, C requires that code be able to call
+functions even if their prototype is not visible, which means the
+compiler doesn’t necessarily know if it’s calling a variadic function
+at any given call site. <em>[edited to add: <strong>caf</strong>
+points out in the comments that C99 actually explicitly does not
+require this property. But I speculate that the ABI designers wanted
+to preserve this property from i386 because it has historically
+worked, and so existing code depended on it]</em>).</p>
+<p>That’s not all, however. Not only can integer arguments be passed by
+registers, but small <code>struct</code>s (16 bytes or fewer) can also be passed
+in registers. A sufficiently small struct, for the purposes of the
+calling convention, is essentially broken up into its component
+members, which are passed as though they were separate arguments –
+unless only some of them would fit into registers, in which case the
+whole struct is passed on the stack.</p>
+<p>So <code>va_arg</code>, given a <code>struct</code> as an argument, has to be able to figure
+out whether it was passed in registers or on the stack, and possibly
+even re-assemble it into temporary space.</p>
+<h2 id="the-implementation">The implementation&nbsp;<a class="anchor" href="https://blog.nelhage.com/2010/10/amd64-and-va_arg/#the-implementation"><i class="small linkify icon">	🔗︎</i></a> </h2>
+<p>Given all those constraints, the required implementation is fairly
+straightforward, but incredibly complex compared to any other platform
+I know of.</p>
+<p>To start, any function that is known to use <code>va_start</code> is required to,
+at the start of the function, save all registers that may have been
+used to pass arguments onto the stack, into the “register save area”,
+for future access by <code>va_start</code> and <code>va_arg</code>. This is an obvious step,
+and I believe pretty standard on any platform with a register calling
+convention. The registers are saved as integer registers followed by
+floating point registers. As an optimization, during a function call,
+<code>%rax</code> is required to hold the number of SSE registers used to hold
+arguments, to allow a varargs caller to avoid touching the FPU at all
+if there are no floating point arguments.</p>
+<p><code>va_list</code>, instead of being a pointer, is a structure that keeps track
+of four different things:</p>
+<pre><code>typedef struct {
+  unsigned int gp_offset;
+  unsigned int fp_offset;
+  void *overflow_arg_area;
+  void *reg_save_area;
+} va_list[1];
+</code></pre>
+<p><code>reg_save_area</code> points at the base of the register save area
+initialized at the start of the function. <code>fp_offset</code> and <code>gp_offset</code>
+are offsets into that register save area, indicating the next unused
+floating point and general-purpose register, respectively. Finally,
+<code>overflow_arg_area</code> points at the next stack-passed argument to the
+function, for arguments that didn’t fit into registers.</p>
+<p>Here’s an ASCII art diagram of the stack frame during the execution of
+a varargs function, after the register save area has been
+established. Note that the spec allows functions to put the register
+save area anywhere in its frame it wants, so I’ve shown potential
+storage both above and below it.</p>
+<pre><code>|     ...        |  [high addresses]
++----------------+
+|   argument     |
+|    passed      |
+|  on stack (2)  |
++----------------+  &lt;---- overflow_arg_area
+|   argument     |
+|    passed      |
+|  on stack (1)  |
++----------------+
+| return address |
++----------------+
+|      ...       | (possible local storage for func)
++----------------+
+|     %xmm15     | \
++----------------+  |     
+|     %xmm14     |  |     ___
++----------------+  |      |
+|      ...       |   \ register
++----------------+    }save|
+|     %xmm0      |   / area|
++----------------+  |      |
+|      %r9       |  |      |
++----------------+  |      | fp_offset
+|      %r8       |  |  ___ |
++----------------+  |   |  |
+|      ...       |  |   |  |
++----------------+  |   | gp_offset
+|     %rsi       |  |   |  |
++----------------+  |   |  |
+|     %rdi       | /    |  |
++----------------+ &lt;----+--+--- reg_save_area
+|     ...        | (potentially more storage)
++----------------+ &lt;----------- %esp
+|     ...        | [low addresses]
+</code></pre>
+<p>Because <code>va_arg</code> must tell determine whether the requested type was
+passed in registers, it needs compiler support, and can’t be
+implemented as a simple macro like on i386. The amd64 ABI reference
+specifies <code>va_arg</code> using a list of eleven different steps that the
+macro must perform. I’ll try to summarize them here.</p>
+<p>First off, <code>va_arg</code> determines whether the requested type could be
+passed in registers. If not, <code>va_arg</code> behaves much like it does on
+<code>i386</code>, using the <code>overflow_arg_area</code> member of the <code>va_list</code> (Plus
+some complexity to deal with alignment values).</p>
+<p>Next, assuming the argument can be passed in registers, <code>va_arg</code>
+determines how many floating-point and general-purpose registers would
+be used to pass the requested type. It compares those values with the
+<code>gp_offset</code> and <code>fp_offset</code> fields in the <code>va_list</code>. If the additional
+registers would cause either value to overflow the number of registers
+used for parameter-passing for that type, then the argument was passed
+on the stack, and <code>va_arg</code> bails out and uses <code>overflow_arg_area</code>.</p>
+<p>If we’ve made it this far, the argument was passed in
+registers. <code>va_arg</code> fetches the argument using <code>reg_save_area</code> and the
+appropriate offsets, and then updates <code>gp_offset</code> and <code>fp_offset</code> as
+appropriate.</p>
+<p>Note that if the argument was passed in a mix of floating-point and
+general-purpose registers, or requires a large alignment, this means
+that <code>va_arg</code> must copy it out of the register save area onto
+temporary space in order to assemble the value.</p>
+<p>So, in the worst case, <code>va_arg</code> on a type that embeds both a
+floating-point and an integer type must do two comparisons, a
+conditional branch, and then update two fields in the <code>va_list</code> and
+copy multiple values out of the register save area into a temporary
+object to return. That’s quite a lot more work than the i386 version
+does. Note that I don’t mean to suggest this is a performance concern
+– I don’t have any benchmarks to back this up, but I would be shocked
+if this is measurable in any reasonable code. But I was surprised by
+how complex this operation is.</p>
+
+
+</div>
+
+    <footer>
+
+      <div class="c2a">
+        <form action="https://buttondown.email/api/emails/embed-subscribe/nelhage" method="post" target="popupwindow" onsubmit="window.open('https://buttondown.email/nelhage', 'popupwindow')" class="embeddable-buttondown-form">
+          <p>
+            <label for="bd-email">Subscribe to my newsletter (blog updates and occasional other content):</label>
+          </p>
+          <p>
+          <input type="email" name="email" placeholder="email@domain.com" id="bd-email">
+          <input type="hidden" value="1" name="embed">
+          <input type="submit" value="Subscribe">
+          </p>
+          <p>
+            <a href="https://buttondown.email/" target="_blank">Powered by Buttondown.</a>
+          </p>
+        </form>
+      </div>
+
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="https://blog.nelhage.com/2010/09/a-brief-look-at-linuxs-security-record/" title="Previous Post: A brief look at Linux's security record">« A brief look at Linux's security record</a>
+      
+      
+        <a class="basic-alignment right" href="https://blog.nelhage.com/2010/10/using-haskells-newtype-in-c/" title="Next Post: Using Haskell's 'newtype' in C">Using Haskell's 'newtype' in C »</a>
+      
+    </p>
+  </footer>
+</article>
+</div>
+
+<hr>
+
+</div>
+</div>
+<footer role="contentinfo">
+
+  <p>
+    <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">
+      <img alt="Creative Commons License" width="88" height="31" style="border-width:0" src="./amd64 and va_arg - Made of Bugs_files/88x31.png">
+    </a>
+    <br>
+    <span xmlns:dct="http://purl.org/dc/terms/" property="dct:title">Made of Bugs</span> by <a xmlns:cc="http://creativecommons.org/ns#" href="https://nelhage.com/" property="cc:attributionName" rel="cc:attributionURL">Nelson Elhage</a> is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by/4.0/">Creative
+    Commons Attribution 4.0 International License</a>.
+  </p>
+</footer>
+<script async="" defer="" src="./amd64 and va_arg - Made of Bugs_files/latest.js.Download"></script>
+<noscript><img src="https://sa.nelhage.com/noscript.gif" alt=""/></noscript>
+
+
+
+
+<div></div></body></html>
