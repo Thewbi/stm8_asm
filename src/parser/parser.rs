@@ -3626,12 +3626,12 @@ impl Parser<String> {
 
                                             // take old node from stack - declaration_specifiers
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-                                            println!("Label: {}", old_debug_node.label);
+                                            // println!("Label: {}", old_debug_node.label);
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
                                             // take old node from stack - init_declarator_list
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-                                            println!("Label: {}", old_debug_node.label);
+                                            // println!("Label: {}", old_debug_node.label);
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
                                             // SEMICOLON (;)
@@ -3786,6 +3786,10 @@ impl Parser<String> {
 
                                         // declaration -> declaration_specifiers SEMICOLON
                                         78 => {
+
+                                            // TODO: is this correct?
+                                            // Is there no need to add a token for the SEMICOLON???
+
                                             self.node_to_node("declaration", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
@@ -3823,6 +3827,11 @@ impl Parser<String> {
                                                 self.last_type_specifier = String::new();
                                                 self.last_source_type = String::new();
                                             }
+                                        }
+
+                                        // 80;declaration_specifiers;storage_class_specifier
+                                        80 => {
+                                            self.node_to_node("declaration_specifiers", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // declaration_specifiers -> type_specifier declaration_specifiers
@@ -3887,13 +3896,13 @@ impl Parser<String> {
                                             // declaration_specifiers
                                             // take old node from stack
                                             let old_debug_node = debug_node_stack.pop().unwrap();
-                                            println!("Label: {}", old_debug_node.label);
+                                            // println!("Label: {}", old_debug_node.label);
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
                                             // type_qualifier
                                             // take old node from stack
                                             let declarator_node = debug_node_stack.pop().unwrap();
-                                            println!("Label: {}", declarator_node.label);
+                                            // println!("Label: {}", declarator_node.label);
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, declarator_node.id).as_str());
 
                                             // push new node to stack

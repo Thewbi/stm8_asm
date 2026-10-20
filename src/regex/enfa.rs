@@ -476,6 +476,9 @@ pub fn enfa_deserialize(enfa: &mut EpsilonNfa<State, RegexBuildingBlock>, filena
                     else if string_val.starts_with("\\'") {
                         char_val = '\'';
                     }
+                    else if string_val.starts_with("\\t") {
+                        char_val = '\t';
+                    }
                     else {
                         char_val = string_val.chars().next().unwrap();
                     }
