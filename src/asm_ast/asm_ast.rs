@@ -408,6 +408,14 @@ impl AsmAstReg {
                 string_buffer.push_str("rcx");
             }
 
+            AsmAstReg::DI => {
+                string_buffer.push_str("r10ddi");
+            }
+
+            AsmAstReg::SI => {
+                string_buffer.push_str("rsi");
+            }
+
 
             AsmAstReg::R10 => {
                 string_buffer.push_str("r10");

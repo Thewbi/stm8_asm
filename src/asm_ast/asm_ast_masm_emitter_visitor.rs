@@ -63,12 +63,12 @@ impl AsmAstMasmEmitterVisitor {
     //
 
     pub fn add_stack_variable(&self,
-        data_type_size: &AstAstAssemblyType,
+        assembly_type: &AstAstAssemblyType,
         stack_val: &i32,
         register: &AsmAstReg)
         -> String
     {
-        match data_type_size {
+        match assembly_type {
 
             AstAstAssemblyType::Byte => {
                 if *stack_val == 0 {
@@ -135,7 +135,7 @@ impl AsmAstMasmEmitterVisitor {
             }
 
             _ => {
-                unimplemented!("Unimplemented type: {:?}", &data_type_size);
+                unimplemented!("Unimplemented type: {:?}", &assembly_type);
             }
         }
     }
@@ -299,7 +299,7 @@ impl AsmAstMasmEmitterVisitor {
     pub fn emit_asm_ast_operand(&mut self,
         asm_ast_operand: &AsmAstOperand,
         asm_ast_offset: &AsmAstOperand,
-        data_type_size: &AstAstAssemblyType,
+        assembly_type: &AstAstAssemblyType,
     ) {
 
         match &asm_ast_operand.operand_type {
@@ -329,7 +329,7 @@ impl AsmAstMasmEmitterVisitor {
                 // WRONG:
                 //self.string_buffer.push_str(&asm_ast_reg_val.to_string());
 
-                let register_for_data_type = asm_ast_reg_val.output_register_matching_datatype(&data_type_size);
+                let register_for_data_type = asm_ast_reg_val.output_register_matching_datatype(&assembly_type);
                 self.string_buffer.push_str(&register_for_data_type);
             }
 
@@ -356,7 +356,7 @@ impl AsmAstMasmEmitterVisitor {
                     if self.print_to_console {
                         println!("{} => {:?}", pseudo_val, stack_val);
                     }
-                    self.string_buffer.push_str(self.add_stack_variable_with_offset(data_type_size, stack_val, pseudo_offset, &AsmAstReg::RBP).as_str());
+                    self.string_buffer.push_str(self.add_stack_variable_with_offset(assembly_type, stack_val, pseudo_offset, &AsmAstReg::RBP).as_str());
                 }
             }
 
@@ -367,11 +367,11 @@ impl AsmAstMasmEmitterVisitor {
                 match &asm_ast_offset.operand_type {
 
                     AsmAstOperandType::Unknown => {
-                        value_as_string = self.add_stack_variable(data_type_size, stack_val, register);
+                        value_as_string = self.add_stack_variable(assembly_type, stack_val, register);
                     }
 
                     AsmAstOperandType::Reg(reg_name) => {
-                        value_as_string = self.add_stack_variable_with_register_offset(data_type_size, &reg_name, stack_val, register);
+                        value_as_string = self.add_stack_variable_with_register_offset(assembly_type, &reg_name, stack_val, register);
                     }
 
                     _ => {
@@ -521,8 +521,11 @@ impl AsmAstMasmEmitterVisitor {
         // self.string_buffer.push_str("    sub rsp, 8*32 ; allocate shadow register area (32 Byte)");
         // self.string_buffer.push_str("    sub rsp, 8 * 7 ; allocate shadow register area + 2 QWORDs for stack alignment");
 
-        for i in 0..asm_ast_function.body.len() {
-            self.visit_asm_ast_instruction(asm_ast_function.body[i].as_ref(), asm_ast_function.stack_frame_size);
+        let instruction_count = asm_ast_function.body.len();
+        for i in 0..instruction_count {
+            let instruction = asm_ast_function.body[i].as_ref();
+            self.visit_asm_ast_instruction(instruction,
+                asm_ast_function.stack_frame_size);
         }
 
         // look at the last instruction, if it is not RET, add a RET
@@ -569,7 +572,6 @@ impl AsmAstMasmEmitterVisitor {
                 self.string_buffer.push_str("    mov ");
                 self.emit_asm_ast_operand(
                     &asm_ast_instruction.dst,
-                    //&AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
                     &asm_ast_instruction.offset,
                     &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(", ");

@@ -378,7 +378,7 @@ impl Parser<String> {
                     ParseStackElementType::StateId(current_state_id) => {
 
                         if debug {
-                            println!("[Parser::consume] StateId: {}", current_state_id);
+                            println!("[Parser::consume] StateId2: {}", current_state_id);
                         }
 
                         // retrieve parse table row for the newly retrieved state id
@@ -422,7 +422,7 @@ impl Parser<String> {
             ParseStackElementType::StateId(current_state_id) => {
 
                 if debug {
-                    println!("[Parser::consume] StateId: {}", current_state_id);
+                    println!("[Parser::consume] StateId3: {}", current_state_id);
                 }
 
                 // retrieve the parse table row for the current state
@@ -434,7 +434,7 @@ impl Parser<String> {
 
                 if debug {
                     // state id
-                    println!("[Parser::consume] StateId: {}", current_state_id);
+                    println!("[Parser::consume] StateId4: {}", current_state_id);
 
                     // DEBUG - entire state with indetification and normal rules (Spammy!)
                     // let state = grammar_state_hashmap.get(&current_state_id).unwrap();
@@ -478,7 +478,7 @@ impl Parser<String> {
                             // the input does not comply with the grammar!
                             // The grammar used is: https://www.lysator.liu.se/c/ANSI-C-grammar-y.html
                             // Check the application for syntax errors or update the grammar!
-                            panic!("[Parser::consume] StateId: {}", current_state_id);
+                            panic!("[PANIC] [Parser::consume] StateId: {}", current_state_id);
                         }
 
                         ParseStackElementType::RuleElement(rule_element) => {
@@ -896,7 +896,7 @@ impl Parser<String> {
                                                 value = str::replace(&value, "\"", "\'");
                                             }
 
-                                            println!("TerminalValue: '{}'", value);
+                                            // println!("TerminalValue: '{}'", value);
 
                                             // do not pop from the stack as this is a leaf for a int numeric literal value
 
@@ -1084,7 +1084,10 @@ impl Parser<String> {
 
                                                     let parameter_ast_node_id = self.ast_stack.pop().unwrap();
 
-                                                    println!("[Parser] ast-node-id: {}", parameter_ast_node_id);
+                                                    // // DEBUG
+                                                    // if self.debug {
+                                                    //     println!("[Parser] ast-node-id: {}", parameter_ast_node_id);
+                                                    // }
 
                                                     function_call_ast_node.parameters.push(parameter_ast_node_id);
                                                 }
@@ -5352,8 +5355,81 @@ impl Parser<String> {
                                             self.node_to_node("parameter_type_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
+                                        // 148;parameter_type_list;parameter_list;COMMA;ELLIPSIS
+                                        // parameter_type_list -> parameter_list COMMA ELLIPSIS
                                         148 => {
-                                            panic!();
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("parameter_type_list"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("parameter_type_list")).as_str());
+
+                                            // parameter_list
+                                            // take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // ,
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let comma_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let comma_node = DebugNode::new(comma_node_id, String::from(","));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", comma_node_id, String::from(",")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, comma_node.id).as_str());
+
+                                            // // take old node from stack
+                                            // let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            // string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let type_node = DebugNode::new(type_node_id, String::from("ELLIPSIS"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, String::from("ELLIPSIS")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST
+                                            //
+
+                                            if self.construct_ast {
+
+                                                self.parameter_counter = self.parameter_counter + 1;
+
+                                                // // parameter name
+                                                // let identifier_ast_node = self.ast_stack.pop().unwrap();
+
+                                                // let mut identifier_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                // identifier_ast_node.node_type = AstNodeType::Identifier;
+
+                                                // // DEBUG
+                                                // // println!("{:?}", identifier_ast_node);
+
+                                                // // parameter DataType
+                                                // let data_type_ast_node_id = self.ast_stack.pop().unwrap();
+                                                // let data_type_ast_node = node_map.get(&data_type_ast_node_id).unwrap();
+
+                                                // DEBUG
+                                                // println!("{:?}", data_type_ast_node);
+
+                                                let mut variadic_parameter_declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                variadic_parameter_declaration_ast_node.node_type = AstNodeType::VariadicParameterDeclaration;
+                                                // parameter_declaration_ast_node.lhs = Some(identifier_ast_node.id);
+                                                //
+                                                // TYPE
+                                                //
+                                                // parameter_declaration_ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
+                                                // parameter_declaration_ast_node.rhs = Some(data_type_ast_node.id);
+
+                                                self.ast_stack.push(variadic_parameter_declaration_ast_node.id);
+
+                                                // node_map.insert(identifier_ast_node.id, identifier_ast_node);
+                                                node_map.insert(variadic_parameter_declaration_ast_node.id, variadic_parameter_declaration_ast_node);
+                                            }
                                         }
 
                                         // parameter_list -> parameter_declaration

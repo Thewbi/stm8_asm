@@ -183,17 +183,18 @@ impl<'a> Lexer<'a> {
 
             if self.dfa.is_trap_state(next_state_id) {
 
-                println!("trap_state_detected: '{}'", next_state_id);
-
                 // DEBUG
-                // if self.lexer_debug {
+                if self.lexer_debug {
+
+                    println!("trap_state_detected: '{}'", next_state_id);
+
                     println!("[LEXER.TRAP_STATE] Emitting '{}', Token-Id: {}, Token-Name: {} | File: {:?}, Line: {:?}",
                         self.token_string_buffer,
                         self.dfa.states[&self.current_state_id].token_id,
                         self.dfa.states[&self.current_state_id].token_name,
                         file,
                         line);
-                // }
+                }
 
                 // create a Token / Terminal
                 let token_name = self.dfa.states[&self.current_state_id].token_name.clone();
@@ -207,13 +208,13 @@ impl<'a> Lexer<'a> {
 
                 // DEBUG - this outputs the string and the token generated from the string
                 // This is a good starting point for debugging
-                // if self.lexer_token_debug {
+                if self.lexer_token_debug {
                     println!("[LEXER.TRAP_STATE] {:?} ---> {:?} | File: {:?}, Line: {:?}",
                         self.token_string_buffer,
                         terminal,
                         file,
                         line);
-                // }
+                }
 
                 match self.dfa.states[&self.current_state_id].token_id {
 

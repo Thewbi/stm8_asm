@@ -44,18 +44,15 @@ impl IdentifierResolutionVisitor {
 
     pub fn visit(&mut self,
         ast_node_id: usize,
-        node_map: &mut Box<HashMap<usize, AstNode>>)
-        -> IdentifierResolutionNode
+        node_map: &mut Box<HashMap<usize, AstNode>>) -> IdentifierResolutionNode
     {
         self.visit_ex(ast_node_id, node_map, true)
     }
 
-    // pub fn visit_ex(&mut self, ast_node: &mut AstNode, build_new_scope: bool) -> IdentifierResolutionNode {
     pub fn visit_ex(&mut self,
         ast_node_id: usize,
         node_map: &mut Box<HashMap<usize, AstNode>>,
-        build_new_scope: bool)
-        -> IdentifierResolutionNode
+        build_new_scope: bool) -> IdentifierResolutionNode
     {
 
         let mut ast_node = AstNode::new(0);
@@ -702,10 +699,11 @@ impl IdentifierResolutionVisitor {
                     // insert parameter into the current scope
                     // (causing potential conflicts with local variables defined inside the function body)
 
-                    // The naming source first checks if the name is used already (which is not allowed)
+                    // the naming source first checks if the name is used already (which is not allowed)
                     // throws panic if the variable name is already used.
                     // To remember if a variable is used, it maintains a data structure of variables
-                    let user_define_varname = self.variable_naming_source.borrow_mut().new_user_defined_var(&param_name);
+                    let user_define_varname = self.variable_naming_source.borrow_mut()
+                        .new_user_defined_var(&param_name);
 
                     let mut node = IdentifierResolutionNode::new();
                     node.node_type = AstNodeType::ParameterDeclaration;
@@ -713,6 +711,19 @@ impl IdentifierResolutionVisitor {
 
                     return node;
                 }
+            }
+
+            AstNodeType::VariadicParameterDeclaration => {
+                // DEBUG
+                if self.debug {
+                    println!("AstNode-Id: {}, AstNodeType: {:?}", ast_node.id, ast_node.node_type);
+                }
+
+                let mut node = IdentifierResolutionNode::new();
+                node.node_type = AstNodeType::VariadicParameterDeclaration;
+                node.string_val = String::from("...");
+
+                return node;
             }
 
             AstNodeType::Statement => {

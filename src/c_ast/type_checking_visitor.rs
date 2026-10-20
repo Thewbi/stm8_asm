@@ -58,18 +58,23 @@ impl TypeCheckingVisitor {
         -> DataType
     {
         match ast_node.node_type {
+
             AstNodeType::ConstInt => {
                 return DataType::DataTypeInt;
             }
+
             AstNodeType::ConstUInt => {
                 return DataType::DataTypeUnsignedInt;
             }
+
             AstNodeType::ConstLong => {
                 return DataType::DataTypeLong;
             }
+
             AstNodeType::ConstULong => {
                 return DataType::DataTypeUnsignedLong;
             }
+
             AstNodeType::Identifier => {
                 if self.symbol_table.borrow_mut().contains(&ast_node.string_val) {
                     let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&ast_node.string_val);
@@ -82,6 +87,7 @@ impl TypeCheckingVisitor {
                     todo!("NodeType: {:?}", ast_node.node_type);
                 }
             }
+
             AstNodeType::Unary => {
 
                 //
@@ -125,6 +131,7 @@ impl TypeCheckingVisitor {
                 }
                 todo!("Unary: {:?}", ast_node.node_type);
             }
+
             AstNodeType::Subscript => {
                 // as a type, return the data type of the subscripted array.
                 // The subscripted array is contained in the LHS
@@ -208,8 +215,6 @@ impl TypeCheckingVisitor {
                 }
                 // LHS needs to have a type
                 assert_ne!(lhs_data_type, DataTypeUnknown);
-
-
 
                 // RHS
                 let mut rhs_data_type = DataType::DataTypeUnknown;
@@ -1011,6 +1016,9 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::ParameterDeclaration => {
+            }
+
+            AstNodeType::VariadicParameterDeclaration => {
             }
 
             AstNodeType::Statement => {

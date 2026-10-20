@@ -187,7 +187,7 @@ impl TackyToIntermediateAsmConversionVisitor {
                 continue;
             }
 
-            // exlude void
+            // exclude void
             if param.data_type == DataType::DataTypeVoid {
                 continue;
             }
@@ -211,6 +211,7 @@ impl TackyToIntermediateAsmConversionVisitor {
             mov.comment = String::from(format!("    ; Parameter {:?}) {:?} is located in register {:?}", i, param, SYSTEM_V_ABI_REGISTER_ORDER[i]).to_string());
             mov.src = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(SYSTEM_V_ABI_REGISTER_ORDER[i].clone()) };
             mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(param.name.clone()) };
+            mov.assembly_type = AstAstAssemblyType::from_data_type(&param.data_type);
 
             // insert the generated local variable into the symbol table otherwise
             // the asm_ast_fixup_visitor cannot retrieve it from the symbol table when

@@ -43,6 +43,7 @@ pub enum AstNodeType {
     VariableDeclaration,
     StructureDeclaration,
     ParameterDeclaration,
+    VariadicParameterDeclaration,
     Statement,
     Block,
     BlockItem,
@@ -688,6 +689,9 @@ impl AstNode {
             AstNodeType::ParameterDeclaration => {
                 self.pretty_print_ast_variable_declaration_dot(string_buffer, node_map, true)
             }
+            AstNodeType::VariadicParameterDeclaration => {
+                self.pretty_print_ast_variadic_parameter_declaration_dot(string_buffer, node_map, true)
+            }
             AstNodeType::Statement => {
                 self.pretty_print_ast_statement_dot(string_buffer, node_map, extended_string)
             }
@@ -832,13 +836,17 @@ impl AstNode {
 
         // parameters - add parameters into parameters block
         for i in 0..self.parameters.len() {
-            let parameter_ast_node_id = node_map.get(&self.parameters[self.parameters.len()-1-i]).unwrap().pretty_print_ast_dot(string_buffer, node_map);
+
+            let parameter_ast_node_id =
+                node_map.get(&self.parameters[self.parameters.len()-1-i]).unwrap()
+                    .pretty_print_ast_dot(string_buffer, node_map);
 
             // connect parent and child
             // println!("{} -> {}", parameters_ast_node_id, parameter_ast_node_id);
             //string_buffer.push_str(format!("{} -> {}\n", parameters_ast_node_id, parameter_ast_node_id).as_str());
 
-            string_buffer.push_str(format!("{} -> {} [label=\"parameter\"];\n", ast_node_id, parameter_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"parameter\"];\n",
+                ast_node_id, parameter_ast_node_id).as_str());
         }
 
         // LHS blocks
@@ -1168,8 +1176,7 @@ impl AstNode {
     fn pretty_print_ast_variable_declaration_dot(&self,
         string_buffer: &mut String,
         node_map: &Box<HashMap<usize, AstNode>>,
-        is_parameter: bool)
-        -> usize
+        is_parameter: bool) -> usize
     {
         // data type
         let mut lhs_ast_node_id = 0;
@@ -1194,22 +1201,15 @@ impl AstNode {
 
         // create node for this AstNode
         let ast_node_id = self.id;
-
         let ast_node = node_map.get(&ast_node_id).unwrap();
 
         // either print parameter or variable to the dot output
         if is_parameter {
-            string_buffer.push_str(format!("{} [label=\"{} ParameterDeclaration [{}] \"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+            string_buffer.push_str(format!("{} [label=\"{} ParameterDeclaration [{}] \"]\n",
+                ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
         } else {
-            string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration [{}] \"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
-            // match ast_node.node_type {
-            //     AstNodeType::Array => {
-            //         string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration [Array-of-{}] \"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
-            //     }
-            //     _ => {
-            //         string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration [{}] \"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
-            //     }
-            // }
+            string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration [{}] \"]\n",
+                ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
         }
 
         // connect parent and child
@@ -1232,11 +1232,28 @@ impl AstNode {
         ast_node_id
     }
 
-    fn pretty_print_ast_statement_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>, extended_string: &str) -> usize {
+    fn pretty_print_ast_variadic_parameter_declaration_dot(&self,
+        string_buffer: &mut String,
+        node_map: &Box<HashMap<usize, AstNode>>,
+        is_parameter: bool) -> usize
+    {
+        // create node for this AstNode
+        let ast_node_id = self.id;
+        let ast_node = node_map.get(&ast_node_id).unwrap();
 
+        string_buffer.push_str(format!("{} [label=\"{} VariadicParameter ... [{}] \"]\n",
+            ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+
+        ast_node_id
+    }
+
+    fn pretty_print_ast_statement_dot(&self, string_buffer: &mut String,
+        node_map: &Box<HashMap<usize, AstNode>>, extended_string: &str) -> usize
+    {
         let mut lhs_ast_node_id = 0;
         if let Some(left_node) = self.lhs.as_ref() {
-            lhs_ast_node_id = node_map.get(&left_node).unwrap().pretty_print_ast_dot(string_buffer, node_map);
+            lhs_ast_node_id = node_map.get(&left_node).unwrap()
+                .pretty_print_ast_dot(string_buffer, node_map);
         }
 
         // create node for this AstNode
@@ -1532,7 +1549,8 @@ impl AstNode {
         // create node for this AstNode
         let ast_node_id = self.id;
 
-        string_buffer.push_str(format!("{} [label=\"{} FunctionCall: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        string_buffer.push_str(format!("{} [label=\"{} FunctionCall: {}\"]\n",
+            ast_node_id, ast_node_id, self.string_val).as_str());
 
         // parameters
         let parameter_ast_node_id = 0;
@@ -1542,20 +1560,9 @@ impl AstNode {
 
             // create an ast node for the parameter and retrieve the id of this ast node
             if let Some(parameter_ast_node) = node_map.get(&self.parameters[self.parameters.len()-1-i]) {
-
-                println!("test");
-
                 parameter_ast_node_id =
                     parameter_ast_node.pretty_print_ast_dot(string_buffer, node_map);
-
-                println!("Result: {}", parameter_ast_node_id);
             }
-
-            // asdf node_map.get(&parameter_ast_node_id);
-
-            //let parameter_ast_node_id_result = node_map.get(&parameter_ast_node_id).unwrap().pretty_print_ast_dot_ex(string_buffer, node_map, "TRUE-Statement:");
-
-            // string_buffer.push_str(format!("{} [label=\"{} Parameter: {}\"]\n", parameter_ast_node_id_result, parameter_ast_node_id_result, self.string_val).as_str());
 
             // connect parent and child
             string_buffer.push_str(format!("{} -> {} [label=\"parameter\"]\n", ast_node_id, parameter_ast_node_id).as_str());
