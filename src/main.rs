@@ -603,9 +603,9 @@ fn main() {
         let mut expression_parser = ExpressionParser::new();
 
         for token in preprocessor_lexer {
-            if token.text == ")" {
-                println!("test");
-            }
+            // if token.text == ")" {
+            //     println!("test");
+            // }
             expression_parser.process_token(token);
         }
 
@@ -720,8 +720,6 @@ fn main() {
 
         println!("*********************************************************************************");
     }
-
-
 
     println!("*********************************************************************************");
 

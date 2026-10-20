@@ -5352,6 +5352,10 @@ impl Parser<String> {
                                             self.node_to_node("parameter_type_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
+                                        148 => {
+                                            panic!();
+                                        }
+
                                         // parameter_list -> parameter_declaration
                                         149 => {
                                             self.node_to_node("parameter_list", found_rule.original_id, string_buffer, debug_node_stack);

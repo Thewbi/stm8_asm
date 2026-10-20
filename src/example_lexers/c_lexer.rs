@@ -9,12 +9,15 @@ use crate::EpsilonNfa;
 use crate::State;
 use crate::RegexBuildingBlock;
 use crate::InfixPostfixConverter;
+use crate::regex::enfa::enfa_to_dot_directed_graph;
 use crate::regex::enfa::recurse_postfix_build_fragment_stack;
 use crate::Input;
 use crate::example_lexers::common::add_token_definition;
 
 pub const WHITESPACE_TOKEN_ID: usize = 46;
 pub const NEWLINE_TOKEN_ID: usize = 47;
+
+pub const ELLIPSIS_TOKEN_ID: usize = 400;
 
 pub const IDENTIFIER_TOKEN_ID: usize = 500;
 
@@ -151,12 +154,14 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // There is not difference. It does not matter.
     //
 
-    //
-    // identifier (token-id: 500)
-
     // provide a regex in infix notation and let the converter produce a postfix notation
     // The result is stored within the state of the converter instance, this is why the converter can be reset
     let mut converter = InfixPostfixConverter::new();
+
+/**/
+    //
+    // identifier (token-id: 500)
+/*
     //converter.infix_to_postfix("(_|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z)(_|a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z)+");
     converter.infix_to_postfix("(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z)|(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z)(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z|0|1|2|3|4|5|6|7|8|9)+");
     // next, from the regex-items in the postfix notation, construct a eNFA
@@ -174,20 +179,34 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // insert into LEXER
     let (start_id_identifier, end_id_identifier) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_identifier.enfa, fragment_identifier.end_id);
     combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_identifier);
+*/
+
+    //
+    // identifier (token-id: 500)
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet,
+        "(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z)|(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z)(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z|0|1|2|3|4|5|6|7|8|9)+",
+        "IDENTIFIER",
+        IDENTIFIER_TOKEN_ID);
 
     // DEBUG dump the graph to .dot format for viewing using https://dreampuf.github.io/GraphvizOnline
     //enfa_to_dot_directed_graph(&mut fragment_identifier.enfa, "dot\\fragment_identifier_automaton.dot");
 
     //
     // Float Numeric (token-id: 601) - {D}*"."{D}+({E})?{FS}?
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "(0|1|2|3|4|5|6|7|8|9)*.(0|1|2|3|4|5|6|7|8|9)+((e|E)(\\+|\\-)?(0|1|2|3|4|5|6|7|8|9)+)?(f|F|l|L)?", "FLOAT_NUMERIC", 601);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet,
+        "(0|1|2|3|4|5|6|7|8|9)*.(0|1|2|3|4|5|6|7|8|9)+((e|E)(\\+|\\-)?(0|1|2|3|4|5|6|7|8|9)+)?(f|F|l|L)?",
+        "FLOAT_NUMERIC",
+        FLOAT_NUMERIC_TOKEN_ID);
 
     //
     // IS			(u|U|l|L)*
     // H			[a-fA-F0-9]
     // Hex Numeric - 0[xX]{H}+{IS}?
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "0(x|X)(0|1|2|3|4|5|6|7|8|9|a|A|b|B|c|C|d|D|e|E|f|F)+(u|U|l|L)?", "HEX_NUMERIC", 602);
-
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet,
+        "0(x|X)(0|1|2|3|4|5|6|7|8|9|a|A|b|B|c|C|d|D|e|E|f|F)+(u|U|l|L)?",
+        "HEX_NUMERIC",
+        HEX_NUMERIC_TOKEN_ID);
+/*
     //
     // numeric (token-id: 600)
     converter.infix_to_postfix("(0|1|2|3|4|5|6|7|8|9)+");
@@ -200,7 +219,15 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // insert into LEXER
     let (start_id_numeric, end_id_numeric) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_numeric.enfa, fragment_numeric.end_id);
     combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_numeric);
+ */
+    //
+    // numeric (token-id: 600)
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet,
+        "(0|1|2|3|4|5|6|7|8|9)+",
+        "NUMERIC",
+        NUMERIC_TOKEN_ID);
 
+/*
     //
     // string_literal (token-id: 610)
     converter.infix_to_postfix("\"^\""); // start with a quote. Consume everything that is not a quote
@@ -215,6 +242,13 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // insert into LEXER
     let (start_id_string_literal, end_id_string_literal) = enfa_copy(&mut combined_fragment.enfa, &mut fragment_string_literal.enfa, fragment_string_literal.end_id);
     combined_fragment.enfa.add_transition(combined_fragment.start_id, Input::Epsilon, start_id_string_literal);
+ */
+    //
+    // string_literal (token-id: 610)
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet,
+        "\"^\"",
+        "STRING_LITERAL",
+        STRING_LITERAL_TOKEN_ID);
 
     // DEBUG - print to dot file format for debugging with https://dreampuf.github.io/GraphvizOnline
     //enfa_to_dot_directed_graph(&mut combined_fragment.enfa, "dot\\enfa_automaton.dot");
@@ -223,8 +257,16 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // define operators
     //
 
-    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "...", "ELLIPSIS", 0);
+    // DEBUG - print to dot file format for debugging with https://dreampuf.github.io/GraphvizOnline
+    //enfa_to_dot_directed_graph(&mut combined_fragment.enfa, "dot\\enfa_automaton.dot");
+
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\.\\.\\.", "ELLIPSIS", ELLIPSIS_TOKEN_ID);
+
+    // // DEBUG - print to dot file format for debugging with https://dreampuf.github.io/GraphvizOnline
+    // enfa_to_dot_directed_graph(&mut combined_fragment.enfa, "dot\\enfa_automaton.dot");
+
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ">>=", "RIGHT_ASSIGN", 1);
+/**/
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "<<=", "LEFT_ASSIGN", 2);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\+=", "ADD_ASSIGN", 3); // used in Regex as Repeat(1, std::usize::MAX)
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\-=", "SUB_ASSIGN", 4); // used in Regex to build character classes
@@ -339,7 +381,12 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
 
     let dfa = enfa_to_dfa(&mut combined_fragment.enfa, &mut alphabet);
 
-    // DEBUG - print to dot file format for debugging with https://dreampuf.github.io/GraphvizOnline
+    //
+    // This dot file will become large! DOT implementations usually crash before drawing it.
+    //
+
+    // // DEBUG - print to dot file format for debugging with https://dreampuf.github.io/GraphvizOnline
+    // let mut dfa = enfa_to_dfa(&mut combined_fragment.enfa, &mut alphabet);
     // enfa_to_dot_directed_graph(&mut dfa, "dot\\dfa_automaton.dot");
 
     dfa

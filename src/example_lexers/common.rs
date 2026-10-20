@@ -33,6 +33,13 @@ pub fn add_token_definition(converter: &mut InfixPostfixConverter,
     token_name: &str,
     token_id: usize)
 {
+    // prevent use of token id 0
+    if token_id == 0 {
+        panic!("Never use the id 0 for a relevant token!
+            Due to internal design 0 is the start state!
+            0 will not work for token!");
+    }
+
     let mut fragment_stack_return = FragmentStack::new();
 
     if regex_infix == "\\" {

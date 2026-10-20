@@ -15,7 +15,8 @@ use crate::regex::arena::Node;
 use crate::regex::arena::NodeId;
 
 pub fn recurse_postfix_debug_print(arena: &Arena<RegexBuildingBlock>,
-    parent_node_id: &NodeId, current_root_id: &usize, indent: usize) {
+    parent_node_id: &NodeId, current_root_id: &usize, indent: usize)
+{
 
     if arena.nodes.len() == 0 {
         return;
@@ -135,7 +136,9 @@ pub fn recurse_postfix(arena: &Arena<RegexBuildingBlock>,
 }
 
 pub fn descend_into_concatenation_right_side(arena: &Arena<RegexBuildingBlock>,
-    start_node_id: &NodeId) -> NodeId {
+    start_node_id: &NodeId) -> NodeId
+{
+
     let mut node_id = start_node_id.clone();
     loop {
         let node: &Node<RegexBuildingBlock> = &arena.nodes[node_id.index];
@@ -256,6 +259,8 @@ pub struct InfixPostfixConverter {
     pub root_index: usize,
     pub root_stack: Vec<NodeId>,
     escaped_sequence: bool,
+
+    debug: bool,
 }
 
 impl InfixPostfixConverter {
@@ -274,6 +279,8 @@ impl InfixPostfixConverter {
             root_index: 0,
             root_stack: vec![NodeId { index: 0 }; 40], // for large expressions, this stack will be too small. Adjust it.
             escaped_sequence: false,
+
+            debug: false,
         }
     }
 
@@ -543,6 +550,10 @@ impl InfixPostfixConverter {
 
         while let Some(c) = chars.next() {
 
+            if self.debug {
+                println!("Current character: {}", c);
+            }
+
             //
             // Escaped sequences
             //
@@ -606,6 +617,8 @@ impl InfixPostfixConverter {
                     '?' => { self.process_literal_character('?'); }
                     '#' => { self.process_literal_character('#'); }
                     '\'' => { self.process_literal_character('\''); }
+
+                    '.' => { self.process_literal_character('.'); }
 
                     //'s' => { self.process_literal_character(r"\s"); }
                     //'\\' => { self.process_literal_character('\\'); }

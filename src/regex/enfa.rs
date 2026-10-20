@@ -627,7 +627,8 @@ pub fn enfa_to_dot_directed_graph(enfa: &mut EpsilonNfa<State, RegexBuildingBloc
     // iterate over transitions
     // ((S, Input<T>), HashSet<S>)
     //
-    // a transition says: from start_state_id with symbol 'input_symbol', transition to all states in end_state_id_set
+    // a transition says: from start_state_id with symbol 'input_symbol',
+    // transition to all states in end_state_id_set
     for ((start_state_id, input_symbol), end_state_id_set) in enfa.transitions.iter_mut() {
 
         for end_state_id in end_state_id_set.iter() {
@@ -938,10 +939,12 @@ fn add_or(fragment_stack: &mut FragmentStack) {
     //     panic!("Cannot perform OR! Not enough fragments available to perform an OR operation!");
     // }
 
-    // pop both top elements from the fragment stack to get rid of the buffered operand to the OR operator
+    // pop both top elements from the fragment stack to get rid of
+    // the buffered operand to the OR operator
     let mut top_fragment = fragment_stack.stack.pop().unwrap();
 
-    // check if the top fragment contains an atomic regex_building_block (character_literal, character_class)
+    // check if the top fragment contains an atomic regex_building_block
+    // (character_literal, character_class)
     // or if the top fragment contains a complex graph
     if top_fragment.start_id == top_fragment.end_id {
 
@@ -977,8 +980,10 @@ fn add_or(fragment_stack: &mut FragmentStack) {
 
             // simply extend the bottom automaton
 
-            // extend the automaton by a transition parallel to the rest of the automaton to implement an or operation and assign the new symbol
-            bottom_fragment.enfa.add_transition(bottom_fragment.start_id, Input::Symbol(top_fragment.symbol), bottom_fragment.end_id);
+            // extend the automaton by a transition parallel to the rest
+            // of the automaton to implement an or operation and assign the new symbol
+            bottom_fragment.enfa.add_transition(bottom_fragment.start_id,
+                Input::Symbol(top_fragment.symbol), bottom_fragment.end_id);
 
             fragment_stack.stack.push(bottom_fragment);
 
