@@ -2239,6 +2239,9 @@ Variables are inserted into the Naming Source (Identifier Map) by the Identifier
 
 When a function declaration is encountered, the IdentifierResolutionVisitor will process a AstNodeType::FunctionDeclaration node.
 
+Structs do not share the same namespace as variables and functions! struct have their own namespace.
+There is a separate Naming Source for structs.
+
 ## Type Checking Pass (see page 174, 178ff)
 
 The purpose of Type Checking is that all declarations of identifiers and all usages have compatible types!
@@ -2248,6 +2251,54 @@ Identifiers (variable and functions) are inserted into the Symbol Table which ma
 
 
 
+
+
+# Type System, Meta Data about Types
+
+There is a distinction between symbols and data types in the compiler. A symbol is an identifier which has a data type. A symbol stores it's type but the symbol itself does not fully qualify or define the data type. The type system fully describes and defines the type.
+
+## The Symbol Table
+
+The symbol table (src\common\symbol_table.rs) is created in main and shared amongst different structs
+using RefCell.
+
+The symbol table records information about symbols. A symbol is any identifier used in code.
+The compiler needs to know
+- what type a symbol has
+- if it is an array and how many elements it has
+- if it is a function and how many parameters and if it has a function body or not
+- if it is a pointer
+
+The symbol table only stores the type of a symbol but not the detailed definition of that type.
+The type system stores the detailed information about a type.
+
+The src\c_ast\type_checking_visitor.rs inserts symbol entries
+- for functions
+- for local variables
+into the symbol table.
+
+The src\asm_ast\tacky_to_intermediate_asm_conversion_visitor.rs insert symbol entries for variables it needs to describe the destination of an operation.
+
+The src\tacky\tacky_visitor.rs visitor creates symbol table entries for temporary variables it needs to formulate expressions, destinations and temporary results.
+
+Whenever the tacky visitor creates a temporary variable, that temporary variable is inserted into the symbol table.
+
+## The Type System
+
+src\common\data_type.rs contains the DataType struct which defines the basic data types that the compiler knows out of the box.
+
+When new types are defined using the typedef keyword, they are added to the type system.
+
+The type system is organized
+
+TODO new !!! Next steps, learn about where the data types are stored.
+maybe type_checking_visitor.symbol_table which is a Rc<RefCell<SymbolTable>>.
+The original symbol table lives in main!
+symbol table != type system table! I think there is currently no type system!
+The compiler only manages standard types! It does not record typedefs
+The parser has self.defined_types where it stores typedeffed types!
+The lexer has a reference to the parser and uses it's defined_types member.
+Maybe, upgrade parser.defined_types to become the type system table?!?!??
 
 # Emitting Assembly Intructions
 

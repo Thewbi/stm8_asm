@@ -132,7 +132,12 @@ A special type of #if exists:
 
 This special type checks if a symbol is defined using the operator defined(<symbol>)
 
-The stringizer operator #
+The stringizer operator: #
+The concatenation operator: ##
+
+The hex file embed operator: #embed <filename>
+https://stackoverflow.com/questions/80011157/what-is-difference-between-embed-and-include-in-c
+
 
 ### Stringizing
 

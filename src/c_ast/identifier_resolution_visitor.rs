@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use std::fmt;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::fmt::Debug;
 
 use crate::AstNode;
 use crate::AstNodeType;
@@ -21,23 +23,82 @@ use crate::common::variable_naming_source::VariableNamingSource;
 // * ??? replaces parameter names by "pseudo_{}" which is then later used to move arguments to
 //   function calls from ABI registers onto the stack in the AsmAstConversionVisitor
 //
-// 1. c_ast/IdentifierResolutionVisitor - checks for duplicate or undeclared variable names
-// 2. tacky/TackyVisitor - Generate TACKY (from AST)
-// 3. asm_ast/AsmAstConversionVisitor - Converts the AST into a ASM AST for assembly with a precursory form of mnenomics
-// 4. asm_ast/AsmAstFixupVisitor - replacing pseudo operands/variables with stack addresses
-// 5. asm_ast/AsmAstMasmEmitterVisitor / asm_ast/AsmAstASEmitterVisitor / ...
+// 1. src\c_ast\identifier_resolution_visitor.rs - checks for duplicate or undeclared variable names
+// 2. src\c_ast\type_checking_visitor.rs - performs type checking. The rules that are checked are documented in the file itself
+// 3. src\tacky\tacky_visitor.rs - Generate TACKY (from AST)
+// 4. asm_ast/AsmAstConversionVisitor - Converts the AST into a ASM AST for assembly with a precursory form of mnenomics
+// 5. asm_ast/AsmAstFixupVisitor - replacing pseudo operands/variables with stack addresses
+// 6. src\asm_ast\asm_ast_masm_emitter_visitor.rs / asm_ast/AsmAstASEmitterVisitor / ...
 //
 
+struct StructDecl {
+    tag: String,
+    members: Vec<StructDeclMember>
+}
+
+impl StructDecl {
+
+    pub fn new() -> StructDecl {
+        StructDecl {
+            tag: String::new(),
+            members: Vec::<StructDeclMember>::new()
+        }
+    }
+
+}
+
+impl fmt::Debug for StructDecl {
+
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
+        write!(f, "struct {} {{\n", self.tag).expect("Write failed!");
+
+        for member in &self.members {
+            write!(f, "    {} {};\n", &member.member_type, member.member_name).expect("Write failed!");
+        }
+        // write!(f, "  name: {}\n", &self.name).expect("Write failed!");
+        // write!(f, "  symbol_table_entry_type: {:?}\n", &self.symbol_table_entry_type).expect("Write failed!");
+        // write!(f, "  parameter_count: {}\n", &self.parameter_count).expect("Write failed!");
+        // write!(f, "  has_body: {}\n", &self.has_body).expect("Write failed!");
+        // write!(f, "  is_array: {}\n", &self.is_array).expect("Write failed!");
+        // write!(f, "  array_element_count: {}\n", &self.array_element_count).expect("Write failed!");
+        // write!(f, "  is_pointer: {}\n", &self.is_pointer).expect("Write failed!");
+        write!(f, "}}\n").expect("Write failed!");
+
+        Ok(())
+    }
+}
+
+struct StructDeclMember {
+    member_name: String,
+    member_type: String
+}
+
+impl StructDeclMember {
+
+    pub fn new() -> StructDeclMember {
+        StructDeclMember {
+            member_name: String::new(),
+            member_type: String::new()
+        }
+    }
+}
+
 pub struct IdentifierResolutionVisitor {
-    variable_naming_source: Rc<RefCell<VariableNamingSource>>, // https://www.youtube.com/watch?v=8O0Nt9qY_vo
+    // https://www.youtube.com/watch?v=8O0Nt9qY_vo
+    variable_naming_source: Rc<RefCell<VariableNamingSource>>,
+    structure_naming_source: Rc<RefCell<VariableNamingSource>>,
     debug: bool,
 }
 
 impl IdentifierResolutionVisitor {
 
-    pub fn new(variable_naming_source_param: Rc<RefCell<VariableNamingSource>>) -> IdentifierResolutionVisitor {
+    pub fn new(variable_naming_source_param: Rc<RefCell<VariableNamingSource>>,
+        structure_naming_source_param: Rc<RefCell<VariableNamingSource>>) -> IdentifierResolutionVisitor
+    {
         IdentifierResolutionVisitor {
             variable_naming_source: variable_naming_source_param,
+            structure_naming_source: structure_naming_source_param,
             debug: false,
         }
     }
@@ -54,7 +115,6 @@ impl IdentifierResolutionVisitor {
         node_map: &mut Box<HashMap<usize, AstNode>>,
         build_new_scope: bool) -> IdentifierResolutionNode
     {
-
         let mut ast_node = AstNode::new(0);
 
         {
@@ -182,7 +242,8 @@ impl IdentifierResolutionVisitor {
                 if let Some(left_node_id) = ast_node.lhs {
 
                     // replace user-choosen variable name by unique variable name
-                    let replaced_var_name_node: IdentifierResolutionNode = self.visit(left_node_id, node_map);
+                    let replaced_var_name_node: IdentifierResolutionNode =
+                        self.visit(left_node_id, node_map);
 
                     let initial_var_name = replaced_var_name_node.initial_string_val.clone();
                     let replaced_var_name = replaced_var_name_node.string_val.clone();
@@ -241,15 +302,9 @@ impl IdentifierResolutionVisitor {
 
                 // DEBUG
                 if self.debug {
-                    //println!("user_choosen_variable_name: {:?}", user_choosen_variable_name);
-                    println!("node.initial_string_val: {:?} replaced_variable_name: {:?}", &node.initial_string_val, &node.string_val);
+                    println!("node.initial_string_val: {:?} replaced_variable_name: {:?}",
+                        &node.initial_string_val, &node.string_val);
                 }
-
-                // node_map.insert(node.id, node);
-
-                // let mut ast_node = node_map.get(&ast_node.id).unwrap().clone();
-                // ast_node.string_val = node.string_val.clone();
-                // node_map.insert(ast_node.id, ast_node);
 
                 return node;
             }
@@ -589,7 +644,7 @@ impl IdentifierResolutionVisitor {
                     println!("AstNode: {:?}", ast_node);
                 }
 
-                // data type
+                // data type (LHS)
                 if let Some(left_node_id) = ast_node.lhs {
                     // DEBUG
                     if self.debug {
@@ -613,22 +668,25 @@ impl IdentifierResolutionVisitor {
 
                     // next: implement page 105
 
-                    // The naming source checks if the name is used already (which is not allowed)
+                    // the naming source checks if the name is used already (which is not allowed)
                     // throws panic if the variable name is already used.
                     // To remember if a variable is used, it maintains a data structure of variables
-                    user_define_varname = self.variable_naming_source.borrow_mut().new_user_defined_var(&varname);
+                    user_define_varname = self.variable_naming_source.borrow_mut().
+                        new_user_defined_var(&varname);
 
                     // DEBUG
                     if self.debug {
                         println!("Name replaced: old: {}, new: {}", varname, user_define_varname);
                     }
 
-                    // replace the variable name by the unique variable name from the scope
+                    // replace the variable name by the unique variable name from the scope.
                     // Subsequent steps such as TACKY generation will use unique names instead
                     // of duplicate names separated by scopes
                     right_node.initial_string_val = varname.clone();
                     right_node.string_val = user_define_varname.clone();
 
+                    // need a reinsert to update the node in the node_map because.
+                    // The updat is required since the node's name was changed
                     node_map.insert(right_node.id, right_node);
                 }
 
@@ -659,10 +717,63 @@ impl IdentifierResolutionVisitor {
             }
 
             AstNodeType::StructureDeclaration => {
+                // // DEBUG
+                // if self.debug {
+                //     println!("AstNodeType: {:?}", ast_node.node_type);
+                // }
+
+                let mut struct_decl = StructDecl::new();
+                struct_decl.tag = ast_node.string_val.clone();
+
+                for i in 0..ast_node.block_items.len() {
+
+                    let member_node_id = &ast_node.block_items[i];
+
+                    let member_declaration_node = node_map.get(&member_node_id).unwrap().clone();
+
+                    let member_type_node_id = member_declaration_node.lhs.unwrap();
+                    let member_name_node_id = member_declaration_node.rhs.unwrap();
+
+                    let member_name_node = node_map.get(&member_type_node_id).unwrap().clone();
+                    let member_type_node = node_map.get(&member_name_node_id).unwrap().clone();
+
+                    let mut struct_member = StructDeclMember::new();
+                    struct_member.member_name = member_name_node.string_val.clone();
+                    struct_member.member_type = member_type_node.string_val.clone();
+
+                    struct_decl.members.push(struct_member);
+                }
+
                 // DEBUG
                 if self.debug {
-                    println!("AstNodeType: {:?}", ast_node.node_type);
+                    println!("{:?}", &struct_decl);
                 }
+
+                //
+                // replace user-defined tag by compiler-defined name
+                //
+
+                // the naming source checks if the name is used already (which is not allowed)
+                // throws panic if the variable name is already used.
+                // To remember if a variable is used, it maintains a data structure of variables
+                let compiler_defined_struct_name = self.structure_naming_source.borrow_mut().
+                    new_user_defined_var(&struct_decl.tag);
+
+                // DEBUG
+                // if self.debug {
+                    println!("Name replaced: old: '{}', new: '{}'", &struct_decl.tag, compiler_defined_struct_name);
+                // }
+
+                // replace the variable name by the unique variable name from the scope.
+                // Subsequent steps such as TACKY generation will use unique names instead
+                // of duplicate names separated by scopes
+                ast_node.initial_string_val = ast_node.string_val.clone();
+                ast_node.string_val = compiler_defined_struct_name.clone();
+
+                // need a reinsert to update the node in the node_map because.
+                // The updat is required since the node's name was changed
+                node_map.insert(ast_node.id, ast_node);
+
             }
 
             AstNodeType::ParameterDeclaration => {
@@ -1032,7 +1143,7 @@ impl IdentifierResolutionVisitor {
             AstNodeType::Cast => {
                 // DEBUG
                 if self.debug {
-                    println!("AstNodeType: {:?}", ast_node.node_type);
+                    println!("AstNodeType: {:?}", &ast_node.node_type);
                 }
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
@@ -1048,6 +1159,16 @@ impl IdentifierResolutionVisitor {
                 todo!();
             }
 
+            AstNodeType::Typedef => {
+            }
+
+            AstNodeType::TypeSpecifier(type_specifier_value) => {
+                // DEBUG
+                if self.debug {
+                    println!("AstNodeType.TypeSpecifier: {:?}", type_specifier_value);
+                }
+            }
+
             AstNodeType::Unknown => {
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
@@ -1059,93 +1180,3 @@ impl IdentifierResolutionVisitor {
         return IdentifierResolutionNode::new();
     }
 }
-
-
-
-
-// if let Some(right_node) = ast_node.rhs.as_mut() {
-                    // if self.debug {
-                    //     print!("{:?}", right_node);
-                    // }
-
-
-
-
-                    // let block_item_ast_node_id = self.block_items[self.block_items.len()-1-i].pretty_print_ast_dot(string_buffer);
-                    // // connect parent and child
-                    // // println!("{} -> {}", ast_node_id, block_item_ast_node_id);
-                    // string_buffer.push_str(format!("{} -> {}\n", ast_node_id, block_item_ast_node_id).as_str());
-
-                    // self.visit(ast_node.block_items[ast_node.block_items.len()-1-i]);
-
-                    // if let Some(block_item_node) = ast_node.block_items[ast_node.block_items.len()-1-i].as_mut() {
-                    //     self.visit(block_item_node);
-                    // }
-
-                    // match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
-                    //     Ok(var_name) => {
-                    //         // DEBUG
-                    //         // println!("user_choosen_variable_name: {:?} resolved into {:?}", user_choosen_variable_name, var_name);
-                    //         left_node.string_val = var_name.clone();
-                    //         var_name
-                    //     }
-                    //     Err(e) => {
-                    //         // println!("test");
-                    //         //panic!("{}", e);
-                    //         e
-                    //     }
-                    // };
-
-
-                // let mut node = IdentifierResolutionNode::new();
-                // node.node_type = ast_node.node_type.clone();
-
-                // if let Some(mut left_node) = ast_node.lhs.as_mut() {
-                //     print!("{:?}", left_node);
-
-                //     let user_choosen_variable_name = left_node.string_val.clone();
-
-                //     node.string_val = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
-                //         Ok(var_name) => {
-                //             // DEBUG
-                //             println!("user_choosen_variable_name: {:?} resolved into {:?}", user_choosen_variable_name, node.string_val);
-
-                //             left_node.string_val = node.string_val;
-
-                //             var_name
-                //         }
-                //         Err(e) => {
-                //             //panic!("{}", e);
-                //         }
-                //     };
-
-                // }
-
-                // return node;
-
-                // // LHS
-                // if let Some(left_node) = ast_node.lhs.as_mut() {
-
-                //     println!("AstNodeType.RETURN.LHS: {:?}", left_node);
-
-                //     let semant_node: IdentifierResolutionNode = self.visit(left_node);
-                //     left_node.string_val = semant_node.string_val.clone();
-                // }
-
-                // // RHS
-                // if let Some(right_node) = ast_node.rhs.as_mut() {
-                //     let semant_node: IdentifierResolutionNode = self.visit(right_node);
-
-                //     right_node.string_val = semant_node.string_val.clone();
-                // }
-
-                // let is_defined = self.variable_naming_source.borrow_mut().is_variable_name_defined(&rhs_result.string_val);
-                            // if !is_defined {
-                            //     panic!("Variable \"{}\" is not defined!", &rhs_result.string_val);
-                            // }
-
-                            // let new_name = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&rhs_result.string_val);
-                            // if self.debug {
-                            //     println!("{:?}", new_name);
-                            // }
-                            // right_node.string_val = new_name;

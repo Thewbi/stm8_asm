@@ -1,3 +1,5 @@
+use std::rc::Rc;
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, BTreeSet, BTreeMap};
 
 use std::fs::File;
@@ -139,7 +141,8 @@ pub struct Parser<T> {
     pub lexer_produce_type_name: bool,
 
     // Type table
-    pub defined_types: Vec::<String>,
+    // pub defined_types: Vec::<String>,
+    pub type_system: Rc<RefCell<HashMap::<String, DataType>>>,
 
     // AST
     pub construct_ast: bool,
@@ -215,7 +218,8 @@ pub trait ParserTrait<T> {
 impl Parser<String> {
 
     pub fn new(
-        parse_table_param: HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>
+        parse_table_param: HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>,
+        type_system_param: Rc<RefCell<HashMap::<String, DataType>>>,
     )
     -> Self
     {
@@ -235,11 +239,12 @@ impl Parser<String> {
             lexer_produce_type_name: false,
 
             // Types
-            defined_types: Vec::<String>::new(),
+            // defined_types: Vec::<String>::new(),
+            type_system: type_system_param,
 
             // AST
             construct_ast: true,
-            //construct_ast: false,
+            // construct_ast: false,
             ast_stack: Vec::<usize>::new(),
             child_counter: 0,
             parameter_counter: 0,
@@ -264,8 +269,8 @@ impl Parser<String> {
         label: &str,
         rule_id: usize,
         string_buffer: &mut String,
-        debug_node_stack: &mut Vec::<DebugNode>
-    ) -> usize {
+        debug_node_stack: &mut Vec::<DebugNode>) -> usize
+    {
 
         // leave this function empty for a compact Tree which could be an AST.
         // Uncomment the code for a full parse tree that contains all production rules!
@@ -328,7 +333,7 @@ impl Parser<String> {
         node_map: &mut Box<HashMap<usize, AstNode>>
     ) -> bool {
 
-        // DEBUG for testint the preprocessor, because the API is not flexible enough and
+        // DEBUG for testing the preprocessor, because the API is not flexible enough and
         // always needs a parser, this parser can be disabled
         if self.disabled {
             return true;
@@ -3651,139 +3656,252 @@ impl Parser<String> {
                                             // println!("debug_node_id: {}", debug_node_id);
 
                                             //
-                                            // AST - [77] - declaration -> declaration_specifiers init_declarator_list SEMICOLON
+                                            // TYPEDEF HANDLING
                                             //
 
-                                            if self.construct_ast {
+                                            // if self.is_typedef_active() {
+                                            //     println!("is_typedef_active");
+                                            // }
+
+                                            // if self.typedef_found {
+                                            //     println!("typedef_found");
+                                            // }
+
+                                            if self.typedef_found {
+
+                                                // insert a new type mapping into the types table
+                                                //self.defined_types.push(self.last_type_specifier.clone());
+
+                                                //let type_name = self.last_type_specifier.clone();
+                                                //self.type_system.push(type_name, DataType);
+
+                                                //println!("type_name: '{}'", type_name);
+
+                                                self.print_ast_stack(node_map);
+
+                                                // reset
+                                                self.set_typedef_active(false);
+                                                self.typedef_found = false;
+                                                self.last_type_specifier = String::new();
+                                                self.last_source_type = String::new();
 
                                                 //
-                                                // Can be a variable or function.
-                                                //
-                                                // example: int a = 1;
-                                                // example: int foo(int a);
+                                                // AST - [77] - declaration -> declaration_specifiers init_declarator_list SEMICOLON
                                                 //
 
-                                                // Format:
-                                                // 1st pop: declarator (function declaration)
-                                                // 2nd pop: data type of function return or variable
-                                                // 3rd pop: initializer SingleInit or CompoundInit
+                                                if self.construct_ast {
 
-                                                let declarator_ast_node_id = self.ast_stack.pop().unwrap(); // name/identifier and optional initialization value
-                                                let declarator_ast_node = node_map.get(&declarator_ast_node_id).unwrap();
-                                                // println!("{:?}", declarator_ast_node);
+                                                    // take the new-type identifier from the ast stack
+                                                    let new_type_ast_node_id = self.ast_stack.pop().unwrap();
+                                                    let new_type_ast_node = node_map.get(&new_type_ast_node_id).unwrap().clone();
+                                                    println!("'{}'", &new_type_ast_node.string_val);
 
-                                                let data_type_ast_node_id = self.ast_stack.pop().unwrap(); // (return value) data type
-                                                let data_type_ast_node = node_map.get(&data_type_ast_node_id).unwrap();
-                                                // println!("{:?}", data_type_ast_node);
+                                                    // take the type node from the ast stack
+                                                    let old_type_ast_node_id = self.ast_stack.pop().unwrap();
+                                                    let old_type_ast_node = node_map.get(&old_type_ast_node_id).unwrap().clone();
+                                                    println!("'{}'", &old_type_ast_node.string_val);
 
-                                                let mut object_declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
-                                                match declarator_ast_node.node_type {
+                                                    // let lhs_struct_ast_node = node_map.get(&struct_ast_node.lhs.unwrap()).unwrap().clone();
+                                                    // println!("'{}'", &lhs_struct_ast_node.string_val);
+                                                    // let rhs_struct_ast_node = node_map.get(&struct_ast_node.rhs.unwrap()).unwrap().clone();
+                                                    // println!("'{}'", &rhs_struct_ast_node.string_val);
 
-                                                    AstNodeType::FunctionDeclaration => {
+                                                    // take the qualifier (signed / unsigned) node from the ast stack
+                                                    let temp_ast_node_id = self.ast_stack.pop().unwrap();
+                                                    let temp_ast_node = node_map.get(&temp_ast_node_id).unwrap().clone();
+                                                    println!("'{}'", &temp_ast_node.string_val);
 
-                                                        if let Some(func_name) = declarator_ast_node.function_name_ast_node.as_ref() {
-                                                            object_declaration_ast_node.function_name_ast_node = declarator_ast_node.function_name_ast_node;
-                                                        }
+                                                    let mut old_type = String::new();
+                                                    if temp_ast_node.string_val == "TYPEDEF" {
+                                                        //new_type = temp_ast_node.string_val.clone();
+                                                        old_type = old_type_ast_node.string_val.clone();
+                                                    } else {
 
-                                                        //object_declaration_ast_node.parameters = std::mem::take(&mut declarator_ast_node.parameters);
-                                                        object_declaration_ast_node.parameters = declarator_ast_node.parameters.clone();
+                                                        old_type.push_str(temp_ast_node.string_val.clone().as_str());
+                                                        old_type.push_str(" ");
+                                                        old_type.push_str(old_type_ast_node.string_val.clone().as_str());
 
-                                                        //
-                                                        // TYPE (function return type)
-                                                        //
-                                                        object_declaration_ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
-
-                                                        // println!("{:?}", data_type_ast_node.parameters);
-                                                        object_declaration_ast_node.node_type = AstNodeType::FunctionDeclaration;
-                                                        object_declaration_ast_node.rhs = Some(data_type_ast_node.id);
-
-                                                        // peek for storage class specifier
-                                                        if self.ast_stack.len() > 0 {
-                                                            let storage_class_specifier_ast_node_id = self.ast_stack.pop().unwrap();
-                                                            let storage_class_specifier_ast_node = node_map.get(&storage_class_specifier_ast_node_id).unwrap();
-                                                            if storage_class_specifier_ast_node.node_type == AstNodeType::StorageClassSpecifier {
-                                                                // println!("storage_class: {:?}", storage_class_specifier_ast_node.string_val);
-                                                                if storage_class_specifier_ast_node.string_val == "STATIC" {
-                                                                    object_declaration_ast_node.is_static = true;
-                                                                    object_declaration_ast_node.storage_class = Some(storage_class_specifier_ast_node.id);
-                                                                } else if storage_class_specifier_ast_node.string_val == "EXTERN" {
-                                                                    object_declaration_ast_node.is_extern = true;
-                                                                    object_declaration_ast_node.storage_class = Some(storage_class_specifier_ast_node.id);
-                                                                }
-                                                            } else {
-                                                                self.ast_stack.push(storage_class_specifier_ast_node.id);
-                                                            }
-                                                        }
-
-                                                        self.ast_stack.push(object_declaration_ast_node.id);
+                                                        // take the TYPEDEF node from the ast stack
+                                                        let typedef_ast_node_id = self.ast_stack.pop().unwrap();
+                                                        let typedef_ast_node = node_map.get(&typedef_ast_node_id).unwrap().clone();
+                                                        println!("'{}'", &typedef_ast_node.string_val);
                                                     }
 
-                                                    _ => {
+                                                    //
+                                                    // TYPE-SYSTEM
+                                                    //
 
-                                                        object_declaration_ast_node.node_type = AstNodeType::VariableDeclaration;
-                                                        // println!("{:?}", object_declaration_ast_node.lhs);
+                                                    let old_type_name = old_type.clone();
+                                                    let new_type_name = new_type_ast_node.string_val.clone();
+                                                    println!("[TYPE-SYSTEM] Typedeffing: '{}' -> '{}'",
+                                                        old_type_name, new_type_name
+                                                    );
 
-                                                        //
-                                                        // TYPE
-                                                        //
-                                                        object_declaration_ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
+                                                    // TODO: handle type system here
 
-                                                        object_declaration_ast_node.lhs = Some(data_type_ast_node.id);
-                                                        object_declaration_ast_node.rhs = Some(declarator_ast_node.id);
+                                                    // insert the typedef back into the AST
 
-                                                        // peek for initializer expression
-                                                        if self.ast_stack.len() > 0 {
+                                                    let mut old_type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                    old_type_ast_node.node_type = AstNodeType::Identifier;
+                                                    old_type_ast_node.string_val = String::from(old_type_name);
 
-                                                            let initializer_expression_ast_node_id = self.ast_stack.pop().unwrap();
-                                                            let initializer_expression_ast_node = node_map.get(&initializer_expression_ast_node_id).unwrap();
+                                                    let mut new_type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                    new_type_ast_node.node_type = AstNodeType::Identifier;
+                                                    new_type_ast_node.string_val = String::from(new_type_name);
 
-                                                            match initializer_expression_ast_node.node_type {
-                                                                AstNodeType::SingleInit | AstNodeType::CompoundInit => {
-                                                                    object_declaration_ast_node.expression = Some(initializer_expression_ast_node_id);
-                                                                }
-                                                                _ => {
-                                                                    // put it back after pop to simulate peek
-                                                                    self.ast_stack.push(initializer_expression_ast_node_id);
-                                                                }
-                                                            }
-                                                        }
+                                                    let mut typedef_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                    typedef_ast_node.node_type = AstNodeType::Typedef;
+                                                    typedef_ast_node.string_val = String::from("TYPEDEF");
+                                                    typedef_ast_node.lhs = Some(old_type_ast_node.id.clone());
+                                                    typedef_ast_node.rhs = Some(new_type_ast_node.id.clone());
+                                                    self.ast_stack.push(typedef_ast_node.id);
+                                                    node_map.insert(typedef_ast_node.id, typedef_ast_node);
 
-                                                        // peek for storage class specifier
-                                                        if self.ast_stack.len() > 0 {
-                                                            let storage_class_specifier_ast_node_id = self.ast_stack.pop().unwrap();
-                                                            let storage_class_specifier_ast_node = node_map.get(&storage_class_specifier_ast_node_id).unwrap();
-                                                            if storage_class_specifier_ast_node.node_type == AstNodeType::StorageClassSpecifier {
-                                                                // println!("storage_class: {:?}", storage_class_specifier_ast_node.string_val);
-                                                                if storage_class_specifier_ast_node.string_val == "STATIC" {
-                                                                    object_declaration_ast_node.is_static = true;
-                                                                    object_declaration_ast_node.storage_class = Some(storage_class_specifier_ast_node_id);
-                                                                } else if storage_class_specifier_ast_node.string_val == "EXTERN" {
-                                                                    object_declaration_ast_node.is_extern = true;
-                                                                    object_declaration_ast_node.storage_class = Some(storage_class_specifier_ast_node_id);
-                                                                }
-                                                            } else {
-                                                                // push node back to simulate peek
-                                                                self.ast_stack.push(storage_class_specifier_ast_node_id);
-                                                            }
-                                                        }
+                                                    node_map.insert(new_type_ast_node.id, new_type_ast_node);
+                                                    node_map.insert(old_type_ast_node.id, old_type_ast_node);
 
-                                                        let mut declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
-                                                        declaration_ast_node.node_type = AstNodeType::Declaration;
-                                                        declaration_ast_node.lhs = Some(object_declaration_ast_node.id);
-
-                                                        // wrap declaration into block_item
-                                                        let mut block_item_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
-                                                        block_item_ast_node.node_type = AstNodeType::BlockItem;
-                                                        block_item_ast_node.lhs = Some(declaration_ast_node.id);
-
-                                                        self.ast_stack.push(block_item_ast_node.id);
-
-                                                        node_map.insert(declaration_ast_node.id, declaration_ast_node);
-                                                        node_map.insert(block_item_ast_node.id, block_item_ast_node);
-                                                    }
                                                 }
 
-                                                node_map.insert(object_declaration_ast_node.id, object_declaration_ast_node);
+                                            } else {
+
+                                                //
+                                                // AST - [77] - declaration -> declaration_specifiers init_declarator_list SEMICOLON
+                                                // e.g. int a;
+                                                // e.g. int a = 0;
+                                                //
+
+                                                if self.construct_ast {
+
+                                                    //
+                                                    // Can be a variable or function.
+                                                    //
+                                                    // example: int a = 1;
+                                                    // example: int foo(int a);
+                                                    // example: point_t p0;
+                                                    //
+
+                                                    // Format:
+                                                    // 1st pop: declarator (function declaration)
+                                                    // 2nd pop: data type of function return or variable
+                                                    // 3rd pop: initializer SingleInit or CompoundInit
+
+                                                    let declarator_ast_node_id = self.ast_stack.pop().unwrap(); // name/identifier and optional initialization value
+                                                    let declarator_ast_node = node_map.get(&declarator_ast_node_id).unwrap();
+                                                    // println!("declarator_ast_node:\n{:?}", declarator_ast_node);
+
+                                                    let data_type_ast_node_id = self.ast_stack.pop().unwrap(); // (return value) data type
+                                                    let data_type_ast_node = node_map.get(&data_type_ast_node_id).unwrap();
+                                                    // println!("data_type_ast_node:\n{:?}", data_type_ast_node);
+
+                                                    let mut object_declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                    match declarator_ast_node.node_type {
+
+                                                        AstNodeType::FunctionDeclaration => {
+
+                                                            if let Some(func_name) = declarator_ast_node.function_name_ast_node.as_ref() {
+                                                                object_declaration_ast_node.function_name_ast_node = declarator_ast_node.function_name_ast_node;
+                                                            }
+
+                                                            //object_declaration_ast_node.parameters = std::mem::take(&mut declarator_ast_node.parameters);
+                                                            object_declaration_ast_node.parameters = declarator_ast_node.parameters.clone();
+
+                                                            //
+                                                            // TYPE (function return type)
+                                                            //
+                                                            object_declaration_ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
+
+                                                            // println!("{:?}", data_type_ast_node.parameters);
+                                                            object_declaration_ast_node.node_type = AstNodeType::FunctionDeclaration;
+                                                            object_declaration_ast_node.rhs = Some(data_type_ast_node.id);
+
+                                                            // peek for storage class specifier
+                                                            if self.ast_stack.len() > 0 {
+                                                                let storage_class_specifier_ast_node_id = self.ast_stack.pop().unwrap();
+                                                                let storage_class_specifier_ast_node = node_map.get(&storage_class_specifier_ast_node_id).unwrap();
+                                                                if storage_class_specifier_ast_node.node_type == AstNodeType::StorageClassSpecifier {
+                                                                    // println!("storage_class: {:?}", storage_class_specifier_ast_node.string_val);
+                                                                    if storage_class_specifier_ast_node.string_val == "STATIC" {
+                                                                        object_declaration_ast_node.is_static = true;
+                                                                        object_declaration_ast_node.storage_class = Some(storage_class_specifier_ast_node.id);
+                                                                    } else if storage_class_specifier_ast_node.string_val == "EXTERN" {
+                                                                        object_declaration_ast_node.is_extern = true;
+                                                                        object_declaration_ast_node.storage_class = Some(storage_class_specifier_ast_node.id);
+                                                                    }
+                                                                } else {
+                                                                    self.ast_stack.push(storage_class_specifier_ast_node.id);
+                                                                }
+                                                            }
+
+                                                            self.ast_stack.push(object_declaration_ast_node.id);
+                                                        }
+
+                                                        _ => {
+
+                                                            object_declaration_ast_node.node_type = AstNodeType::VariableDeclaration;
+                                                            // println!("{:?}", object_declaration_ast_node.lhs);
+
+                                                            //
+                                                            // TYPE
+                                                            //
+                                                            object_declaration_ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
+
+                                                            object_declaration_ast_node.lhs = Some(data_type_ast_node.id);
+                                                            object_declaration_ast_node.rhs = Some(declarator_ast_node.id);
+
+                                                            // peek for initializer expression
+                                                            if self.ast_stack.len() > 0 {
+
+                                                                let initializer_expression_ast_node_id = self.ast_stack.pop().unwrap();
+                                                                let initializer_expression_ast_node = node_map.get(&initializer_expression_ast_node_id).unwrap();
+
+                                                                match initializer_expression_ast_node.node_type {
+                                                                    AstNodeType::SingleInit | AstNodeType::CompoundInit => {
+                                                                        object_declaration_ast_node.expression = Some(initializer_expression_ast_node_id);
+                                                                    }
+                                                                    _ => {
+                                                                        // put it back after pop to simulate peek
+                                                                        self.ast_stack.push(initializer_expression_ast_node_id);
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            // peek for storage class specifier
+                                                            if self.ast_stack.len() > 0 {
+                                                                let storage_class_specifier_ast_node_id = self.ast_stack.pop().unwrap();
+                                                                let storage_class_specifier_ast_node = node_map.get(&storage_class_specifier_ast_node_id).unwrap();
+                                                                if storage_class_specifier_ast_node.node_type == AstNodeType::StorageClassSpecifier {
+                                                                    // println!("storage_class: {:?}", storage_class_specifier_ast_node.string_val);
+                                                                    if storage_class_specifier_ast_node.string_val == "STATIC" {
+                                                                        object_declaration_ast_node.is_static = true;
+                                                                        object_declaration_ast_node.storage_class = Some(storage_class_specifier_ast_node_id);
+                                                                    } else if storage_class_specifier_ast_node.string_val == "EXTERN" {
+                                                                        object_declaration_ast_node.is_extern = true;
+                                                                        object_declaration_ast_node.storage_class = Some(storage_class_specifier_ast_node_id);
+                                                                    }
+                                                                } else {
+                                                                    // push node back to simulate peek
+                                                                    self.ast_stack.push(storage_class_specifier_ast_node_id);
+                                                                }
+                                                            }
+
+                                                            let mut declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                            declaration_ast_node.node_type = AstNodeType::Declaration;
+                                                            declaration_ast_node.lhs = Some(object_declaration_ast_node.id);
+
+                                                            // wrap declaration into block_item
+                                                            let mut block_item_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                            block_item_ast_node.node_type = AstNodeType::BlockItem;
+                                                            block_item_ast_node.lhs = Some(declaration_ast_node.id);
+
+                                                            self.ast_stack.push(block_item_ast_node.id);
+
+                                                            node_map.insert(declaration_ast_node.id, declaration_ast_node);
+                                                            node_map.insert(block_item_ast_node.id, block_item_ast_node);
+                                                        }
+                                                    }
+
+                                                    node_map.insert(object_declaration_ast_node.id, object_declaration_ast_node);
+                                                }
                                             }
                                         }
 
@@ -3792,11 +3910,128 @@ impl Parser<String> {
 
                                             // TODO: is this correct?
                                             // Is there no need to add a token for the SEMICOLON???
+                                            // YES: purely to get rid of confusion if someone debugs using the parse tree .dot file!
 
-                                            self.node_to_node("declaration", found_rule.original_id, string_buffer, debug_node_stack);
+                                            //self.node_to_node("declaration", found_rule.original_id, string_buffer, debug_node_stack);
+
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("declaration"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, rule_id, String::from("declaration")).as_str());
+
+                                            // take old node from stack
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!(" {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+
+                                            // SEMICOLON
+                                            let semicolon_debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let semicolon_debug_node = DebugNode::new(semicolon_debug_node_id, String::from(";"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{}\"]\n", semicolon_debug_node_id, String::from(";")).as_str());
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!(" {:?} -> {:?}\n", debug_node_id, semicolon_debug_node_id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // TYPEDEF HANDLING
+                                            //
+
+                                            // if self.is_typedef_active() {
+                                            //     println!("is_typedef_active");
+                                            // }
+
+                                            // if self.typedef_found {
+                                            //     println!("typedef_found");
+                                            // }
+
+                                            if self.typedef_found {
+
+                                                // insert a new type mapping into the types table
+                                                //self.defined_types.push(self.last_type_specifier.clone());
+
+                                                //let type_name = self.last_type_specifier.clone();
+                                                //self.type_system.push(type_name, DataType);
+
+                                                //println!("type_name: '{}'", type_name);
+
+                                                self.print_ast_stack(node_map);
+
+                                                // reset
+                                                self.set_typedef_active(false);
+                                                self.typedef_found = false;
+                                                self.last_type_specifier = String::new();
+                                                self.last_source_type = String::new();
+
+                                                if self.construct_ast {
+
+                                                    // Rule 78 is executed for typedefs of structs only
+
+                                                    // take the identifier from the ast stack
+                                                    let new_type_ast_node_id = self.ast_stack.pop().unwrap();
+                                                    let new_type_ast_node = node_map.get(&new_type_ast_node_id).unwrap().clone();
+                                                    println!("'{}'", &new_type_ast_node.string_val);
+
+                                                    // take the struct/union node from the ast stack
+                                                    let struct_ast_node_id = self.ast_stack.pop().unwrap();
+                                                    let struct_ast_node = node_map.get(&struct_ast_node_id).unwrap().clone();
+
+                                                    let lhs_struct_ast_node = node_map.get(&struct_ast_node.lhs.unwrap()).unwrap().clone();
+                                                    println!("'{}'", &lhs_struct_ast_node.string_val);
+                                                    let rhs_struct_ast_node = node_map.get(&struct_ast_node.rhs.unwrap()).unwrap().clone();
+                                                    println!("'{}'", &rhs_struct_ast_node.string_val);
+
+                                                    // take the TYPEDEF node from the ast stack
+                                                    let typedef_ast_node_id = self.ast_stack.pop().unwrap();
+                                                    let typedef_ast_node = node_map.get(&typedef_ast_node_id).unwrap().clone();
+                                                    println!("'{}'", &typedef_ast_node.string_val);
+
+                                                    //
+                                                    // TYPE-SYSTEM
+                                                    //
+
+                                                    let mut old_type_name = rhs_struct_ast_node.string_val.clone();
+                                                    old_type_name.push_str(" ");
+                                                    old_type_name.push_str(lhs_struct_ast_node.string_val.clone().as_str());
+                                                    let new_type_name = new_type_ast_node.string_val.clone();
+                                                    println!("[TYPE-SYSTEM] Typedeffing: '{}' -> '{}'",
+                                                        old_type_name, new_type_name
+                                                    );
+
+                                                    // TODO: handle type system here
+
+                                                    // insert the typedef back into the AST
+
+                                                    let mut old_type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                    old_type_ast_node.node_type = AstNodeType::Identifier;
+                                                    old_type_ast_node.string_val = String::from(old_type_name);
+
+                                                    let mut new_type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                    new_type_ast_node.node_type = AstNodeType::Identifier;
+                                                    new_type_ast_node.string_val = String::from(new_type_name);
+
+                                                    let mut typedef_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                    typedef_ast_node.node_type = AstNodeType::Typedef;
+                                                    typedef_ast_node.string_val = String::from("TYPEDEF");
+                                                    typedef_ast_node.lhs = Some(old_type_ast_node.id.clone());
+                                                    typedef_ast_node.rhs = Some(new_type_ast_node.id.clone());
+                                                    self.ast_stack.push(typedef_ast_node.id);
+                                                    node_map.insert(typedef_ast_node.id, typedef_ast_node);
+
+                                                    node_map.insert(new_type_ast_node.id, new_type_ast_node);
+                                                    node_map.insert(old_type_ast_node.id, old_type_ast_node);
+                                                }
+                                            }
                                         }
 
                                         // declaration_specifiers -> storage_class_specifier declaration_specifiers
+                                        // e.g. declaration_specifiers -> TYPEDEF + [unsigned CHAR]
+                                        // e.g. declaration_specifiers -> TYPEDEF + [CHAR]
                                         79 => {
                                             // create new node id
                                             // create new node with node id and label
@@ -3816,23 +4051,84 @@ impl Parser<String> {
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
+                                            // if self.is_typedef_active() {
+                                            //     println!("is_typedef_active");
+                                            //     self.set_typedef_active(false);
+                                            // }
+
+                                            // //
+                                            // // TYPEDEF HANDLING
+                                            // //
+
+                                            // if self.typedef_found {
+
+                                            //     // insert a new type mapping into the types table
+                                            //     //self.defined_types.push(self.last_type_specifier.clone());
+
+                                            //     let type_name = self.last_type_specifier.clone();
+                                            //     //self.type_system.push(type_name, DataType);
+
+                                            //     println!("type_name: '{}'", type_name);
+
+                                            //     // reset
+                                            //     self.typedef_found = false;
+                                            //     self.last_type_specifier = String::new();
+                                            //     self.last_source_type = String::new();
+                                            // }
+
                                             //
-                                            // TYPEDEF HANDLING
+                                            // AST - declaration_specifiers -> storage_class_specifier declaration_specifiers
                                             //
 
-                                            if self.typedef_found {
+                                            if self.construct_ast {
 
-                                                // insert a new type mapping into the types table
-                                                self.defined_types.push(self.last_type_specifier.clone());
+                                                // let ast_node_id = self.ast_stack.pop().unwrap();
+                                                // let mut ast_node = node_map.get(&ast_node_id).unwrap().clone();
+                                                // ast_node.string_val = String::from("typedef");
 
-                                                // reset
-                                                self.typedef_found = false;
-                                                self.last_type_specifier = String::new();
-                                                self.last_source_type = String::new();
+                                                // self.ast_stack.push(ast_node_id);
+
+                                                if self.is_typedef_active() {
+                                                    //self.node_to_node("typedef", found_rule.original_id, string_buffer, debug_node_stack);
+
+                                                    //move into Rule 77 declaration!!!!
+                                                    // test:
+                                                    //typedef unsigned byte uint8_t;
+                                                    //typedef unsigned char uint8_t;
+                                                    //typedef signed char int8_t;
+                                                    //typedef char int8_t;
+                                                    //typedef byte uint8_t;
+                                                    //typedef struct point point_t;
+
+                                                    self.print_ast_stack(node_map);
+
+                                                    let insert_typedef_ast_node = false;
+                                                    if insert_typedef_ast_node {
+
+                                                        let rhs_node_id = self.ast_stack.pop().unwrap();
+                                                        let lhs_node_id = self.ast_stack.pop().unwrap();
+
+                                                        let mut typedef_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                        typedef_ast_node.node_type = AstNodeType::Typedef;
+                                                        typedef_ast_node.string_val = String::from("typedef");
+                                                        typedef_ast_node.lhs = Some(lhs_node_id);
+                                                        typedef_ast_node.rhs = Some(rhs_node_id);
+
+                                                        self.ast_stack.push(typedef_ast_node.id);
+
+                                                        node_map.insert(typedef_ast_node.id, typedef_ast_node);
+                                                    }
+                                                }
                                             }
+
+                                            // if self.is_typedef_active() {
+                                            //     println!("is_typedef_active");
+                                            //     self.set_typedef_active(false);
+                                            // }
                                         }
 
                                         // 80;declaration_specifiers;storage_class_specifier
+                                        // declaration_specifiers -> storage_class_specifier
                                         80 => {
                                             self.node_to_node("declaration_specifiers", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
@@ -3867,7 +4163,7 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                // TODO: check if the node in the hash_map is really updated or not!
+                                                self.print_ast_stack(node_map);
 
                                                 let ast_node_id = self.ast_stack.pop().unwrap();
                                                 let mut ast_node = node_map.get(&ast_node_id).unwrap().clone();
@@ -4123,7 +4419,22 @@ impl Parser<String> {
                                             //
 
                                             self.typedef_found = true;
-                                            self.is_typedef_active = true;
+                                            self.set_typedef_active(true);
+
+                                            //
+                                            // AST - storage_class_specifier -> TYPEDEF
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                ast_node.node_type = AstNodeType::StorageClassSpecifier;
+                                                ast_node.string_val = String::from("TYPEDEF");
+
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
+                                            }
                                         }
 
                                         // storage_class_specifier -> EXTERN
@@ -4192,9 +4503,9 @@ impl Parser<String> {
                                         94 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (94)"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (94)")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("VOID"));
@@ -4224,9 +4535,9 @@ impl Parser<String> {
                                         95 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (95)"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (95)")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("CHAR"));
@@ -4256,9 +4567,9 @@ impl Parser<String> {
                                         96 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (96)"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (96)")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("SHORT"));
@@ -4271,9 +4582,17 @@ impl Parser<String> {
                                             // TYPEDEF HANDLING
                                             //
 
-                                            if self.is_typedef_active {
+                                            if self.is_typedef_active() {
+
+                                                // the parser has reduced the TYPEDEF keyword earlier.
+                                                // This means the next token after Rule 96: type_specifier -> SHORT
+                                                // must now return a TYPE_NAME token from the lexer in order
+                                                // to satisfy the grammar rule which explicitly contains
+                                                // a TYPE_NAME token!
                                                 self.lexer_produce_type_name = true;
-                                                self.is_typedef_active = false;
+
+                                                // self.is_typedef_active = false;
+                                                // self.set_typedef_active(false);
                                             }
 
                                             self.last_source_type = String::from("short");
@@ -4299,9 +4618,9 @@ impl Parser<String> {
                                         97 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (97)"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (97)")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("INT"));
@@ -4314,9 +4633,17 @@ impl Parser<String> {
                                             // TYPEDEF HANDLING
                                             //
 
-                                            if self.is_typedef_active {
+                                            if self.is_typedef_active() {
+
+                                                // the parser has reduced the TYPEDEF keyword earlier.
+                                                // This means the next token after Rule 96: type_specifier -> SHORT
+                                                // must now return a TYPE_NAME token from the lexer in order
+                                                // to satisfy the grammar rule which explicitly contains
+                                                // a TYPE_NAME token!
                                                 self.lexer_produce_type_name = true;
-                                                self.is_typedef_active = false;
+
+                                                // self.is_typedef_active = false;
+                                                // self.set_typedef_active(false);
                                             }
 
                                             self.last_source_type = String::from("int");
@@ -4342,8 +4669,8 @@ impl Parser<String> {
                                         98 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
-                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier")).as_str());
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (98)"));
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (98)")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("LONG"));
@@ -4356,9 +4683,17 @@ impl Parser<String> {
                                             // TYPEDEF HANDLING
                                             //
 
-                                            if self.is_typedef_active {
+                                            if self.is_typedef_active() {
+
+                                                // the parser has reduced the TYPEDEF keyword earlier.
+                                                // This means the next token after Rule 96: type_specifier -> SHORT
+                                                // must now return a TYPE_NAME token from the lexer in order
+                                                // to satisfy the grammar rule which explicitly contains
+                                                // a TYPE_NAME token!
                                                 self.lexer_produce_type_name = true;
-                                                self.is_typedef_active = false;
+
+                                                // self.is_typedef_active = false;
+                                                // self.set_typedef_active(false);
                                             }
 
                                             self.last_source_type = String::from("long");
@@ -4388,10 +4723,10 @@ impl Parser<String> {
                                         99 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (99)"));
                                             debug_node_stack.push(debug_node);
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (99)")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("FLOAT"));
@@ -4405,9 +4740,17 @@ impl Parser<String> {
                                             // turn IDENTIFIER lookahead token into TYPE_NAME token to satisfy the grammar.
                                             //
 
-                                            if self.is_typedef_active {
+                                            if self.is_typedef_active() {
+
+                                                // the parser has reduced the TYPEDEF keyword earlier.
+                                                // This means the next token after Rule 96: type_specifier -> SHORT
+                                                // must now return a TYPE_NAME token from the lexer in order
+                                                // to satisfy the grammar rule which explicitly contains
+                                                // a TYPE_NAME token!
                                                 self.lexer_produce_type_name = true;
-                                                self.is_typedef_active = false;
+
+                                                // self.is_typedef_active = false;
+                                                // self.set_typedef_active(false);
                                             }
 
                                             self.last_source_type = String::from("float");
@@ -4438,9 +4781,9 @@ impl Parser<String> {
                                         100 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (100)"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("type_specifier")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("type_specifier (100)")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("DOUBLE"));
@@ -4453,9 +4796,17 @@ impl Parser<String> {
                                             // TYPEDEF HANDLING
                                             //
 
-                                            if self.is_typedef_active {
+                                            if self.is_typedef_active() {
+
+                                                // the parser has reduced the TYPEDEF keyword earlier.
+                                                // This means the next token after Rule 96: type_specifier -> SHORT
+                                                // must now return a TYPE_NAME token from the lexer in order
+                                                // to satisfy the grammar rule which explicitly contains
+                                                // a TYPE_NAME token!
                                                 self.lexer_produce_type_name = true;
-                                                self.is_typedef_active = false;
+
+                                                // self.is_typedef_active = false;
+                                                // self.set_typedef_active(false);
                                             }
 
                                             self.last_source_type = String::from("double");
@@ -4493,9 +4844,9 @@ impl Parser<String> {
 
                                             // create new node
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (101)"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("type_specifier")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("type_specifier (101)")).as_str());
 
                                             // signed
                                             let identifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -4505,6 +4856,21 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, identifier_node.id).as_str());
 
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - type_specifier -> SIGNED
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                type_ast_node.node_type = AstNodeType::TypeSpecifier(String::from("signed"));
+                                                type_ast_node.string_val = value.clone();
+
+                                                self.ast_stack.push(type_ast_node.id);
+
+                                                node_map.insert(type_ast_node.id, type_ast_node);
+                                            }
                                         }
 
                                         // type_specifier -> UNSIGNED
@@ -4518,9 +4884,9 @@ impl Parser<String> {
 
                                             // create new node
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (102)"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("type_specifier")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (102)")).as_str());
 
                                             // unsigned
                                             let identifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -4532,16 +4898,41 @@ impl Parser<String> {
                                             debug_node_stack.push(debug_node);
 
                                             // println!("{:?}", debug_node_id);
+
+                                            //
+                                            // AST - type_specifier -> UNSIGNED
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                type_ast_node.node_type = AstNodeType::TypeSpecifier(String::from("unsigned"));
+                                                type_ast_node.string_val = value.clone();
+
+                                                self.ast_stack.push(type_ast_node.id);
+
+                                                node_map.insert(type_ast_node.id, type_ast_node);
+                                            }
                                         }
 
                                         // type_specifier -> struct_or_union_specifier
                                         103 => {
-                                            self.node_to_node("type_specifier", found_rule.original_id, string_buffer, debug_node_stack);
+                                            self.node_to_node("type_specifier (Rule: 103)", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // type_specifier -> enum_specifier
+                                        104 => {
+                                            todo!();
+                                        }
 
                                         // type_specifier -> TYPE_NAME
+                                        //
+                                        // This rule is only reduced for struct typedefs
+                                        // typedef struct point point_t;
+                                        //
+                                        // It is not reduced for simple typedefs
+                                        // typedef unsigned char uint8_t
+                                        // typedef char int8_t
                                         105 => {
                                             // retrieve terminal TYPE_NAME
                                             let mut value = String::from("");
@@ -4552,9 +4943,9 @@ impl Parser<String> {
 
                                             // create new node
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (Rule: 105)"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("type_specifier")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (Rule: 105)")).as_str());
 
                                             // IDENTIFIER
                                             let identifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -4563,6 +4954,14 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", identifier_node_id, identifier_node_id, value.clone()).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, identifier_node.id).as_str());
 
+                                            // // DATA_TYPE
+                                            // let datatype_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            // let datatype_node = DebugNode::new(datatype_node_id, String::from("hund!"));
+                                            // // debug_node_stack.push(debug_node);
+                                            // string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", datatype_node_id, datatype_node_id, value.clone()).as_str());
+                                            // string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, identifier_node.id).as_str());
+
+                                            // debug_node_stack.push(datatype_node);
                                             debug_node_stack.push(debug_node);
 
                                             //
@@ -4574,6 +4973,21 @@ impl Parser<String> {
                                             self.last_type_specifier = value.clone();
 
                                             self.lexer_produce_type_name = false;
+
+                                            //
+                                            // AST - declaration_specifiers -> type_qualifier declaration_specifiers
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                type_ast_node.node_type = AstNodeType::StructureDeclaration;
+                                                type_ast_node.string_val = value.clone();
+
+                                                self.ast_stack.push(type_ast_node.id);
+
+                                                node_map.insert(type_ast_node.id, type_ast_node);
+                                            }
                                         }
 
                                         // struct_or_union_specifier -> struct_or_union IDENTIFIER OPENING_CURLY_BRACKET struct_declaration_list CLOSING_CURLY_BRACKET
@@ -4663,10 +5077,11 @@ impl Parser<String> {
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
                                                 value = terminal_rev.clone().unwrap().data;
-
                                                 // println!("[Parser::consume()] [108] TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
                                                 // println!("");
                                             }
+
+                                            // println!("value: '{}'", value);
 
                                             // let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             // let debug_node = DebugNode::new(debug_node_id, format!("primary_expression '{}'\n", value));
@@ -4682,7 +5097,6 @@ impl Parser<String> {
                                             // IDENTIFIER
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, value.clone());
-                                            // debug_node_stack.push(debug_node);
                                             string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, value.clone()).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
 
@@ -4698,9 +5112,17 @@ impl Parser<String> {
                                             // TYPEDEF HANDLING
                                             //
 
-                                            if self.is_typedef_active {
+                                            if self.is_typedef_active() {
+
+                                                // the parser has reduced the TYPEDEF keyword earlier.
+                                                // This means the next token after Rule 96: type_specifier -> SHORT
+                                                // must now return a TYPE_NAME token from the lexer in order
+                                                // to satisfy the grammar rule which explicitly contains
+                                                // a TYPE_NAME token!
                                                 self.lexer_produce_type_name = true;
-                                                self.is_typedef_active = false;
+
+                                                // self.is_typedef_active = false;
+                                                // self.set_typedef_active(false);
                                             }
 
                                             self.last_source_type = value.clone();
@@ -4821,7 +5243,7 @@ impl Parser<String> {
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, field_identifier_node.id).as_str());
 
-                                            // SEMICOLON
+                                            // TODO: SEMICOLON
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
@@ -4847,6 +5269,45 @@ impl Parser<String> {
 
                                                 node_map.insert(member_declaration_ast_node.id, member_declaration_ast_node);
                                             }
+                                        }
+
+                                        // 114;specifier_qualifier_list;type_specifier;specifier_qualifier_list
+                                        // specifier_qualifier_list -> type_specifier specifier_qualifier_list
+                                        114 => {
+
+                                            // create new node id
+                                            // create new node with node id and label
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("specifier_qualifier_list"));
+                                            // print new node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("struct_declspecifier_qualifier_listaration")).as_str());
+
+
+
+
+
+                                            //
+                                            // RHS - specifier_qualifier_list
+                                            //
+
+                                            // take old node from stack - specifier_qualifier_list
+                                            let specifier_qualifier_list_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, specifier_qualifier_list_node.id).as_str());
+
+                                            //
+                                            // LHS - type_specifier
+                                            //
+
+                                            // take old node from stack - type_specifier
+                                            let type_specifier_node = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_specifier_node.id).as_str());
+
+                                            // TODO: SEMICOLON
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
                                         }
 
                                         // specifier_qualifier_list -> type_specifier
@@ -5304,7 +5765,7 @@ impl Parser<String> {
                                             debug_node_stack.push(debug_node);
 
                                             //
-                                            // AST
+                                            // AST - direct_declarator -> direct_declarator OPENING_BRACKET CLOSING_BRACKET
                                             //
 
                                             if self.construct_ast {
@@ -7087,6 +7548,26 @@ impl Parser<String> {
         }
     }
 
+    pub fn print_ast_stack(&mut self, node_map: &mut Box<HashMap<usize, AstNode>>) {
+        println!("");
+        println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~ AST NODE STACK ~~~~~~~~~~~~~~~~~~~~~~~");
+        let ast_stack_len = self.ast_stack.len();
+        if ast_stack_len == 0 {
+            println!("AST Stack is empty!");
+        } else {
+            for i in 0..ast_stack_len {
+                if i > 0 {
+                    println!("");
+                }
+                let ast_node_id = self.ast_stack[i];
+                let ast_node = &node_map.get(&ast_node_id);
+                println!("{:?}) {:?}", i+1, &ast_node);
+            }
+        }
+        println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+        println!("");
+    }
+
     // passes a token (parameter: terminal_token_rule_element) to the parser.
     // The parser will now perform one or more steps until it is ready for the next token.
     // it will consume the token which completes a production rule.
@@ -7119,6 +7600,8 @@ impl Parser<String> {
                 println!("[provide_input] Step: {}, TerminalValue: {}", *step, terminal_value);
             }
 
+            // if the parse rule expects a typename, artificially tell the parser to
+            // return a token of type TYPE_NAME instead of IDENTIFIER or whatever else ...
             if self.lexer_produce_type_name {
 
                 // DEBUG
@@ -7152,6 +7635,14 @@ impl Parser<String> {
         }
 
         *step
+    }
+
+    fn is_typedef_active(&self) -> bool {
+        self.is_typedef_active
+    }
+
+    fn set_typedef_active(&mut self, typedef_active: bool) {
+        self.is_typedef_active = typedef_active;
     }
 }
 

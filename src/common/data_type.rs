@@ -14,11 +14,9 @@ pub enum DataType {
     DataTypeUnsignedLong,
     DataTypeFloat,
     DataTypeDouble,
-
     DataTypeVoid, // is it beneficial to treat void as a data type? (void-pointer?)
-
     DataTypePointer(Box<DataType>),
-
+    DataTypeStruct,
     DataTypeUnknown,
 }
 
@@ -36,6 +34,7 @@ impl fmt::Display for DataType {
             DataType::DataTypeDouble => write!(f, "double"),
             DataType::DataTypeVoid => write!(f, "void"),
             DataType::DataTypePointer(data_type) => write!(f, "Pointer-To-{}", data_type),
+            DataType::DataTypeStruct => write!(f, "struct"),
             DataType::DataTypeUnknown => write!(f, "unknown"),
         }
     }
@@ -62,8 +61,10 @@ impl FromStr for DataType {
             Ok(DataType::DataTypeDouble)
         } else if s == "void" {
             Ok(DataType::DataTypeVoid)
+        } else if s == "struct" {
+            Ok(DataType::DataTypeStruct)
         } else {
-            Err(format!("Can not parse {}", s).into())
+            Err(format!("[DataType::FromStr] Can not parse '{}' into type", s).into())
         }
     }
 }

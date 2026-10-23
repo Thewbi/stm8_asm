@@ -1,0 +1,209 @@
+# General Information
+
+- a struct's tag is the identifier which a struct can be identified with within the type system.
+
+- structs live in their own namespace.
+  Their names do not conflict with variable and function names. (page 489)
+- structs form a new namespace for their members. (page 489)
+
+- structs can be shadowed but a variable keeps it's initial struct type even
+  if the struct type is shadowed by a new struct. (page 488)
+
+- alignment and padding rules. (page 493)
+	- the entire struct is memory aligned with the alignment of it's most strictly
+      aligned member (This is the member with the largest alignment)
+	  e.g. long has an alignment of 8. If a struct contains a long,
+      the struct is aligned at boundaries of 8.
+	- padding: the size of a struct must be the multiple of it's alignment.
+      If the struct is smaller, it is padded.
+	  e.g. long has an alignment of 8. If a struct contains a long, the struct
+      is aligned at boundaries of 8. If the struct has an alignment of 8,
+	  it's length must be a multiple of 8. Use padding if necessary.
+
+
+# Semantic Analysis
+
+## Identifier Resolution & Resolving Types
+
+Two things happen at the same time
+1. Identifiers are detected and user-defined identifiers are replaced by compiler
+   choosen names to get around the automatic deduplication that scopes provide.
+   Identifiers are recorded in the STRUCT_DECL_MAP.
+2. Detect and record types into the TYPE_MAP for later processing of offsets,
+   alignments and padding and also for detecting duplicate struct type definitions!
+   This is a way to flatten the nested scopes.
+
+- add a new table to the type checker / identifier resolution pass.
+  The table is used to track structure identifiers.
+  This new table is called STRUCT_DECL_MAP.
+	- Q: how does the datatype for a structure definition look?
+	- Q: which rust struct is the type checker?
+
+- During identifier resolution, rename user-choosen structure tags by compiler
+  choosen names (similar to variables are treated).
+	- Use a separate table (structure_map) to store this mapping next to the mapping for variables
+       and functions because structure tags form their own namespace.
+       structure_map uses the user-choosen tag as key and maps it to a MapEntry, which
+       contains the compiler-choosen new_tag and a boolean "from_current_scope".
+       The mapped value does NOT contain the entire struct members! It does not contain
+       a description of the struct's datatype!
+	- [CHECK] Check that all structure tags are correctly replaced using the AST printout after identifier resolution.
+		- If a structure tag is used without the tag being declared earlier (without being contained in the STRUCT_DECL_MAP), throw an error!
+	- Q: Page 498 bottom: "In the structure map, we'll track each tag's unique identifier and whether it was declared in the current scope [...]"
+	    I do not understand this sentence!
+		Give an example that requires us to know if the structure tag is declared in the current scope.
+	  A: Maybe this feature is used for shadowing (page 499, bottom).
+		Firstly, every time a new scope is entered, the entire STRUCT_DECL_MAP is cloned.
+		Then directly after cloning, in the clone, all from_current_scope flags are set to false because a new scope has started!
+		When a scope is left, the clone dies because it is a local scope within it. The local struct definitions die along with it!
+		(See page 500: "First, at the start of each new scope, we'll make a copy of the structure tag map with
+		each entry's from_current_scope attribute set to false, just like we do for the identifier map.")
+
+		The function resolve_structure_declaration() checks whether
+			1. a structure tag does not exist yet or is not declared in the current scope.
+				--> create new type, set from_current_scope = true, insert it into the STRUCT_DECL_MAP and store it to a local variable
+			2. a structure tag exists, and is declared in the current scope (from_current_scope == true)
+				--> retrieve the type and store it to a local variable
+
+		Now the local variable contains the struct type. The last step is to process the struct's members.
+		The goal for a member is to resolve the member's type so it can be stored within the structure's type into the STRUCT_DECL_MAP entry.
+		The function resolve_type is called on each member (Page 500 top)
+		resolve_type will return the member's type which is then inserted into the structures type into the member's array.
+		At this point, the entire struct's types are determined.
+		[CHECK] find various samples and print the types to the console to make sure the pass works correctly.
+
+## Type Checking
+
+Q: which rust struct is the type checker?
+A: src\c_ast\type_checking_visitor.rs
+
+The type checking phase will produce StructEntry structures for each struct discovered
+in the STRUCT_DECL_MAP.
+The created StructEntry structures are inserted into the TYPE_TABLE. (Page 500)
+
+A StructEntry keeps track of
+- the alignment of the struct (See section "General Information" above)
+- the size in bytes of the struct
+- a list of MemberEntryS, one MemberEntry per member in the struct.
+
+A MemberEntry keeps track of
+- the identifier
+- the type
+- the offset
+of the member within the struct.
+
+Structures without members in their definition are invalid. ```struct test {};```
+A structure type can be used without definition which is then only a declaration.
+Declarations are ignored by the type checker (page 501).
+
+- if a structure definition is encountered, it's type is retrieved from the type table.
+  If the type table actually already contains a type for the new definition in the current scope,
+  then this is an error!
+
+- The type checker checks that
+	- no two members in the struct definition have the same name.
+	- no member in the struct has incomplete type or is an array of incomplete type
+		Q: how to check for incomplete type?
+
+- When the definition has passed all checks, the offsets, alignments and padding are computed.
+  Q: how?
+  [CHECK] Print offsets, alignments and padding to the console to check if they are correct!
+
+
+
+NEXT: Type checking needs to be updated further for structs:
+- Structs as parameters to functions (Page 505)
+- Structs in expressions (Page 505)
+- Type checking member access of structs (Page 506)
+- Type checking Lvalues (Page 507)
+- Type checking Conditional Expressions (Page 508)
+- Type checking Structure Initializers (Page 509)
+
+
+- Initializing Static Structure ???????
+Q: What is this?????
+
+
+
+
+
+
+
+There is a large structure_map which will contain the names of defined structures,
+but not their internal structure / members!
+It contains the names of structures only! Not their full type description!
+The purpose is only to be able to check if a struct has been declared already,
+not how it was declared!
+This type information is created later. (See Type Checking and the Type Table.
+The Type Table contains full type information)
+Right now the phase will only resolve names from user-specified to compiler-specified
+and to check if there is a declaration somewhere.
+
+```
+structure_map <String, MapEntry>
+```
+
+String is the name of a type. For structs, this is the user-choosen tag from the decl
+as can be seen in listing 18-16 on page 499,500.
+MapEntry describes the type. It will contain the compiler selected identifier which
+replaces the user-choosen tag.
+
+```
+MapEntry {
+	// (tag						// tag/name (user-specified))
+	new_tag 				// tag/name (compiler-specified)
+	from_current_scope		// bool, which says that this type is defined in the current scope or not
+	// (decl					// fully resolved and validate datatype decl)
+}
+```
+
+The parser will emit a decl of type decl which is not yet part of the structure_map
+and is not yet validated.
+It just contains the user defined names and tags of types and structures and all parsed members of
+the structure.
+It contains the full type information as paresd from the AST.
+the members are not validated yet.
+
+```
+decl {
+    tag                     // tag/name (user-specified)
+    members[member]         // array of members. Each entry is of type member
+}
+
+member {
+    member_name: String
+    member_type: String
+}
+```
+
+It needs to be validated (do all types using in it really exist in the structure_map already?)
+It needs to be inserted into the structure_map if it is valid after validation.
+
+The function resolve_structure_declaration() on page 499 takes the decl from parsing.
+1. It will take the decl as input and output a new decl which has all types with user-defined
+   identifiers replaced by compiler-defined identifiers.
+   It will return that newly created decl.
+2. It will insert structs into the structure_map if the struct decl is seen for the first time.
+	(It will not insert the full type information about members into the structure_map however! Only tags/names matter)
+
+It checks if the structure_map already contains a MapEntry for that type.
+It if contains an entry, it will return the existing entry.
+
+- creates a compiler-specified name for the user-specified name
+- It will then insert a MapEntry into structure_map.
+  This MapEntry contains
+  // (- the user-specified tag)
+  - the compiler-specified tag
+  - from_current_scope value = true
+  // (- decl a new decl which is created by this call to resolve_structure_declaration())
+
+(The new decl is enriched with the validated members. The members are read from the decl
+produce by the parser and each member is then put into resolve_type()
+which returns a resolved decl for the member which is then inserted into decl.members
+which we then dubbed validated.)
+
+The new decl is now part of a MapEntry of the structure_map and it is validated and contains
+validated members. It is just returned out of the function but not inserted into the structure_map.
+
+This decl is returned as the return-value of resolve_structure_declaration()
+But the returned decl's tag is not the user-specified tag, but the compiler selected tag (See Page 500, Listing 18-16, next to last line)

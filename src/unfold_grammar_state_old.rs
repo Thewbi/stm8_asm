@@ -2781,3 +2781,90 @@ match asm_ast_instruction.binary_operator {
 // consumed_parameter = consumed_parameter + 1;
 
 // formal_parameter_count = formal_parameter_count - 1;
+
+
+
+
+// if let Some(right_node) = ast_node.rhs.as_mut() {
+                    // if self.debug {
+                    //     print!("{:?}", right_node);
+                    // }
+
+                    // let block_item_ast_node_id = self.block_items[self.block_items.len()-1-i].pretty_print_ast_dot(string_buffer);
+                    // // connect parent and child
+                    // // println!("{} -> {}", ast_node_id, block_item_ast_node_id);
+                    // string_buffer.push_str(format!("{} -> {}\n", ast_node_id, block_item_ast_node_id).as_str());
+
+                    // self.visit(ast_node.block_items[ast_node.block_items.len()-1-i]);
+
+                    // if let Some(block_item_node) = ast_node.block_items[ast_node.block_items.len()-1-i].as_mut() {
+                    //     self.visit(block_item_node);
+                    // }
+
+                    // match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
+                    //     Ok(var_name) => {
+                    //         // DEBUG
+                    //         // println!("user_choosen_variable_name: {:?} resolved into {:?}", user_choosen_variable_name, var_name);
+                    //         left_node.string_val = var_name.clone();
+                    //         var_name
+                    //     }
+                    //     Err(e) => {
+                    //         // println!("test");
+                    //         //panic!("{}", e);
+                    //         e
+                    //     }
+                    // };
+
+
+                // let mut node = IdentifierResolutionNode::new();
+                // node.node_type = ast_node.node_type.clone();
+
+                // if let Some(mut left_node) = ast_node.lhs.as_mut() {
+                //     print!("{:?}", left_node);
+
+                //     let user_choosen_variable_name = left_node.string_val.clone();
+
+                //     node.string_val = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
+                //         Ok(var_name) => {
+                //             // DEBUG
+                //             println!("user_choosen_variable_name: {:?} resolved into {:?}", user_choosen_variable_name, node.string_val);
+
+                //             left_node.string_val = node.string_val;
+
+                //             var_name
+                //         }
+                //         Err(e) => {
+                //             //panic!("{}", e);
+                //         }
+                //     };
+
+                // }
+
+                // return node;
+
+                // // LHS
+                // if let Some(left_node) = ast_node.lhs.as_mut() {
+
+                //     println!("AstNodeType.RETURN.LHS: {:?}", left_node);
+
+                //     let semant_node: IdentifierResolutionNode = self.visit(left_node);
+                //     left_node.string_val = semant_node.string_val.clone();
+                // }
+
+                // // RHS
+                // if let Some(right_node) = ast_node.rhs.as_mut() {
+                //     let semant_node: IdentifierResolutionNode = self.visit(right_node);
+
+                //     right_node.string_val = semant_node.string_val.clone();
+                // }
+
+                // let is_defined = self.variable_naming_source.borrow_mut().is_variable_name_defined(&rhs_result.string_val);
+                            // if !is_defined {
+                            //     panic!("Variable \"{}\" is not defined!", &rhs_result.string_val);
+                            // }
+
+                            // let new_name = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&rhs_result.string_val);
+                            // if self.debug {
+                            //     println!("{:?}", new_name);
+                            // }
+                            // right_node.string_val = new_name;

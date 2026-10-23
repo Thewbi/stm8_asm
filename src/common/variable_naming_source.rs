@@ -66,14 +66,17 @@ impl fmt::Debug for VarnameMapEntry {
 }
 
 pub struct VariableNamingSource {
-    varname_map_stack: Vec::<RefCell<HashMap::<String, VarnameMapEntry>>>, // vector/stack of varname maps
+    label: String,
+    // vector/stack of varname maps
+    varname_map_stack: Vec::<RefCell<HashMap::<String, VarnameMapEntry>>>,
 }
 
 impl VariableNamingSource {
 
-    pub fn new() -> VariableNamingSource {
+    pub fn new(label_param: String) -> VariableNamingSource {
 
         let instance = VariableNamingSource {
+            label: label_param.clone(),
             varname_map_stack: Vec::<RefCell<HashMap::<String, VarnameMapEntry>>>::new(),
         };
 
@@ -190,7 +193,7 @@ impl VariableNamingSource {
 
         let temp = VAR_COUNTER.fetch_add(1, Ordering::SeqCst);
 
-        let mut new_unique_varname = String::from("userdef_var.");
+        let mut new_unique_varname = String::from(self.label.clone());
         new_unique_varname.push_str(temp.to_string().as_str());
 
         // map var name to new temp name

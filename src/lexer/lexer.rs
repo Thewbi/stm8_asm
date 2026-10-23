@@ -244,11 +244,14 @@ impl<'a> Lexer<'a> {
                         }
 
                         // handle typedef
-                        // turn an identifier into a TYPE_NAME if the identifier matches a user-defined type
+                        //
+                        // turn an identifier into a TYPE_NAME if the identifier
+                        // matches a user-defined type
 
-                        if parser.defined_types.contains(&self.token_string_buffer) {
+                        //if parser.defined_types.contains(&self.token_string_buffer) {
+                        if parser.type_system.borrow().contains_key(&self.token_string_buffer) {
 
-                            // pass token to the parser
+                            // pass "TYPE_NAME" token to the parser instead of an "IDENTIFIER" token
                             parser.provide_input(
                                 rule_map,
                                 step,

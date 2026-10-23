@@ -4,7 +4,9 @@ use crate::RuleElement;
 
 // Defines a grammar.
 // The token are defined in produce_c_lexer(); (c_lexer.rs)
-pub fn produce_grammar_c_full_if_else_4(grammar_rules: &mut Vec::<Rule<String>>) -> (Rule<String>, crate::RuleElement<String>) {
+pub fn produce_grammar_c_full_if_else_4(grammar_rules: &mut Vec::<Rule<String>>)
+    -> (Rule<String>, crate::RuleElement<String>)
+{
 
     // https://cyberzhg.github.io/toolbox/lr0
     // https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html (Do not add augmented start rule!)
@@ -28,36 +30,20 @@ pub fn produce_grammar_c_full_if_else_4(grammar_rules: &mut Vec::<Rule<String>>)
     // DEBUG
     // let start_symbol = RuleElement::NonTerminal(String::from("additive_expression"));
     // let start_symbol = RuleElement::NonTerminal(String::from("expression_statement"));
-    //let start_symbol = RuleElement::NonTerminal(String::from("expression"));
+    // let start_symbol = RuleElement::NonTerminal(String::from("expression"));
     // let start_symbol = RuleElement::NonTerminal(String::from("statement"));
 
     //
     // add augmented start symbol
     //
 
-    // let augmented_start_symbol = RuleElement::NonTerminal(String::from("statement'"));
-    // let augmented_start_symbol = RuleElement::NonTerminal(String::from("declaration_or_statement_list'"));
-    // let augmented_start_symbol = RuleElement::NonTerminal(String::from("compound_statement'"));
-    // let augmented_start_symbol = RuleElement::NonTerminal(String::from("selection_statement'"));
-    // let augmented_start_symbol = RuleElement::NonTerminal(String::from("function_definition'"));
-    // let augmented_start_symbol = RuleElement::NonTerminal(String::from("declaration'"));
     let augmented_start_symbol = RuleElement::NonTerminal(String::from("translation_unit'"));
-
-    let treat_nonterminal_lowercase: bool = true;
 
     //
     // add augmentation start rule
     //
 
-    // create_rule(grammar_rules, String::from("additive_expression' -> additive_expression"), treat_nonterminal_lowercase);
-    // create_rule(grammar_rules, String::from("expression_statement' -> expression_statement"), treat_nonterminal_lowercase);
-    // create_rule(grammar_rules, String::from("expression' -> expression"), treat_nonterminal_lowercase);
-    // create_rule(grammar_rules, String::from("statement' -> statement"), treat_nonterminal_lowercase);
-    // create_rule(grammar_rules, String::from("declaration_or_statement_list' -> declaration_or_statement_list"), treat_nonterminal_lowercase);
-    // create_rule(grammar_rules, String::from("compound_statement' -> compound_statement"), treat_nonterminal_lowercase);
-    // create_rule(grammar_rules, String::from("selection_statement' -> selection_statement"), treat_nonterminal_lowercase);
-    // create_rule(grammar_rules, String::from("function_definition' -> function_definition"), treat_nonterminal_lowercase);
-    // create_rule(grammar_rules, String::from("declaration' -> declaration"), treat_nonterminal_lowercase);
+    let treat_nonterminal_lowercase: bool = true;
     create_rule(grammar_rules, String::from("translation_unit' -> translation_unit"), treat_nonterminal_lowercase);
 
     //
@@ -466,7 +452,6 @@ pub fn produce_grammar_c_full_if_else_4(grammar_rules: &mut Vec::<Rule<String>>)
     create_rule(grammar_rules, String::from("abstract_declarator -> direct_abstract_declarator"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("abstract_declarator -> pointer direct_abstract_declarator"), treat_nonterminal_lowercase);
 
-
     // direct_abstract_declarator
     //     : '(' abstract_declarator ')'
     //     | '[' ']'
@@ -630,3 +615,28 @@ pub fn produce_grammar_c_full_if_else_4(grammar_rules: &mut Vec::<Rule<String>>)
 
     (rule_1, augmented_start_symbol)
 }
+
+//
+// Augmented start symbol for testing
+//
+
+// let augmented_start_symbol = RuleElement::NonTerminal(String::from("statement'"));
+// let augmented_start_symbol = RuleElement::NonTerminal(String::from("declaration_or_statement_list'"));
+// let augmented_start_symbol = RuleElement::NonTerminal(String::from("compound_statement'"));
+// let augmented_start_symbol = RuleElement::NonTerminal(String::from("selection_statement'"));
+// let augmented_start_symbol = RuleElement::NonTerminal(String::from("function_definition'"));
+// let augmented_start_symbol = RuleElement::NonTerminal(String::from("declaration'"));
+
+//
+// Augmented start rules for testing
+//
+
+// create_rule(grammar_rules, String::from("additive_expression' -> additive_expression"), treat_nonterminal_lowercase);
+// create_rule(grammar_rules, String::from("expression_statement' -> expression_statement"), treat_nonterminal_lowercase);
+// create_rule(grammar_rules, String::from("expression' -> expression"), treat_nonterminal_lowercase);
+// create_rule(grammar_rules, String::from("statement' -> statement"), treat_nonterminal_lowercase);
+// create_rule(grammar_rules, String::from("declaration_or_statement_list' -> declaration_or_statement_list"), treat_nonterminal_lowercase);
+// create_rule(grammar_rules, String::from("compound_statement' -> compound_statement"), treat_nonterminal_lowercase);
+// create_rule(grammar_rules, String::from("selection_statement' -> selection_statement"), treat_nonterminal_lowercase);
+// create_rule(grammar_rules, String::from("function_definition' -> function_definition"), treat_nonterminal_lowercase);
+// create_rule(grammar_rules, String::from("declaration' -> declaration"), treat_nonterminal_lowercase);

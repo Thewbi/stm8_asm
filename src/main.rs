@@ -776,8 +776,12 @@ fn main() {
 
     let file_content = input_tuple.0.clone();
 
+    // the type system. Mapping from type name to DataType
+    let type_system = HashMap::<String, DataType>::new();
+    let type_system_rc_1 = Rc::new(RefCell::new(type_system));
+
     // init
-    let mut parser: Parser<String> = Parser::<String>::new(parse_table);
+    let mut parser: Parser<String> = Parser::<String>::new(parse_table, type_system_rc_1);
 
     let lexer_debug: bool = false;
     let lexer_token_debug: bool = false;
@@ -922,12 +926,16 @@ fn main() {
 
                 // rc - refcell VariableNamingSource so that the IdentifierResolutionVisitor
                 // and the TackyVisitor can both use the same object
-                let variable_naming_source = VariableNamingSource::new();
-
+                let variable_naming_source = VariableNamingSource::new(String::from("userdef_var."));
                 // duplicate the reference counting smart pointer so it can distributed to all users
                 let variable_naming_source_rc_1 = Rc::new(RefCell::new(variable_naming_source));
                 let variable_naming_source_rc_2 = variable_naming_source_rc_1.clone();
                 let variable_naming_source_rc_3 = variable_naming_source_rc_1.clone();
+
+                // naming source for structures
+                // structures are a separate namespace from variables and functions
+                let struct_naming_source = VariableNamingSource::new(String::from("userdef_struct."));
+                let struct_naming_source_rc_1 = Rc::new(RefCell::new(struct_naming_source));
 
                 //
                 // add initial scope for global namespace
@@ -936,7 +944,7 @@ fn main() {
                 variable_naming_source_rc_3.borrow_mut().enter_scope();
 
                 //
-                // 1. Identifier Resolution Phase
+                // [Step 1] Identifier Resolution Phase
                 //
                 // IdentifierResolutionVisitor
                 //
@@ -957,7 +965,10 @@ fn main() {
                 // are defined in.
                 //
 
-                let mut identifier_resolution_visitor = IdentifierResolutionVisitor::new(variable_naming_source_rc_1);
+                let mut identifier_resolution_visitor =
+                    IdentifierResolutionVisitor::new(
+                        variable_naming_source_rc_1,
+                        struct_naming_source_rc_1);
                 identifier_resolution_visitor.visit(program_ast_node_id, &mut node_map);
 
                 //
@@ -970,7 +981,7 @@ fn main() {
                 }
 
                 //
-                // 2. Type Checking Phase - Nora Sandler, page 178ff
+                // [Step 2] Type Checking Phase - Nora Sandler, page 178ff
                 //
 
                 let symbol_table = SymbolTable::new();
@@ -999,10 +1010,6 @@ fn main() {
                     type_checking_visitor.print_symbol_table();
                     println!("\n\n");
                 }
-
-                //
-                // 3. Loop Labeling Phase
-                //
 
                 //
                 // remove initial scope for global namespace
@@ -1055,7 +1062,7 @@ fn main() {
                 */
 
                 //
-                // Generate TACKY (from AST)
+                // [Step 3] Generate TACKY (from AST)
                 //
 
                 let mut tacky_visitor = TackyVisitor::new(variable_naming_source_rc_2, symbol_table_rc_2);
@@ -1097,7 +1104,7 @@ fn main() {
                 writer.flush().expect("flush failed!");
 
                 //
-                // Generate Intermediate/Precursory Assembler AST (from TACKY)
+                // [Step 4] Generate Intermediate/Precursory Assembler AST (from TACKY)
                 //
                 // Before generating ASM for a real target, this step emits intermediate ASM!
                 //
@@ -1145,9 +1152,8 @@ fn main() {
                 // 4. Explicitly flush the remaining data to disk
                 writer.flush().expect("flush failed!");
 
-                /**/
                 //
-                // Fixup
+                // [Step 5] Fixup
                 //
 
                 // DEBUG
@@ -1168,7 +1174,7 @@ fn main() {
                 // println!("---------------------------------------------------------------------------------");
 
                 //
-                // emit assembler instructions
+                // [Step 6] emit assembler instructions
                 //
 
                 let emit_gcc = false;

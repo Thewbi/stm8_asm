@@ -1,21 +1,43 @@
-#include <stdarg.h>
+// not allowed by grammar. Requires separation of struct and typedef
+// typedef struct Point {
+//     int x;
+//     int y;
+// } point_t;
 
-#define MAXARGS 31
+// not allowed by grammar. Requires separation of struct and typedef
+// typedef struct {
+//     float x;
+//     float y;
+// } Vector2D;
 
-void f1(int n_ptrs, ...)
-{
-    va_list ap;
-    char *array[MAXARGS];
-    int ptr_no = 0;
-    if (n_ptrs > MAXARGS)
-        n_ptrs = MAXARGS;
-    va_start(ap, n_ptrs);
-    while (ptr_no < n_ptrs)
-        array[ptr_no++] = va_arg(ap, char *);
-    va_end(ap);
-    //f2(n_ptrs, array);
-}
+// typedef unsigned char uint8_t;
+// typedef signed char int8_t;
+// typedef char int8_t;
 
-int main() {
-    return 0;
-}
+// illegal: byte is not defined by the grammar
+// typedef unsigned byte uint8_t;
+// typedef byte uint8_t;
+
+//typedef struct point point_t;
+
+// int a;
+
+// #include <stdint.h>
+//
+// //typedef int own_int;
+//
+struct point {
+    unsigned int x;
+    signed int y;
+    int z;
+};
+
+typedef struct point point_t;
+//
+// int main()
+// {
+//     //point_t p0;
+//     struct point p0;
+//
+//     return 0;
+// }

@@ -27,11 +27,12 @@ use crate::asm_ast::asm_ast::AsmAstReg;
 // - replacing mov instructions which move from memory to memory
 //   without using a intermediate temp register (not possible in x86)
 //
-// 1. c_ast/IdentifierResolutionVisitor - checks for duplicate or undeclared variable names
-// 2. tacky/TackyVisitor - Generate TACKY (from AST)
-// 3. asm_ast/AsmAstConversionVisitor - Converts the AST into a ASM AST for assembly with a precursory form of mnenomics
-// 4. asm_ast/AsmAstFixupVisitor - replacing pseudo operands/variables with stack addresses
-// 5. asm_ast/AsmAstMasmEmitterVisitor / asm_ast/AsmAstASEmitterVisitor / ...
+// 1. src\c_ast\identifier_resolution_visitor.rs - checks for duplicate or undeclared variable names
+// 2. src\c_ast\type_checking_visitor.rs - performs type checking. The rules that are checked are documented in the file itself
+// 3. src\tacky\tacky_visitor.rs - Generate TACKY (from AST)
+// 4. asm_ast/TackyToIntermediateAsmConversionVisitor - Converts the AST into a ASM AST for assembly with a precursory form of mnenomics
+// 5. asm_ast/AsmAstFixupVisitor - replacing pseudo operands/variables with stack addresses
+// 6. asm_ast/AsmAstMasmEmitterVisitor / asm_ast/AsmAstASEmitterVisitor / ...
 //
 
 pub struct AsmAstFixupVisitor {

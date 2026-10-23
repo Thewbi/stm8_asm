@@ -72,6 +72,8 @@ pub enum AstNodeType {
     AssignmentOperator,
     Cast,
     AddAssignment,
+    Typedef,
+    TypeSpecifier(String),
     Unknown,
 }
 
@@ -393,10 +395,10 @@ impl fmt::Debug for AstNode {
             AstNodeType::Structure => {
                 println!("Struct");
                 if let Some(left_node) = self.lhs.as_ref() {
-                    print!("LHS: {:?}", left_node);
+                    println!("  LHS: {:?}", left_node);
                 }
                 if let Some(right_node) = self.rhs.as_ref() {
-                    print!("RHS: {:?}", right_node);
+                    println!("  RHS: {:?}", right_node);
                 }
             }
 
@@ -431,7 +433,7 @@ impl fmt::Debug for AstNode {
             }
 
             AstNodeType::StructureDeclaration => {
-                println!("StructureDeclaration");
+                println!("StructureDeclaration: {}", self.string_val);
                 if let Some(left_node) = self.lhs.as_ref() {
                     print!("LHS: {:?}", left_node);
                 }
@@ -538,6 +540,14 @@ impl fmt::Debug for AstNode {
                 if let Some(right_node) = self.rhs.as_ref() {
                     println!("right_node: {:?}", right_node);
                 }
+            }
+
+            AstNodeType::StorageClassSpecifier => {
+                println!("StorageClassSpecifier - {}", self.string_val);
+            }
+
+            AstNodeType::TypeSpecifier(val) => {
+                println!("TypeSpecifier - {} {}", self.string_val, val);
             }
 
             _ => {
@@ -775,6 +785,9 @@ impl AstNode {
             }
             AstNodeType::Cast => {
                 self.pretty_print_ast_cast_dot(string_buffer, node_map)
+            }
+            AstNodeType::Typedef => {
+                self.pretty_print_ast_typedef_dot(string_buffer, node_map)
             }
             _ => {
                 panic!("{}", format!("Unhandled AST node_type: {:?}", self.node_type).as_str());
@@ -1969,6 +1982,46 @@ impl AstNode {
             // connect parent and child
             // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
             string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
+        }
+
+        // draw arrow to parent
+        if let Some(parent_id) = self.parent_id {
+            string_buffer.push_str(format!("{} -> {}\n", self.id, parent_id).as_str());
+        }
+
+        ast_node_id
+    }
+
+    fn pretty_print_ast_typedef_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap::<usize, AstNode>>) -> usize {
+
+        // create node for this AstNode
+        let ast_node_id = self.id;
+
+        // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
+        string_buffer.push_str(format!("{} [label=\"{} Typedef: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+
+        // lhs - type
+        let mut lhs_ast_node_id = 0;
+        if let Some(left_node_id) = self.lhs.as_ref() {
+
+            let left_node = node_map.get(left_node_id).unwrap();
+            lhs_ast_node_id = left_node.pretty_print_ast_dot_ex(string_buffer, node_map, "LHS:");
+
+            // connect parent and child
+            // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
+            string_buffer.push_str(format!("{} -> {} [label=\"LHS\"]\n", ast_node_id, lhs_ast_node_id).as_str());
+        }
+
+        // rhs - identifier
+        let mut rhs_ast_node_id = 0;
+        if let Some(right_node_id) = self.rhs.as_ref() {
+
+            let right_node = node_map.get(&right_node_id).unwrap();
+            rhs_ast_node_id = right_node.pretty_print_ast_dot_ex(string_buffer, node_map, "RHS:");
+
+            // connect parent and child
+            // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
+            string_buffer.push_str(format!("{} -> {} [label=\"RHS\"]\n", ast_node_id, rhs_ast_node_id).as_str());
         }
 
         // draw arrow to parent

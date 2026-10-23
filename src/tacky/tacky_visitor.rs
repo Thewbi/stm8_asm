@@ -38,8 +38,8 @@ use crate::VariableNamingSource;
 //
 // Generates TACKY from an AST
 //
-// 1. c_ast/IdentifierResolutionVisitor - checks for duplicate or undeclared variable names
-// 2. tacky/TackyVisitor (This file) - Generate TACKY (from AST)
+// 1. src\c_ast\IdentifierResolutionVisitor - checks for duplicate or undeclared variable names
+// 2. src\tacky\tacky_visitor.rs (This file) - Generate TACKY (from AST)
 // 3. asm_ast/AsmAstConversionVisitor - Converts the AST into a ASM AST for assembly with a precursory form of mnenomics
 // 4. asm_ast/AsmAstFixupVisitor - replacing pseudo operands/variables with stack addresses
 // 5. asm_ast/AsmAstMasmEmitterVisitor / asm_ast/AsmAstASEmitterVisitor / ...

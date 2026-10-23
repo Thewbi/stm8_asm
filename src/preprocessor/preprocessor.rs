@@ -187,7 +187,7 @@ impl<'a> Preprocessor<'a> {
                         }
                         _ => {
                             if single_line_comment_mode {
-                                println!("in singleline comment: {}", &token.text);
+                                // println!("in singleline comment: {}", &token.text);
                                 continue;
                             }
                         }

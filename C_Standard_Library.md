@@ -29,7 +29,7 @@ The set of header files are listed:
 <stdatomic.h>
 <stdbool.h>
 <stddef.h>
-<stdint.h>
+<stdint.h> - page 289
 <stdio.h> - page 296
 <stdlib.h>
 <stdnoreturn.h>
@@ -287,7 +287,7 @@ double average(int count, ...)
 ```
 
 
-# <stdarg.h>
+# &lt;stdarg.h&gt;
 
 Read this first:
 
@@ -486,4 +486,54 @@ void* va_arg(va_list_t, data_type) {
 
 ```
 #define va_end(ap) ;
+```
+
+
+# &lt;stdint.h&gt;
+
+Define on page 289.
+
+The type uint8_t for example is generalized in the text as uintN_t on page 290 in the section 7.20.1.1 Exact-width integer types. Replace the N by any of the concrete size, e.g. 8, 16, 32, 64, ...
+
+The same generalization exists for intN_t.
+
+There is no concrete typedef listing given on how to achieve the exact size types uintN_t and intN_t.
+
+The following lists possible approaches
+
+## uint8_t
+
+```
+typedef unsigned char uint8_t
+typedef unsigned byte uint8_t
+```
+
+## uint16_t
+
+```
+typedef unsigned short uint16_t
+```
+
+## uint32_t
+
+See discussion: https://stackoverflow.com/questions/10197242/what-should-be-the-sizeofint-on-a-64-bit-machine
+
+"Doesn't have to be; "64-bit machine" can mean many things, but typically means that the CPU has registers that big. The sizeof a type is determined by the compiler, which doesn't have to have anything to do with the actual hardware (though it typically does); in fact, different compilers on the same machine can have different values for these."
+
+See discussion "https://stackoverflow.com/questions/20721294/size-of-int-and-sizeof-int-pointer-on-a-64-bit-machine"
+
+"No, the sizeof(int) is implementation defined, and is usually 4 bytes.
+
+On the other hand, in order to address more than 4GB of memory (that 32bit systems can do), you need your pointers to be 8 bytes wide. int* just holds the address to "somewhere in memory", and you can't address more than 4GB of memory with just 32 bits."
+
+Decision: This 64-bit compiler will define int to be 32 bit (4 Byte).
+
+```
+typedef unsigned int uint32_t
+```
+
+## uint64_t
+
+```
+typedef unsigned long uint64_t
 ```

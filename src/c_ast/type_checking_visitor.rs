@@ -21,18 +21,21 @@ use crate::common::symbol_table::SymbolTableEntryType;
 // Nora Sandler, page 178
 //
 // Every variable identifier has a type (int, long, double, float, char, byte, ...)
-// A variable can also be an array or a struct.
+// A variable can also be an array or a struct, union.
 //
-// Every function identifier has a return type and a fixed number of arguments (exception: variadic functions)
+// Every function identifier has a return type and a fixed number of arguments
+// (exception: variadic functions)
 // A function cannot be declared with a function body more than once!
 //
 // It is not possible to call a variable like a function (function pointers???)
 //
-// The purpose of Type Checking is that all declarations of identifiers and all usages have compatible types!
+// The purpose of type checking is that all declarations of identifiers and all
+// usages have compatible types!
 //
 
 pub struct TypeCheckingVisitor {
-    symbol_table: Rc<RefCell<SymbolTable>>, // https://www.youtube.com/watch?v=8O0Nt9qY_vo
+    // https://www.youtube.com/watch?v=8O0Nt9qY_vo
+    symbol_table: Rc<RefCell<SymbolTable>>,
     debug: bool,
 }
 
@@ -290,7 +293,6 @@ impl TypeCheckingVisitor {
         node_map: &mut Box<HashMap<usize, AstNode>>,
         expected_return_data_type: &DataType)
     {
-
         let mut ast_node = AstNode::new(0);
 
         {
