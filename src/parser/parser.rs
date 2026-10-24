@@ -243,7 +243,6 @@ impl Parser<String> {
             lexer_produce_type_name: false,
 
             // Types
-            // defined_types: Vec::<String>::new(),
             type_system: type_system_param,
             struct_decl: StructDecl::new(),
 
@@ -4623,6 +4622,9 @@ impl Parser<String> {
 
                                         // type_specifier -> INT
                                         97 => {
+
+                                            self.print_ast_stack(node_map);
+
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (97)"));
@@ -5136,6 +5138,9 @@ impl Parser<String> {
                                                 self.struct_decl = StructDecl::new();
                                                 self.struct_decl.tag = struct_tag.clone();
 
+                                                // DEBUG
+                                                self.print_ast_stack(node_map);
+
                                                 // the stack contains the struct members in inverse order
                                                 // The order matters for memory layout
                                                 // invert the order
@@ -5157,6 +5162,8 @@ impl Parser<String> {
                                                     struct_ast_node.block_items.push(member_declaration_ast_node_id.clone());
 
                                                     let member_declaration_node = node_map.get(&member_declaration_ast_node_id.clone()).unwrap().clone();
+
+                                                    // println!("{:?}", member_declaration_node);
 
                                                     let mut struct_member = StructDeclMember::new();
 
@@ -5244,13 +5251,20 @@ impl Parser<String> {
                                                                 let data_type = DataType::DataTypeTypedeffed(type_as_string.clone());
                                                                 struct_member.data_type = data_type;
                                                             }
+                                                            AstNodeType::Pointer => {
+                                                                // let type_as_string = member_type_node.string_val;
+                                                                println!("type_as_string: {}", member_type_node.analyzed_data_type);
+                                                                struct_member.member_type = member_type_node.analyzed_data_type.to_string();
+
+                                                                let dataT = member_type_node.analyzed_data_type.clone();
+                                                                let data_type = DataType::DataTypePointer(Box::new(dataT));
+                                                                struct_member.data_type = data_type;
+                                                            }
                                                             _ => {
                                                                 panic!("Unexpected: {:?}", member_type_node.node_type);
                                                             }
                                                         }
                                                     }
-
-                                                    //struct_member.member_type = member_type_node.string_val.clone();
 
                                                     self.struct_decl.members.push(struct_member);
                                                 }
@@ -5475,40 +5489,94 @@ impl Parser<String> {
                                                 let mut member_declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 member_declaration_ast_node.node_type = AstNodeType::MemberDeclaration;
 
-                                                // name of new member
-                                                let identifier_ast_node_id = self.ast_stack.pop().unwrap();
-                                                let identifier_ast_node = node_map.get(&identifier_ast_node_id).unwrap();
-                                                if debug {
-                                                    println!("identifier_ast_node: '{}'", &identifier_ast_node.string_val);
-                                                }
-                                                member_declaration_ast_node.rhs = Some(identifier_ast_node_id);
+                                                // DEBUG
+                                                // self.print_ast_stack(node_map);
 
-                                                // type of new member
-                                                let type_ast_node_id = self.ast_stack.pop().unwrap();
-                                                let type_ast_node = node_map.get(&type_ast_node_id).unwrap();
-                                                // if debug {
-                                                    println!("type_ast_node: '{}'", &type_ast_node.string_val);
-                                                    println!("type_ast_node.node_type: '{:?}'", &type_ast_node.node_type);
-                                                // }
-                                                match type_ast_node.node_type {
-                                                    AstNodeType::MemberTypeDeclaration => {
-                                                        member_declaration_ast_node.lhs = Some(type_ast_node_id);
-                                                    }
-                                                    AstNodeType::DataType => {
-                                                        member_declaration_ast_node.lhs = Some(type_ast_node_id);
-                                                    }
-                                                    AstNodeType::Array => {
-                                                        //todo!();
-                                                        member_declaration_ast_node.lhs = Some(type_ast_node_id);
-                                                    }
-                                                    AstNodeType::TypeSpecifier(_) => {
-                                                        //todo!();
-                                                        member_declaration_ast_node.lhs = Some(type_ast_node_id);
-                                                    }
-                                                    _ => {
-                                                        panic!("Unexpected: {:?}", type_ast_node.node_type);
+                                                // check if the first node is a pointer node
+                                                if let Some(ptr_ast_node_id) = self.ast_stack.pop() {
+
+                                                    let mut ptr_ast_node = node_map.get(&ptr_ast_node_id).unwrap().clone();
+
+                                                    match ptr_ast_node.node_type {
+
+                                                        AstNodeType::Pointer => {
+                                                            println!("pointer! {:?}", ptr_ast_node);
+                                                            println!("pointer! NAME: '{:?}'", ptr_ast_node.string_val);
+
+                                                            member_declaration_ast_node.rhs = Some(ptr_ast_node_id); // name
+                                                            member_declaration_ast_node.lhs = Some(ptr_ast_node_id);
+
+                                                            // type of new member
+                                                            let type_ast_node_id = self.ast_stack.pop().unwrap();
+                                                            let type_ast_node = node_map.get(&type_ast_node_id).unwrap();
+                                                            // if debug {
+                                                                println!("type_ast_node: '{}'", &type_ast_node.string_val);
+                                                                println!("type_ast_node.node_type: '{:?}'", &type_ast_node.node_type);
+                                                            // }
+
+                                                            // add the type the pointer points to
+                                                            ptr_ast_node.analyzed_data_type =
+                                                                DataType::from_str(type_ast_node.string_val.as_str()).expect("Error");
+
+                                                            node_map.insert(ptr_ast_node_id, ptr_ast_node);
+
+                                                            // member_declaration_ast_node.lhs = Some(type_ast_node_id);
+                                                        }
+                                                        _ => {
+
+                                                            // DEBUG
+                                                            self.print_ast_stack(node_map);
+
+                                                            // name of new member
+                                                            //let identifier_ast_node_id = self.ast_stack.pop().unwrap();
+                                                            let identifier_ast_node_id = ptr_ast_node_id;
+                                                            //let identifier_ast_node = node_map.get(&identifier_ast_node_id).unwrap();
+                                                            let identifier_ast_node = ptr_ast_node;
+                                                            // if debug {
+                                                                println!("identifier_ast_node: '{:?}'", identifier_ast_node);
+                                                                println!("identifier_ast_node: '{}'", &identifier_ast_node.string_val);
+                                                            // }
+                                                            member_declaration_ast_node.rhs = Some(identifier_ast_node_id);
+
+                                                            // // DEBUG
+                                                            // self.print_ast_stack(node_map);
+
+                                                            // type of new member
+                                                            let type_ast_node_id = self.ast_stack.pop().unwrap();
+                                                            let type_ast_node = node_map.get(&type_ast_node_id).unwrap();
+                                                            // if debug {
+                                                                println!("type_ast_node: '{}'", &type_ast_node.string_val);
+                                                                println!("type_ast_node.node_type: '{:?}'", &type_ast_node.node_type);
+                                                            // }
+
+                                                            // DEBUG
+                                                            self.print_ast_stack(node_map);
+
+                                                            match type_ast_node.node_type {
+                                                                AstNodeType::MemberTypeDeclaration => {
+                                                                    member_declaration_ast_node.lhs = Some(type_ast_node_id);
+                                                                }
+                                                                AstNodeType::DataType => {
+                                                                    member_declaration_ast_node.lhs = Some(type_ast_node_id);
+                                                                }
+                                                                AstNodeType::Array => {
+                                                                    //todo!();
+                                                                    member_declaration_ast_node.lhs = Some(type_ast_node_id);
+                                                                }
+                                                                AstNodeType::TypeSpecifier(_) => {
+                                                                    //todo!();
+                                                                    member_declaration_ast_node.lhs = Some(type_ast_node_id);
+                                                                }
+                                                                _ => {
+                                                                    panic!("Unexpected: {:?}", type_ast_node.node_type);
+                                                                }
+                                                            }
+
+                                                        }
                                                     }
                                                 }
+
+
 
                                                 self.struct_field_counter = self.struct_field_counter + 1;
 
@@ -5727,7 +5795,6 @@ impl Parser<String> {
                                                 self.ast_stack.push(ast_node.id);
 
                                                 node_map.insert(ast_node.id, ast_node);
-
 
                                                 // TYPE-SYSTEM
 
@@ -7897,7 +7964,7 @@ impl Parser<String> {
         }
     }
 
-    pub fn print_ast_stack(&mut self, node_map: &mut Box<HashMap<usize, AstNode>>) {
+    pub fn print_ast_stack(&mut self, node_map: &Box<HashMap<usize, AstNode>>) {
         println!("");
         println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~ AST NODE STACK ~~~~~~~~~~~~~~~~~~~~~~~");
         let ast_stack_len = self.ast_stack.len();

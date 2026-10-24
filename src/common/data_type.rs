@@ -7,7 +7,6 @@ use crate::common::struct_decl::StructDecl;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DataType {
-    // DataTypeByte,
     DataTypeChar,
     DataTypeUnsignedChar,
     DataTypeInt,
@@ -19,7 +18,6 @@ pub enum DataType {
     DataTypeDouble,
     DataTypeVoid, // is it beneficial to treat void as a data type? (void-pointer?)
     DataTypePointer(Box<DataType>),
-    // DataTypeStruct(String),
     DataTypeStruct(StructDecl),
     DataTypeArray(Box<DataType>, Option<usize>),
     DataTypeTypedeffed(String),
@@ -29,19 +27,17 @@ pub enum DataType {
 impl fmt::Display for DataType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            // DataType::DataTypeByte => write!(f, "byte"),
             DataType::DataTypeChar => write!(f, "char"),
             DataType::DataTypeUnsignedChar => write!(f, "unsigned char"),
             DataType::DataTypeInt => write!(f, "int"),
-            DataType::DataTypeUnsignedInt => write!(f, "uint"),
+            DataType::DataTypeUnsignedInt => write!(f, "unsigned int"),
             DataType::DataTypeShort => write!(f, "short"),
             DataType::DataTypeLong => write!(f, "long"),
-            DataType::DataTypeUnsignedLong => write!(f, "ulong"),
+            DataType::DataTypeUnsignedLong => write!(f, "unsigned long"),
             DataType::DataTypeFloat => write!(f, "float"),
             DataType::DataTypeDouble => write!(f, "double"),
             DataType::DataTypeVoid => write!(f, "void"),
             DataType::DataTypePointer(data_type) => write!(f, "Pointer-To-[{}]", data_type),
-            //DataType::DataTypeStruct(data_type) => write!(f, "Original-Struct-Name: [{}]", data_type),
             DataType::DataTypeStruct(data_type) => write!(f, "StructDecl: [{:?}]", data_type),
             DataType::DataTypeArray(data_type, size) => write!(f, "Array-Of-[{}]-Size-[{:?}]", data_type, size),
             DataType::DataTypeTypedeffed(data_type) => write!(f, "Typedeffed-[{}]", data_type),
@@ -78,7 +74,6 @@ impl FromStr for DataType {
         } else if s == "void" {
             Ok(DataType::DataTypeVoid)
         } else if s == "struct" {
-            //Ok(DataType::DataTypeStruct(String::from("UNKNOWN")))
             Ok(DataType::DataTypeStruct(StructDecl::new()))
         } else {
             Err(format!("[DataType::FromStr] Can not parse '{}' into type", s).into())
@@ -89,7 +84,6 @@ impl FromStr for DataType {
 impl DataType {
     pub fn get_size(&self) -> usize {
         match self {
-            // DataType::DataTypeByte => 1,
             DataType::DataTypeChar => 1,
             DataType::DataTypeShort => 2,
             DataType::DataTypeInt => 4,
@@ -98,8 +92,6 @@ impl DataType {
             DataType::DataTypeUnsignedLong => 8,
             DataType::DataTypeFloat => 4,
             DataType::DataTypeDouble => 8,
-            // DataType::DataTypeVoid => write!(f, "void"),
-            // DataType::DataTypeUnknown => write!(f, "unknown"),
             DataType::DataTypePointer(inner_data_type) => {
                 match **inner_data_type {
                     DataType::DataTypeLong => 8,

@@ -803,9 +803,12 @@ fn main() {
     // void            DataType::DataTypeVoid
 
     type_system.insert("int".to_string(), DataType::DataTypeInt);
+    type_system.insert("signed int".to_string(), DataType::DataTypeInt);
 
     type_system.insert("uint".to_string(), DataType::DataTypeUnsignedInt);
     type_system.insert("unsigned int".to_string(), DataType::DataTypeUnsignedInt);
+
+    type_system.insert("char".to_string(), DataType::DataTypeChar);
 
     type_system.insert("uchar".to_string(), DataType::DataTypeUnsignedChar);
     type_system.insert("unsigned char".to_string(), DataType::DataTypeUnsignedChar);
@@ -967,7 +970,7 @@ fn main() {
         // if self.debug {
             println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
             for (key, value) in type_system_rc_99.borrow().clone().into_iter() {
-                println!("key: {}, value: {}", key, value);
+                println!("key: {}, \t\tvalue: {}", key, value);
             }
             println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
         // }
