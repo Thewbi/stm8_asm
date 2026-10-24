@@ -240,7 +240,7 @@ impl<'a> Lexer<'a> {
 
                         // DEBUG
                         if self.lexer_debug {
-                            println!("[LEXER.TRAP_STATE] Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
+                            println!("[LEXER.TRAP_STATE] [IDENTIFIER_TOKEN_ID] [{}:{}] Passing token to parser: {:?}, {:?}", self.file, self.line, self.token_string_buffer, terminal);
                         }
 
                         // handle typedef
@@ -249,7 +249,15 @@ impl<'a> Lexer<'a> {
                         // matches a user-defined type
 
                         //if parser.defined_types.contains(&self.token_string_buffer) {
-                        if parser.type_system.borrow().contains_key(&self.token_string_buffer) {
+                        let token_is_type = parser.type_system.borrow().contains_key(&self.token_string_buffer);
+
+                        if token_is_type {
+                            println!("LEXER_TYPE_RESOLUTION [{}:{}]: '{}' is a type!", self.file, self.line, self.token_string_buffer);
+                        } else {
+                            println!("LEXER_TYPE_RESOLUTION [{}:{}]: '{}' is NOT a type!", self.file, self.line, self.token_string_buffer);
+                        }
+
+                        if token_is_type {
 
                             // pass "TYPE_NAME" token to the parser instead of an "IDENTIFIER" token
                             parser.provide_input(
@@ -282,7 +290,7 @@ impl<'a> Lexer<'a> {
 
                         // DEBUG
                         if self.lexer_debug {
-                            println!("[LEXER.TRAP_STATE] Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
+                            println!("[LEXER.TRAP_STATE] [_] [{}:{}] Passing token to parser: {:?}, {:?}", self.file, self.line, self.token_string_buffer, terminal);
                         }
 
                         if rule_map.len() > 0 {

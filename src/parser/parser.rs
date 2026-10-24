@@ -19,7 +19,10 @@ use std::{
 };
 
 use crate::c_ast::ast_node_id_counter::AST_NODE_ID_COUNTER;
+
 use crate::common::data_type::DataType;
+use crate::common::struct_decl::StructDecl;
+use crate::common::struct_decl::StructDeclMember;
 
 use crate::parser::rule::Rule;
 use crate::parser::rule::RuleElement;
@@ -140,9 +143,10 @@ pub struct Parser<T> {
     pub is_typedef_active: bool,
     pub lexer_produce_type_name: bool,
 
-    // Type table
+    // type table / type system
     // pub defined_types: Vec::<String>,
     pub type_system: Rc<RefCell<HashMap::<String, DataType>>>,
+    struct_decl: StructDecl,
 
     // AST
     pub construct_ast: bool,
@@ -241,6 +245,7 @@ impl Parser<String> {
             // Types
             // defined_types: Vec::<String>::new(),
             type_system: type_system_param,
+            struct_decl: StructDecl::new(),
 
             // AST
             construct_ast: true,
@@ -630,6 +635,8 @@ impl Parser<String> {
                                         }
                                         println!("");
                                     }
+
+                                    // println!("[PARSER] [reduce] Rule-Id: {}", found_rule.original_id);
 
                                     match found_rule.original_id {
 
@@ -3677,7 +3684,8 @@ impl Parser<String> {
 
                                                 //println!("type_name: '{}'", type_name);
 
-                                                self.print_ast_stack(node_map);
+                                                // DEBUG
+                                                // self.print_ast_stack(node_map);
 
                                                 // reset
                                                 self.set_typedef_active(false);
@@ -3701,11 +3709,6 @@ impl Parser<String> {
                                                     let old_type_ast_node = node_map.get(&old_type_ast_node_id).unwrap().clone();
                                                     println!("'{}'", &old_type_ast_node.string_val);
 
-                                                    // let lhs_struct_ast_node = node_map.get(&struct_ast_node.lhs.unwrap()).unwrap().clone();
-                                                    // println!("'{}'", &lhs_struct_ast_node.string_val);
-                                                    // let rhs_struct_ast_node = node_map.get(&struct_ast_node.rhs.unwrap()).unwrap().clone();
-                                                    // println!("'{}'", &rhs_struct_ast_node.string_val);
-
                                                     // take the qualifier (signed / unsigned) node from the ast stack
                                                     let temp_ast_node_id = self.ast_stack.pop().unwrap();
                                                     let temp_ast_node = node_map.get(&temp_ast_node_id).unwrap().clone();
@@ -3713,15 +3716,13 @@ impl Parser<String> {
 
                                                     let mut old_type = String::new();
                                                     if temp_ast_node.string_val == "TYPEDEF" {
-                                                        //new_type = temp_ast_node.string_val.clone();
                                                         old_type = old_type_ast_node.string_val.clone();
                                                     } else {
-
                                                         old_type.push_str(temp_ast_node.string_val.clone().as_str());
                                                         old_type.push_str(" ");
                                                         old_type.push_str(old_type_ast_node.string_val.clone().as_str());
 
-                                                        // take the TYPEDEF node from the ast stack
+                                                        // take the TYPEDEF node from the AST stack
                                                         let typedef_ast_node_id = self.ast_stack.pop().unwrap();
                                                         let typedef_ast_node = node_map.get(&typedef_ast_node_id).unwrap().clone();
                                                         println!("'{}'", &typedef_ast_node.string_val);
@@ -3733,11 +3734,12 @@ impl Parser<String> {
 
                                                     let old_type_name = old_type.clone();
                                                     let new_type_name = new_type_ast_node.string_val.clone();
-                                                    println!("[TYPE-SYSTEM] Typedeffing: '{}' -> '{}'",
-                                                        old_type_name, new_type_name
-                                                    );
+                                                    // println!("[TYPE-SYSTEM] Typedeffing: '{}' -> '{}'",
+                                                    //     old_type_name, new_type_name
+                                                    // );
 
                                                     // TODO: handle type system here
+                                                    //self.type_system.borrow_mut().insert(new_type_name.clone(), DataType::DataTypeUnknown);
 
                                                     // insert the typedef back into the AST
 
@@ -3960,7 +3962,7 @@ impl Parser<String> {
 
                                                 //println!("type_name: '{}'", type_name);
 
-                                                self.print_ast_stack(node_map);
+                                                // self.print_ast_stack(node_map);
 
                                                 // reset
                                                 self.set_typedef_active(false);
@@ -3999,11 +4001,16 @@ impl Parser<String> {
                                                     old_type_name.push_str(" ");
                                                     old_type_name.push_str(lhs_struct_ast_node.string_val.clone().as_str());
                                                     let new_type_name = new_type_ast_node.string_val.clone();
-                                                    println!("[TYPE-SYSTEM] Typedeffing: '{}' -> '{}'",
+                                                    println!("[TYPE-SYSTEM-1] Typedeffing: '{}' -> '{}'",
                                                         old_type_name, new_type_name
                                                     );
 
+                                                    println!("struct: {:?}", self.struct_decl);
+
                                                     // TODO: handle type system here
+                                                    //self.type_system.borrow_mut().insert(new_type_name.clone(), DataType::DataTypeUnknown);
+                                                    //self.type_system.borrow_mut().insert(new_type_name.clone(), DataType::DataTypeStruct(rhs_struct_ast_node.string_val.clone()));
+                                                    self.type_system.borrow_mut().insert(new_type_name.clone(), DataType::DataTypeStruct(self.struct_decl.clone()));
 
                                                     // insert the typedef back into the AST
 
@@ -4100,7 +4107,7 @@ impl Parser<String> {
                                                     //typedef byte uint8_t;
                                                     //typedef struct point point_t;
 
-                                                    self.print_ast_stack(node_map);
+                                                    // self.print_ast_stack(node_map);
 
                                                     let insert_typedef_ast_node = false;
                                                     if insert_typedef_ast_node {
@@ -4163,7 +4170,7 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                self.print_ast_stack(node_map);
+                                                // self.print_ast_stack(node_map);
 
                                                 let ast_node_id = self.ast_stack.pop().unwrap();
                                                 let mut ast_node = node_map.get(&ast_node_id).unwrap().clone();
@@ -4927,12 +4934,14 @@ impl Parser<String> {
 
                                         // type_specifier -> TYPE_NAME
                                         //
-                                        // This rule is only reduced for struct typedefs
+                                        // This rule is reduced for struct typedefs
                                         // typedef struct point point_t;
                                         //
                                         // It is not reduced for simple typedefs
                                         // typedef unsigned char uint8_t
                                         // typedef char int8_t
+                                        //
+                                        // it is also reduced for typedeffed types
                                         105 => {
                                             // retrieve terminal TYPE_NAME
                                             let mut value = String::from("");
@@ -4980,13 +4989,43 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let mut type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
-                                                type_ast_node.node_type = AstNodeType::StructureDeclaration;
-                                                type_ast_node.string_val = value.clone();
+                                                if self.is_typedef_active {
 
-                                                self.ast_stack.push(type_ast_node.id);
+                                                    // for the case where a struct is typedeffed
+                                                    // e.g.
+                                                    // struct point {
+                                                    //     unsigned int x;
+                                                    //     signed int y;
+                                                    //     int z;
+                                                    // };
+                                                    // typedef struct point point_t;
 
-                                                node_map.insert(type_ast_node.id, type_ast_node);
+                                                    let mut type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                    type_ast_node.node_type = AstNodeType::StructureDeclaration;
+                                                    type_ast_node.string_val = value.clone();
+
+                                                    self.ast_stack.push(type_ast_node.id);
+
+                                                    node_map.insert(type_ast_node.id, type_ast_node);
+
+                                                } else {
+
+                                                    // typedef unsigned char uint8_t;
+                                                    // struct point {
+                                                    //     uint8_t custom_define;
+                                                    // };
+
+                                                    // for the case where a struct member is created
+
+                                                    let mut type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                    type_ast_node.node_type = AstNodeType::TypeSpecifier(value.clone());
+                                                    type_ast_node.string_val = value.clone();
+
+                                                    self.ast_stack.push(type_ast_node.id);
+
+                                                    node_map.insert(type_ast_node.id, type_ast_node);
+
+                                                }
                                             }
                                         }
 
@@ -5051,13 +5090,179 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
+                                                // TODO TYPE-SYSTEM
+                                                // TODO create StructDecl here. Move out of identifier visitor
+/*
+                                                let struct_tag = ast_node.string_val.clone();
+
+                                                let define_struct = false;
+                                                if define_struct {
+
+                                                    let mut struct_decl = StructDecl::new();
+                                                    struct_decl.tag = struct_tag.clone();
+
+                                                    for i in 0..ast_node.block_items.len() {
+
+                                                        let member_node_id = &ast_node.block_items[i];
+
+                                                        let member_declaration_node = node_map.get(&member_node_id).unwrap().clone();
+
+                                                        let member_type_node_id = member_declaration_node.lhs.unwrap();
+                                                        let member_name_node_id = member_declaration_node.rhs.unwrap();
+
+                                                        let member_name_node = node_map.get(&member_type_node_id).unwrap().clone();
+                                                        let member_type_node = node_map.get(&member_name_node_id).unwrap().clone();
+
+                                                        let mut struct_member = StructDeclMember::new();
+                                                        struct_member.member_name = member_name_node.string_val.clone();
+                                                        struct_member.member_type = member_type_node.string_val.clone();
+
+                                                        struct_decl.members.push(struct_member);
+                                                    }
+
+                                                    // DEBUG
+                                                    if self.debug {
+                                                        println!("{:?}", &struct_decl);
+                                                    }
+                                                }
+ */
                                                 let mut struct_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 struct_ast_node.node_type = AstNodeType::StructureDeclaration;
                                                 struct_ast_node.string_val = value.clone();
-                                                for i in 0..self.struct_field_counter {
-                                                    let member_declaration_ast_node = self.ast_stack.pop().unwrap();
-                                                    struct_ast_node.block_items.push(member_declaration_ast_node)
+
+                                                let struct_tag = value.clone().clone();
+
+                                                //let mut struct_decl = StructDecl::new();
+                                                self.struct_decl = StructDecl::new();
+                                                self.struct_decl.tag = struct_tag.clone();
+
+                                                // the stack contains the struct members in inverse order
+                                                // The order matters for memory layout
+                                                // invert the order
+                                                let mut reverse = Vec::<usize>::new();
+
+                                                // this iterates over all members of the struct
+                                                let counter = self.struct_field_counter;
+                                                for i in 0..counter {
+                                                    reverse.push(self.ast_stack.pop().unwrap());
                                                 }
+
+                                                for i in 0..reverse.len() {
+
+                                                    // TODO TYPE-SYSTEM
+                                                    // TODO create StructDeclMember here. Move out of identifier visitor
+
+                                                    //let member_declaration_ast_node_id = self.ast_stack.pop().unwrap();
+                                                    let member_declaration_ast_node_id = reverse.get(counter-i-1).unwrap();
+                                                    struct_ast_node.block_items.push(member_declaration_ast_node_id.clone());
+
+                                                    let member_declaration_node = node_map.get(&member_declaration_ast_node_id.clone()).unwrap().clone();
+
+                                                    let mut struct_member = StructDeclMember::new();
+
+                                                    // assign name to new struct_member object
+                                                    if let Some(member_name_node_id) = member_declaration_node.rhs {
+                                                        let member_name_node = node_map.get(&member_name_node_id).unwrap().clone();
+                                                        struct_member.member_name = member_name_node.string_val.clone();
+                                                    }
+
+                                                    // assign datatype to new struct_member object
+                                                    if let Some(member_type_node_id) = member_declaration_node.lhs {
+                                                        let member_type_node = node_map.get(&member_type_node_id).unwrap().clone();
+
+                                                        // println!("type_ast_node: '{}'", &member_type_node.string_val);
+                                                        // println!("type_ast_node.node_type: '{:?}'", &member_type_node.node_type);
+
+                                                        match member_type_node.node_type {
+                                                            AstNodeType::MemberTypeDeclaration => {
+                                                                let member_type_node_lhs = node_map.get(&member_type_node.lhs.unwrap()).unwrap().clone();
+                                                                let member_type_node_rhs = node_map.get(&member_type_node.rhs.unwrap()).unwrap().clone();
+
+                                                                // build a string (e.g. unsigned int)
+                                                                let mut data = member_type_node_rhs.string_val.clone();
+                                                                data.push_str(" ");
+                                                                data.push_str(member_type_node_lhs.string_val.clone().as_str());
+
+                                                                // string
+                                                                struct_member.member_type = data;
+                                                            }
+                                                            AstNodeType::DataType => {
+                                                                let type_as_string = member_type_node.string_val;
+                                                                struct_member.member_type = type_as_string.clone();
+
+                                                                let data_type = DataType::from_str(&type_as_string).expect("REASON");
+                                                                struct_member.data_type = data_type;
+                                                            }
+                                                            AstNodeType::Array => {
+                                                                println!("{:?}", member_type_node);
+                                                                let member_type_node_lhs = node_map.get(&member_type_node.lhs.unwrap()).unwrap().clone();
+                                                                println!("{:?}", member_type_node_lhs);
+
+                                                                println!("type_ast_node: '{}'", &member_type_node.string_val);
+                                                                println!("type_ast_node.node_type: '{:?}'", &member_type_node.node_type);
+
+                                                                // the datatype of the elements of the array
+                                                                // This type cannot be used, because it is a default value which has
+                                                                // never been updated. Use the type from the struct-member node.
+                                                                // The struct-member node contains the correctly parsed type.
+                                                                //let array_data_type_as_string = member_type_node_lhs.analyzed_data_type;
+                                                                let array_data_type_as_string = member_type_node.string_val;
+
+                                                                // the length of the array
+                                                                let array_length_as_string = member_type_node_lhs.string_val;
+
+                                                                // struct-member name
+                                                                let name = struct_member.member_name.clone();
+
+                                                                println!("Found struct-member (Name: '{}') of type array: {}[{}]", name, array_data_type_as_string, array_length_as_string);
+                                                                println!("");
+
+                                                                let mut type_as_string: String = String::new();
+                                                                type_as_string.push_str(array_data_type_as_string.as_str());
+                                                                type_as_string.push_str("[");
+                                                                type_as_string.push_str(array_length_as_string.as_str());
+                                                                type_as_string.push_str("]");
+
+                                                                struct_member.member_type = type_as_string;
+
+                                                                let data_type = DataType::from_str(&array_data_type_as_string).expect("REASON");
+
+                                                                let len: usize = usize::from_str_radix(&array_length_as_string, 10).expect("REASON");
+                                                                let len_option = Some(len);
+
+                                                                let data_type = DataType::DataTypeArray(Box::new(data_type), len_option);
+
+                                                                println!("data_type: {}", &data_type);
+                                                                println!("");
+
+                                                                struct_member.data_type = data_type;
+                                                            }
+                                                            AstNodeType::TypeSpecifier(_) => {
+                                                                let type_as_string = member_type_node.string_val;
+                                                                struct_member.member_type = type_as_string.clone();
+
+                                                                let data_type = DataType::DataTypeTypedeffed(type_as_string.clone());
+                                                                struct_member.data_type = data_type;
+                                                            }
+                                                            _ => {
+                                                                panic!("Unexpected: {:?}", member_type_node.node_type);
+                                                            }
+                                                        }
+                                                    }
+
+                                                    //struct_member.member_type = member_type_node.string_val.clone();
+
+                                                    self.struct_decl.members.push(struct_member);
+                                                }
+
+                                                // DEBUG
+                                                // if debug {
+                                                    println!("[PARSER::struct_decl]\n{:?}", &self.struct_decl);
+                                                // }
+
+                                                // TODO: insert the struct into the type-system
+
+                                                // reset
                                                 self.struct_field_counter = 0;
 
                                                 // struct declaration
@@ -5216,6 +5421,12 @@ impl Parser<String> {
                                         }
 
                                         // struct_declaration -> specifier_qualifier_list struct_declarator_list SEMICOLON
+                                        //
+                                        // This is a member declaration within a struct.
+                                        //
+                                        // e.g. unsigned int x;
+                                        // e.g. signed int y;
+                                        // e.g. int z;
                                         113 => {
 
                                             //
@@ -5251,17 +5462,53 @@ impl Parser<String> {
                                             //
                                             // AST - struct_declaration -> specifier_qualifier_list struct_declarator_list SEMICOLON
                                             //
+                                            // This is a member declaration within a struct.
+                                            //
+                                            // e.g. unsigned int x;
+                                            // e.g. signed int y;
+                                            // e.g. int z;
+                                            //
 
                                             if self.construct_ast {
 
-                                                let type_ast_node = self.ast_stack.pop().unwrap();
-                                                let identifier_ast_node = self.ast_stack.pop().unwrap();
-
+                                                // new node, a new member inside the struct definition
                                                 let mut member_declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
-                                                // member_declaration_ast_node.string_val = type_ast_node.string_val.clone();
                                                 member_declaration_ast_node.node_type = AstNodeType::MemberDeclaration;
-                                                member_declaration_ast_node.lhs = Some(type_ast_node);
-                                                member_declaration_ast_node.rhs = Some(identifier_ast_node);
+
+                                                // name of new member
+                                                let identifier_ast_node_id = self.ast_stack.pop().unwrap();
+                                                let identifier_ast_node = node_map.get(&identifier_ast_node_id).unwrap();
+                                                if debug {
+                                                    println!("identifier_ast_node: '{}'", &identifier_ast_node.string_val);
+                                                }
+                                                member_declaration_ast_node.rhs = Some(identifier_ast_node_id);
+
+                                                // type of new member
+                                                let type_ast_node_id = self.ast_stack.pop().unwrap();
+                                                let type_ast_node = node_map.get(&type_ast_node_id).unwrap();
+                                                // if debug {
+                                                    println!("type_ast_node: '{}'", &type_ast_node.string_val);
+                                                    println!("type_ast_node.node_type: '{:?}'", &type_ast_node.node_type);
+                                                // }
+                                                match type_ast_node.node_type {
+                                                    AstNodeType::MemberTypeDeclaration => {
+                                                        member_declaration_ast_node.lhs = Some(type_ast_node_id);
+                                                    }
+                                                    AstNodeType::DataType => {
+                                                        member_declaration_ast_node.lhs = Some(type_ast_node_id);
+                                                    }
+                                                    AstNodeType::Array => {
+                                                        //todo!();
+                                                        member_declaration_ast_node.lhs = Some(type_ast_node_id);
+                                                    }
+                                                    AstNodeType::TypeSpecifier(_) => {
+                                                        //todo!();
+                                                        member_declaration_ast_node.lhs = Some(type_ast_node_id);
+                                                    }
+                                                    _ => {
+                                                        panic!("Unexpected: {:?}", type_ast_node.node_type);
+                                                    }
+                                                }
 
                                                 self.struct_field_counter = self.struct_field_counter + 1;
 
@@ -5280,11 +5527,7 @@ impl Parser<String> {
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("specifier_qualifier_list"));
                                             // print new node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("struct_declspecifier_qualifier_listaration")).as_str());
-
-
-
-
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("specifier_qualifier_list")).as_str());
 
                                             //
                                             // RHS - specifier_qualifier_list
@@ -5308,6 +5551,37 @@ impl Parser<String> {
 
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - specifier_qualifier_list -> type_specifier specifier_qualifier_list
+                                            //
+                                            // This is a member declaration within a struct.
+                                            //
+                                            // e.g. unsigned int
+                                            // e.g. signed int
+                                            //
+
+                                            if self.construct_ast {
+
+                                                // let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                // ast_node.node_type = AstNodeType::Expression;
+                                                // ast_node.lhs = Some(second_ast_node.id);
+
+                                                let lhs_ast_node_id = self.ast_stack.pop().unwrap();
+
+                                                let rhs_ast_node_id = self.ast_stack.pop().unwrap();
+
+                                                let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                ast_node.node_type = AstNodeType::MemberTypeDeclaration;
+                                                ast_node.lhs = Some(lhs_ast_node_id);
+                                                ast_node.rhs = Some(rhs_ast_node_id);
+                                                // ast_node.expression = Some(expression_ast_node.id);
+
+                                                self.ast_stack.push(ast_node.id);
+
+                                                // node_map.insert(expression_ast_node.id, expression_ast_node);
+                                                node_map.insert(ast_node.id, ast_node);
+                                            }
                                         }
 
                                         // specifier_qualifier_list -> type_specifier
@@ -5453,6 +5727,81 @@ impl Parser<String> {
                                                 self.ast_stack.push(ast_node.id);
 
                                                 node_map.insert(ast_node.id, ast_node);
+
+
+                                                // TYPE-SYSTEM
+
+                                                if self.typedef_found {
+
+                                                    // DEBUG
+                                                    // self.print_ast_stack(node_map);
+
+                                                    // // reset
+                                                    // self.set_typedef_active(false);
+                                                    // self.typedef_found = false;
+                                                    // self.last_type_specifier = String::new();
+                                                    // self.last_source_type = String::new();
+
+                                                    // take the new-type identifier from the ast stack
+                                                    let new_type_ast_node_id = self.ast_stack.pop().unwrap();
+                                                    let new_type_ast_node = node_map.get(&new_type_ast_node_id).unwrap().clone();
+                                                    println!("'{}'", &new_type_ast_node.string_val);
+
+                                                    // take the type node from the ast stack
+                                                    let old_type_ast_node_id = self.ast_stack.pop().unwrap();
+                                                    let old_type_ast_node = node_map.get(&old_type_ast_node_id).unwrap().clone();
+                                                    println!("'{}'", &old_type_ast_node.string_val);
+
+                                                    // take the qualifier (signed / unsigned) node from the ast stack
+                                                    let temp_ast_node_id = self.ast_stack.pop().unwrap();
+                                                    let temp_ast_node = node_map.get(&temp_ast_node_id).unwrap().clone();
+                                                    println!("'{}'", &temp_ast_node.string_val);
+
+                                                    // Put the nodes back because another rule will build the AST from it
+                                                    self.ast_stack.push(temp_ast_node_id);
+                                                    self.ast_stack.push(old_type_ast_node_id);
+                                                    self.ast_stack.push(new_type_ast_node_id);
+
+                                                    let mut old_type = String::new();
+                                                    if temp_ast_node.string_val == "TYPEDEF" {
+                                                        old_type = old_type_ast_node.string_val.clone();
+                                                    } else {
+                                                        old_type.push_str(temp_ast_node.string_val.clone().as_str());
+                                                        old_type.push_str(" ");
+                                                        old_type.push_str(old_type_ast_node.string_val.clone().as_str());
+
+                                                        // take the TYPEDEF node from the AST stack
+                                                        let typedef_ast_node_id = self.ast_stack.pop().unwrap();
+                                                        let typedef_ast_node = node_map.get(&typedef_ast_node_id).unwrap().clone();
+                                                        println!("'{}'", &typedef_ast_node.string_val);
+                                                    }
+
+                                                    //
+                                                    // TYPE-SYSTEM
+                                                    //
+
+                                                    let old_type_name = old_type.clone();
+                                                    let new_type_name = new_type_ast_node.string_val.clone();
+                                                    println!("[TYPE-SYSTEM-2] Typedeffing: '{}' -> '{}'",
+                                                        old_type_name, new_type_name
+                                                    );
+
+                                                    let mut type_type: DataType = DataType::DataTypeUnknown;
+                                                    let mut type_system = self.type_system.borrow_mut();
+                                                    if let Some(data_type) = type_system.get(old_type_name.as_str()) {
+                                                        // type_system.insert(new_type_name.clone(), data_type.clone());
+                                                        type_type = data_type.clone();
+                                                    } else {
+                                                        panic!("TypeSystem has no type: '{:?}'", old_type_name);
+                                                    }
+                                                    type_system.insert(new_type_name.clone(), type_type.clone());
+
+                                                    // TODO: handle type system here
+                                                    //self.type_system.borrow_mut().insert(new_type_name.clone(), DataType::DataTypeUnknown);
+                                                    //self.type_system.borrow_mut().insert(new_type_name.clone(), DataType::from_str(old_type_name.as_str()).unwrap());
+
+                                                    // insert the typedef back into the AST
+                                                }
                                             }
                                         }
 
@@ -7711,7 +8060,7 @@ pub fn output_parse_table_to_csv(
 
                 _ => {
                     // println!("{:?}", rule_element);
-                    panic!("test");
+                    panic!("[ERR] Unhandled rule_element: {:?}!", rule_element);
                 }
             }
 

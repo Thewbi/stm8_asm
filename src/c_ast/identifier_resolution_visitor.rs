@@ -10,6 +10,9 @@ use crate::AstNodeType;
 use crate::c_ast::ast_node::AstNodeOperatorType;
 use crate::c_ast::identifier_resolution_node::IdentifierResolutionNode;
 
+use crate::common::struct_decl::StructDecl;
+use crate::common::struct_decl::StructDeclMember;
+
 use crate::tacky::tacky::BinaryOperator;
 
 use crate::common::variable_naming_source::VariableNamingSource;
@@ -31,58 +34,7 @@ use crate::common::variable_naming_source::VariableNamingSource;
 // 6. src\asm_ast\asm_ast_masm_emitter_visitor.rs / asm_ast/AsmAstASEmitterVisitor / ...
 //
 
-struct StructDecl {
-    tag: String,
-    members: Vec<StructDeclMember>
-}
 
-impl StructDecl {
-
-    pub fn new() -> StructDecl {
-        StructDecl {
-            tag: String::new(),
-            members: Vec::<StructDeclMember>::new()
-        }
-    }
-
-}
-
-impl fmt::Debug for StructDecl {
-
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-
-        write!(f, "struct {} {{\n", self.tag).expect("Write failed!");
-
-        for member in &self.members {
-            write!(f, "    {} {};\n", &member.member_type, member.member_name).expect("Write failed!");
-        }
-        // write!(f, "  name: {}\n", &self.name).expect("Write failed!");
-        // write!(f, "  symbol_table_entry_type: {:?}\n", &self.symbol_table_entry_type).expect("Write failed!");
-        // write!(f, "  parameter_count: {}\n", &self.parameter_count).expect("Write failed!");
-        // write!(f, "  has_body: {}\n", &self.has_body).expect("Write failed!");
-        // write!(f, "  is_array: {}\n", &self.is_array).expect("Write failed!");
-        // write!(f, "  array_element_count: {}\n", &self.array_element_count).expect("Write failed!");
-        // write!(f, "  is_pointer: {}\n", &self.is_pointer).expect("Write failed!");
-        write!(f, "}}\n").expect("Write failed!");
-
-        Ok(())
-    }
-}
-
-struct StructDeclMember {
-    member_name: String,
-    member_type: String
-}
-
-impl StructDeclMember {
-
-    pub fn new() -> StructDeclMember {
-        StructDeclMember {
-            member_name: String::new(),
-            member_type: String::new()
-        }
-    }
-}
 
 pub struct IdentifierResolutionVisitor {
     // https://www.youtube.com/watch?v=8O0Nt9qY_vo
@@ -722,31 +674,37 @@ impl IdentifierResolutionVisitor {
                 //     println!("AstNodeType: {:?}", ast_node.node_type);
                 // }
 
-                let mut struct_decl = StructDecl::new();
-                struct_decl.tag = ast_node.string_val.clone();
+                let struct_tag = ast_node.string_val.clone();
 
-                for i in 0..ast_node.block_items.len() {
+                let define_struct = false;
+                if define_struct {
 
-                    let member_node_id = &ast_node.block_items[i];
+                    let mut struct_decl = StructDecl::new();
+                    struct_decl.tag = struct_tag.clone();
 
-                    let member_declaration_node = node_map.get(&member_node_id).unwrap().clone();
+                    for i in 0..ast_node.block_items.len() {
 
-                    let member_type_node_id = member_declaration_node.lhs.unwrap();
-                    let member_name_node_id = member_declaration_node.rhs.unwrap();
+                        let member_node_id = &ast_node.block_items[i];
 
-                    let member_name_node = node_map.get(&member_type_node_id).unwrap().clone();
-                    let member_type_node = node_map.get(&member_name_node_id).unwrap().clone();
+                        let member_declaration_node = node_map.get(&member_node_id).unwrap().clone();
 
-                    let mut struct_member = StructDeclMember::new();
-                    struct_member.member_name = member_name_node.string_val.clone();
-                    struct_member.member_type = member_type_node.string_val.clone();
+                        let member_type_node_id = member_declaration_node.lhs.unwrap();
+                        let member_name_node_id = member_declaration_node.rhs.unwrap();
 
-                    struct_decl.members.push(struct_member);
-                }
+                        let member_type_node = node_map.get(&member_type_node_id).unwrap().clone();
+                        let member_name_node = node_map.get(&member_name_node_id).unwrap().clone();
 
-                // DEBUG
-                if self.debug {
-                    println!("{:?}", &struct_decl);
+                        let mut struct_member = StructDeclMember::new();
+                        struct_member.member_name = member_name_node.string_val.clone();
+                        struct_member.member_type = member_type_node.string_val.clone();
+
+                        struct_decl.members.push(struct_member);
+                    }
+
+                    // DEBUG
+                    if self.debug {
+                        println!("{:?}", &struct_decl);
+                    }
                 }
 
                 //
@@ -757,12 +715,13 @@ impl IdentifierResolutionVisitor {
                 // throws panic if the variable name is already used.
                 // To remember if a variable is used, it maintains a data structure of variables
                 let compiler_defined_struct_name = self.structure_naming_source.borrow_mut().
-                    new_user_defined_var(&struct_decl.tag);
+                    new_user_defined_var(&struct_tag);
 
                 // DEBUG
-                // if self.debug {
-                    println!("Name replaced: old: '{}', new: '{}'", &struct_decl.tag, compiler_defined_struct_name);
-                // }
+                if self.debug {
+                    println!("Name replaced: old: '{}', new: '{}'",
+                        &struct_tag, compiler_defined_struct_name);
+                }
 
                 // replace the variable name by the unique variable name from the scope.
                 // Subsequent steps such as TACKY generation will use unique names instead
@@ -773,7 +732,6 @@ impl IdentifierResolutionVisitor {
                 // need a reinsert to update the node in the node_map because.
                 // The updat is required since the node's name was changed
                 node_map.insert(ast_node.id, ast_node);
-
             }
 
             AstNodeType::ParameterDeclaration => {
@@ -1117,6 +1075,10 @@ impl IdentifierResolutionVisitor {
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
+            }
+
+            AstNodeType::MemberTypeDeclaration => {
+
             }
 
             AstNodeType::Dot => {

@@ -1216,11 +1216,14 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::AddAssignment => {
-                todo!();
+            }
+
+            AstNodeType::Typedef => {
+
             }
 
             _ => {
-                todo!();
+                todo!("TODO: Handle DataType: '{:?}'", ast_node.node_type);
             }
         }
     }

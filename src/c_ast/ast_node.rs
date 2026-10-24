@@ -67,6 +67,7 @@ pub enum AstNodeType {
     // SubscriptSrc,
     // SubscriptDst,
     MemberDeclaration,
+    MemberTypeDeclaration,
     Dot,
     Arrow,
     AssignmentOperator,
@@ -228,9 +229,9 @@ impl fmt::Debug for AstNode {
             AstNodeType::ConstUInt |
             AstNodeType::ConstULong |
             AstNodeType::ConstDouble => {
-                print!("Constant");
-                print!(" {:?}", self.string_val);
-                println!(" [{:?}]", self.analyzed_data_type);
+                print!("AstNodeType::Constant Int/Long/UInt/ULong/Double");
+                print!(" string_val:'{:?}'", self.string_val);
+                println!(" analyzed_data_type: ['{:?}']", self.analyzed_data_type);
             }
 
             AstNodeType::Declaration => {
@@ -550,6 +551,10 @@ impl fmt::Debug for AstNode {
                 println!("TypeSpecifier - {} {}", self.string_val, val);
             }
 
+            AstNodeType::Typedef => {
+                println!("Typedef");
+            }
+
             _ => {
                 panic!("Unhandled node type: {:?}", self.node_type);
             }
@@ -652,9 +657,9 @@ impl AstNode {
     pub fn pretty_print_ast_dot_ex(&self,
         string_buffer: &mut String,
         node_map: &Box<HashMap<usize, AstNode>>,
-        extended_string: &str)
-        -> usize {
-        match self.node_type {
+        extended_string: &str) -> usize
+    {
+        match self.node_type.clone() {
             AstNodeType::Program => {
                 self.pretty_print_ast_program_dot(string_buffer, node_map)
             }
@@ -771,6 +776,9 @@ impl AstNode {
             AstNodeType::MemberDeclaration => {
                 self.pretty_print_ast_member_declaration_dot(string_buffer, node_map)
             }
+            AstNodeType::MemberTypeDeclaration => {
+                self.pretty_print_ast_member_type_declaration_dot(string_buffer, node_map)
+            }
             AstNodeType::Array => {
                 self.pretty_print_ast_array_dot(string_buffer, node_map)
             }
@@ -788,6 +796,9 @@ impl AstNode {
             }
             AstNodeType::Typedef => {
                 self.pretty_print_ast_typedef_dot(string_buffer, node_map)
+            }
+            AstNodeType::TypeSpecifier(vvvv) => {
+                self.pretty_print_ast_type_specifier_dot(string_buffer, node_map, &vvvv)
             }
             _ => {
                 panic!("{}", format!("Unhandled AST node_type: {:?}", self.node_type).as_str());
@@ -1828,6 +1839,37 @@ impl AstNode {
         ast_node_id
     }
 
+    fn pretty_print_ast_member_type_declaration_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
+
+        // create node for this AstNode
+        let ast_node_id = self.id;
+
+        // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
+        string_buffer.push_str(format!("{} [label=\"{} MemberTypeDec: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+
+        // lhs - type
+        let mut lhs_ast_node_id = 0;
+        if let Some(left_node) = self.lhs.as_ref() {
+            lhs_ast_node_id = node_map.get(&left_node).unwrap().pretty_print_ast_dot_ex(string_buffer, node_map, "type:");
+
+            // connect parent and child
+            // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
+            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
+        }
+
+        // rhs - identifier
+        let mut rhs_ast_node_id = 0;
+        if let Some(right_node) = self.rhs.as_ref() {
+            rhs_ast_node_id = node_map.get(&right_node).unwrap().pretty_print_ast_dot_ex(string_buffer, node_map, "identifier:");
+
+            // connect parent and child
+            // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
+            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
+        }
+
+        ast_node_id
+    }
+
     fn pretty_print_ast_array_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
@@ -1992,7 +2034,8 @@ impl AstNode {
         ast_node_id
     }
 
-    fn pretty_print_ast_typedef_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap::<usize, AstNode>>) -> usize {
+    fn pretty_print_ast_typedef_dot(&self, string_buffer: &mut String,
+        node_map: &Box<HashMap::<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
         let ast_node_id = self.id;
@@ -2031,4 +2074,29 @@ impl AstNode {
 
         ast_node_id
     }
+
+    fn pretty_print_ast_type_specifier_dot(&self, string_buffer: &mut String,
+        node_map: &Box<HashMap::<usize, AstNode>>, type_specifier_val: &String) -> usize {
+
+        // create node for this AstNode
+        let ast_node_id = self.id;
+
+        // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
+        string_buffer.push_str(format!("{} [label=\"{} TypeSpecifier: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+
+        // // lhs - type
+        // let mut lhs_ast_node_id = 0;
+        // if let Some(left_node_id) = self.lhs.as_ref() {
+
+        //     let left_node = node_map.get(left_node_id).unwrap();
+        //     lhs_ast_node_id = left_node.pretty_print_ast_dot_ex(string_buffer, node_map, "LHS:");
+
+        //     // connect parent and child
+        //     // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
+        //     string_buffer.push_str(format!("{} -> {} [label=\"LHS\"]\n", ast_node_id, lhs_ast_node_id).as_str());
+        // }
+
+        ast_node_id
+    }
+
 }

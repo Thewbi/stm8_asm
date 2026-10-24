@@ -5,3 +5,4 @@ pub mod variable_naming_source;
 pub mod symbol_table;
 pub mod data_type;
 pub mod string_handling;
+pub mod struct_decl;

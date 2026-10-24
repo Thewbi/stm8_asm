@@ -776,9 +776,55 @@ fn main() {
 
     let file_content = input_tuple.0.clone();
 
+
+
     // the type system. Mapping from type name to DataType
-    let type_system = HashMap::<String, DataType>::new();
+    let mut type_system = HashMap::<String, DataType>::new();
+
+    // int             DataType::DataTypeInt
+
+    // uint            DataType::DataTypeUnsignedInt
+    // unsigned int    DataType::DataTypeUnsignedInt
+
+    // char            DataType::DataTypeChar
+    // unsigned char   DataType::DataTypeUnsignedChar
+
+    // short           DataTypeShort
+
+    // long            DataTypeLong
+
+    // ulong           DataType::DataTypeUnsignedLong
+    // unsigned long   DataType::DataTypeUnsignedLong
+
+    // float           DataTypeFloat
+
+    // double          DataType::DataTypeDouble
+
+    // void            DataType::DataTypeVoid
+
+    type_system.insert("int".to_string(), DataType::DataTypeInt);
+
+    type_system.insert("uint".to_string(), DataType::DataTypeUnsignedInt);
+    type_system.insert("unsigned int".to_string(), DataType::DataTypeUnsignedInt);
+
+    type_system.insert("uchar".to_string(), DataType::DataTypeUnsignedChar);
+    type_system.insert("unsigned char".to_string(), DataType::DataTypeUnsignedChar);
+
+    type_system.insert("short".to_string(), DataType::DataTypeShort);
+
+    type_system.insert("long".to_string(), DataType::DataTypeLong);
+
+    type_system.insert("ulong".to_string(), DataType::DataTypeUnsignedLong);
+    type_system.insert("unsigned long".to_string(), DataType::DataTypeUnsignedLong);
+
+    type_system.insert("float".to_string(), DataType::DataTypeFloat);
+
+    type_system.insert("double".to_string(), DataType::DataTypeDouble);
+
+    type_system.insert("void".to_string(), DataType::DataTypeVoid);
+
     let type_system_rc_1 = Rc::new(RefCell::new(type_system));
+    let type_system_rc_99 = type_system_rc_1.clone();
 
     // init
     let mut parser: Parser<String> = Parser::<String>::new(parse_table, type_system_rc_1);
@@ -914,6 +960,18 @@ fn main() {
             print_ast(program_ast_node_id, &node_map, "dot\\abstract_syntax_tree.dot");
         }
 
+        //
+        // Print the TYPE-SYSTEM
+        //
+
+        // if self.debug {
+            println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+            for (key, value) in type_system_rc_99.borrow().clone().into_iter() {
+                println!("key: {}, value: {}", key, value);
+            }
+            println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+        // }
+
         let perform_identifier_resolution_type_checking_emit_code = true;
         // let perform_identifier_resolution_type_checking_emit_code = false;
         if perform_identifier_resolution_type_checking_emit_code {
@@ -985,11 +1043,11 @@ fn main() {
                 //
 
                 let symbol_table = SymbolTable::new();
-                let symbol_table_rc_1 = Rc::new(RefCell::new(symbol_table));
-                let symbol_table_rc_2 = symbol_table_rc_1.clone();
-                let symbol_table_rc_3 = symbol_table_rc_1.clone();
-                let symbol_table_rc_4 = symbol_table_rc_1.clone();
-                let symbol_table_rc_5 = symbol_table_rc_1.clone();
+                let symbol_table_rc_1 = Rc::new(RefCell::new(symbol_table)); // TypeCheckingVisitor
+                let symbol_table_rc_2 = symbol_table_rc_1.clone(); // TackyVisitor
+                let symbol_table_rc_3 = symbol_table_rc_1.clone(); // AsmAstFixupVisitor
+                let symbol_table_rc_4 = symbol_table_rc_1.clone(); // TackyToIntermediateAsmConversionVisitor
+                let symbol_table_rc_5 = symbol_table_rc_1.clone(); // used for printing
 
                 let mut type_checking_visitor = TypeCheckingVisitor::new(symbol_table_rc_1);
                 type_checking_visitor.visit(program_ast_node_id, &mut node_map, &DataType::DataTypeVoid);
