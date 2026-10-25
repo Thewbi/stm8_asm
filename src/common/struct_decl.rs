@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
-use crate::common::data_type::DataType;
+use crate::common::data_type::DataType::{self, DataTypeArray};
 
 #[derive(Clone, PartialEq)]
 pub struct StructDecl {
@@ -34,10 +34,47 @@ impl StructDecl {
     ///
     /// Debugging: https://www.embedcalc.com/structalign/#structalign
     pub fn compute_memory_layout(&mut self, type_system: &HashMap::<String, DataType>) {
+
         println!("compute_memory_layout()");
 
+        let mut align = 0;
+
+        let len = self.members.len();
+        for i in 0..len {
+
+            let memb = &self.members[i];
+
+            // distingish between elementary data type and arrays
+            // the alignment of an array is the alignment of the element type
+            match &memb.data_type {
+                DataType::DataTypeArray(element_data_type, size_option) => {
+
+                    if let Some(size) = size_option {
+                        // println!("size: {}, data_type: {}", size, data_type);
+                        // let data_type_size = data_type.get_size(type_system);
+                        // return data_type_size * size;
+
+                        let data_type_size = element_data_type.get_size(type_system);
+                        //let temp_align = data_type_size * size;
+                        let temp_align = data_type_size;
+                        if align < temp_align {
+                            align = temp_align;
+                        }
+                    } else {
+                        panic!("size: unspecified, data_type: {}", element_data_type);
+                    }
+                }
+                _ => {
+                    let temp_align = memb.data_type.get_align(type_system);
+                    if align < temp_align {
+                        align = temp_align;
+                    }
+                }
+            }
+        }
+
         // find largest size / alignment of each member
-        let align = self.members.iter().map(|m| m.data_type.get_align(type_system)).max().unwrap();
+        //let align = self.members.iter().map(|m| m.data_type.get_align(type_system)).max().unwrap();
         // println!("compute_memory_layout() align: {}", align);
 
         let mut offset: usize = 0;
@@ -49,15 +86,17 @@ impl StructDecl {
 
             let dt = &self.members[i].data_type;
             let dt_size = DataType::get_size(&dt, type_system);
+            let dt_align = DataType::get_align(&dt, type_system);
 
-            println!("data_type: {}, dt_size: {}", dt, dt_size);
+            println!("data_type: {}, dt_size: {}, dt_align: {}", dt, dt_size, dt_align);
 
             // fields are aligned to a boundary!
             // This boundary is not the align of the entire struct.
             // Instead each field is aligned to a multiple of it's
             // own size!
             let old_offset = offset;
-            while offset % dt_size != 0 {
+            //while offset % dt_size != 0 {
+            while offset % dt_align != 0 {
                 offset = offset + 1;
             }
             wasted_bytes = wasted_bytes + (offset - old_offset);

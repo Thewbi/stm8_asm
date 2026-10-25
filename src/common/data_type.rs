@@ -121,6 +121,15 @@ impl DataType {
                 }
                 todo!("{}", self);
             }
+            DataType::DataTypeArray(data_type, size_option) => {
+                if let Some(size) = size_option {
+                    println!("size: {}, data_type: {}", size, data_type);
+                    let data_type_size = data_type.get_size(type_system);
+                    return data_type_size * size;
+                } else {
+                    panic!("size: unspecified, data_type: {}", data_type);
+                }
+            }
             _ => {
                 todo!("{}", self);
             }
@@ -130,14 +139,46 @@ impl DataType {
     // for alignment use size()
     // Each data type is align to it's size
     pub fn get_align(&self, type_system: &HashMap::<String, DataType>) -> usize {
-        let align = self.get_size(type_system);
 
-        // alignment needs to be power of 2 (why: https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1447.htm
-        // > 6.2.8 Alignment of objects > "Every alignment value shall be an integral power of two.")
+        // let align = self.get_size(type_system);
 
-        // assert power of 2
-        // https://www.includehelp.com/rust/check-a-given-number-is-the-power-of-2-using-bitwise-operator.aspx
-        assert_eq!(align & (align - 1), 0);
+        // // alignment needs to be power of 2 (why: https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1447.htm
+        // // > 6.2.8 Alignment of objects > "Every alignment value shall be an integral power of two.")
+
+        // // assert power of 2
+        // // https://www.includehelp.com/rust/check-a-given-number-is-the-power-of-2-using-bitwise-operator.aspx
+        // assert_eq!(align & (align - 1), 0);
+
+        let mut align = 0;
+
+        // distinguish between elementary data type and arrays
+        // the alignment of an array is the alignment of the element type
+        match &self {
+            DataType::DataTypeArray(element_data_type, size_option) => {
+
+                if let Some(size) = size_option {
+                    // println!("size: {}, data_type: {}", size, data_type);
+                    // let data_type_size = data_type.get_size(type_system);
+                    // return data_type_size * size;
+
+                    let data_type_size = element_data_type.get_size(type_system);
+                    //let temp_align = data_type_size * size;
+                    align = data_type_size;
+                    // if align < temp_align {
+                    //     align = temp_align;
+                    // }
+                } else {
+                    panic!("size: unspecified, data_type: {}", element_data_type);
+                }
+            }
+            _ => {
+                //let temp_align = self.get_align(type_system);
+                align = self.get_size(type_system);
+                // if align < temp_align {
+                //     align = temp_align;
+                // }
+            }
+        }
 
         align
     }
