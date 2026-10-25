@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use crate::common::data_type::DataType;
 use crate::common::symbol_table::SymbolTable;
 use crate::tacky::tacky::ValueElement;
 
@@ -42,18 +43,22 @@ pub struct AsmAstFixupVisitor {
     pub stack_offset_map: HashMap::<String, i32>,
     // chapter 15 - talks about a new backend symbol table that is create from the symbol table after TACKY generation
     pub backend_symbol_table: Rc<RefCell<SymbolTable>>, // https://www.youtube.com/watch?v=8O0Nt9qY_vo
+    pub type_system: Rc<RefCell<HashMap::<String, DataType>>>,
     pub debug: bool,
 }
 
 impl AsmAstFixupVisitor {
 
-    pub fn new(backend_symbol_table_param: Rc<RefCell<SymbolTable>>) -> AsmAstFixupVisitor {
+    pub fn new(backend_symbol_table_param: Rc<RefCell<SymbolTable>>,
+        type_system_param: Rc<RefCell<HashMap::<String, DataType>>>) -> AsmAstFixupVisitor
+    {
         AsmAstFixupVisitor {
             asm_ast_program: AsmAstProgram::new(),
             replace_pseudo: false,
             stack_offset: 0,
             stack_offset_map: HashMap::<String, i32>::new(),
             backend_symbol_table: backend_symbol_table_param,
+            type_system: type_system_param,
             debug: false,
         }
     }
@@ -64,7 +69,11 @@ impl AsmAstFixupVisitor {
 
     #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
     #[allow(unreachable_patterns)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
-    pub fn replace_pseudo_operand(&mut self, asm_ast_operand: &AsmAstOperand) -> AsmAstOperand {
+    pub fn replace_pseudo_operand(&mut self,
+        asm_ast_operand: &AsmAstOperand,
+        // type_system: &HashMap::<String, DataType>
+    ) -> AsmAstOperand
+    {
 
         // DESCRIPTION:
         //
@@ -134,7 +143,7 @@ impl AsmAstFixupVisitor {
                                 let data_type = symbol_table_entry.data_type;
 
                                 // convert the data type into the offset in bytes
-                                self.stack_offset = self.stack_offset - data_type.get_size() as i32;
+                                self.stack_offset = self.stack_offset - data_type.get_size(&self.type_system.borrow()) as i32;
 
                             }
 
@@ -195,7 +204,7 @@ impl AsmAstFixupVisitor {
                             let data_type = symbol_table_entry.data_type;
 
                             // convert the data type into the offset in bytes
-                            self.stack_offset = self.stack_offset - ( data_type.get_size() as i32 ) * symbol_table_entry.array_element_count;
+                            self.stack_offset = self.stack_offset - ( data_type.get_size(&self.type_system.borrow()) as i32 ) * symbol_table_entry.array_element_count;
                             self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
                             stack_offset_value = self.stack_offset;
                         } else {
@@ -234,7 +243,10 @@ impl AsmAstFixupVisitor {
     // Member/Impl Functions
     //
 
-    pub fn visit_asm_ast_program(&mut self, asm_ast_program: &mut AsmAstProgram) {
+    pub fn visit_asm_ast_program(&mut self,
+        asm_ast_program: &mut AsmAstProgram
+    )
+    {
         // DEBUG
         if self.debug {
             println!("[FixupAsmAstVisitor::visit_asm_ast_program()]");
@@ -242,12 +254,16 @@ impl AsmAstFixupVisitor {
         }
 
         for i in 0..asm_ast_program.functions.len() {
-            self.visit_asm_ast_function(&mut asm_ast_program.functions[i]);
+            self.visit_asm_ast_function(&mut asm_ast_program.functions[i]/*, &self.type_system.borrow() */);
         }
     }
 
     // will iterate over all instructions in the function's body and visit them
-    pub fn visit_asm_ast_function(&mut self, asm_ast_function: &mut AsmAstFunction) {
+    pub fn visit_asm_ast_function(&mut self,
+        asm_ast_function: &mut AsmAstFunction,
+        // type_system: &HashMap::<String, DataType>
+    )
+    {
 
         // DEBUG
         if self.debug {
@@ -277,7 +293,7 @@ impl AsmAstFixupVisitor {
         let mut new_body = Vec::<Box<AsmAstInstruction>>::new();
         for i in 0..asm_ast_function.body.len() {
             let instruction = asm_ast_function.body[i].as_ref().clone();
-            self.visit_asm_ast_instruction(&mut new_body, instruction);
+            self.visit_asm_ast_instruction(&mut new_body, instruction/*, type_system */);
         }
 
         if self.replace_pseudo {
@@ -309,7 +325,10 @@ impl AsmAstFixupVisitor {
     #[allow(unreachable_patterns)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
     pub fn visit_asm_ast_instruction(&mut self,
         new_body: &mut Vec::<Box<AsmAstInstruction>>,
-        mut asm_ast_instruction: AsmAstInstruction) {
+        mut asm_ast_instruction: AsmAstInstruction,
+        // type_system: &HashMap::<String, DataType>
+    )
+    {
 
         match asm_ast_instruction.instruction_type {
 
@@ -330,8 +349,8 @@ impl AsmAstFixupVisitor {
                 }
 
                 // replace pseudo operand by relative address on stack
-                asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src/*, type_system */);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
 
                 if self.replace_pseudo {
 
@@ -383,7 +402,7 @@ impl AsmAstFixupVisitor {
                     println!("Unary {:?} {:?}", asm_ast_instruction.unary_operator, asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
@@ -394,8 +413,8 @@ impl AsmAstFixupVisitor {
                     println!("Binary {:?} {:?} {:?}", asm_ast_instruction.binary_operator, asm_ast_instruction.src_2, asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.src_2 = self.replace_pseudo_operand(&mut asm_ast_instruction.src_2);
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                asm_ast_instruction.src_2 = self.replace_pseudo_operand(&mut asm_ast_instruction.src_2/*, type_system */);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
 
                 match asm_ast_instruction.binary_operator {
 
@@ -464,7 +483,7 @@ impl AsmAstFixupVisitor {
                     println!("Idiv {:?}", asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
@@ -475,7 +494,7 @@ impl AsmAstFixupVisitor {
                     println!("Mod {:?}", asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
@@ -486,7 +505,7 @@ impl AsmAstFixupVisitor {
                     println!("Mul {:?}", asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
@@ -500,8 +519,8 @@ impl AsmAstFixupVisitor {
                         asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.src_2 = self.replace_pseudo_operand(&mut asm_ast_instruction.src_2);
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                asm_ast_instruction.src_2 = self.replace_pseudo_operand(&mut asm_ast_instruction.src_2/*, type_system */);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
 
                 // does this instruction require a fix?
                 let mut fix: bool = false;
@@ -571,7 +590,7 @@ impl AsmAstFixupVisitor {
                     println!("SetCC {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
@@ -582,8 +601,8 @@ impl AsmAstFixupVisitor {
                     println!("Lea {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src/*, type_system */);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
 
                 // asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
                 new_body.push(Box::new(asm_ast_instruction));

@@ -50,6 +50,7 @@ pub struct TackyVisitor {
     symbol_table: Rc<RefCell<SymbolTable>>, // https://www.youtube.com/watch?v=8O0Nt9qY_vo
     pub program: Program,
     pub function_declaration: Option<Box<TopLevel>>,
+    pub type_system: Rc<RefCell<HashMap::<String, DataType>>>,
     pub debug: bool,
 }
 
@@ -57,7 +58,8 @@ impl TackyVisitor {
 
     pub fn new(
         variable_naming_source_param: Rc<RefCell<VariableNamingSource>>,
-        symbol_table_param: Rc<RefCell<SymbolTable>>)
+        symbol_table_param: Rc<RefCell<SymbolTable>>,
+        type_system_param: Rc<RefCell<HashMap::<String, DataType>>>)
         -> TackyVisitor
     {
         TackyVisitor {
@@ -65,6 +67,7 @@ impl TackyVisitor {
             symbol_table: symbol_table_param,
             program: Program::new(),
             function_declaration: None,
+            type_system: type_system_param,
             debug: false,
         }
     }
@@ -1755,8 +1758,7 @@ impl TackyVisitor {
                                         let last = self.program.top_level.len() - 1;
                                         self.program.top_level[last].body.push(Box::new(copy_to_offset));
 
-
-                                        current_offset = current_offset + data_type.get_size() as i32;
+                                        current_offset = current_offset + data_type.get_size(&self.type_system.borrow()) as i32;
                                     }
                                 }
                             }

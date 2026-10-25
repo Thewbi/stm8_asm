@@ -804,19 +804,20 @@ fn main() {
 
     type_system.insert("int".to_string(), DataType::DataTypeInt);
     type_system.insert("signed int".to_string(), DataType::DataTypeInt);
-
     type_system.insert("uint".to_string(), DataType::DataTypeUnsignedInt);
     type_system.insert("unsigned int".to_string(), DataType::DataTypeUnsignedInt);
 
     type_system.insert("char".to_string(), DataType::DataTypeChar);
-
     type_system.insert("uchar".to_string(), DataType::DataTypeUnsignedChar);
+    type_system.insert("signed char".to_string(), DataType::DataTypeChar);
     type_system.insert("unsigned char".to_string(), DataType::DataTypeUnsignedChar);
 
     type_system.insert("short".to_string(), DataType::DataTypeShort);
+    type_system.insert("signed short".to_string(), DataType::DataTypeShort);
+    type_system.insert("unsigned short".to_string(), DataType::DataTypeUnsignedShort);
 
     type_system.insert("long".to_string(), DataType::DataTypeLong);
-
+    type_system.insert("signed long".to_string(), DataType::DataTypeLong);
     type_system.insert("ulong".to_string(), DataType::DataTypeUnsignedLong);
     type_system.insert("unsigned long".to_string(), DataType::DataTypeUnsignedLong);
 
@@ -826,8 +827,11 @@ fn main() {
 
     type_system.insert("void".to_string(), DataType::DataTypeVoid);
 
-    let type_system_rc_1 = Rc::new(RefCell::new(type_system));
-    let type_system_rc_99 = type_system_rc_1.clone();
+    let type_system_rc_1 = Rc::new(RefCell::new(type_system)); // parser
+    let type_system_rc_2 = type_system_rc_1.clone(); // tacky visitor
+    let type_system_rc_3 = type_system_rc_1.clone(); // AsmAstFixupVisitor
+    let type_system_rc_4 = type_system_rc_1.clone(); // computing layouts of structs
+    let type_system_rc_99 = type_system_rc_1.clone(); // debug output
 
     // init
     let mut parser: Parser<String> = Parser::<String>::new(parse_table, type_system_rc_1);
@@ -964,16 +968,31 @@ fn main() {
         }
 
         //
-        // Print the TYPE-SYSTEM
+        // DEBUG - Print the TYPE-SYSTEM
         //
-
         // if self.debug {
-            println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+            println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
             for (key, value) in type_system_rc_99.borrow().clone().into_iter() {
                 println!("key: {}, \t\tvalue: {}", key, value);
             }
-            println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+            println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
         // }
+
+        // PostProcessing after Parsing
+        // - compute memory layouts of structs
+
+        // iterate all types
+        for (key, value) in type_system_rc_4.borrow().clone().into_iter() {
+            match value {
+                // if the type is a struct, compute it's layout
+                DataType::DataTypeStruct(mut struct_decl) => {
+                    struct_decl.compute_memory_layout(&type_system_rc_4.borrow());
+                }
+                _ => {
+
+                }
+            }
+        }
 
         let perform_identifier_resolution_type_checking_emit_code = true;
         // let perform_identifier_resolution_type_checking_emit_code = false;
@@ -1126,7 +1145,8 @@ fn main() {
                 // [Step 3] Generate TACKY (from AST)
                 //
 
-                let mut tacky_visitor = TackyVisitor::new(variable_naming_source_rc_2, symbol_table_rc_2);
+                let mut tacky_visitor = TackyVisitor::new(
+                    variable_naming_source_rc_2, symbol_table_rc_2, type_system_rc_2);
                 tacky_visitor.program.name = String::from(input_tuple.1);
 
                 let mut br_cnt = 0;
@@ -1220,16 +1240,20 @@ fn main() {
                 // DEBUG
                 // println!("------------------------- Fix up Pseudo Variable -------------------------------");
 
-                let mut asm_ast_fixup_visitor = AsmAstFixupVisitor::new(symbol_table_rc_3);
+                let mut asm_ast_fixup_visitor = AsmAstFixupVisitor::new(
+                    symbol_table_rc_3,
+                    type_system_rc_3);
 
                 // replace pseudo variables (from TACKY) by addresses on the stack
                 // replace illegal MOV (mem2mem) by a combination of mem2reg reg2mem
                 asm_ast_fixup_visitor.replace_pseudo = true;
-                asm_ast_fixup_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
+                asm_ast_fixup_visitor.visit_asm_ast_program(
+                    &mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
 
                 // output all statements
                 asm_ast_fixup_visitor.replace_pseudo = false;
-                asm_ast_fixup_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
+                asm_ast_fixup_visitor.visit_asm_ast_program(
+                    &mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
 
                 // DEBUG
                 // println!("---------------------------------------------------------------------------------");

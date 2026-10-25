@@ -251,10 +251,12 @@ impl<'a> Lexer<'a> {
                         //if parser.defined_types.contains(&self.token_string_buffer) {
                         let token_is_type = parser.type_system.borrow().contains_key(&self.token_string_buffer);
 
-                        if token_is_type {
-                            println!("LEXER_TYPE_RESOLUTION [{}:{}]: '{}' is a type!", self.file, self.line, self.token_string_buffer);
-                        } else {
-                            println!("LEXER_TYPE_RESOLUTION [{}:{}]: '{}' is NOT a type!", self.file, self.line, self.token_string_buffer);
+                        if self.lexer_debug {
+                            if token_is_type {
+                                println!("LEXER_TYPE_RESOLUTION [{}:{}]: '{}' is a type!", self.file, self.line, self.token_string_buffer);
+                            } else {
+                                println!("LEXER_TYPE_RESOLUTION [{}:{}]: '{}' is NOT a type!", self.file, self.line, self.token_string_buffer);
+                            }
                         }
 
                         if token_is_type {

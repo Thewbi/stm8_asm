@@ -6,7 +6,8 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering}
 };
 
-pub fn create_rule(grammar_rules: &mut Vec::<Rule<String>>, rule_as_string: String, treat_nonterminal_lowercase: bool) {
+pub fn create_rule(grammar_rules: &mut Vec::<Rule<String>>,
+    rule_as_string: String, treat_nonterminal_lowercase: bool) {
 
     // split by a single whitespace!!! This is bad because the user might mess this up easily!
     // BETTER split by arbitrary whitespace!
@@ -30,7 +31,7 @@ pub fn create_rule(grammar_rules: &mut Vec::<Rule<String>>, rule_as_string: Stri
             1 => {
                 // ignore ->
             }
-            // right hand side objects follow 
+            // right hand side objects follow
             _ => {
 
                 match *split_element {

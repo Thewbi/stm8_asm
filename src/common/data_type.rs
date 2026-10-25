@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
@@ -10,8 +11,11 @@ pub enum DataType {
     DataTypeChar,
     DataTypeUnsignedChar,
     DataTypeInt,
+    DataTypeSignedInt,
     DataTypeUnsignedInt,
     DataTypeShort,
+    DataTypeSignedShort,
+    DataTypeUnsignedShort,
     DataTypeLong,
     DataTypeUnsignedLong,
     DataTypeFloat,
@@ -30,8 +34,11 @@ impl fmt::Display for DataType {
             DataType::DataTypeChar => write!(f, "char"),
             DataType::DataTypeUnsignedChar => write!(f, "unsigned char"),
             DataType::DataTypeInt => write!(f, "int"),
+            DataType::DataTypeSignedInt => write!(f, "int"),
             DataType::DataTypeUnsignedInt => write!(f, "unsigned int"),
             DataType::DataTypeShort => write!(f, "short"),
+            DataType::DataTypeSignedShort => write!(f, "short"),
+            DataType::DataTypeUnsignedShort => write!(f, "unsigned short"),
             DataType::DataTypeLong => write!(f, "long"),
             DataType::DataTypeUnsignedLong => write!(f, "unsigned long"),
             DataType::DataTypeFloat => write!(f, "float"),
@@ -82,10 +89,15 @@ impl FromStr for DataType {
 }
 
 impl DataType {
-    pub fn get_size(&self) -> usize {
+
+    pub fn get_size(&self,
+            type_system: &HashMap::<String, DataType>) -> usize {
         match self {
             DataType::DataTypeChar => 1,
+            DataType::DataTypeUnsignedChar => 1,
             DataType::DataTypeShort => 2,
+            DataType::DataTypeSignedShort => 2,
+            DataType::DataTypeUnsignedShort => 2,
             DataType::DataTypeInt => 4,
             DataType::DataTypeUnsignedInt => 4,
             DataType::DataTypeLong => 8,
@@ -93,16 +105,40 @@ impl DataType {
             DataType::DataTypeFloat => 4,
             DataType::DataTypeDouble => 8,
             DataType::DataTypePointer(inner_data_type) => {
-                match **inner_data_type {
-                    DataType::DataTypeLong => 8,
-                    _ => {
-                        todo!();
-                    }
+                return 8; // ptr on 64 bit are 8 byte!
+                // match **inner_data_type {
+                //     DataType::DataTypeLong => 8,
+                //     _ => {
+                //         todo!();
+                //     }
+                // }
+            }
+            DataType::DataTypeTypedeffed(type_identifier) => {
+                // println!("type_identifier: '{}'", type_identifier);
+                if let Some(data_type) = type_system.get(type_identifier) {
+                    // println!("{:?}", data_type);
+                    return data_type.get_size(type_system);
                 }
+                todo!("{}", self);
             }
             _ => {
-                todo!();
+                todo!("{}", self);
             }
         }
+    }
+
+    // for alignment use size()
+    // Each data type is align to it's size
+    pub fn get_align(&self, type_system: &HashMap::<String, DataType>) -> usize {
+        let align = self.get_size(type_system);
+
+        // alignment needs to be power of 2 (why: https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1447.htm
+        // > 6.2.8 Alignment of objects > "Every alignment value shall be an integral power of two.")
+
+        // assert power of 2
+        // https://www.includehelp.com/rust/check-a-given-number-is-the-power-of-2-using-bitwise-operator.aspx
+        assert_eq!(align & (align - 1), 0);
+
+        align
     }
 }

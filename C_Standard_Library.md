@@ -24,7 +24,7 @@ The set of header files are listed:
 <math.h>
 <setjmp.h>
 <signal.h>
-<stdalign.h>
+<stdalign.h> - page 268
 <stdarg.h> - page 269
 <stdatomic.h>
 <stdbool.h>
