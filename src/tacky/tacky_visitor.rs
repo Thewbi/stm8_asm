@@ -1946,6 +1946,10 @@ impl TackyVisitor {
                 return ValueElement::Variable(dst_name.clone());
             }
 
+            AstNodeType::Typedef => {
+                // TODO: check that the typedeffed type actually exists!
+            }
+
             _ => {
                 panic!("{}", format!("Unhandled NodeType '{:?}'!\n", ast_node.node_type).as_str());
             }

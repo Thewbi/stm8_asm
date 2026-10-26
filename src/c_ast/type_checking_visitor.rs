@@ -36,17 +36,20 @@ use crate::common::symbol_table::SymbolTableEntryType;
 pub struct TypeCheckingVisitor {
     // https://www.youtube.com/watch?v=8O0Nt9qY_vo
     symbol_table: Rc<RefCell<SymbolTable>>,
+    type_system: Rc<RefCell<HashMap::<String, DataType>>>,
     debug: bool,
 }
 
 impl TypeCheckingVisitor {
 
     pub fn new(
-        symbol_table_param: Rc<RefCell<SymbolTable>>)
+        symbol_table_param: Rc<RefCell<SymbolTable>>,
+        type_system_param: Rc<RefCell<HashMap::<String, DataType>>>)
         -> TypeCheckingVisitor
     {
         TypeCheckingVisitor {
             symbol_table: symbol_table_param,
+            type_system: type_system_param,
             debug: false,
         }
     }
@@ -933,6 +936,12 @@ impl TypeCheckingVisitor {
 
             AstNodeType::VariableDeclaration => {
 
+                //
+                // The goal here is to create a symbol entry in the symbol table for
+                // a local variable and also to type check and name replace the
+                // initializer if there is an initializer
+                //
+
                 // DEBUG
                 if self.debug {
                     print!("VARIABLE_DECLARATION: {}: {:?}", ast_node.id, ast_node);
@@ -955,19 +964,48 @@ impl TypeCheckingVisitor {
                     let left_node = node_map.get(&left_node_id).unwrap();
 
                     // DEBUG
-                    if self.debug {
-                        print!("LEFT-NODE: {}: {:?}", left_node.id, left_node);
-                    }
+                    //if self.debug {
+                        print!("LEFT-NODE: {}: {:?} node_type:{:?}", left_node.id, left_node, left_node.node_type);
+                    //}
+
+                    let mut data_type_as_string = String::from("");
 
                     // set the data type
-                    let data_type = left_node.string_val.clone();
-                    let data_type_as_enum = match DataType::from_str(&data_type) {
-                        Ok(data_type_result) => data_type_result,
-                        Err(e) => panic!("should be valid DataType: {e}"),
-                    };
-                    symbol_table_entry.data_type = data_type_as_enum;
+                    match left_node.node_type {
+
+                        AstNodeType::Structure => {
+                            // if the variable is a struct-type, the type is part of the right subnode
+                            // it is not part of the node itself
+                            let left_right_node = node_map.get(&left_node.rhs.unwrap()).unwrap();
+                            data_type_as_string = left_right_node.string_val.clone();
+
+                            let temp = self.type_system.borrow();
+                            let struct_data_type_option = temp.get(&data_type_as_string);
+                            if let Some(struct_data_type) = struct_data_type_option {
+                                todo!("A");
+                            } else {
+                                panic!("The type system has no definition for '{:?}'", data_type_as_string);
+                            }
+
+                            //symbol_table_entry.data_type = DataType::DataTypeStruct(data_type_as_string.clone());
+                            todo!();
+                        }
+
+                        _ => {
+                            data_type_as_string = left_node.string_val.clone();
+
+                            println!("data_type: '{}'", data_type_as_string);
+
+                            let data_type_as_enum = match DataType::from_str(&data_type_as_string) {
+                                Ok(data_type_result) => data_type_result,
+                                Err(e) => panic!("should be valid DataType: {e}"),
+                            };
+                            symbol_table_entry.data_type = data_type_as_enum;
+                        }
+                    }
 
                     symbol_table_entry.is_array = left_node.node_type == AstNodeType::Array;
+                    // symbol_table_entry.is_struct = left_node.node_type == AstNodeType::Structure;
                 }
 
                 // identifier (RHS)

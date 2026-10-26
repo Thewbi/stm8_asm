@@ -828,6 +828,7 @@ fn main() {
     type_system.insert("void".to_string(), DataType::DataTypeVoid);
 
     let type_system_rc_1 = Rc::new(RefCell::new(type_system)); // parser
+    let type_system_rc_22 = type_system_rc_1.clone(); // type checking visitor
     let type_system_rc_2 = type_system_rc_1.clone(); // tacky visitor
     let type_system_rc_3 = type_system_rc_1.clone(); // AsmAstFixupVisitor
     let type_system_rc_4 = type_system_rc_1.clone(); // computing layouts of structs
@@ -1071,7 +1072,7 @@ fn main() {
                 let symbol_table_rc_4 = symbol_table_rc_1.clone(); // TackyToIntermediateAsmConversionVisitor
                 let symbol_table_rc_5 = symbol_table_rc_1.clone(); // used for printing
 
-                let mut type_checking_visitor = TypeCheckingVisitor::new(symbol_table_rc_1);
+                let mut type_checking_visitor = TypeCheckingVisitor::new(symbol_table_rc_1, type_system_rc_22);
                 type_checking_visitor.visit(program_ast_node_id, &mut node_map, &DataType::DataTypeVoid);
 
                 //

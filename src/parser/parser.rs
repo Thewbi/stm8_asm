@@ -3999,6 +3999,7 @@ impl Parser<String> {
                                                     let mut old_type_name = rhs_struct_ast_node.string_val.clone();
                                                     old_type_name.push_str(" ");
                                                     old_type_name.push_str(lhs_struct_ast_node.string_val.clone().as_str());
+
                                                     let new_type_name = new_type_ast_node.string_val.clone();
 
                                                     if debug {
@@ -4008,9 +4009,7 @@ impl Parser<String> {
                                                         println!("struct: {:?}", self.struct_decl);
                                                     }
 
-                                                    // TODO: handle type system here
-                                                    //self.type_system.borrow_mut().insert(new_type_name.clone(), DataType::DataTypeUnknown);
-                                                    //self.type_system.borrow_mut().insert(new_type_name.clone(), DataType::DataTypeStruct(rhs_struct_ast_node.string_val.clone()));
+                                                    // handle type system here
                                                     self.type_system.borrow_mut().insert(new_type_name.clone(), DataType::DataTypeStruct(self.struct_decl.clone()));
 
                                                     // insert the typedef back into the AST
@@ -5232,10 +5231,6 @@ impl Parser<String> {
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
-
-
-
-
                                             //
                                             // AST - struct_or_union_specifier -> struct_or_union IDENTIFIER OPENING_CURLY_BRACKET struct_declaration_list CLOSING_CURLY_BRACKET
                                             //
@@ -5385,11 +5380,10 @@ impl Parser<String> {
 
                                                                 struct_member.member_type = type_as_string;
 
-                                                                let mut type_system = self.type_system.borrow_mut();
+                                                                let type_system = self.type_system.borrow();
                                                                 let data_type: DataType = type_system.get(&array_data_type_as_string).unwrap().clone();
-                                                                println!("{}", data_type);
 
-                                                                //let data_type = DataType::from_str(&array_data_type_as_string).expect("REASON");
+                                                                //println!("{}", data_type);
 
                                                                 let len: usize = usize::from_str_radix(&array_length_as_string, 10).expect("REASON");
                                                                 let len_option = Some(len);
@@ -5432,7 +5426,16 @@ impl Parser<String> {
                                                     println!("[PARSER::struct_decl]\n{:?}", &self.struct_decl);
                                                 }
 
-                                                // TODO: insert the struct into the type-system
+                                                if debug {
+                                                    println!("[TYPE-SYSTEM-3] Inserting Struct Type: '{}'", &struct_tag);
+                                                }
+
+                                                let struct_tag_clone = struct_tag.clone();
+                                                let struct_decl_clone = self.struct_decl.clone();
+                                                let temp_data_type = DataType::DataTypeStruct(struct_decl_clone);
+                                                // insert the struct into the type-system
+                                                let mut type_system_local = self.type_system.borrow_mut();
+                                                type_system_local.insert(struct_tag_clone, temp_data_type);
 
                                                 // reset
                                                 self.struct_field_counter = 0;
@@ -6046,25 +6049,22 @@ impl Parser<String> {
 
                                                     let old_type_name = old_type.clone();
                                                     let new_type_name = new_type_ast_node.string_val.clone();
-                                                    println!("[TYPE-SYSTEM-2] Typedeffing: '{}' -> '{}'",
-                                                        old_type_name, new_type_name
-                                                    );
+
+                                                    // DEBUG
+                                                    if debug {
+                                                        println!("[TYPE-SYSTEM-2] Typedeffing: '{}' -> '{}'",
+                                                            old_type_name, new_type_name
+                                                        );
+                                                    }
 
                                                     let mut type_type: DataType = DataType::DataTypeUnknown;
                                                     let mut type_system = self.type_system.borrow_mut();
                                                     if let Some(data_type) = type_system.get(old_type_name.as_str()) {
-                                                        // type_system.insert(new_type_name.clone(), data_type.clone());
                                                         type_type = data_type.clone();
                                                     } else {
                                                         panic!("TypeSystem has no type: '{:?}'", old_type_name);
                                                     }
                                                     type_system.insert(new_type_name.clone(), type_type.clone());
-
-                                                    // TODO: handle type system here
-                                                    //self.type_system.borrow_mut().insert(new_type_name.clone(), DataType::DataTypeUnknown);
-                                                    //self.type_system.borrow_mut().insert(new_type_name.clone(), DataType::from_str(old_type_name.as_str()).unwrap());
-
-                                                    // insert the typedef back into the AST
                                                 }
                                             }
                                         }
