@@ -401,6 +401,9 @@ fn main() {
         // Output Rule Table into file
         //
 
+        // sort rules by rule-id
+        rules.sort_by_key(|r| r.original_id);
+
         let mut rules_string_buffer = String::new();
         serialize_rules(&rules, &mut rules_string_buffer);
         write_string_to_file("rule_table.txt", &rules_string_buffer);

@@ -295,6 +295,7 @@ pub fn produce_grammar_c_full_if_else_4(grammar_rules: &mut Vec::<Rule<String>>)
     create_rule(grammar_rules, String::from("struct_or_union_specifier -> struct_or_union IDENTIFIER OPENING_CURLY_BRACKET struct_declaration_list CLOSING_CURLY_BRACKET"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("struct_or_union_specifier -> struct_or_union OPENING_CURLY_BRACKET struct_declaration_list CLOSING_CURLY_BRACKET"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("struct_or_union_specifier -> struct_or_union IDENTIFIER"), treat_nonterminal_lowercase);
+    create_rule(grammar_rules, String::from("struct_or_union_specifier -> struct_or_union TYPE_NAME"), treat_nonterminal_lowercase);
 
     // struct_or_union
     //     : STRUCT
