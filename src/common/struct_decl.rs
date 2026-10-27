@@ -138,7 +138,7 @@ impl fmt::Debug for StructDecl {
         write!(f, "struct {} {{\n", self.tag).expect("Write failed!");
         for member in &self.members {
             //write!(f, "    {} {};\n", &member.member_type, member.member_name).expect("Write failed!");
-            write!(f, "    {} {};\n", &member.data_type, member.member_name).expect("Write failed!");
+            write!(f, "    {} {}; // offset {}\n", &member.data_type, member.member_name, member.offset).expect("Write failed!");
         }
         write!(f, "}}\n").expect("Write failed!");
 

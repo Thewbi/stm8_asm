@@ -12,8 +12,6 @@ use crate::SymbolTable;
 use crate::c_ast::ast_node::AstNodeOperatorType;
 use crate::c_ast::ast_node_id_counter::AST_NODE_ID_COUNTER;
 use crate::common::data_type::DataType;
-use crate::common::data_type::DataType::DataTypeInt;
-use crate::common::data_type::DataType::DataTypeUnknown;
 use crate::common::symbol_table::SymbolTableEntry;
 use crate::common::symbol_table::SymbolTableEntryType;
 
@@ -102,7 +100,7 @@ impl TypeCheckingVisitor {
                 //
 
                 // RHS variable name
-                let mut pointer_data_type: DataType = DataTypeUnknown;
+                let mut pointer_data_type: DataType = DataType::DataTypeUnknown;
                 if let Some(right_node_id) = ast_node.rhs {
                     let right_node = node_map.get(&right_node_id).unwrap();
 
@@ -162,7 +160,7 @@ impl TypeCheckingVisitor {
                     let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&left_node.string_val);
 
                     // needs to have a type
-                    assert_ne!(symbol_table_entry.data_type, DataTypeUnknown);
+                    assert_ne!(symbol_table_entry.data_type, DataType::DataTypeUnknown);
 
                     return symbol_table_entry.data_type;
                 }
@@ -220,7 +218,7 @@ impl TypeCheckingVisitor {
                     // println!("{}", &left_node.string_val);
                 }
                 // LHS needs to have a type
-                assert_ne!(lhs_data_type, DataTypeUnknown);
+                assert_ne!(lhs_data_type, DataType::DataTypeUnknown);
 
                 // RHS
                 let mut rhs_data_type = DataType::DataTypeUnknown;
@@ -250,7 +248,7 @@ impl TypeCheckingVisitor {
                     }
                 }
                 // RHS needs to have a type
-                assert_ne!(rhs_data_type, DataTypeUnknown);
+                assert_ne!(rhs_data_type, DataType::DataTypeUnknown);
 
                 let common_type = self.get_common_type(&lhs_data_type, &rhs_data_type);
 
@@ -259,7 +257,94 @@ impl TypeCheckingVisitor {
                 common_type
             }
 
+            AstNodeType::Dot => {
+
+                // Assumption !!!!!
+                // code is: struct.struct_field
+                // retrieve the type of struct_field and return
+                // it as data_type
+
+                // let mut lhs_data_type = DataType::DataTypeUnknown;
+
+                let mut struct_variable_name = String::from("");
+                let mut struct_field_name = String::from("");
+
+                // LHS - the struct variable name
+                if let Some(left_node_id) = ast_node.lhs {
+                    // println!("LHS:ID:{}", left_node_id);
+
+                    // retrieve node by id
+                    let left_node = node_map.get(&left_node_id).unwrap();
+
+                    println!("{} {:?}", left_node.id, left_node);
+
+                    struct_variable_name = left_node.string_val.clone();
+
+                    // match left_node.node_type {
+                    //     _ => {
+                    //     }
+                    // }
+                }
+
+                // LHS - the struct variable name
+                if let Some(right_node_id) = ast_node.rhs {
+
+                    // retrieve node by id
+                    let left_node = node_map.get(&right_node_id).unwrap();
+
+                    struct_field_name = left_node.string_val.clone();
+                }
+
+                println!("struct:'{}', field:'{}'", struct_variable_name, struct_field_name);
+
+                // println!("print_symbol_table() ------------------------------------------------------------");
+                // let mut index = 0;
+                // for (key, value) in self.symbol_table.borrow_mut().into_iter() {
+                //     println!("{}) {} / {:?}", index, key, value);
+                //     // println!("{} / {:?}", key, value.data_type);
+                //     index = index + 1;
+                // }
+                // println!("---------------------------------------------------------------------------------");
+
+                // DEBUG
+                self.symbol_table.borrow_mut().print_symbol_table();
+
+                // // replace original variable name with new variable name
+                // let new_string_val = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
+                //     Ok(var_name) => var_name,
+                //     Err(e) => {
+                //         user_choosen_variable_name.clone()
+                //         //panic!("{}", e);
+                //     }
+                // };
+
+                // resolve variable name via the symbol table
+                let struct_symbol = self.symbol_table.borrow_mut().get(&struct_variable_name);
+
+                let struct_data_type: DataType = struct_symbol.data_type;
+
+                // self.type_system.borrow_mut().get(struct_data_type.);
+                match struct_data_type {
+                    DataType::DataTypeStruct(struct_decl) => {
+                        // println!("struct_decl");
+
+                        // find struct member that matches the RHS of the DOT
+                        let field_index_option = struct_decl.members.iter()
+                            .position(|m| m.member_name == struct_field_name);
+                        let field_index = field_index_option.expect("Field not found in struct!");
+                        let field = struct_decl.members.get(field_index);
+                        let struct_decl_member = field.unwrap();
+
+                        return struct_decl_member.data_type.clone();
+                    }
+                    _ => {
+                        panic!("");
+                    }
+                }
+            }
+
             _ => {
+                println!("{} {:?}", ast_node.id, ast_node);
                 todo!("NodeType: {:?}", ast_node.node_type);
             }
         }
@@ -400,7 +485,7 @@ impl TypeCheckingVisitor {
                             println!("lhs_type: {:?}, rhs_type: {:?}", lhs_type, rhs_type);
                         }
 
-                        if rhs_type != DataTypeUnknown && lhs_type != rhs_type {
+                        if rhs_type != DataType::DataTypeUnknown && lhs_type != rhs_type {
 
                             // DEBUG
                             if self.debug {
@@ -736,7 +821,7 @@ impl TypeCheckingVisitor {
                                 println!("left_node.analyzed_data_type: {}", left_node.analyzed_data_type);
                             }
                             // the node needs a type!
-                            assert_ne!(left_node.analyzed_data_type, DataTypeUnknown, "Node-Id: {}, Node has no analyzed_data_type!", left_node.id);
+                            assert_ne!(left_node.analyzed_data_type, DataType::DataTypeUnknown, "Node-Id: {}, Node has no analyzed_data_type!", left_node.id);
                             if left_node.analyzed_data_type != common_data_type {
 
                                 //
@@ -785,7 +870,7 @@ impl TypeCheckingVisitor {
 
                             let mut right_node = node_map.get(&right_node_id).unwrap().clone();
                             // the node needs a type!
-                            assert_ne!(right_node.analyzed_data_type, DataTypeUnknown, "Node-Id: {}, Node has no analyzed_data_type!", right_node.id);
+                            assert_ne!(right_node.analyzed_data_type, DataType::DataTypeUnknown, "Node-Id: {}, Node has no analyzed_data_type!", right_node.id);
                             if right_node.analyzed_data_type != common_data_type {
 
                                 // retrieve id
@@ -965,7 +1050,7 @@ impl TypeCheckingVisitor {
 
                     // DEBUG
                     //if self.debug {
-                        print!("LEFT-NODE: {}: {:?} node_type:{:?}", left_node.id, left_node, left_node.node_type);
+                        println!("LEFT-NODE: {}: {:?} node_type:{:?}", left_node.id, left_node, left_node.node_type);
                     //}
 
                     let mut data_type_as_string = String::from("");
@@ -982,13 +1067,10 @@ impl TypeCheckingVisitor {
                             let temp = self.type_system.borrow();
                             let struct_data_type_option = temp.get(&data_type_as_string);
                             if let Some(struct_data_type) = struct_data_type_option {
-                                todo!("A");
+                                symbol_table_entry.data_type = struct_data_type.clone();
                             } else {
                                 panic!("The type system has no definition for '{:?}'", data_type_as_string);
                             }
-
-                            //symbol_table_entry.data_type = DataType::DataTypeStruct(data_type_as_string.clone());
-                            todo!();
                         }
 
                         _ => {

@@ -45,6 +45,7 @@ impl fmt::Display for DataType {
             DataType::DataTypeDouble => write!(f, "double"),
             DataType::DataTypeVoid => write!(f, "void"),
             DataType::DataTypePointer(data_type) => write!(f, "Pointer-To-[{}]", data_type),
+            //DataType::DataTypeStruct(data_type) => write!(f, "StructDecl: [{:?}]", data_type.tag),
             DataType::DataTypeStruct(data_type) => write!(f, "StructDecl: [{:?}]", data_type),
             DataType::DataTypeArray(data_type, size) => write!(f, "Array-Of-[{}]-Size-[{:?}]", data_type, size),
             DataType::DataTypeTypedeffed(data_type) => write!(f, "Typedeffed-[{}]", data_type),

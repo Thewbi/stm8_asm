@@ -49,6 +49,7 @@ impl fmt::Debug for SymbolTableEntry {
         write!(f, "  name: {}\n", &self.name).expect("Write failed!");
         write!(f, "  symbol_table_entry_type: {:?}\n", &self.symbol_table_entry_type).expect("Write failed!");
         write!(f, "  parameter_count: {}\n", &self.parameter_count).expect("Write failed!");
+        write!(f, "  data_type: {}\n", &self.data_type).expect("Write failed!");
         write!(f, "  has_body: {}\n", &self.has_body).expect("Write failed!");
         write!(f, "  is_array: {}\n", &self.is_array).expect("Write failed!");
         write!(f, "  array_element_count: {}\n", &self.array_element_count).expect("Write failed!");
@@ -101,7 +102,12 @@ impl SymbolTable {
     }
 
     pub fn get(&mut self, varname: &String) -> SymbolTableEntry {
-        self.identifier_type_map.get(varname).unwrap().clone()
+        if let Some(mapped_value) = self.identifier_type_map.get(varname) {
+            return mapped_value.clone();
+        } else {
+            // SymbolTableEntry::new()
+            panic!();
+        }
     }
 
     pub fn print_symbol_table(&self) {

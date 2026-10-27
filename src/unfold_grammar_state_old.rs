@@ -2868,3 +2868,30 @@ match asm_ast_instruction.binary_operator {
                             //     println!("{:?}", new_name);
                             // }
                             // right_node.string_val = new_name;
+
+
+                            // let mut dst_name = String::from("");
+
+    // // LHS can be
+    // // - a variable
+    // // - a pointer variable
+    // // - an array subscript
+    // if let Some(lhs_sub_id) = ast_node.lhs {
+
+    //     println!("LHS node-id: {:?}", lhs_sub_id);
+
+    //     let lhs_sub = node_map.get(&lhs_sub_id).unwrap();
+
+    //     // DEBUG
+    //     if self.debug {
+    //         println!("LHS: {:?}", lhs_sub);
+    //     }
+
+        // dst_name = lhs_subnode.string_val.clone();
+
+        // // need a name
+        // assert!(dst_name.len() != 0, "[ERR] [tacky_visitor::Assignment] No name discovered for destination!");
+
+        // copy_instruction.dst = ValueElement::Variable(dst_name.clone());
+    // }
+

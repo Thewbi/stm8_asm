@@ -264,6 +264,69 @@ impl fmt::Debug for ValueElement {
     }
 }
 
+pub fn print_tacky_program(program: &Program, string_buffer: &mut String, indent: usize) {
+
+    // indent
+    let indent_string = std::iter::repeat(" ").take(indent * 2).collect::<String>();
+    string_buffer.push_str(&indent_string);
+
+    // add program
+    string_buffer.push_str(format!("Program(\"{}\")\n", program.name).as_str());
+
+    // print top-level
+    for i in 0..program.top_level.len() {
+        print_tacky_top_level(&program.top_level[i], string_buffer, indent + 1);
+    }
+}
+
+pub fn print_tacky_top_level(top_level: &TopLevel, string_buffer: &mut String, indent: usize) {
+
+    // indent
+    let indent_string = std::iter::repeat(" ").take(indent * 2).collect::<String>();
+
+    match top_level.top_level_type {
+
+        TopLevelType::Function => {
+            print_tacky_function(top_level, string_buffer, indent);
+        }
+
+        TopLevelType::StaticVariable => {
+            string_buffer.push_str(&indent_string);
+            string_buffer.push_str(format!("StaticVariable(\"{}\", {}, {})\n", top_level.name, top_level.global, top_level.init).as_str());
+        }
+
+        TopLevelType::StaticConstant => {
+            string_buffer.push_str(&indent_string);
+            string_buffer.push_str(format!("StaticConstant(\"{}\", {}, {})\n", top_level.name, top_level.type_id, top_level.init).as_str());
+        }
+    }
+}
+
+pub fn print_tacky_function(function: &TopLevel, string_buffer: &mut String, indent: usize) {
+
+    // indent
+    let indent_string = std::iter::repeat(" ").take(indent * 2).collect::<String>();
+    string_buffer.push_str(&indent_string);
+
+    // add function name and function global
+    let mut function_string_buffer = String::new();
+    function_string_buffer.push_str(format!("Function(\"{}\", {}", function.name, function.global).as_str());
+
+    // add all format arguments (name and data type)
+    for argument in function.arguments.iter() {
+        function_string_buffer.push_str(format!(", Arg(\"{}\", {:?})", argument.name, argument.data_type).as_str());
+    }
+
+    function_string_buffer.push_str(")\n");
+
+    string_buffer.push_str(&function_string_buffer);
+
+    // print all statements in the function body
+    for i in 0..function.body.len() {
+        print_tacky_instruction(&function.body[i], string_buffer, indent + 1);
+    }
+}
+
 pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut String, indent: usize) {
 
     // indent
@@ -326,7 +389,9 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
         }
 
         InstructionType::CopyFromOffset => {
-            string_buffer.push_str(format!("CopyFromOffset(src:{:?}, offset:{}, dst:{:?})\n", instruction.label, instruction.offset, instruction.dst).as_str());
+            // why has label been used here ?
+            //string_buffer.push_str(format!("CopyFromOffset(src:{:?}, offset:{}, dst:{:?})\n", instruction.label, instruction.offset, instruction.dst).as_str());
+            string_buffer.push_str(format!("CopyFromOffset(src:{:?}, offset:{}, dst:{:?})\n", instruction.src, instruction.offset, instruction.dst).as_str());
         }
 
         InstructionType::Label => {
@@ -376,7 +441,7 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
         }
 
         InstructionType::VariableDeclaration => {
-            string_buffer.push_str(format!("VariableDeclaration(label:{:?}, data_type:{:?})\n", instruction.label, instruction.data_type).as_str());
+            string_buffer.push_str(format!("VariableDeclaration(label:{:?}, data_type:{:?})\n", instruction.label, instruction.data_type.to_string()).as_str());
         }
 
         InstructionType::AddAssignment => {
@@ -405,82 +470,10 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
     }
 }
 
-pub fn print_tacky_function(function: &TopLevel, string_buffer: &mut String, indent: usize) {
-
-    // indent
-    let indent_string = std::iter::repeat(" ").take(indent * 2).collect::<String>();
-    string_buffer.push_str(&indent_string);
-
-    // add function name and function global
-    let mut function_string_buffer = String::new();
-    function_string_buffer.push_str(format!("Function(\"{}\", {}", function.name, function.global).as_str());
-
-    // add all format arguments (name and data type)
-    for argument in function.arguments.iter() {
-        function_string_buffer.push_str(format!(", Arg(\"{}\", {:?})", argument.name, argument.data_type).as_str());
-    }
-
-    function_string_buffer.push_str(")\n");
-
-    string_buffer.push_str(&function_string_buffer);
-
-    // print all statements in the function body
-    for i in 0..function.body.len() {
-        print_tacky_instruction(&function.body[i], string_buffer, indent + 1);
-    }
-}
-
-pub fn print_tacky_top_level(top_level: &TopLevel, string_buffer: &mut String, indent: usize) {
-
-    // indent
-    let indent_string = std::iter::repeat(" ").take(indent * 2).collect::<String>();
-
-    match top_level.top_level_type {
-
-        TopLevelType::Function => {
-            print_tacky_function(top_level, string_buffer, indent);
-        }
-
-        TopLevelType::StaticVariable => {
-            string_buffer.push_str(&indent_string);
-            string_buffer.push_str(format!("StaticVariable(\"{}\", {}, {})\n", top_level.name, top_level.global, top_level.init).as_str());
-        }
-
-        TopLevelType::StaticConstant => {
-            string_buffer.push_str(&indent_string);
-            string_buffer.push_str(format!("StaticConstant(\"{}\", {}, {})\n", top_level.name, top_level.type_id, top_level.init).as_str());
-        }
-    }
-}
-
-pub fn print_tacky_program(program: &Program, string_buffer: &mut String, indent: usize) {
-
-    // indent
-    let indent_string = std::iter::repeat(" ").take(indent * 2).collect::<String>();
-    string_buffer.push_str(&indent_string);
-
-    // add program
-    string_buffer.push_str(format!("Program(\"{}\")\n", program.name).as_str());
-
-    // print top-level
-    for i in 0..program.top_level.len() {
-        print_tacky_top_level(&program.top_level[i], string_buffer, indent + 1);
-    }
-}
-
-// pub fn add(a: i32, b: i32) -> i32 {
-//     a + b
-// }
-
 #[cfg(test)]
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
-
-    // #[test]
-    // fn test_add() {
-    //     assert_eq!(add(1, 2), 3);
-    // }
 
     #[test]
     fn test_print() {

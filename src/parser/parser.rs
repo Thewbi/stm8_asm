@@ -130,6 +130,7 @@ pub enum ParseStackElementType<T: std::fmt::Display> {
     StateId(usize),
 }
 
+//pub struct Parser<'a, T> {
 pub struct Parser<T> {
     pub parse_table: HashMap::<usize, HashMap::<RuleElement<T>, ParseTableCell<usize>>>,
     pub stack: Vec::<ParseStackElement<String>>,
@@ -144,8 +145,8 @@ pub struct Parser<T> {
     pub lexer_produce_type_name: bool,
 
     // type table / type system
-    // pub defined_types: Vec::<String>,
     pub type_system: Rc<RefCell<HashMap::<String, DataType>>>,
+    //type_system: &'a mut HashMap::<String, DataType>,
     struct_decl: StructDecl,
 
     // AST
@@ -219,11 +220,13 @@ pub trait ParserTrait<T> {
     ) -> bool;
 }
 
+//impl<'a> Parser<'a, String> {
 impl Parser<String> {
 
     pub fn new(
         parse_table_param: HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>,
         type_system_param: Rc<RefCell<HashMap::<String, DataType>>>,
+        //type_system_param: &'a mut HashMap::<String, DataType>,
     )
     -> Self
     {
@@ -5201,7 +5204,7 @@ impl Parser<String> {
                                             let identifier_node = DebugNode::new(identifier_node_id, identifier_label.clone());
                                             string_buffer.push_str(format!("{} [label=\"{} BelongsToRule:{} {}\"]\n",
                                                 identifier_node_id, identifier_node_id, found_rule.original_id, identifier_label.clone()).as_str());
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, identifier_node_id).as_str());
+                                            // string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, identifier_node_id).as_str());
 
                                             // push new node to stack
                                             debug_node_stack.push(identifier_node);

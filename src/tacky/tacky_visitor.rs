@@ -134,6 +134,69 @@ impl TackyVisitor {
         self.program.top_level[last].body.push(Box::new(dest_var_declaration));
     }
 
+    fn dot_node_to_copy_instruction(&mut self,
+        lhs_sub: &AstNode,
+        node_map: &Box<HashMap<usize, AstNode>>,
+        copy_instruction: &mut Instruction) -> ValueElement
+    {
+        let lhs_lhs_sub_id = lhs_sub.lhs.unwrap();
+        let lhs_lhs_sub = node_map.get(&lhs_lhs_sub_id).unwrap();
+
+        // DEBUG
+        println!("{}, {}", lhs_lhs_sub.id, lhs_lhs_sub.string_val);
+
+        let dst_name = lhs_lhs_sub.string_val.clone();
+        println!("dst_name: {}", dst_name);
+
+        // TODO: learn why borrow_mut() works but borrow() does not!
+        let symbol_table_entry = self.symbol_table.borrow_mut().get(&dst_name);
+        // // DEBUG
+        // println!("symbol_table_entry: {:?}", symbol_table_entry);
+        let struct_data_type_disabled = symbol_table_entry.data_type;
+
+
+
+        //
+        // to identify the offset, extract the name from the RHS.
+        // SideNote: The name has not been replaced.
+        // Retrieve datatype and the offset from the struct datatype
+        //
+
+        let lhs_rhs_sub_id = lhs_sub.rhs.unwrap();
+        let lhs_rhs_sub = node_map.get(&lhs_rhs_sub_id).unwrap();
+
+        // DEBUG
+        println!("{}, {}", lhs_rhs_sub.id, lhs_rhs_sub.string_val);
+
+        match struct_data_type_disabled {
+
+            DataType::DataTypeStruct(struct_decl) => {
+
+                let ts = self.type_system.borrow_mut();
+                let struct_data_type = ts.get(&struct_decl.tag).unwrap();
+
+                // find struct member that matches the RHS of the DOT
+                let field_index_option = struct_decl.members.iter()
+                    .position(|m| m.member_name == lhs_rhs_sub.string_val);
+                let field_index = field_index_option.expect("Field not found in struct!");
+                let field_option = struct_decl.members.get(field_index);
+                let field = field_option.unwrap();
+
+                // copy offset into the TACKY instruction
+                copy_instruction.offset = field.offset as i32;
+            }
+
+            _ => {
+                panic!();
+            }
+        }
+
+        // copy_instruction.instruction_type = InstructionType::CopyToOffset;
+        copy_instruction.data_type = DataType::DataTypeUnknown;
+        //copy_instruction.dst = ValueElement::Variable(dst_name.clone());
+        return ValueElement::Variable(dst_name.clone());
+    }
+
     pub fn visit(&mut self,
         ast_node_id: usize,
         node_map: &mut Box<HashMap<usize, AstNode>>,
@@ -142,13 +205,16 @@ impl TackyVisitor {
         -> ValueElement
     {
 
-        let mut ast_node = AstNode::new(0);
+        // let mut ast_node = AstNode::new(0);
 
-        {
-            ast_node = node_map.get(&ast_node_id).unwrap().clone();
-        }
+        // {
+        //     ast_node = node_map.get(&ast_node_id).unwrap().clone();
+        // }
+
+        let ast_node = node_map.get(&ast_node_id).unwrap().clone();
 
         // here, for each ASTNode type, create a TACKY instruction.
+        //
         // The TACKY instruction needs to be of type struct Instruction defined in tacky.rs.
         // Then when all necessary information is copied into the Instruction struct, insert
         // that struct into the current body, using this line:
@@ -169,7 +235,6 @@ impl TackyVisitor {
             }
 
             AstNodeType::FunctionDeclaration => {
-
                 // DEBUG
                 if self.debug {
                     println!("{:?}", ast_node);
@@ -347,6 +412,11 @@ impl TackyVisitor {
 
             AstNodeType::Expression => {
 
+                // DEBUG
+                // if self.debug {
+                    println!("[Expression] AstNodeId: {}, AstNodeType: {:?}", ast_node.id, ast_node.node_type);
+                // }
+
                 match ast_node.operator_type {
 
                     AstNodeOperatorType::Assignment => {
@@ -365,20 +435,7 @@ impl TackyVisitor {
                         // - an array subscript
                         if let Some(lhs_subnode_id) = ast_node.lhs {
 
-                            // let lhs_subnode = node_map.get(&lhs_subnode_id).unwrap();
-
-                            // // DEBUG
-                            // if self.debug {
-                            //     println!("LHS: {:?}", lhs_subnode);
-                            // }
-
-                            // let mut dst_name = String::from("");
-                            // let dst_name = self.variable_naming_source.borrow_mut().new_temp_var();
-
-                            // let mut br_cnt = 0;
-                            // let result = self.visit(lhs_subnode_id, node_map, &dst_name, &mut br_cnt);
                             let lhs_sub = node_map.get(&lhs_subnode_id).unwrap();
-
                             match lhs_sub.node_type {
 
                                 AstNodeType::Subscript => {
@@ -390,15 +447,33 @@ impl TackyVisitor {
                                 }
 
                                 _ => {
-                                    let dst_name = lhs_sub.string_val.clone();
+                                    let mut dst_name = String::new();
 
-                                    // need a name
-                                    assert!(dst_name.len() != 0, "[ERR] [tacky_visitor::Assignment] No name discovered for destination!");
-
-                                    // Copy - this is new for the init part of for loops!
                                     let mut copy_instruction: Instruction = Instruction::new();
-                                    copy_instruction.instruction_type = InstructionType::Copy;
-                                    copy_instruction.dst = ValueElement::Variable(dst_name.clone());
+
+                                    match lhs_sub.node_type {
+
+                                        AstNodeType::Dot => {
+                                            //todo!();
+                                            //dst_name = name of struct. struct is in LHS of the DOT node!
+
+                                            copy_instruction.instruction_type = InstructionType::CopyToOffset;
+                                            let value_element = self.dot_node_to_copy_instruction(lhs_sub,
+                                                node_map, &mut copy_instruction);
+                                            copy_instruction.dst = value_element;
+                                        }
+
+                                        _ => {
+                                            dst_name = lhs_sub.string_val.clone();
+
+                                            // need a name
+                                            assert!(dst_name.len() != 0, "[ERR] [tacky_visitor::Assignment] No name discovered in Node: {} for destination!", lhs_sub.id);
+
+                                            // Copy - this is new for the init part of for loops!
+                                            copy_instruction.instruction_type = InstructionType::Copy;
+                                            copy_instruction.dst = ValueElement::Variable(dst_name.clone());
+                                        }
+                                    }
 
                                     let lhs_subnode = node_map.get(&lhs_subnode_id).unwrap();
 
@@ -455,7 +530,7 @@ impl TackyVisitor {
 
                                             // Copy - this is new for the init part of for loops!
                                             // let mut copy_instruction: Instruction = Instruction::new();
-                                            copy_instruction.instruction_type = InstructionType::Copy;
+                                            // copy_instruction.instruction_type = InstructionType::Copy;
 
                                             if let Some(rhs_sub_id) = ast_node.rhs {
 
@@ -516,8 +591,6 @@ impl TackyVisitor {
                                     }
                                 }
                             }
-
-
                         }
                     }
 
@@ -686,10 +759,6 @@ impl TackyVisitor {
                         let last = self.program.top_level.len() - 1;
                         self.program.top_level[last].body.push(Box::new(add_assignment_instruction));
                     }
-
-                    // AstNodeOperatorType::Subscript => {
-
-                    // }
 
                     AstNodeOperatorType::NotApplicable => {
                         // DEBUG
@@ -1432,7 +1501,6 @@ impl TackyVisitor {
                 // append instruction to latest top-level element of the program
                 let last = self.program.top_level.len() - 1;
                 self.program.top_level[last].body.push(Box::new(label_instruction));
-
             }
 
             AstNodeType::Identifier => {
@@ -1459,16 +1527,19 @@ impl TackyVisitor {
                 let last = self.program.top_level.len() - 1;
                 self.program.top_level[last].body.push(Box::new(comment_declaration));
 
-                // In TACKY, variables are not declared. It is allowed to use variables without declaring them.
-                // Only if a variable is initialized, this is output into TACKY as a variable assignment.
+                // In TACKY, variables are not declared. It is allowed to use variables
+                // without declaring them. Only if a variable is initialized, this is
+                // output into TACKY as a variable assignment.
                 //
-                // This implementation will output a variable declaration although it is not strictly required!
+                // This implementation will output a variable declaration although it is
+                // not strictly required!
                 //
                 // Nora Sandler, page 110: "[..] we can discard variable declarations at this stage;
                 // in TACKY, you don't need to declare variables before using them.
                 // But we do need to emit TACKY to initialize varibles.
-                // If a declaration includes an initializer, we'll handle it like a normal variable assignment.
-                // If a declaration doesn't have an initializer, we won't amit any TACKY at all."
+                // If a declaration includes an initializer, we'll handle it like a normal variable
+                // assignment. If a declaration doesn't have an initializer, we won't amit any TACKY
+                // at all."
 
                 // println!("{:?}", ast_node);
 
@@ -1518,24 +1589,37 @@ impl TackyVisitor {
 
                     // LHS of left node itself.
                     //
-                    // This node contains the element count of arrays
-                    // (if the user decided to specify that explicitly in code between angular brackets)
-                    //
-                    // This node is optional since it is allowed to not
-                    // specify the array size when an initializer is used while
-                    // declaring the array. e.g.: int arr[] = {64, 34, 25, 12, 22, 11, 90};
-                    if let Some(left_node_lhs_id) = left_node.lhs {
-
-                        // retrieve node by id
-                        let left_node_lhs = node_map.get(&left_node_lhs_id).unwrap();
-
-                        // DEBUG
-                        if self.debug {
-                            println!("Id: {}, {:?}", left_node_lhs.id, left_node_lhs);
-                            println!("{}", left_node_lhs.string_val);
+                    match left_node.node_type {
+                        AstNodeType::Structure => {
+                            if let Some(rhs_node_id) = left_node.rhs {
+                                let lhs_rhs_node = node_map.get(&rhs_node_id).unwrap();
+                                data_type_as_string = lhs_rhs_node.string_val.clone();
+                            }
                         }
+                        AstNodeType::Array => {
+                            // This node contains the element count of arrays
+                            // (if the user decided to specify that explicitly in code between angular brackets)
+                            //
+                            // This node is optional since it is allowed to not
+                            // specify the array size when an initializer is used while
+                            // declaring the array. e.g.: int arr[] = {64, 34, 25, 12, 22, 11, 90};
+                            if let Some(left_node_lhs_id) = left_node.lhs {
 
-                        explicit_array_element_count = i32::from_str_radix(&left_node_lhs.string_val, 10).expect("REASON")
+                                // retrieve node by id
+                                let left_node_lhs = node_map.get(&left_node_lhs_id).unwrap();
+
+                                // DEBUG
+                                if self.debug {
+                                    println!("****Id: {}, {:?}", left_node_lhs.id, left_node_lhs);
+                                    println!("{}", left_node_lhs.string_val);
+                                }
+
+                                explicit_array_element_count = i32::from_str_radix(&left_node_lhs.string_val, 10).expect("REASON")
+                            }
+                        }
+                        _ => {
+                            // nop
+                        }
                     }
                 }
 
@@ -1595,14 +1679,18 @@ impl TackyVisitor {
                 // create temporary variable
                 let mut var_declaration: Instruction = Instruction::new();
                 var_declaration.instruction_type = InstructionType::VariableDeclaration;
-                var_declaration.data_type = DataType::from_str(&data_type_as_string).expect("Need analyzed data type!");
+                // let type_system = self.type_system.borrow();
+                let data_type: DataType = self.type_system.borrow().get(&data_type_as_string).unwrap().clone();
+                //var_declaration.data_type = DataType::from_str(&data_type_as_string).expect("Need analyzed data type!");
+                var_declaration.data_type = data_type.clone();
                 var_declaration.label = variable_identifier.clone();
 
                 // create symbol table entry for temporary variable
                 let mut symbol_table_entry = SymbolTableEntry::new();
                 symbol_table_entry.name = variable_identifier.clone();
                 symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
-                symbol_table_entry.data_type = DataType::from_str(&data_type_as_string).expect("Need type");
+                //symbol_table_entry.data_type = DataType::from_str(&data_type_as_string).expect("Need type");
+                symbol_table_entry.data_type = data_type.clone();
                 symbol_table_entry.is_array = is_array;
                 symbol_table_entry.array_element_count = array_element_count;
 
@@ -1629,6 +1717,7 @@ impl TackyVisitor {
                     }
 
                     match expression_node.node_type {
+
                         AstNodeType::SingleInit => {
                             // DEBUG
                             if self.debug {
@@ -1950,6 +2039,30 @@ impl TackyVisitor {
                 // TODO: check that the typedeffed type actually exists!
             }
 
+            AstNodeType::Dot => {
+                println!("ast_node_id: {}", ast_node_id);
+
+                // retrieve the value of this expression, write it into
+                // a temporary variable and return a ValueElement
+
+                let mut copy_instruction: Instruction = Instruction::new();
+                copy_instruction.instruction_type = InstructionType::CopyFromOffset;
+                let value_element = self.dot_node_to_copy_instruction(&ast_node, node_map, &mut copy_instruction);
+                copy_instruction.src = value_element;
+                // println!("{:?}", copy_instruction.src);
+                copy_instruction.dst = ValueElement::Variable(dst_name.clone());
+
+                // copy_instruction.offset = 123;
+
+                println!("{:?}", copy_instruction);
+
+                // append instruction to latest top-level element of the program
+                let last = self.program.top_level.len() - 1;
+                self.program.top_level[last].body.push(Box::new(copy_instruction));
+
+                return ValueElement::Variable(dst_name.clone());
+            }
+
             _ => {
                 panic!("{}", format!("Unhandled NodeType '{:?}'!\n", ast_node.node_type).as_str());
             }
@@ -2085,30 +2198,3 @@ impl TackyVisitor {
         subscript_instruction
     }
 }
-
-
-
-// let mut dst_name = String::from("");
-
-    // // LHS can be
-    // // - a variable
-    // // - a pointer variable
-    // // - an array subscript
-    // if let Some(lhs_sub_id) = ast_node.lhs {
-
-    //     println!("LHS node-id: {:?}", lhs_sub_id);
-
-    //     let lhs_sub = node_map.get(&lhs_sub_id).unwrap();
-
-    //     // DEBUG
-    //     if self.debug {
-    //         println!("LHS: {:?}", lhs_sub);
-    //     }
-
-        // dst_name = lhs_subnode.string_val.clone();
-
-        // // need a name
-        // assert!(dst_name.len() != 0, "[ERR] [tacky_visitor::Assignment] No name discovered for destination!");
-
-        // copy_instruction.dst = ValueElement::Variable(dst_name.clone());
-    // }

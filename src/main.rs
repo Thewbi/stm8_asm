@@ -33,6 +33,7 @@ use std::cell::RefCell;
 
 use crate::c_ast::ast_node_id_counter::AST_NODE_ID_COUNTER;
 use crate::common::data_type::DataType;
+use crate::common::struct_decl::StructDecl;
 use crate::parser::rule::read_rule_map;
 use crate::parser::rule::serialize_rules;
 
@@ -708,11 +709,11 @@ fn main() {
         // DEBUG output all preprocessor symbols
         //
 
-        println!(":) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) ");
+        println!("pp pp pp pp pp pp pp pp pp   preprocessor symbols  pp pp pp pp pp pp pp pp pp pp");
         for (key, value) in defined_symbol_map.into_iter() {
             println!("{} / {}", key, value);
         }
-        println!(":) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) :) ");
+        println!("pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp");
 
         // DEBUG
         // expression_parser.print_dot();
@@ -834,11 +835,12 @@ fn main() {
     let type_system_rc_22 = type_system_rc_1.clone(); // type checking visitor
     let type_system_rc_2 = type_system_rc_1.clone(); // tacky visitor
     let type_system_rc_3 = type_system_rc_1.clone(); // AsmAstFixupVisitor
-    let type_system_rc_4 = type_system_rc_1.clone(); // computing layouts of structs
+    let mut type_system_rc_4 = type_system_rc_1.clone(); // computing layouts of structs
     let type_system_rc_99 = type_system_rc_1.clone(); // debug output
 
     // init
     let mut parser: Parser<String> = Parser::<String>::new(parse_table, type_system_rc_1);
+    //let mut parser: Parser<String> = Parser::<String>::new(parse_table, &mut type_system);
 
     let lexer_debug: bool = false;
     let lexer_token_debug: bool = false;
@@ -971,31 +973,80 @@ fn main() {
             print_ast(program_ast_node_id, &node_map, "dot\\abstract_syntax_tree.dot");
         }
 
-        //
-        // DEBUG - Print the TYPE-SYSTEM
-        //
-        // if self.debug {
-            println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-            for (key, value) in type_system_rc_99.borrow().clone().into_iter() {
-                println!("key: {}, \t\tvalue: {}", key, value);
-            }
-            println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+        // //
+        // // DEBUG - Print the TYPE-SYSTEM
+        // //
+        // if debug {
+        //     println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+        //     for (key, value) in type_system_rc_99.borrow().clone().into_iter() {
+        //         println!("key: {}, \t\tvalue: {}", key, value);
+        //     }
+        //     println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
         // }
 
         // PostProcessing after Parsing
         // - compute memory layouts of structs
 
-        // iterate all types
-        for (key, value) in type_system_rc_4.borrow().clone().into_iter() {
-            match value {
-                // if the type is a struct, compute it's layout
-                DataType::DataTypeStruct(mut struct_decl) => {
-                    struct_decl.compute_memory_layout(&type_system_rc_4.borrow());
-                }
-                _ => {
+        //
+        // The following code is pure nightmare-fuel (118 octane).
+        // The reason for this is that I am too confused to update
+        // structs in-place in the hashmaps contained inside the
+        // the refcell!
+        //
+        // This code copies out the structs of the hashmap behind
+        // the refcell, then computes the offsets on the copies
+        // then reinserts the copied structs into the hashmap
+        // which resembles an update!
+        //
+        // Rust is a gift which keeps on giving ...
+        //
 
+        // this vector will temporarily store all struct types
+        let mut struct_decl_vector = Vec::<StructDecl>::new();
+
+        // copy structs from the type system into the struct_decl_vector
+        {
+            let ts = type_system_rc_4.borrow_mut();
+            for (key, value) in ts.iter() {
+                match value {
+                    DataType::DataTypeStruct(struct_decl) => {
+                        struct_decl_vector.push(struct_decl.clone());
+                    }
+                    _ => {
+                    }
                 }
             }
+        }
+
+        // use the copied structs to compute their layout
+        {
+            for i in 0..struct_decl_vector.len() {
+                let curr = &mut struct_decl_vector[i];
+                curr.compute_memory_layout(&type_system_rc_4.borrow_mut());
+            }
+        }
+
+        // update the hashmap behind the refcell by just executing
+        // a completely new insert which will replace the old entries
+        // by new entries that contain offsets for each field
+        {
+            let mut zool = type_system_rc_4.borrow_mut();
+            for i in 0..struct_decl_vector.len() {
+                let curr = &mut struct_decl_vector[i];
+                zool.insert(curr.tag.clone(), DataType::DataTypeStruct(curr.clone()));
+            }
+        }
+
+        //
+        // DEBUG - Print the TYPE-SYSTEM
+        //
+
+        if debug {
+            println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+            for (key, value) in type_system_rc_99.borrow().clone().into_iter() {
+                println!("key: {}, \t\tvalue: {}", key, value);
+            }
+            println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
         }
 
         let perform_identifier_resolution_type_checking_emit_code = true;
@@ -1075,6 +1126,17 @@ fn main() {
                 let symbol_table_rc_4 = symbol_table_rc_1.clone(); // TackyToIntermediateAsmConversionVisitor
                 let symbol_table_rc_5 = symbol_table_rc_1.clone(); // used for printing
 
+                //
+                // Print symbol table before TypeChecking
+                //
+
+                // if debug {
+                    println!("\n\n");
+                    println!("Symbol Table before Type Checking!");
+                    symbol_table_rc_1.borrow().print_symbol_table();
+                    println!("\n\n");
+                // }
+
                 let mut type_checking_visitor = TypeCheckingVisitor::new(symbol_table_rc_1, type_system_rc_22);
                 type_checking_visitor.visit(program_ast_node_id, &mut node_map, &DataType::DataTypeVoid);
 
@@ -1088,15 +1150,10 @@ fn main() {
                 // Print symbol table after TypeChecking
                 //
 
-                if debug {
-                    println!("\n\n");
-                    println!("Symbol Table after Type Checking!");
-                    type_checking_visitor.print_symbol_table();
-                    println!("\n\n");
-                }
+
 
                 //
-                // remove initial scope for global namespace
+                // Remove initial scope for global namespace
                 //
 
                 variable_naming_source_rc_3.borrow_mut().exit_scope();
@@ -1148,6 +1205,13 @@ fn main() {
                 //
                 // [Step 3] Generate TACKY (from AST)
                 //
+
+                // if debug {
+                    println!("\n\n");
+                    println!("Symbol Table before TackyVisitor!");
+                    symbol_table_rc_2.borrow().print_symbol_table();
+                    println!("\n\n");
+                // }
 
                 let mut tacky_visitor = TackyVisitor::new(
                     variable_naming_source_rc_2, symbol_table_rc_2, type_system_rc_2);

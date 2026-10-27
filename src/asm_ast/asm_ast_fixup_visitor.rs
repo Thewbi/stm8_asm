@@ -254,7 +254,7 @@ impl AsmAstFixupVisitor {
         }
 
         for i in 0..asm_ast_program.functions.len() {
-            self.visit_asm_ast_function(&mut asm_ast_program.functions[i]/*, &self.type_system.borrow() */);
+            self.visit_asm_ast_function(&mut asm_ast_program.functions[i]);
         }
     }
 
