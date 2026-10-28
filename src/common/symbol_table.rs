@@ -20,6 +20,7 @@ pub struct SymbolTableEntry {
     pub is_array: bool,
     pub array_element_count: i32,
     pub is_pointer: bool,
+    pub is_struct: bool,
 
     // TODO: add custom typedeffed types here somehow!
 }
@@ -36,6 +37,7 @@ impl SymbolTableEntry {
             is_array: false,
             array_element_count: 0i32,
             is_pointer: false,
+            is_struct: false,
         };
         instance
     }
@@ -54,6 +56,7 @@ impl fmt::Debug for SymbolTableEntry {
         write!(f, "  is_array: {}\n", &self.is_array).expect("Write failed!");
         write!(f, "  array_element_count: {}\n", &self.array_element_count).expect("Write failed!");
         write!(f, "  is_pointer: {}\n", &self.is_pointer).expect("Write failed!");
+        write!(f, "  is_struct: {}\n", &self.is_struct).expect("Write failed!");
         write!(f, "}}\n").expect("Write failed!");
 
         Ok(())
@@ -101,12 +104,12 @@ impl SymbolTable {
         self.identifier_type_map.get(varname).unwrap().clone()
     }
 
-    pub fn get(&mut self, varname: &String) -> SymbolTableEntry {
+    pub fn get(&mut self, varname: &String) -> Option<SymbolTableEntry> {
         if let Some(mapped_value) = self.identifier_type_map.get(varname) {
-            return mapped_value.clone();
+            return Some(mapped_value.clone());
         } else {
-            // SymbolTableEntry::new()
-            panic!();
+            println!("IdentifierMap does not contain an entry for '{}'", varname);
+            None
         }
     }
 

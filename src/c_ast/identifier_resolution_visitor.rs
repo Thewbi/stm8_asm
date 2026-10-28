@@ -10,9 +10,13 @@ use crate::AstNodeType;
 use crate::c_ast::ast_node::AstNodeOperatorType;
 use crate::c_ast::identifier_resolution_node::IdentifierResolutionNode;
 
+use crate::common::data_type::DataType;
+use crate::common::data_type::DataType::DataTypeStruct;
 use crate::common::struct_decl::StructDecl;
 use crate::common::struct_decl::StructDeclMember;
 
+use crate::common::symbol_table;
+use crate::common::symbol_table::SymbolTable;
 use crate::tacky::tacky::BinaryOperator;
 
 use crate::common::variable_naming_source::VariableNamingSource;
@@ -34,23 +38,24 @@ use crate::common::variable_naming_source::VariableNamingSource;
 // 6. src\asm_ast\asm_ast_masm_emitter_visitor.rs / asm_ast/AsmAstASEmitterVisitor / ...
 //
 
-
-
 pub struct IdentifierResolutionVisitor {
     // https://www.youtube.com/watch?v=8O0Nt9qY_vo
     variable_naming_source: Rc<RefCell<VariableNamingSource>>,
     structure_naming_source: Rc<RefCell<VariableNamingSource>>,
+    symbol_table: Rc<RefCell<SymbolTable>>,
     debug: bool,
 }
 
 impl IdentifierResolutionVisitor {
 
     pub fn new(variable_naming_source_param: Rc<RefCell<VariableNamingSource>>,
-        structure_naming_source_param: Rc<RefCell<VariableNamingSource>>) -> IdentifierResolutionVisitor
+        structure_naming_source_param: Rc<RefCell<VariableNamingSource>>,
+        symbol_table_param: Rc<RefCell<SymbolTable>>,) -> IdentifierResolutionVisitor
     {
         IdentifierResolutionVisitor {
             variable_naming_source: variable_naming_source_param,
             structure_naming_source: structure_naming_source_param,
+            symbol_table: symbol_table_param,
             debug: false,
         }
     }
@@ -248,20 +253,23 @@ impl IdentifierResolutionVisitor {
                 println!("user_choosen_variable_name: '{}'", &user_choosen_variable_name);
 
                 // replace original variable name with new variable name
-                // self.structure_naming_source
-                let new_string_val = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
+                let replaced_variable_name = match self.variable_naming_source.borrow_mut().get_replaced_variable_name(&user_choosen_variable_name) {
                     Ok(var_name) => var_name,
                     Err(e) => {
                         user_choosen_variable_name.clone()
-                        //panic!("{}", e);
                     }
                 };
+
+                println!("replaced_variable_name: '{}'", &replaced_variable_name);
+
+                println!("[NAMING-1] Name lookup: old: '{}', new: '{}'",
+                        &user_choosen_variable_name, replaced_variable_name);
 
                 // remember original name for convenient debugging
                 indentifier_resolution_node.initial_string_val = user_choosen_variable_name;
 
                 // store new varible name
-                indentifier_resolution_node.string_val = new_string_val;
+                indentifier_resolution_node.string_val = replaced_variable_name;
 
                 // DEBUG
                 if self.debug {
@@ -601,10 +609,12 @@ impl IdentifierResolutionVisitor {
 
             AstNodeType::VariableDeclaration => {
                 // DEBUG
-                if self.debug {
+                // if self.debug {
                     println!("AstNodeId: {:?}, AstNodeType: {:?}", ast_node.id, ast_node.node_type);
                     println!("AstNode: {:?}", ast_node);
-                }
+                // }
+
+                let mut is_struct: bool = false;
 
                 // data type (LHS)
                 if let Some(left_node_id) = ast_node.lhs {
@@ -612,6 +622,19 @@ impl IdentifierResolutionVisitor {
                     if self.debug {
                         println!("{:?}", left_node_id);
                     }
+
+                    let lhs_node = node_map.get(&left_node_id).unwrap();
+                    println!("left_node_id: {}, lhs_node.string_val: '{}'", left_node_id, lhs_node.string_val);
+                    //is_struct = lhs_node.string_val == "struct";
+                    is_struct = lhs_node.node_type == AstNodeType::Structure;
+                    // match lhs_node.data_type.unwrap() {
+                    //     DataType::DataTypeStruct(_) => {
+                    //         is_struct = true;
+                    //     }
+                    //     _ => {
+
+                    //     }
+                    // }
                 }
 
                 let mut user_define_varname = String::new();
@@ -625,21 +648,34 @@ impl IdentifierResolutionVisitor {
                         println!("{:?}", right_node_id);
                     }
 
+                    // next: implement page 105
+
                     let mut right_node = node_map.get(&right_node_id).unwrap().clone();
                     varname = right_node.string_val.clone();
 
-                    // next: implement page 105
-
-                    // the naming source checks if the name is used already (which is not allowed)
-                    // throws panic if the variable name is already used.
-                    // To remember if a variable is used, it maintains a data structure of variables
-                    user_define_varname = self.variable_naming_source.borrow_mut().
-                        new_user_defined_var(&varname);
+                    // why does borrow_mut() work but borrow() does not work?
+                    //let symbol_table_entry_option = self.symbol_table.borrow_mut().get(&varname);
+                    //if let Some(symbol_table_entry) = symbol_table_entry_option {
+                        // if symbol_table_entry.is_struct {
+                        if is_struct {
+                            // the naming source checks if the name is used already (which is not allowed)
+                            // throws panic if the variable name is already used.
+                            // To remember if a variable is used, it maintains a data structure of variables
+                            user_define_varname = self.structure_naming_source.borrow_mut().
+                                new_user_defined_var(&varname);
+                        } else {
+                            // the naming source checks if the name is used already (which is not allowed)
+                            // throws panic if the variable name is already used.
+                            // To remember if a variable is used, it maintains a data structure of variables
+                            user_define_varname = self.variable_naming_source.borrow_mut().
+                                new_user_defined_var(&varname);
+                        }
+                    //}
 
                     // DEBUG
-                    if self.debug {
-                        println!("Name replaced: old: {}, new: {}", varname, user_define_varname);
-                    }
+                    // if self.debug {
+                        println!("[NAMING-2] Name replaced: old: {}, new: {}", varname, user_define_varname);
+                    // }
 
                     // replace the variable name by the unique variable name from the scope.
                     // Subsequent steps such as TACKY generation will use unique names instead
@@ -717,6 +753,7 @@ impl IdentifierResolutionVisitor {
                     }
                 }
 
+/*
                 //
                 // replace user-defined tag by compiler-defined name
                 //
@@ -728,10 +765,10 @@ impl IdentifierResolutionVisitor {
                     new_user_defined_var(&struct_tag);
 
                 // DEBUG
-                if self.debug {
-                    println!("Name replaced: old: '{}', new: '{}'",
+                // if self.debug {
+                    println!("[NAMING-3] Name replaced: old: '{}', new: '{}'",
                         &struct_tag, compiler_defined_struct_name);
-                }
+                // }
 
                 // replace the variable name by the unique variable name from the scope.
                 // Subsequent steps such as TACKY generation will use unique names instead
@@ -742,6 +779,7 @@ impl IdentifierResolutionVisitor {
                 // need a reinsert to update the node in the node_map because.
                 // The updat is required since the node's name was changed
                 node_map.insert(ast_node.id, ast_node);
+ */
             }
 
             AstNodeType::ParameterDeclaration => {

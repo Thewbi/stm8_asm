@@ -372,8 +372,8 @@ impl TackyToIntermediateAsmConversionVisitor {
 
             ValueElement::Variable(var_name) => {
                 // retrieve address
-                let symbol_table_entry = self.symbol_table.borrow_mut().get(var_name);
-                src_data_type = symbol_table_entry.data_type;
+                let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name);
+                src_data_type = symbol_table_entry_option.expect(format!("No symbol for '{}' found in symbol table!\n", var_name).as_str()).data_type;
                 mov_index.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
                 mov_index.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
             }
@@ -585,8 +585,9 @@ impl TackyToIntermediateAsmConversionVisitor {
 
             ValueElement::Variable(var_name) => {
                 // retrieve address
-                let symbol_table_entry = self.symbol_table.borrow_mut().get(var_name);
-                src_data_type = symbol_table_entry.data_type;
+                let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name);
+                // src_data_type = symbol_table_entry.data_type;
+                src_data_type = symbol_table_entry_option.expect(format!("No symbol for '{}' found in symbol table!\n", var_name).as_str()).data_type;
                 mov_index.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
                 mov_index.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
             }
@@ -808,8 +809,9 @@ impl TackyToIntermediateAsmConversionVisitor {
         let mut src_data_type: DataType = DataType::DataTypeUnknown;
         match &tacky_instruction_add_assignment.src {
             ValueElement::Variable(var_name) => {
-                let symbol_table_entry = self.symbol_table.borrow_mut().get(var_name);
-                src_data_type = symbol_table_entry.data_type;
+                let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name);
+                // src_data_type = symbol_table_entry.data_type;
+                src_data_type = symbol_table_entry_option.expect(format!("No symbol for '{}' found in symbol table!\n", var_name).as_str()).data_type;
                 add.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
                 add.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
             }
@@ -868,8 +870,9 @@ impl TackyToIntermediateAsmConversionVisitor {
         match &tacky_node_copy_to_offset.src {
 
             ValueElement::Variable(var_name) => {
-                let symbol_table_entry = self.symbol_table.borrow_mut().get(var_name);
-                src_data_type = symbol_table_entry.data_type;
+                let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name);
+                // src_data_type = symbol_table_entry.data_type;
+                src_data_type = symbol_table_entry_option.expect(format!("No symbol for '{}' found in symbol table!\n", var_name).as_str()).data_type;
                 mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
             }
 
@@ -1186,7 +1189,8 @@ impl TackyToIntermediateAsmConversionVisitor {
         lea.comment = String::from(format!("    ; lea for GetAddress()").to_string());
         match &tacky_node_get_address.src {
             ValueElement::Variable(var_name) => {
-                let symbol_table_entry = self.symbol_table.borrow_mut().get(var_name);
+                let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name);
+                let symbol_table_entry = symbol_table_entry_option.expect(format!("No symbol for '{}' found in symbol table!\n", var_name).as_str());
                 match symbol_table_entry.is_array {
                     true => {
                         // use PseudoMem(), for array-aggregates

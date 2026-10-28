@@ -226,7 +226,6 @@ impl Parser<String> {
     pub fn new(
         parse_table_param: HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>,
         type_system_param: Rc<RefCell<HashMap::<String, DataType>>>,
-        //type_system_param: &'a mut HashMap::<String, DataType>,
     )
     -> Self
     {

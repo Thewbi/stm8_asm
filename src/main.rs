@@ -835,7 +835,7 @@ fn main() {
     let type_system_rc_22 = type_system_rc_1.clone(); // type checking visitor
     let type_system_rc_2 = type_system_rc_1.clone(); // tacky visitor
     let type_system_rc_3 = type_system_rc_1.clone(); // AsmAstFixupVisitor
-    let mut type_system_rc_4 = type_system_rc_1.clone(); // computing layouts of structs
+    let type_system_rc_4 = type_system_rc_1.clone(); // computing layouts of structs
     let type_system_rc_99 = type_system_rc_1.clone(); // debug output
 
     // init
@@ -991,7 +991,7 @@ fn main() {
         // The following code is pure nightmare-fuel (118 octane).
         // The reason for this is that I am too confused to update
         // structs in-place in the hashmaps contained inside the
-        // the refcell!
+        // the refcell! How does it work?
         //
         // This code copies out the structs of the hashmap behind
         // the refcell, then computes the offsets on the copies
@@ -1079,6 +1079,18 @@ fn main() {
                 variable_naming_source_rc_3.borrow_mut().enter_scope();
 
                 //
+                // Convert symbol table into cell ref
+                //
+
+                let symbol_table = SymbolTable::new();
+                let symbol_table_rc_1 = Rc::new(RefCell::new(symbol_table)); // TypeCheckingVisitor
+                let symbol_table_rc_22 = symbol_table_rc_1.clone(); // IdentifierResolutionVisitor
+                let symbol_table_rc_2 = symbol_table_rc_1.clone(); // TackyVisitor
+                let symbol_table_rc_3 = symbol_table_rc_1.clone(); // AsmAstFixupVisitor
+                let symbol_table_rc_4 = symbol_table_rc_1.clone(); // TackyToIntermediateAsmConversionVisitor
+                let symbol_table_rc_5 = symbol_table_rc_1.clone(); // used for printing
+
+                //
                 // [Step 1] Identifier Resolution Phase
                 //
                 // IdentifierResolutionVisitor
@@ -1103,7 +1115,8 @@ fn main() {
                 let mut identifier_resolution_visitor =
                     IdentifierResolutionVisitor::new(
                         variable_naming_source_rc_1,
-                        struct_naming_source_rc_1);
+                        struct_naming_source_rc_1,
+                        symbol_table_rc_22);
                 identifier_resolution_visitor.visit(program_ast_node_id, &mut node_map);
 
                 //
@@ -1119,12 +1132,7 @@ fn main() {
                 // [Step 2] Type Checking Phase - Nora Sandler, page 178ff
                 //
 
-                let symbol_table = SymbolTable::new();
-                let symbol_table_rc_1 = Rc::new(RefCell::new(symbol_table)); // TypeCheckingVisitor
-                let symbol_table_rc_2 = symbol_table_rc_1.clone(); // TackyVisitor
-                let symbol_table_rc_3 = symbol_table_rc_1.clone(); // AsmAstFixupVisitor
-                let symbol_table_rc_4 = symbol_table_rc_1.clone(); // TackyToIntermediateAsmConversionVisitor
-                let symbol_table_rc_5 = symbol_table_rc_1.clone(); // used for printing
+
 
                 //
                 // Print symbol table before TypeChecking

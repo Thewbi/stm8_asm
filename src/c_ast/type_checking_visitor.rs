@@ -319,8 +319,8 @@ impl TypeCheckingVisitor {
                 // };
 
                 // resolve variable name via the symbol table
-                let struct_symbol = self.symbol_table.borrow_mut().get(&struct_variable_name);
-
+                let struct_symbol_option = self.symbol_table.borrow_mut().get(&struct_variable_name);
+                let struct_symbol = struct_symbol_option.expect(format!("No symbol for '{}' found in symbol table!\n", struct_variable_name).as_str());
                 let struct_data_type: DataType = struct_symbol.data_type;
 
                 // self.type_system.borrow_mut().get(struct_data_type.);
@@ -525,7 +525,8 @@ impl TypeCheckingVisitor {
                             node_map.insert(ast_node_clone.id, ast_node_clone);
                         }
 
-                        let symbol_table_entry_lhs = self.symbol_table.borrow_mut().get(&rhs_variable_name);
+                        let symbol_table_entry_lhs_option = self.symbol_table.borrow_mut().get(&rhs_variable_name);
+                        let symbol_table_entry_lhs = symbol_table_entry_lhs_option.expect(format!("No symbol for '{}' found in symbol table!\n", rhs_variable_name).as_str());
                         println!("symbol_table_entry_lhs: {:?}", symbol_table_entry_lhs);
 
                         // Nora Sandler, page 399
@@ -1059,6 +1060,9 @@ impl TypeCheckingVisitor {
                     match left_node.node_type {
 
                         AstNodeType::Structure => {
+
+                            symbol_table_entry.is_struct = true;
+
                             // if the variable is a struct-type, the type is part of the right subnode
                             // it is not part of the node itself
                             let left_right_node = node_map.get(&left_node.rhs.unwrap()).unwrap();

@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet, BTreeSet, BTreeMap};
 use core::error::Error;
 
 // https://stackoverflow.com/questions/32935808/generate-sequential-ids-for-each-instance-of-a-struct
-static VAR_COUNTER: AtomicUsize = AtomicUsize::new(0);
+//static VAR_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 //
 // he VariableNamingSource is used to
@@ -69,6 +69,8 @@ pub struct VariableNamingSource {
     label: String,
     // vector/stack of varname maps
     varname_map_stack: Vec::<RefCell<HashMap::<String, VarnameMapEntry>>>,
+
+    VAR_COUNTER: AtomicUsize,
 }
 
 impl VariableNamingSource {
@@ -78,6 +80,7 @@ impl VariableNamingSource {
         let instance = VariableNamingSource {
             label: label_param.clone(),
             varname_map_stack: Vec::<RefCell<HashMap::<String, VarnameMapEntry>>>::new(),
+            VAR_COUNTER: AtomicUsize::new(0),
         };
 
         instance
@@ -176,7 +179,7 @@ impl VariableNamingSource {
 
     pub fn new_temp_var(&mut self) -> String {
 
-        let temp = VAR_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let temp = self.VAR_COUNTER.fetch_add(1, Ordering::SeqCst);
 
         let mut t = String::from("tmp.");
         t.push_str(temp.to_string().as_str());
@@ -191,7 +194,7 @@ impl VariableNamingSource {
             panic!("Variable Name \"{}\" is used already!", varname);
         }
 
-        let temp = VAR_COUNTER.fetch_add(1, Ordering::SeqCst);
+        let temp = self.VAR_COUNTER.fetch_add(1, Ordering::SeqCst);
 
         let mut new_unique_varname = String::from(self.label.clone());
         new_unique_varname.push_str(temp.to_string().as_str());

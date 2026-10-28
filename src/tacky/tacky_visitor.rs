@@ -32,9 +32,6 @@ use crate::tacky::tacky::Argument;
 
 use crate::VariableNamingSource;
 
-// https://stackoverflow.com/questions/32935808/generate-sequential-ids-for-each-instance-of-a-struct
-// static TEMP_VAR_COUNTER: AtomicUsize = AtomicUsize::new(0);
-
 //
 // Generates TACKY from an AST
 //
@@ -149,7 +146,7 @@ impl TackyVisitor {
         println!("dst_name: {}", dst_name);
 
         // TODO: learn why borrow_mut() works but borrow() does not!
-        let symbol_table_entry = self.symbol_table.borrow_mut().get(&dst_name);
+        let symbol_table_entry = self.symbol_table.borrow_mut().get(&dst_name).unwrap();
         // // DEBUG
         // println!("symbol_table_entry: {:?}", symbol_table_entry);
         let struct_data_type_disabled = symbol_table_entry.data_type;
@@ -692,7 +689,7 @@ impl TackyVisitor {
 
                         // make the destinatin variable a pointer by setting the is_pointer flag to true
                         // in the symbol table
-                        let mut symbol_table_entry = self.symbol_table.borrow_mut().get(&dst_name);
+                        let mut symbol_table_entry = self.symbol_table.borrow_mut().get(&dst_name).unwrap();
                         symbol_table_entry.is_pointer = true;
                         self.symbol_table.borrow_mut().insert(dst_name.clone(), symbol_table_entry);
 
@@ -1689,7 +1686,6 @@ impl TackyVisitor {
                 let mut symbol_table_entry = SymbolTableEntry::new();
                 symbol_table_entry.name = variable_identifier.clone();
                 symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
-                //symbol_table_entry.data_type = DataType::from_str(&data_type_as_string).expect("Need type");
                 symbol_table_entry.data_type = data_type.clone();
                 symbol_table_entry.is_array = is_array;
                 symbol_table_entry.array_element_count = array_element_count;
@@ -1904,7 +1900,7 @@ impl TackyVisitor {
 
                     ValueElement::Variable(ref variable_name) => {
                         // determine the type of the variable which is cast
-                        let symbol_table_entry: SymbolTableEntry = self.symbol_table.borrow_mut().get(variable_name);
+                        let symbol_table_entry: SymbolTableEntry = self.symbol_table.borrow_mut().get(variable_name).unwrap();
 
                         // destination type
                         let target_type = ast_node.analyzed_data_type.clone();
@@ -2093,7 +2089,7 @@ impl TackyVisitor {
             let left_node = node_map.get(&left_node_id).unwrap();
 
             // data type of the array
-            let symbol_table_entry: SymbolTableEntry = self.symbol_table.borrow_mut().get(&left_node.string_val);
+            let symbol_table_entry: SymbolTableEntry = self.symbol_table.borrow_mut().get(&left_node.string_val).unwrap();
             subscript_instruction.data_type = symbol_table_entry.data_type.clone();
 
             // variable name of the object / array that is subscripted
@@ -2187,7 +2183,7 @@ impl TackyVisitor {
 
         }
 
-        let symbol_table_entry: SymbolTableEntry = self.symbol_table.borrow_mut().get(&lhs_lhs_node.string_val);
+        let symbol_table_entry: SymbolTableEntry = self.symbol_table.borrow_mut().get(&lhs_lhs_node.string_val).unwrap();
         subscript_instruction.data_type = symbol_table_entry.data_type.clone();
 
         // DEBUG
