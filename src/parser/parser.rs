@@ -735,11 +735,11 @@ impl Parser<String> {
                                                         if result > (2u64.pow(32)-1) {
                                                             ast_node.node_type = AstNodeType::ConstULong;
                                                             data_type_ast_node.string_val = String::from("ULong");
-                                                            data_type_ast_node.analyzed_data_type = DataType::DataTypeUnsignedLong;
+                                                            data_type_ast_node.set_analyzed_data_type(DataType::DataTypeUnsignedLong);
                                                         } else {
                                                             ast_node.node_type = AstNodeType::ConstUInt;
                                                             data_type_ast_node.string_val = String::from("UInt");
-                                                            data_type_ast_node.analyzed_data_type = DataType::DataTypeUnsignedInt;
+                                                            data_type_ast_node.set_analyzed_data_type(DataType::DataTypeUnsignedInt);
                                                         }
                                                     }
                                                     Err(e) => {
@@ -807,11 +807,11 @@ impl Parser<String> {
                                                         if result > (2u64.pow(32)-1) {
                                                             ast_node.node_type = AstNodeType::ConstULong;
                                                             data_type_ast_node.string_val = String::from("ULong");
-                                                            data_type_ast_node.analyzed_data_type = DataType::from_str("ulong").unwrap();
+                                                            data_type_ast_node.set_analyzed_data_type(DataType::from_str("ulong").unwrap());
                                                         } else {
                                                             ast_node.node_type = AstNodeType::ConstUInt;
                                                             data_type_ast_node.string_val = String::from("UInt");
-                                                            data_type_ast_node.analyzed_data_type = DataType::from_str("uint").unwrap();
+                                                            data_type_ast_node.set_analyzed_data_type(DataType::from_str("uint").unwrap());
                                                         }
 
                                                         // ast_node.node_type = AstNodeType::ConstInt;
@@ -822,7 +822,7 @@ impl Parser<String> {
                                                 };
 
                                                 ast_node.string_val = value;
-                                                ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
+                                                ast_node.set_analyzed_data_type(data_type_ast_node.get_analyzed_data_type());
                                                 ast_node.data_type = Some(data_type_ast_node.id);
 
                                                 self.ast_stack.push(ast_node.id);
@@ -1621,7 +1621,7 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 let expression_ast_node = self.ast_stack.pop().unwrap();
-                                                let data_type = node_map.get(&expression_ast_node).unwrap().analyzed_data_type.clone();
+                                                let data_type = node_map.get(&expression_ast_node).unwrap().get_analyzed_data_type();
                                                 // println!("{:?}", expression_ast_node);
                                                 let operator_ast_node = self.ast_stack.pop().unwrap();
                                                 // println!("{:?}", operator_ast_node);
@@ -1639,8 +1639,7 @@ impl Parser<String> {
                                                 ast_node.data_type = Some(data_type_ast_node.id);
 
                                                 // Nora Sandler, page 254, as a type take the type of the inner node
-                                                // ast_node.analyzed_data_type = DataType::from_str("ulong").unwrap();
-                                                ast_node.analyzed_data_type = data_type;
+                                                ast_node.set_analyzed_data_type(data_type);
 
                                                 self.ast_stack.push(ast_node.id);
 
@@ -1928,7 +1927,7 @@ impl Parser<String> {
                                                 ast_node.operator_type = AstNodeOperatorType::Not;
                                                 // Nora Sandler, page 254, Not operator ends up being a int datatype
                                                 // all other operators use the data type of the inner node
-                                                ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
+                                                ast_node.set_analyzed_data_type(DataType::from_str("int").unwrap());
 
                                                 self.ast_stack.push(ast_node.id);
 
@@ -1991,7 +1990,7 @@ impl Parser<String> {
                                                 let mut cast_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 cast_ast_node.node_type = AstNodeType::Expression;
                                                 cast_ast_node.operator_type = AstNodeOperatorType::Cast;
-                                                cast_ast_node.analyzed_data_type = DataType::from_str(&type_ast_node.string_val).unwrap();
+                                                cast_ast_node.set_analyzed_data_type(DataType::from_str(&type_ast_node.string_val).unwrap());
                                                 cast_ast_node.lhs = Some(type_ast_node_id);
                                                 cast_ast_node.rhs = Some(expression_ast_node);
                                                 cast_ast_node.data_type = Some(data_type_ast_node.id);
@@ -3007,7 +3006,7 @@ impl Parser<String> {
                                                 ast_node.rhs = Some(rhs_ast_node);
                                                 ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::LogicalAnd;
-                                                ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
+                                                ast_node.set_analyzed_data_type(DataType::from_str("int").unwrap());
 
                                                 self.ast_stack.push(ast_node.id);
 
@@ -3066,7 +3065,7 @@ impl Parser<String> {
                                                 ast_node.rhs = Some(rhs_ast_node);
                                                 ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::LogicalOr;
-                                                ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
+                                                ast_node.set_analyzed_data_type(DataType::from_str("int").unwrap());
 
                                                 self.ast_stack.push(ast_node.id);
 
@@ -3811,7 +3810,7 @@ impl Parser<String> {
                                                             //
                                                             // TYPE (function return type)
                                                             //
-                                                            object_declaration_ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
+                                                            object_declaration_ast_node.set_analyzed_data_type(data_type_ast_node.get_analyzed_data_type());
 
                                                             // println!("{:?}", data_type_ast_node.parameters);
                                                             object_declaration_ast_node.node_type = AstNodeType::FunctionDeclaration;
@@ -3846,7 +3845,7 @@ impl Parser<String> {
                                                             //
                                                             // TYPE
                                                             //
-                                                            object_declaration_ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
+                                                            object_declaration_ast_node.set_analyzed_data_type(data_type_ast_node.get_analyzed_data_type());
 
                                                             object_declaration_ast_node.lhs = Some(data_type_ast_node.id);
                                                             object_declaration_ast_node.rhs = Some(declarator_ast_node.id);
@@ -4532,7 +4531,7 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::DataType;
                                                 ast_node.string_val = String::from("void");
-                                                ast_node.analyzed_data_type = DataType::from_str("void").unwrap();
+                                                ast_node.set_analyzed_data_type(DataType::from_str("void").unwrap());
 
                                                 self.ast_stack.push(ast_node.id);
 
@@ -4564,7 +4563,7 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::DataType;
                                                 ast_node.string_val = String::from("char");
-                                                ast_node.analyzed_data_type = DataType::from_str("char").unwrap();
+                                                ast_node.set_analyzed_data_type(DataType::from_str("char").unwrap());
 
                                                 self.ast_stack.push(ast_node.id);
 
@@ -4638,7 +4637,7 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::DataType;
                                                 ast_node.string_val = String::from("short");
-                                                ast_node.analyzed_data_type = DataType::from_str("short").unwrap();
+                                                ast_node.set_analyzed_data_type(DataType::from_str("short").unwrap());
 
                                                 self.ast_stack.push(ast_node.id);
 
@@ -4710,7 +4709,7 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::DataType;
                                                 ast_node.string_val = String::from("int");
-                                                ast_node.analyzed_data_type = DataType::from_str("int").unwrap();
+                                                ast_node.set_analyzed_data_type(DataType::from_str("int").unwrap());
 
                                                 self.ast_stack.push(ast_node.id);
 
@@ -4777,7 +4776,7 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::DataType;
                                                 ast_node.string_val = String::from("long");
-                                                ast_node.analyzed_data_type = DataType::from_str("long").unwrap();
+                                                ast_node.set_analyzed_data_type(DataType::from_str("long").unwrap());
 
                                                 self.ast_stack.push(ast_node.id);
 
@@ -4849,7 +4848,7 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::DataType;
                                                 ast_node.string_val = String::from("float");
-                                                ast_node.analyzed_data_type = DataType::from_str("float").unwrap();
+                                                ast_node.set_analyzed_data_type(DataType::from_str("float").unwrap());
 
                                                 self.ast_stack.push(ast_node.id);
 
@@ -4925,7 +4924,7 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::DataType;
                                                 ast_node.string_val = String::from("double");
-                                                ast_node.analyzed_data_type = DataType::from_str("double").unwrap();
+                                                ast_node.set_analyzed_data_type(DataType::from_str("double").unwrap());
 
                                                 self.ast_stack.push(ast_node.id);
 
@@ -5408,9 +5407,9 @@ impl Parser<String> {
                                                             }
                                                             AstNodeType::Pointer => {
                                                                 // println!("type_as_string: {}", member_type_node.analyzed_data_type);
-                                                                struct_member.member_type = member_type_node.analyzed_data_type.to_string();
+                                                                struct_member.member_type = member_type_node.get_analyzed_data_type().to_string();
 
-                                                                let dataT = member_type_node.analyzed_data_type.clone();
+                                                                let dataT = member_type_node.get_analyzed_data_type();
                                                                 let data_type = DataType::DataTypePointer(Box::new(dataT));
                                                                 struct_member.data_type = data_type;
                                                             }
@@ -5551,8 +5550,10 @@ impl Parser<String> {
                                             for terminal_rev in rule_reverse.iter().rev() {
                                                 value = terminal_rev.clone().unwrap().data;
 
-                                                println!("[Parser::consume()] [109] TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
-                                                println!("");
+                                                if debug {
+                                                    println!("[Parser::consume()] [109] TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
+                                                    println!("");
+                                                }
                                             }
 
                                             // println!("IDENTIFIER: value: '{}'", value);
@@ -5807,7 +5808,7 @@ impl Parser<String> {
                                                                 let mut struct_decl = StructDecl::new();
                                                                 struct_decl.tag = String::from(type_name_ast_node.string_val.clone());
                                                                 let data_type = DataType::DataTypeStruct(struct_decl);
-                                                                ptr_ast_node.analyzed_data_type = data_type;
+                                                                ptr_ast_node.set_analyzed_data_type(data_type);
 
                                                             } else {
 
@@ -5815,7 +5816,7 @@ impl Parser<String> {
 
                                                                 let string_val = type_ast_node.string_val.as_str();
                                                                 let data_type = DataType::from_str(string_val).expect("Error");
-                                                                ptr_ast_node.analyzed_data_type = data_type;
+                                                                ptr_ast_node.set_analyzed_data_type(data_type);
                                                             }
 
                                                             node_map.insert(ptr_ast_node_id, ptr_ast_node);
@@ -6434,7 +6435,7 @@ impl Parser<String> {
 
                                                 function_declaration_ast_node.lhs = None;
 
-                                                function_declaration_ast_node.analyzed_data_type = DataType::from_str("double").unwrap();
+                                                function_declaration_ast_node.set_analyzed_data_type(DataType::from_str("double").unwrap());
 
                                                 // if let Some(block) = function_declaration_ast_node.lhs.as_ref() {
                                                 //     println!("test");
@@ -6486,7 +6487,7 @@ impl Parser<String> {
                                                 function_definition_ast_node.node_type = AstNodeType::FunctionDeclaration;
                                                 function_definition_ast_node.string_val = identifier_ast_node.string_val.clone();
                                                 // TODO
-                                                function_definition_ast_node.analyzed_data_type = DataType::from_str("double").unwrap();
+                                                function_definition_ast_node.set_analyzed_data_type(DataType::from_str("double").unwrap());
 
                                                 let mut function_name_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 function_name_ast_node.node_type = AstNodeType::Identifier;
@@ -6692,7 +6693,7 @@ impl Parser<String> {
                                                 //
                                                 // TYPE
                                                 //
-                                                parameter_declaration_ast_node.analyzed_data_type = data_type_ast_node.analyzed_data_type.clone();
+                                                parameter_declaration_ast_node.set_analyzed_data_type(data_type_ast_node.get_analyzed_data_type());
                                                 parameter_declaration_ast_node.rhs = Some(data_type_ast_node.id);
 
                                                 self.ast_stack.push(parameter_declaration_ast_node.id);
@@ -8135,7 +8136,7 @@ impl Parser<String> {
                                                             // Return Value
                                                             //
 
-                                                            function_definition_ast_node.analyzed_data_type = sub_ast_node.analyzed_data_type.clone();
+                                                            function_definition_ast_node.set_analyzed_data_type(sub_ast_node.get_analyzed_data_type());
 
                                                             // Assumption: return-value data-type of function
                                                             // return-value data-type of function

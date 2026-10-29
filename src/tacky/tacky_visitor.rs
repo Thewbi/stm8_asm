@@ -451,9 +451,13 @@ impl TackyVisitor {
                                     match lhs_sub.node_type {
 
                                         AstNodeType::Dot => {
-                                            //todo!();
-                                            //dst_name = name of struct. struct is in LHS of the DOT node!
+                                            copy_instruction.instruction_type = InstructionType::CopyToOffset;
+                                            let value_element = self.dot_node_to_copy_instruction(lhs_sub,
+                                                node_map, &mut copy_instruction);
+                                            copy_instruction.dst = value_element;
+                                        }
 
+                                        AstNodeType::Arrow => {
                                             copy_instruction.instruction_type = InstructionType::CopyToOffset;
                                             let value_element = self.dot_node_to_copy_instruction(lhs_sub,
                                                 node_map, &mut copy_instruction);
@@ -464,7 +468,9 @@ impl TackyVisitor {
                                             dst_name = lhs_sub.string_val.clone();
 
                                             // need a name
-                                            assert!(dst_name.len() != 0, "[ERR] [tacky_visitor::Assignment] No name discovered in Node: {} for destination!", lhs_sub.id);
+                                            assert!(dst_name.len() != 0,
+                                                "[ERR] [tacky_visitor::Assignment]
+                                                No name discovered in Node: {} for destination!", lhs_sub.id);
 
                                             // Copy - this is new for the init part of for loops!
                                             copy_instruction.instruction_type = InstructionType::Copy;
@@ -566,6 +572,10 @@ impl TackyVisitor {
                                                         // println!("NodeType: {:?}", rhs_sub.node_type);
                                                     }
                                                 }
+                                            }
+
+                                            if copy_instruction.src == copy_instruction.dst {
+                                                output_copy_instruction = false;
                                             }
 
                                             // to understand this check, read large comment above
@@ -777,12 +787,16 @@ impl TackyVisitor {
             AstNodeType::Return => {
 
                 // DEBUG
-                if self.debug {
-                    println!("id: {}", ast_node.id);
-                }
+                // if self.debug {
+                    println!("------------------------------------------------------------");
+                    println!("id: {} ast_node: {:?}", ast_node.id, ast_node);
+                // }
 
-                // a data type that is not unknown is required!
-                assert_ne!(ast_node.analyzed_data_type, DataType::DataTypeUnknown);
+                println!("{}", ast_node.get_analyzed_data_type());
+
+                // a data type that is NOT unknown is required!
+                assert_ne!(ast_node.get_analyzed_data_type(), DataType::DataTypeUnknown,
+                    "[ERR] A type is required!");
 
                 if let Some(expression_id) = ast_node.lhs {
 
@@ -832,7 +846,7 @@ impl TackyVisitor {
                     // into EAX from the temporary stack variable!
                     let mut return_instruction: Instruction = Instruction::new();
                     return_instruction.instruction_type = InstructionType::Return;
-                    return_instruction.data_type = ast_node.analyzed_data_type;
+                    return_instruction.data_type = ast_node.get_analyzed_data_type();
                     return_instruction.src = return_value;
 
                     // append instruction to latest top-level element of the program
@@ -1151,7 +1165,7 @@ impl TackyVisitor {
                 }
 
                 // copy data type from type-checked ast node into the TACKY instruction
-                binary_instruction.data_type = ast_node.analyzed_data_type.clone();
+                binary_instruction.data_type = ast_node.get_analyzed_data_type().clone();
 
                 // append instruction to latest top-level element of the program
                 let last = self.program.top_level.len() - 1;
@@ -1895,19 +1909,25 @@ impl TackyVisitor {
                 //
 
                 let mut br_cnt = 0;
-                let src_value_element: ValueElement = self.visit(left_node_id, node_map, &String::from(""), &mut br_cnt);
+                let src_value_element: ValueElement =
+                    self.visit(left_node_id, node_map, &String::from(""), &mut br_cnt);
                 match src_value_element {
 
                     ValueElement::Variable(ref variable_name) => {
+
+                        println!("variable_name: '{}'", variable_name);
+
                         // determine the type of the variable which is cast
-                        let symbol_table_entry: SymbolTableEntry = self.symbol_table.borrow_mut().get(variable_name).unwrap();
+                        let symbol_table_entry: SymbolTableEntry =
+                            self.symbol_table.borrow_mut().get(variable_name).unwrap();
 
                         // destination type
-                        let target_type = ast_node.analyzed_data_type.clone();
+                        let target_type = ast_node.get_analyzed_data_type();
 
                         // DEBUG
                         if self.debug {
-                            println!("Casting ValueElement:{:?} of SourceType:{:?} into DataType:{:?}", &src_value_element, symbol_table_entry.data_type, target_type);
+                            println!("Casting ValueElement:{:?} of SourceType:{:?} into DataType:{:?}",
+                                &src_value_element, symbol_table_entry.data_type, target_type);
                         }
 
                         // create new temporary variable name for the destination variable
@@ -1927,7 +1947,7 @@ impl TackyVisitor {
                         let mut symbol_table_entry = SymbolTableEntry::new();
                         symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
 
-                        let temp = ast_node.analyzed_data_type.clone();
+                        let temp = ast_node.get_analyzed_data_type();
                         symbol_table_entry.data_type = DataType::from_str(&target_type.clone().to_string()).expect("msg");
                         self.symbol_table.borrow_mut().insert(dest_var_name.clone(), symbol_table_entry);
 

@@ -377,7 +377,7 @@ impl AsmAstReg {
                         string_buffer.push_str("rbx");
                     }
                     _ => {
-                        panic!("");
+                        panic!("Unhandled datatype: '{:?}'", data_type);
                     }
                 }
             }

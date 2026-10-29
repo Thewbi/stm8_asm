@@ -67,20 +67,19 @@ impl fmt::Debug for VarnameMapEntry {
 
 pub struct VariableNamingSource {
     label: String,
-    // vector/stack of varname maps
-    varname_map_stack: Vec::<RefCell<HashMap::<String, VarnameMapEntry>>>,
-
+    varname_map_stack: Vec::<RefCell<HashMap::<String, VarnameMapEntry>>>, // vector/stack of varname maps
     VAR_COUNTER: AtomicUsize,
+    debug: bool,
 }
 
 impl VariableNamingSource {
 
     pub fn new(label_param: String) -> VariableNamingSource {
-
         let instance = VariableNamingSource {
             label: label_param.clone(),
             varname_map_stack: Vec::<RefCell<HashMap::<String, VarnameMapEntry>>>::new(),
             VAR_COUNTER: AtomicUsize::new(0),
+            debug: false,
         };
 
         instance
@@ -208,7 +207,14 @@ impl VariableNamingSource {
                 is_new: true, // new define
                 is_external_linkage: false, // a variable is NOT external linkage by default
             };
+
+            if self.debug {
+                println!("Mapping: '{}' to '{:?}'", varname, &varname_map_entry);
+            }
+
             varname_map.borrow_mut().insert(varname.clone(), varname_map_entry);
+        } else {
+            panic!("Not inserting!")
         }
 
         new_unique_varname

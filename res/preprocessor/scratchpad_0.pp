@@ -2,15 +2,17 @@ struct listnode
 {
     int a;
     int b;
-    int c;
 };
 
 int main() {
 
-    int b;
-
     struct listnode struct_1;
-    b = struct_1.c;
+    // struct_1.a = 1;
 
-    return b;
+    struct listnode *struct_ptr;
+    struct_ptr = &struct_1;
+    struct_ptr->a = 2;
+    struct_ptr->b = 3;
+
+    return 0;
 }

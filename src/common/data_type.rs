@@ -131,6 +131,9 @@ impl DataType {
                     panic!("size: unspecified, data_type: {}", data_type);
                 }
             }
+            DataType::DataTypeStruct(data_type) => {
+                data_type.size
+            }
             _ => {
                 todo!("{}", self);
             }

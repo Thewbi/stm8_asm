@@ -64,8 +64,6 @@ pub enum AstNodeType {
     SingleInit,
     CompoundInit,
     Subscript,
-    // SubscriptSrc,
-    // SubscriptDst,
     MemberDeclaration,
     MemberTypeDeclaration,
     Dot,
@@ -156,7 +154,7 @@ pub struct AstNode {
     pub rhs: Option<usize>,
     pub parent_id: Option<usize>, // id of parent AstNode
     pub data_type: Option<usize>,
-    pub analyzed_data_type: DataType,
+    analyzed_data_type: DataType,
     pub expression: Option<usize>,
     pub operator: Option<usize>,
     pub operator_type: AstNodeOperatorType,
@@ -331,10 +329,10 @@ impl fmt::Debug for AstNode {
                 println!("Unary: node_id:{} [{}]", self.id, self.analyzed_data_type);
                 println!("  Unary.OperatorType: {:?}", self.operator_type);
                 if let Some(left_node) = self.lhs.as_ref() {
-                    print!("LHS: {:?}", left_node);
+                    println!("LHS: {:?}", left_node);
                 }
                 if let Some(right_node) = self.rhs.as_ref() {
-                    print!("RHS: {:?}", right_node);
+                    println!("RHS: {:?}", right_node);
                 }
             }
 
@@ -595,6 +593,16 @@ impl AstNode {
         };
 
         ast_node
+    }
+
+    pub fn set_analyzed_data_type(&mut self, data_type: DataType) {
+        println!("{} {}", self.id, data_type);
+        self.analyzed_data_type = data_type;
+    }
+
+    pub fn get_analyzed_data_type(&self) -> DataType {
+        println!("{} {}", self.id, self.analyzed_data_type.clone());
+        return self.analyzed_data_type.clone();
     }
 
     pub fn serialize(&self, node_map: &Box<HashMap<usize, AstNode>>) -> String {
@@ -927,7 +935,7 @@ impl AstNode {
         // connect parent and child
         if let Some(left_node) = self.lhs.as_ref() {
             // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"LHS\"]\n", ast_node_id, lhs_ast_node_id).as_str());
         }
 
         ast_node_id
@@ -1061,11 +1069,11 @@ impl AstNode {
 
         // operator
         // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
-        string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
+        string_buffer.push_str(format!("{} -> {} [label=\"LHS\"]\n", ast_node_id, lhs_ast_node_id).as_str());
 
         // operand
         // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
-        string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
+        string_buffer.push_str(format!("{} -> {} [label=\"RHS\"]\n", ast_node_id, rhs_ast_node_id).as_str());
 
         // data type
         string_buffer.push_str(format!("{} -> {}\n", ast_node_id, data_type_ast_node_id).as_str());

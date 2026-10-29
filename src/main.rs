@@ -1071,12 +1071,14 @@ fn main() {
                 // structures are a separate namespace from variables and functions
                 let struct_naming_source = VariableNamingSource::new(String::from("userdef_struct."));
                 let struct_naming_source_rc_1 = Rc::new(RefCell::new(struct_naming_source));
+                let struct_naming_source_rc_99 = struct_naming_source_rc_1.clone();
 
                 //
                 // add initial scope for global namespace
                 //
 
                 variable_naming_source_rc_3.borrow_mut().enter_scope();
+                struct_naming_source_rc_1.borrow_mut().enter_scope();
 
                 //
                 // Convert symbol table into cell ref
@@ -1090,7 +1092,16 @@ fn main() {
                 let symbol_table_rc_4 = symbol_table_rc_1.clone(); // TackyToIntermediateAsmConversionVisitor
                 let symbol_table_rc_5 = symbol_table_rc_1.clone(); // used for printing
 
-                //
+
+
+
+
+
+
+
+
+
+                /////////////////////////////////////////////////////////////////////////
                 // [Step 1] Identifier Resolution Phase
                 //
                 // IdentifierResolutionVisitor
@@ -1128,11 +1139,20 @@ fn main() {
                     print_ast(&program_ast_node_id, &node_map, "dot\\abstract_syntax_tree_post_identifier_resolution.dot");
                 }
 
-                //
+
+
+
+
+
+
+
+
+
+
+
+                /////////////////////////////////////////////////////////////////////////
                 // [Step 2] Type Checking Phase - Nora Sandler, page 178ff
                 //
-
-
 
                 //
                 // Print symbol table before TypeChecking
@@ -1155,16 +1175,15 @@ fn main() {
                 print_ast(&program_ast_node_id, &node_map, "dot\\abstract_syntax_tree_post_type_checking.dot");
 
                 //
-                // Print symbol table after TypeChecking
+                // TODO: Print symbol table after TypeChecking
                 //
-
-
 
                 //
                 // Remove initial scope for global namespace
                 //
 
                 variable_naming_source_rc_3.borrow_mut().exit_scope();
+                struct_naming_source_rc_99.borrow_mut().exit_scope();
 
                 /*
                 //
@@ -1210,7 +1229,18 @@ fn main() {
                 }
                 */
 
-                //
+
+
+
+
+
+
+
+
+
+
+
+                /////////////////////////////////////////////////////////////////////////
                 // [Step 3] Generate TACKY (from AST)
                 //
 

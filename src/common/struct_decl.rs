@@ -8,7 +8,8 @@ use crate::common::data_type::DataType::{self, DataTypeArray};
 pub struct StructDecl {
     pub(crate) tag: String,
     pub(crate) members: Vec<StructDeclMember>,
-    pub(crate) size: usize
+    pub(crate) size: usize,
+    debug: bool,
 }
 
 impl StructDecl {
@@ -18,6 +19,7 @@ impl StructDecl {
             tag: String::new(),
             members: Vec::<StructDeclMember>::new(),
             size: 0usize,
+            debug: false,
         }
     }
 
@@ -35,7 +37,9 @@ impl StructDecl {
     /// Debugging: https://www.embedcalc.com/structalign/#structalign
     pub fn compute_memory_layout(&mut self, type_system: &HashMap::<String, DataType>) {
 
-        println!("compute_memory_layout()");
+        if self.debug {
+            println!("compute_memory_layout()");
+        }
 
         let mut align = 0;
 
@@ -88,7 +92,9 @@ impl StructDecl {
             let dt_size = DataType::get_size(&dt, type_system);
             let dt_align = DataType::get_align(&dt, type_system);
 
-            println!("data_type: {}, dt_size: {}, dt_align: {}", dt, dt_size, dt_align);
+            if self.debug {
+                println!("data_type: {}, dt_size: {}, dt_align: {}", dt, dt_size, dt_align);
+            }
 
             // fields are aligned to a boundary!
             // This boundary is not the align of the entire struct.
@@ -117,18 +123,20 @@ impl StructDecl {
         let mut waste_percentage: f32 = wasted_bytes as f32 / self.size as f32;
         waste_percentage = waste_percentage * 100.0;
 
-        println!("Total Size: {} bytes", self.size);
-        println!("Alignment: {}-byte", align);
-        println!("Padding Waste: {} bytes ({}%)", wasted_bytes, waste_percentage);
-
-        let len = self.members.len();
-        for i in 0..len {
-            let offset = &self.members[i].offset;
-            let size = &self.members[i].size;
-            let name = &self.members[i].member_name;
-            println!("Member {}) Offset:{} Size:{} Name:{}", i, offset, size, name);
+        if self.debug {
+            println!("Total Size: {} bytes", self.size);
+            println!("Alignment: {}-byte", align);
+            println!("Padding Waste: {} bytes ({}%)", wasted_bytes, waste_percentage);
+            let len = self.members.len();
+            for i in 0..len {
+                let offset = &self.members[i].offset;
+                let size = &self.members[i].size;
+                let name = &self.members[i].member_name;
+                println!("Member {}) Offset:{} Size:{} Name:{}", i, offset, size, name);
+            }
         }
     }
+
 }
 
 impl fmt::Debug for StructDecl {
@@ -165,5 +173,21 @@ impl StructDeclMember {
             offset: 0usize,
             size: 0usize,
         }
+    }
+}
+
+impl fmt::Debug for StructDeclMember {
+
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
+        write!(f, "struct-field (StructDeclMember) {} {{\n", self.member_name).expect("Write failed!");
+        write!(f, "member_name: {}\n", self.member_name).expect("Write failed!");
+        write!(f, "member_type: {}\n", self.member_type).expect("Write failed!");
+        write!(f, "data_type: {}\n", self.data_type).expect("Write failed!");
+        write!(f, "offset: {}\n", self.offset).expect("Write failed!");
+        write!(f, "size: {}\n", self.size).expect("Write failed!");
+        write!(f, "}}\n").expect("Write failed!");
+
+        Ok(())
     }
 }
