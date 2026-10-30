@@ -6,7 +6,8 @@ use std::error::Error;
 
 use crate::common::struct_decl::StructDecl;
 
-#[derive(Clone, Debug, PartialEq)]
+//#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum DataType {
     DataTypeChar,
     DataTypeUnsignedChar,
@@ -44,12 +45,11 @@ impl fmt::Display for DataType {
             DataType::DataTypeFloat => write!(f, "float"),
             DataType::DataTypeDouble => write!(f, "double"),
             DataType::DataTypeVoid => write!(f, "void"),
+            DataType::DataTypeUnknown => write!(f, "unknown"),
             DataType::DataTypePointer(data_type) => write!(f, "Pointer-To-[{}]", data_type),
-            //DataType::DataTypeStruct(data_type) => write!(f, "StructDecl: [{:?}]", data_type.tag),
             DataType::DataTypeStruct(data_type) => write!(f, "StructDecl: [{:?}]", data_type),
             DataType::DataTypeArray(data_type, size) => write!(f, "Array-Of-[{}]-Size-[{:?}]", data_type, size),
             DataType::DataTypeTypedeffed(data_type) => write!(f, "Typedeffed-[{}]", data_type),
-            DataType::DataTypeUnknown => write!(f, "unknown"),
         }
     }
 }
@@ -85,6 +85,63 @@ impl FromStr for DataType {
             Ok(DataType::DataTypeStruct(StructDecl::new()))
         } else {
             Err(format!("[DataType::FromStr] Can not parse '{}' into type", s).into())
+        }
+    }
+}
+
+impl PartialEq for DataType {
+    fn eq(&self, other: &DataType) -> bool {
+        //self.symbol_table_entry_type == other.symbol_table_entry_type && self.data_type == other.data_type && self.parameter_count == other.parameter_count
+        //todo!()
+        //return self == other
+
+        println!("other: {:?}", other);
+        println!("self: {:?}", self);
+
+        match (self, other) {
+            //(&Test::A, &Test::AlsoA) | (&Test::AlsoA, &Test::A) => true,
+
+            (&DataType::DataTypeChar,           &DataType::DataTypeChar) => true,
+            (&DataType::DataTypeUnsignedChar,   &DataType::DataTypeUnsignedChar) => true,
+            (&DataType::DataTypeInt,            &DataType::DataTypeInt) => true,
+            (&DataType::DataTypeSignedInt,      &DataType::DataTypeSignedInt) => true,
+            (&DataType::DataTypeUnsignedInt,    &DataType::DataTypeUnsignedInt) => true,
+            (&DataType::DataTypeShort,          &DataType::DataTypeShort) => true,
+            (&DataType::DataTypeSignedShort,    &DataType::DataTypeSignedShort) => true,
+            (&DataType::DataTypeUnsignedShort,  &DataType::DataTypeUnsignedShort) => true,
+            (&DataType::DataTypeLong,           &DataType::DataTypeLong) => true,
+            (&DataType::DataTypeUnsignedLong,   &DataType::DataTypeUnsignedLong) => true,
+            (&DataType::DataTypeFloat,          &DataType::DataTypeFloat) => true,
+            (&DataType::DataTypeDouble,         &DataType::DataTypeDouble) => true,
+            (&DataType::DataTypeVoid,           &DataType::DataTypeVoid) => true,
+            (&DataType::DataTypeUnknown,        &DataType::DataTypeUnknown) => true,
+
+            // DataType::DataTypePointer(data_type) => write!(f, "Pointer-To-[{}]", data_type),
+            // DataType::DataTypeStruct(data_type) => write!(f, "StructDecl: [{:?}]", data_type),
+            // DataType::DataTypeArray(data_type, size) => write!(f, "Array-Of-[{}]-Size-[{:?}]", data_type, size),
+            // DataType::DataTypeTypedeffed(data_type) => write!(f, "Typedeffed-[{}]", data_type),
+
+            (DataType::DataTypePointer(lhs_data_type), DataType::DataTypePointer(rhs_data_type)) => {
+                //todo!()
+                return lhs_data_type == rhs_data_type;
+            },
+
+            (DataType::DataTypeStruct(lhs_data_type), DataType::DataTypeStruct(rhs_data_type)) => {
+                //todo!()
+
+                // compare the tag only
+                return lhs_data_type.tag == rhs_data_type.tag;
+            },
+
+            (DataType::DataTypeArray(lhs_data_type, lhs_size), DataType::DataTypeArray(rhs_data_type, rhs_size)) => {
+                todo!()
+            },
+
+            (DataType::DataTypeTypedeffed(lhs_data_type), DataType::DataTypeTypedeffed(rhs_data_type)) => {
+                todo!()
+            },
+
+            _ => false,
         }
     }
 }

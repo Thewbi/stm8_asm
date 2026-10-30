@@ -469,19 +469,16 @@ impl TypeCheckingVisitor {
 
                 assert!(ast_node.lhs.is_some());
 
-                // let mut lhs_type = DataType::DataTypeUnknown;
-                // let mut rhs_type = DataType::DataTypeUnknown;
-
                 // LHS - data type
                 let mut lhs_data_type = DataType::DataTypeUnknown;
                 let mut left_node = AstNode::new(0);
                 if let Some(left_node_id) = ast_node.lhs {
+
                     lhs_data_type = self.visit(left_node_id, node_map, expected_return_data_type);
                     println!("lhs_data_type: {:?}", lhs_data_type);
 
                     // retrieve
                     left_node = node_map.get(&left_node_id).unwrap().clone();
-                    // lhs_type = self.retrieve_data_type_from_node_type(&left_node, node_map);
                 }
 
                 // RHS - variable name or const/literal value
@@ -492,6 +489,30 @@ impl TypeCheckingVisitor {
 
                     // visit the right side - This might change the AST by inserting cast() nodes
                     rhs_data_type = self.visit(right_node_id, node_map, expected_return_data_type);
+
+                    match rhs_data_type {
+
+                        DataType::DataTypeChar |
+                        DataType::DataTypeUnsignedChar |
+                        DataType::DataTypeInt |
+                        DataType::DataTypeSignedInt |
+                        DataType::DataTypeUnsignedInt |
+                        DataType::DataTypeShort |
+                        DataType::DataTypeSignedShort |
+                        DataType::DataTypeUnsignedShort |
+                        DataType::DataTypeLong |
+                        DataType::DataTypeUnsignedLong |
+                        DataType::DataTypeFloat |
+                        DataType::DataTypeDouble |
+                        DataType::DataTypeVoid => {
+                            return rhs_data_type;
+                        }
+
+                        _ => {
+                            // todo!();
+                        }
+
+                    }
 
                     right_node = node_map.get(&right_node_id).unwrap().clone();
                     // rhs_type = self.retrieve_data_type_from_node_type(&right_node, node_map);
@@ -506,12 +527,20 @@ impl TypeCheckingVisitor {
 
                 match lhs_data_type {
 
-                    DataType::DataTypeUnsignedInt => {
-                        return DataType::DataTypeUnsignedInt;
-                    }
-
-                    DataType::DataTypeInt => {
-                        return DataType::DataTypeInt;
+                    DataType::DataTypeChar |
+                    DataType::DataTypeUnsignedChar |
+                    DataType::DataTypeInt |
+                    DataType::DataTypeSignedInt |
+                    DataType::DataTypeUnsignedInt |
+                    DataType::DataTypeShort |
+                    DataType::DataTypeSignedShort |
+                    DataType::DataTypeUnsignedShort |
+                    DataType::DataTypeLong |
+                    DataType::DataTypeUnsignedLong |
+                    DataType::DataTypeFloat |
+                    DataType::DataTypeDouble |
+                    DataType::DataTypeVoid => {
+                        return rhs_data_type;
                     }
 
                     _ => {
@@ -530,6 +559,10 @@ impl TypeCheckingVisitor {
                         // if self.debug {
                             println!("lhs_type: {:?}, rhs_type: {:?}", lhs_data_type, rhs_data_type);
                         // }
+
+                        //
+                        // Check for and insert CAST
+                        //
 
                         if rhs_data_type != DataType::DataTypeUnknown && lhs_data_type != rhs_data_type {
 
@@ -591,10 +624,15 @@ impl TypeCheckingVisitor {
                         // array_4.c
                         // "int *my_pointer = my_array;"
 
+                        //
+                        // insert ADDR OF operator
+                        //
+
                         if symbol_table_entry_lhs.is_array {
 
                             let insert_node: bool = false;
                             if insert_node {
+
                                 // insert a AddrOf node into the AST!
                                 let addrof_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
                                 let mut addrof_ast_node = AstNode::new(addrof_ast_node_id);
@@ -963,6 +1001,8 @@ impl TypeCheckingVisitor {
                                 cast_ast_node.lhs = Some(left_node.id); // LHS is the variable or literal (value element) which needs casting
                                 cast_ast_node.set_analyzed_data_type(common_data_type.clone()); // analyzed_data_type is the type to cast into
                                 cast_ast_node.parent_id = Some(ast_node.id);
+                                cast_ast_node.file = String::from("test.c");
+                                cast_ast_node.line = 999;
 
                                 // add to ASTNode map
                                 node_map.insert(cast_ast_node_id, cast_ast_node);
@@ -1003,6 +1043,8 @@ impl TypeCheckingVisitor {
                                 cast_ast_node.lhs = Some(right_node.id); // LHS is the variable or literal (value element) which needs casting
                                 cast_ast_node.set_analyzed_data_type(common_data_type.clone()); // analyzed_data_type is the type to cast into
                                 cast_ast_node.parent_id = Some(ast_node_parent_id);
+                                cast_ast_node.file = String::from("test.c");
+                                cast_ast_node.line = 999;
 
                                 // add to ASTNode map
                                 node_map.insert(cast_ast_node_id, cast_ast_node);
@@ -1157,7 +1199,7 @@ impl TypeCheckingVisitor {
                 // DEBUG
                 // if self.debug {
                     println!("-----------------------------------------------------------");
-                    println!("{} {:?}", ast_node.id, ast_node);
+                    println!("{} {:?} file:{}, line:{}", ast_node.id, ast_node, ast_node.file, ast_node.line);
                 // }
 
                 let mut data_type: DataType = DataType::DataTypeUnknown;
@@ -1190,9 +1232,9 @@ impl TypeCheckingVisitor {
                     let left_node = node_map.get(&left_node_id).unwrap();
 
                     // DEBUG
-                    //if self.debug {
+                    if self.debug {
                         println!("LEFT-NODE: {}: {:?} node_type:{:?}", left_node.id, left_node, left_node.node_type);
-                    //}
+                    }
 
                     let mut data_type_as_string = String::from("");
 
@@ -1223,18 +1265,24 @@ impl TypeCheckingVisitor {
 
                             println!("data_type: '{}'", data_type_as_string);
 
-                            let data_type_as_enum = match DataType::from_str(&data_type_as_string) {
-                                Ok(data_type_result) => data_type_result,
-                                Err(e) => panic!("should be valid DataType: {e}"),
-                            };
-                            symbol_table_entry.data_type = data_type_as_enum.clone();
+                            let ts = self.type_system.borrow();
+                            if let Some(data_type_ts) = ts.get(&data_type_as_string) {
+                                symbol_table_entry.data_type = data_type_ts.clone();
+                                data_type = data_type_ts.clone();
+                            } else {
+                                panic!("should be valid DataType: {}. ast_node.id:{}, File: {}, Line: {}", data_type_as_string, ast_node.id, ast_node.file, ast_node.line);
+                            }
 
-                            data_type = data_type_as_enum.clone();
+                            // let data_type_as_enum = match DataType::from_str(&data_type_as_string) {
+                            //     Ok(data_type_result) => data_type_result,
+                            //     Err(e) => panic!("should be valid DataType: {e}. ast_node.id:{}, File: {}, Line: {}", ast_node.id, ast_node.file, ast_node.line),
+                            // };
+                            // symbol_table_entry.data_type = data_type_as_enum.clone();
+                            // data_type = data_type_as_enum.clone();
                         }
                     }
 
                     symbol_table_entry.is_array = left_node.node_type == AstNodeType::Array;
-                    // symbol_table_entry.is_struct = left_node.node_type == AstNodeType::Structure;
                 }
 
                 // identifier (RHS)
@@ -1274,6 +1322,7 @@ impl TypeCheckingVisitor {
                 }
                 symbol_table_entry.name = varname.clone();
 
+                // DEBUG
                 if self.debug {
                     println!("[TypeCheckingVisitor] symbol_table_entry:\n {:?}", symbol_table_entry);
                 }
@@ -1523,10 +1572,6 @@ impl TypeCheckingVisitor {
                 todo!();
             }
 
-            // AstNodeType::Dot => {
-            //     todo!();
-            // }
-
             AstNodeType::Arrow | AstNodeType::Dot => {
 
                 // DEBUG
@@ -1559,7 +1604,7 @@ impl TypeCheckingVisitor {
 
                 println!("lhs_data_type: {}", &lhs_data_type);
 
-                let mut struct_decl:StructDecl = StructDecl::new();
+                let mut struct_decl: StructDecl = StructDecl::new();
 
                 // retrieve data type of the field which is accessed within the struct
                 match lhs_data_type {
@@ -1587,9 +1632,7 @@ impl TypeCheckingVisitor {
                     DataType::DataTypeStruct(struct_decl_val) => {
                         println!("struct_decl: {:?}", struct_decl_val);
                         struct_decl = struct_decl_val;
-
                         let struct_decl_member = struct_decl.members.iter().find(|f| f.member_name == field_name);
-
                         return struct_decl_member.unwrap().data_type.clone();
                     }
 
@@ -1612,7 +1655,27 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Typedef => {
-                todo!();
+                // DEBUG
+                // if self.debug {
+                    println!("-----------------------------------------------------------");
+                    println!("{} {:?}", ast_node.id, ast_node);
+                // }
+
+                let lhs_node_id = ast_node.lhs.unwrap();
+                println!("lhs_node_id: {}", &lhs_node_id);
+                let lhs_node = node_map.get(&lhs_node_id).unwrap();
+
+                println!("{:?}", lhs_node.string_val);
+
+                // let type_name = lhs_node.string_val.split(' ').collect::<Vec<_>>().get(0).unwrap();
+                let (type_name, rest) = lhs_node.string_val.split_once(char::is_whitespace).unwrap();
+
+                let ts = self.type_system.borrow_mut();
+                let data_type = ts.get(type_name);
+
+                println!("{:?}", data_type);
+
+                return data_type.unwrap().clone();
             }
 
             _ => {

@@ -131,7 +131,7 @@ impl TackyVisitor {
         self.program.top_level[last].body.push(Box::new(dest_var_declaration));
     }
 
-    fn dot_node_to_copy_instruction(&mut self,
+    fn ast_node_to_copy_instruction(&mut self,
         lhs_sub: &AstNode,
         node_map: &Box<HashMap<usize, AstNode>>,
         copy_instruction: &mut Instruction) -> ValueElement
@@ -150,8 +150,6 @@ impl TackyVisitor {
         // // DEBUG
         // println!("symbol_table_entry: {:?}", symbol_table_entry);
         let struct_data_type_disabled = symbol_table_entry.data_type;
-
-
 
         //
         // to identify the offset, extract the name from the RHS.
@@ -172,6 +170,8 @@ impl TackyVisitor {
                 let ts = self.type_system.borrow_mut();
                 let struct_data_type = ts.get(&struct_decl.tag).unwrap();
 
+                println!("{:?}", struct_decl);
+
                 // find struct member that matches the RHS of the DOT
                 let field_index_option = struct_decl.members.iter()
                     .position(|m| m.member_name == lhs_rhs_sub.string_val);
@@ -188,9 +188,7 @@ impl TackyVisitor {
             }
         }
 
-        // copy_instruction.instruction_type = InstructionType::CopyToOffset;
         copy_instruction.data_type = DataType::DataTypeUnknown;
-        //copy_instruction.dst = ValueElement::Variable(dst_name.clone());
         return ValueElement::Variable(dst_name.clone());
     }
 
@@ -201,13 +199,6 @@ impl TackyVisitor {
         branch_counter: &mut usize)
         -> ValueElement
     {
-
-        // let mut ast_node = AstNode::new(0);
-
-        // {
-        //     ast_node = node_map.get(&ast_node_id).unwrap().clone();
-        // }
-
         let ast_node = node_map.get(&ast_node_id).unwrap().clone();
 
         // here, for each ASTNode type, create a TACKY instruction.
@@ -450,16 +441,9 @@ impl TackyVisitor {
 
                                     match lhs_sub.node_type {
 
-                                        AstNodeType::Dot => {
+                                        AstNodeType::Dot | AstNodeType::Arrow => {
                                             copy_instruction.instruction_type = InstructionType::CopyToOffset;
-                                            let value_element = self.dot_node_to_copy_instruction(lhs_sub,
-                                                node_map, &mut copy_instruction);
-                                            copy_instruction.dst = value_element;
-                                        }
-
-                                        AstNodeType::Arrow => {
-                                            copy_instruction.instruction_type = InstructionType::CopyToOffset;
-                                            let value_element = self.dot_node_to_copy_instruction(lhs_sub,
+                                            let value_element = self.ast_node_to_copy_instruction(lhs_sub,
                                                 node_map, &mut copy_instruction);
                                             copy_instruction.dst = value_element;
                                         }
@@ -536,6 +520,13 @@ impl TackyVisitor {
                                             // copy_instruction.instruction_type = InstructionType::Copy;
 
                                             if let Some(rhs_sub_id) = ast_node.rhs {
+
+                                                dst_name = self.variable_naming_source.borrow_mut().new_temp_var();
+
+                                                // need a name
+                                                assert!(dst_name.len() != 0,
+                                                    "[ERR] [tacky_visitor::Assignment]
+                                                    No name discovered in Node: {} for destination!", lhs_sub.id);
 
                                                 let mut br_cnt = 0;
                                                 copy_instruction.src = self.visit(rhs_sub_id, node_map, &dst_name, &mut br_cnt);
@@ -1885,6 +1876,8 @@ impl TackyVisitor {
                 // println!("{:?}", ast_node);
                 // println!("End Cast");
 
+                println!("id: {}, {:?}", ast_node.id, ast_node);
+
                 let left_node_id = ast_node.lhs.unwrap();
                 let left_node = node_map.get(&left_node_id).unwrap();
 
@@ -2055,7 +2048,7 @@ impl TackyVisitor {
                 // TODO: check that the typedeffed type actually exists!
             }
 
-            AstNodeType::Dot => {
+            AstNodeType::Dot | AstNodeType::Arrow => {
                 println!("ast_node_id: {}", ast_node_id);
 
                 // retrieve the value of this expression, write it into
@@ -2063,11 +2056,11 @@ impl TackyVisitor {
 
                 let mut copy_instruction: Instruction = Instruction::new();
                 copy_instruction.instruction_type = InstructionType::CopyFromOffset;
-                let value_element = self.dot_node_to_copy_instruction(&ast_node, node_map, &mut copy_instruction);
+                let value_element = self.ast_node_to_copy_instruction(&ast_node, node_map, &mut copy_instruction);
                 copy_instruction.src = value_element;
-                // println!("{:?}", copy_instruction.src);
                 copy_instruction.dst = ValueElement::Variable(dst_name.clone());
 
+                // println!("{:?}", copy_instruction.src);
                 // copy_instruction.offset = 123;
 
                 println!("{:?}", copy_instruction);

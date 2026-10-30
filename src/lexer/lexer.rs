@@ -153,11 +153,11 @@ impl<'a> Lexer<'a> {
         let mut char_consumed = false;
         while !char_consumed {
 
-            // // DEBUG
-            // if self.lexer_debug {
-            //     println!("[LEXER] State; '{}', Input: '{}', lookahead: '{}'",
-            //         self.current_state_id, current_character, lookahead_character);
-            // }
+            // DEBUG
+            if self.lexer_debug {
+                println!("[LEXER] State; '{}', Input: '{}'",
+                    self.current_state_id, current_character);
+            }
 
             //
             // try to transition the large lexer DFA to produce a token for the input.
@@ -185,9 +185,7 @@ impl<'a> Lexer<'a> {
 
                 // DEBUG
                 if self.lexer_debug {
-
                     println!("trap_state_detected: '{}'", next_state_id);
-
                     println!("[LEXER.TRAP_STATE] Emitting '{}', Token-Id: {}, Token-Name: {} | File: {:?}, Line: {:?}",
                         self.token_string_buffer,
                         self.dfa.states[&self.current_state_id].token_id,
@@ -198,12 +196,15 @@ impl<'a> Lexer<'a> {
 
                 // create a Token / Terminal
                 let token_name = self.dfa.states[&self.current_state_id].token_name.clone();
+
+                // DEBUG
                 if self.lexer_token_debug {
                     println!("token_name: '{}'", &token_name);
                 }
-                if token_name == "" {
-                    println!("Could not process or identify token!");
-                }
+
+                // token_name required
+                assert_ne!(token_name, "", "Could not process or identify token!");
+
                 let terminal = RuleElement::Terminal(token_name);
 
                 // DEBUG - this outputs the string and the token generated from the string
@@ -219,7 +220,7 @@ impl<'a> Lexer<'a> {
                 match self.dfa.states[&self.current_state_id].token_id {
 
                     WHITESPACE_TOKEN_ID => {
-                        // ignore NEWLINE and WHITESPACE
+                        // ignore NEWLINE and WHITESPACE - ignoring means, do not forward to the parser
 
                         // DEBUG
                         if self.lexer_debug {
@@ -228,7 +229,7 @@ impl<'a> Lexer<'a> {
                     }
 
                     NEWLINE_TOKEN_ID => {
-                        // ignore NEWLINE and WHITESPACE
+                        // ignore NEWLINE and WHITESPACE - ignoring means, do not forward to the parser
 
                         // DEBUG
                         if self.lexer_debug {
@@ -269,7 +270,9 @@ impl<'a> Lexer<'a> {
                                 &self.token_string_buffer,
                                 debug_node_string_buffer,
                                 debug_node_stack,
-                                node_map
+                                node_map,
+                                file,
+                                line
                             );
 
                         } else {
@@ -282,7 +285,9 @@ impl<'a> Lexer<'a> {
                                 &self.token_string_buffer,
                                 debug_node_string_buffer,
                                 debug_node_stack,
-                                node_map
+                                node_map,
+                                file,
+                                line
                             );
 
                         }
@@ -304,7 +309,9 @@ impl<'a> Lexer<'a> {
                                 &self.token_string_buffer,
                                 debug_node_string_buffer,
                                 debug_node_stack,
-                                node_map
+                                node_map,
+                                file,
+                                line
                             );
                         } else {
                             println!("[WARN] No rules supplied! Not calling parser!");
@@ -378,7 +385,9 @@ impl<'a> Lexer<'a> {
         rule_element: &RuleElement<String>,
         debug_node_string_buffer: &mut String,
         debug_node_stack: &mut Vec::<DebugNode>,
-        node_map: &mut Box<HashMap::<usize, AstNode>>
+        node_map: &mut Box<HashMap::<usize, AstNode>>,
+        file: &String,
+        line: usize
     ) {
         // pass token to the parser
         parser.provide_input(
@@ -388,7 +397,9 @@ impl<'a> Lexer<'a> {
             &self.token_string_buffer,
             debug_node_string_buffer,
             debug_node_stack,
-            node_map
+            node_map,
+            file,
+            line
         );
     }
 }

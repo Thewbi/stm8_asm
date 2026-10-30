@@ -154,7 +154,7 @@ pub struct AstNode {
     pub rhs: Option<usize>,
     pub parent_id: Option<usize>, // id of parent AstNode
     pub data_type: Option<usize>,
-    analyzed_data_type: DataType,
+    pub analyzed_data_type: DataType,
     pub expression: Option<usize>,
     pub operator: Option<usize>,
     pub operator_type: AstNodeOperatorType,
@@ -168,6 +168,10 @@ pub struct AstNode {
     pub indent: usize,
 
     pub function_name_ast_node: Option<usize>,
+
+    pub file: String,
+    pub line: usize,
+    pub print_file_line: bool,
 }
 
 impl fmt::Debug for AstNode {
@@ -590,6 +594,10 @@ impl AstNode {
             indent: 0,
 
             function_name_ast_node: None,
+            file: String::from(""),
+            line: 0,
+
+            print_file_line: false,
         };
 
         ast_node
@@ -819,7 +827,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Program: {}\"]", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Program\"]\n", ast_node_id, ast_node_id).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Program [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Program\"]\n", ast_node_id, ast_node_id).as_str());
+        }
 
         for i in 0..self.block_items.len() {
 
@@ -841,7 +853,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} FunctionDeclaration: {}\"]", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} FunctionDeclaration: {} [{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.analyzed_data_type).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} FunctionDeclaration: {} [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.analyzed_data_type, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} FunctionDeclaration: {} [{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.analyzed_data_type).as_str());
+        }
 
         // RHS - return type
         let mut rhs_ast_node_id = 0;
@@ -930,7 +946,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Return\"]", ast_node_id, ast_node_id);
-        string_buffer.push_str(format!("{} [label=\"{} Return [{}]\"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Return [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.analyzed_data_type, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Return [{}]\"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+        }
 
         // connect parent and child
         if let Some(left_node) = self.lhs.as_ref() {
@@ -941,7 +961,8 @@ impl AstNode {
         ast_node_id
     }
 
-    fn pretty_print_ast_constant_dot_ex(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>, extended_string: &str) -> usize {
+    fn pretty_print_ast_constant_dot_ex(&self, string_buffer: &mut String,
+        node_map: &Box<HashMap<usize, AstNode>>, extended_string: &str) -> usize {
 
         let ast_node_id = self.id;
 
@@ -949,28 +970,52 @@ impl AstNode {
 
             AstNodeType::ConstULong => {
                 // println!("{} [label=\"{} Constant({})\"]", ast_node_id, ast_node_id, self.string_val);
-                string_buffer.push_str(format!("{} [label=\"{} {} ConstULong({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
+                if self.print_file_line {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstULong({}) [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type, self.file, self.line).as_str());
+                } else {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstULong({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
+                }
             }
 
             AstNodeType::ConstUInt => {
-                string_buffer.push_str(format!("{} [label=\"{} {} ConstUInt({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
+                if self.print_file_line {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstUInt({}) [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type, self.file, self.line).as_str());
+                } else {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstUInt({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
+                }
             }
 
             AstNodeType::ConstLong => {
-                string_buffer.push_str(format!("{} [label=\"{} {} ConstLong({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
+                if self.print_file_line {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstLong({}) [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type, self.file, self.line).as_str());
+                } else {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstLong({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
+                }
             }
 
             AstNodeType::ConstInt => {
-                string_buffer.push_str(format!("{} [label=\"{} {} ConstInt({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
+                if self.print_file_line {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstInt({}) [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type, self.file, self.line).as_str());
+                } else {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstInt({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
+                }
             }
 
             AstNodeType::ConstDouble => {
-                string_buffer.push_str(format!("{} [label=\"{} {} ConstDouble({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
+                if self.print_file_line {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstDouble({}) [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type, self.file, self.line).as_str());
+                } else {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstDouble({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.analyzed_data_type).as_str());
+                }
             }
 
             AstNodeType::ConstString => {
                 let without_quotes = str::replace(&self.string_val, "\"", "\'");
-                string_buffer.push_str(format!("{} [label=\"{} {} ConstString({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, without_quotes, self.analyzed_data_type).as_str());
+                if self.print_file_line {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstString({}) [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, extended_string, without_quotes, self.analyzed_data_type, self.file, self.line).as_str());
+                } else {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstString({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, without_quotes, self.analyzed_data_type).as_str());
+                }
             }
 
             _ => {
@@ -994,7 +1039,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Exp ({:?})\"]", ast_node_id, ast_node_id, self.operator_type);
-        string_buffer.push_str(format!("{} [label=\"{} Exp ({:?}) [{}]\"]\n", ast_node_id, ast_node_id, self.operator_type, self.analyzed_data_type).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Exp ({:?}) [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.operator_type, self.analyzed_data_type, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Exp ({:?}) [{}]\"]\n", ast_node_id, ast_node_id, self.operator_type, self.analyzed_data_type).as_str());
+        }
 
         // print the child tree
         let mut lhs_ast_node_id = 0;
@@ -1063,7 +1112,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Unary\"]", ast_node_id, ast_node_id);
-        string_buffer.push_str(format!("{} [label=\"{} Unary [{}]\"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Unary [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.analyzed_data_type, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Unary [{}]\"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+        }
 
         // connect parent and child
 
@@ -1107,7 +1160,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Binary\"]", ast_node_id, ast_node_id);
-        string_buffer.push_str(format!("{} [label=\"{} Binary [{}]\"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Binary [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.analyzed_data_type, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Binary [{}]\"]\n", ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+        }
 
         // connect parent and child
         // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
@@ -1132,7 +1189,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} {:?}\"]", ast_node_id, ast_node_id, self.operator_type);
-        string_buffer.push_str(format!("{} [label=\"{} {:?}\"]\n", ast_node_id, ast_node_id, self.operator_type).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} {:?} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.operator_type, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} {:?}\"]\n", ast_node_id, ast_node_id, self.operator_type).as_str());
+        }
 
         match self.operator_type {
 
@@ -1164,7 +1225,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} {:?}\"]", ast_node_id, ast_node_id, self.operator_type);
-        string_buffer.push_str(format!("{} [label=\"{} PREFIX {:?}\"]\n", ast_node_id, ast_node_id, self.operator_type).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} PREFIX {:?} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.operator_type, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} PREFIX {:?}\"]\n", ast_node_id, ast_node_id, self.operator_type).as_str());
+        }
 
         ast_node_id
     }
@@ -1175,7 +1240,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} BlockItem\"]", ast_node_id, ast_node_id);
-        string_buffer.push_str(format!("{} [label=\"{} BlockItem\"]\n", ast_node_id, ast_node_id).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} BlockItem [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} BlockItem\"]\n", ast_node_id, ast_node_id).as_str());
+        }
 
         // print the child tree
         let mut lhs_ast_node_id = 0;
@@ -1193,7 +1262,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Declaration\"]", ast_node_id, ast_node_id);
-        string_buffer.push_str(format!("{} [label=\"{} Declaration\"]\n", ast_node_id, ast_node_id).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Declaration [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Declaration\"]\n", ast_node_id, ast_node_id).as_str());
+        }
 
         // print the child tree
         let mut lhs_ast_node_id = 0;
@@ -1237,11 +1310,21 @@ impl AstNode {
 
         // either print parameter or variable to the dot output
         if is_parameter {
-            string_buffer.push_str(format!("{} [label=\"{} ParameterDeclaration [{}] \"]\n",
-                ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+            if self.print_file_line {
+                string_buffer.push_str(format!("{} [label=\"{} ParameterDeclaration [{}] [File:{}, Line:{}]\"]\n",
+                    ast_node_id, ast_node_id, self.analyzed_data_type, self.file, self.line).as_str());
+            } else {
+                string_buffer.push_str(format!("{} [label=\"{} ParameterDeclaration [{}]\"]\n",
+                    ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+            }
         } else {
-            string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration [{}] \"]\n",
-                ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+            if self.print_file_line {
+                string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration [{}] [File:{}, Line:{}]\"]\n",
+                    ast_node_id, ast_node_id, self.analyzed_data_type, self.file, self.line).as_str());
+            } else {
+                string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration [{}]\"]\n",
+                    ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+            }
         }
 
         // connect parent and child
@@ -1273,8 +1356,13 @@ impl AstNode {
         let ast_node_id = self.id;
         let ast_node = node_map.get(&ast_node_id).unwrap();
 
-        string_buffer.push_str(format!("{} [label=\"{} VariadicParameter ... [{}] \"]\n",
-            ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} VariadicParameter ... [{}] [File:{}, Line:{}]\"]\n",
+                ast_node_id, ast_node_id, self.analyzed_data_type, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} VariadicParameter ... [{}]\"]\n",
+                ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+        }
 
         ast_node_id
     }
@@ -1292,7 +1380,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Statement: {} {}\"]", ast_node_id, ast_node_id, extended_string, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Statement: {} {}\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Statement: {} {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Statement: {} {}\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val).as_str());
+        }
 
         // connect parent and child
         // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
@@ -1307,7 +1399,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} DataType: {}\"]", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} {} DataType: {}\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} {} DataType: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} {} DataType: {}\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val).as_str());
+        }
 
         // array size is stored in LHS
         let mut lhs_ast_node_id = 0;
@@ -1335,7 +1431,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Identifier: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Identifier: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Identifier: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Identifier: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         ast_node_id
     }
@@ -1350,7 +1450,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} If: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} If: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} If: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} If: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // expression
         let mut expression_ast_node_id = 0;
@@ -1389,7 +1493,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Compound: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Compound: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Compound: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Compound: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         let mut lhs_ast_node_id = 0;
         if let Some(left_node) = self.lhs.as_ref() {
@@ -1409,7 +1517,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Block: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Block: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Block: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Block: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // instructions and declarations
         for i in 0..self.block_items.len() {
@@ -1430,7 +1542,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} While: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} While: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} While: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} While: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // LHS - expression_ast_node
         let mut lhs_ast_node_id = 0;
@@ -1461,7 +1577,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} DoWhile: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} DoWhile: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} DoWhile: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} DoWhile: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // expression_ast_node
         let mut expression_ast_node_id = 0;
@@ -1492,7 +1612,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} For: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} For: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} For: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} For: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // LHS - initialization, e.g.: a = 0
         let mut lhs_ast_node_id = 0;
@@ -1541,7 +1665,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Conditional: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // lhs - true-statement
         let mut lhs_ast_node_id = 0;
@@ -1581,8 +1709,13 @@ impl AstNode {
         // create node for this AstNode
         let ast_node_id = self.id;
 
-        string_buffer.push_str(format!("{} [label=\"{} FunctionCall: {}\"]\n",
-            ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} FunctionCall: {} [File:{}, Line:{}]\"]\n",
+                ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} FunctionCall: {}\"]\n",
+                ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // parameters
         let parameter_ast_node_id = 0;
@@ -1609,7 +1742,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} StorageClass: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} StorageClass: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} StorageClass: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         ast_node_id
     }
@@ -1620,7 +1757,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Pointer: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Pointer: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Pointer: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         ast_node_id
     }
@@ -1631,7 +1772,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Switch: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Switch: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Switch: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         for i in 0..self.block_items.len() {
 
@@ -1651,7 +1796,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Case: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Case: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Case: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // // LHS - body statement
         // let mut lhs_ast_node_id = 0;
@@ -1687,7 +1836,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Default: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Default: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Default: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // // LHS - body statement
         // let mut lhs_ast_node_id = 0;
@@ -1713,7 +1866,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Break\"]\n", ast_node_id, ast_node_id);
-        string_buffer.push_str(format!("{} [label=\"{} Break\"]\n", ast_node_id, ast_node_id).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Break [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Break\"]\n", ast_node_id, ast_node_id).as_str());
+        }
 
         ast_node_id
     }
@@ -1724,7 +1881,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} EmptyStatement: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} EmptyStatement: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} EmptyStatement: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         ast_node_id
     }
@@ -1735,7 +1896,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} SingleInit: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} SingleInit: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} SingleInit: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // lhs - true-statement
         let mut lhs_ast_node_id = 0;
@@ -1755,7 +1920,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} CompoundInit: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} CompoundInit: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} CompoundInit: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         for i in 0..self.block_items.len() {
             let block_item_ast_node_id = node_map.get(&self.block_items[i]).unwrap().pretty_print_ast_dot(string_buffer, node_map);
@@ -1773,7 +1942,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Subscript: {} [{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.analyzed_data_type).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Subscript: {} [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.analyzed_data_type, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Subscript: {} [{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.analyzed_data_type).as_str());
+        }
 
         // lhs - pointer
         let mut lhs_ast_node_id = 0;
@@ -1804,7 +1977,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} StructDecl: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} StructDecl: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} StructDecl: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         for i in 0..self.block_items.len() {
             let block_item_ast_node_id = node_map.get(&self.block_items[i]).unwrap().pretty_print_ast_dot(string_buffer, node_map);
@@ -1822,7 +1999,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} MemberDecl: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} MemberDecl: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} MemberDecl: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // lhs - type
         let mut lhs_ast_node_id = 0;
@@ -1853,7 +2034,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} MemberTypeDec: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} MemberTypeDec: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} MemberTypeDec: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // lhs - type
         let mut lhs_ast_node_id = 0;
@@ -1884,7 +2069,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Array: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Array: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Array: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // lhs - type
         let mut lhs_ast_node_id = 0;
@@ -1915,7 +2104,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Struct: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Struct: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Struct: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // lhs - type
         let mut lhs_ast_node_id = 0;
@@ -1946,7 +2139,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Dot: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Dot: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Dot: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // lhs - type
         let mut lhs_ast_node_id = 0;
@@ -1977,7 +2174,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Arrow: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Arrow: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Arrow: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // lhs - type
         let mut lhs_ast_node_id = 0;
@@ -2008,7 +2209,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Cast: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Cast: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Cast: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // lhs - type
         let mut lhs_ast_node_id = 0;
@@ -2049,7 +2254,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} Typedef: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} Typedef: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} Typedef: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // lhs - type
         let mut lhs_ast_node_id = 0;
@@ -2090,7 +2299,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
-        string_buffer.push_str(format!("{} [label=\"{} TypeSpecifier: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} TypeSpecifier: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} TypeSpecifier: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         // // lhs - type
         // let mut lhs_ast_node_id = 0;

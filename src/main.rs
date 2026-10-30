@@ -903,7 +903,9 @@ fn main() {
         &RuleElement::Closure, // EOF
         &mut debug_node_string_buffer,
         &mut debug_node_stack,
-        &mut node_map
+        &mut node_map,
+        &input_tuple.1.clone(),
+        line_number,
     );
 
     // print the parse tree to a dot file for online debugging (https://dreampuf.github.io/GraphvizOnline)
@@ -947,6 +949,7 @@ fn main() {
 
         // build the root node which is of type program
         program_ast_node.node_type = AstNodeType::Program;
+        program_ast_node.file = input_tuple.1.clone();
 
         // insert all nodes into program node
         let mut done = false;
@@ -1002,16 +1005,22 @@ fn main() {
         //
 
         // this vector will temporarily store all struct types
-        let mut struct_decl_vector = Vec::<StructDecl>::new();
+        let mut struct_decl_vector = Vec::<(String, StructDecl)>::new();
 
         // copy structs from the type system into the struct_decl_vector
         {
             let ts = type_system_rc_4.borrow_mut();
             for (key, value) in ts.iter() {
+
+                // println!("{}", key);
+
                 match value {
                     DataType::DataTypeStruct(struct_decl) => {
-                        struct_decl_vector.push(struct_decl.clone());
+                        struct_decl_vector.push((key.clone(), struct_decl.clone()));
                     }
+                    // DataType::DataTypeTypedeffed(data_type) => {
+                    //     println!("{}", data_type);
+                    // }
                     _ => {
                     }
                 }
@@ -1020,9 +1029,10 @@ fn main() {
 
         // use the copied structs to compute their layout
         {
+            println!("{}", struct_decl_vector.len());
             for i in 0..struct_decl_vector.len() {
-                let curr = &mut struct_decl_vector[i];
-                curr.compute_memory_layout(&type_system_rc_4.borrow_mut());
+                let (key, struct_decl_var) = &mut struct_decl_vector[i];
+                struct_decl_var.compute_memory_layout(&type_system_rc_4.borrow_mut());
             }
         }
 
@@ -1032,8 +1042,11 @@ fn main() {
         {
             let mut zool = type_system_rc_4.borrow_mut();
             for i in 0..struct_decl_vector.len() {
-                let curr = &mut struct_decl_vector[i];
-                zool.insert(curr.tag.clone(), DataType::DataTypeStruct(curr.clone()));
+                let (key, struct_decl_var) = &mut struct_decl_vector[i];
+
+                println!("key:'{}' value:'{:?}'", &key, struct_decl_var);
+
+                zool.insert(key.clone(), DataType::DataTypeStruct(struct_decl_var.clone()));
             }
         }
 
@@ -1043,7 +1056,8 @@ fn main() {
 
         if debug {
             println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-            for (key, value) in type_system_rc_99.borrow().clone().into_iter() {
+            //for (key, value) in type_system_rc_99.borrow().clone().into_iter() {
+            for (key, value) in type_system_rc_22.borrow().clone().into_iter() {
                 println!("key: {}, \t\tvalue: {}", key, value);
             }
             println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
@@ -1158,11 +1172,23 @@ fn main() {
                 // Print symbol table before TypeChecking
                 //
 
-                // if debug {
+                if debug {
                     println!("\n\n");
                     println!("Symbol Table before Type Checking!");
                     symbol_table_rc_1.borrow().print_symbol_table();
                     println!("\n\n");
+                }
+
+                //
+                // DEBUG - Print the TYPE-SYSTEM
+                //
+
+                // if debug {
+                    println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+                    for (key, value) in type_system_rc_22.borrow().clone().into_iter() {
+                        println!("key: {}, \t\tvalue: {}", key, value);
+                    }
+                    println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
                 // }
 
                 let mut type_checking_visitor = TypeCheckingVisitor::new(symbol_table_rc_1, type_system_rc_22);

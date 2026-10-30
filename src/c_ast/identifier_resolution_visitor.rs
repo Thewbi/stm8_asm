@@ -681,14 +681,6 @@ impl IdentifierResolutionVisitor {
                         println!("left_node_id: {}, lhs_node.string_val: '{}'", left_node_id, lhs_node.string_val);
                     }
                     is_struct = lhs_node.node_type == AstNodeType::Structure;
-                    // match lhs_node.data_type.unwrap() {
-                    //     DataType::DataTypeStruct(_) => {
-                    //         is_struct = true;
-                    //     }
-                    //     _ => {
-
-                    //     }
-                    // }
                 }
 
                 let mut replaced_varname = String::new();
@@ -757,15 +749,14 @@ impl IdentifierResolutionVisitor {
 
                 // TODO: return VariableDeclaration node
 
-                let mut node = IdentifierResolutionNode::new();
-                node.node_type = AstNodeType::VariableDeclaration;
-
+                let mut identifier_resolution_node = IdentifierResolutionNode::new();
+                identifier_resolution_node.node_type = AstNodeType::VariableDeclaration;
                 // the variable name is changed to a unique variable name to handle/represent nested scopes
                 // Subsequent steps such as TACKY generation will not know about scopes as the variable
                 // names have already been made unique by the linearization applied here!
-                node.string_val = replaced_varname;
+                identifier_resolution_node.string_val = replaced_varname;
 
-                return node;
+                return identifier_resolution_node;
             }
 
             AstNodeType::StructureDeclaration => {

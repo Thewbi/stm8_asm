@@ -37,6 +37,7 @@ impl StructDecl {
     /// Debugging: https://www.embedcalc.com/structalign/#structalign
     pub fn compute_memory_layout(&mut self, type_system: &HashMap::<String, DataType>) {
 
+        // DEBUG
         if self.debug {
             println!("compute_memory_layout()");
         }
