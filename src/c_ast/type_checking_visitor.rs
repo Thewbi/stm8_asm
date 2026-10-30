@@ -1523,11 +1523,11 @@ impl TypeCheckingVisitor {
                 todo!();
             }
 
-            AstNodeType::Dot => {
-                todo!();
-            }
+            // AstNodeType::Dot => {
+            //     todo!();
+            // }
 
-            AstNodeType::Arrow => {
+            AstNodeType::Arrow | AstNodeType::Dot => {
 
                 // DEBUG
                 // if self.debug {
@@ -1535,19 +1535,13 @@ impl TypeCheckingVisitor {
                     println!("{} {:?}", ast_node.id, ast_node);
                 // }
 
-
                 let node = node_map.get(&ast_node.id).unwrap();
-
-
-
 
                 let rhs_node_id = node.rhs.unwrap();
                 println!("rhs_node_id: {}", &rhs_node_id);
                 let rhs_node = node_map.get(&rhs_node_id).unwrap();
 
                 let field_name = rhs_node.string_val.clone();
-
-
 
                 let lhs_node_id = node.lhs.unwrap();
                 println!("lhs_node_id: {}", &lhs_node_id);
@@ -1556,19 +1550,22 @@ impl TypeCheckingVisitor {
                 println!("{:?}", lhs_node);
 
                 // resolve variable name to symbol
-                let symbol = self.symbol_table.borrow_mut().retrieve(&lhs_node.string_val);
+                let lhs_symbol = self.symbol_table.borrow_mut().retrieve(&lhs_node.string_val);
 
-                println!("{:?}", symbol);
+                println!("{:?}", lhs_symbol);
 
-                // retrieve data type of symbol
-                let data_type = symbol.data_type;
+                // retrieve data type of lhs_symbol
+                let lhs_data_type = lhs_symbol.data_type;
 
-                println!("data_type: {}", &data_type);
+                println!("lhs_data_type: {}", &lhs_data_type);
 
                 let mut struct_decl:StructDecl = StructDecl::new();
 
-                match data_type {
+                // retrieve data type of the field which is accessed within the struct
+                match lhs_data_type {
+
                     DataType::DataTypePointer(dest_data_type) => {
+
                         println!("dest_data_type: {}", &dest_data_type);
                         // let struct_decl = dest_data_type;
 
@@ -1586,8 +1583,18 @@ impl TypeCheckingVisitor {
                             }
                         }
                     }
+
+                    DataType::DataTypeStruct(struct_decl_val) => {
+                        println!("struct_decl: {:?}", struct_decl_val);
+                        struct_decl = struct_decl_val;
+
+                        let struct_decl_member = struct_decl.members.iter().find(|f| f.member_name == field_name);
+
+                        return struct_decl_member.unwrap().data_type.clone();
+                    }
+
                     _ => {
-                        panic!("Unhandled data type: {:?}", data_type);
+                        panic!("Unhandled data type: {:?}", lhs_data_type);
                     }
                 }
             }

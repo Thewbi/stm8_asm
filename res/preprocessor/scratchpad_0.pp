@@ -1,18 +1,18 @@
 struct listnode
 {
     int a;
-    int b;
 };
 
 int main() {
 
+    int b;
+
     struct listnode struct_1;
-    // struct_1.a = 1;
 
     struct listnode *struct_ptr;
     struct_ptr = &struct_1;
-    struct_ptr->a = 2;
-    struct_ptr->b = 3;
+
+    b = struct_ptr->a;
 
     return 0;
 }
