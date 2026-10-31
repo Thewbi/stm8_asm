@@ -4,13 +4,9 @@ int main() {
 
     arr[2] = 123;
 
-    //int result = arr[2];
-
     // THIS WORKS
     int result;
-    // result = arr[2];
-    result = arr[0];
+    result = arr[2];
 
     return result;
-    //return 0;
 }

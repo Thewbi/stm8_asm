@@ -91,16 +91,14 @@ impl FromStr for DataType {
 
 impl PartialEq for DataType {
     fn eq(&self, other: &DataType) -> bool {
-        //self.symbol_table_entry_type == other.symbol_table_entry_type && self.data_type == other.data_type && self.parameter_count == other.parameter_count
-        //todo!()
-        //return self == other
 
-        println!("other: {:?}", other);
-        println!("self: {:?}", self);
+        let debug = false;
+        if debug {
+            println!("other: {:?}", other);
+            println!("self: {:?}", self);
+        }
 
         match (self, other) {
-            //(&Test::A, &Test::AlsoA) | (&Test::AlsoA, &Test::A) => true,
-
             (&DataType::DataTypeChar,           &DataType::DataTypeChar) => true,
             (&DataType::DataTypeUnsignedChar,   &DataType::DataTypeUnsignedChar) => true,
             (&DataType::DataTypeInt,            &DataType::DataTypeInt) => true,
@@ -116,19 +114,11 @@ impl PartialEq for DataType {
             (&DataType::DataTypeVoid,           &DataType::DataTypeVoid) => true,
             (&DataType::DataTypeUnknown,        &DataType::DataTypeUnknown) => true,
 
-            // DataType::DataTypePointer(data_type) => write!(f, "Pointer-To-[{}]", data_type),
-            // DataType::DataTypeStruct(data_type) => write!(f, "StructDecl: [{:?}]", data_type),
-            // DataType::DataTypeArray(data_type, size) => write!(f, "Array-Of-[{}]-Size-[{:?}]", data_type, size),
-            // DataType::DataTypeTypedeffed(data_type) => write!(f, "Typedeffed-[{}]", data_type),
-
             (DataType::DataTypePointer(lhs_data_type), DataType::DataTypePointer(rhs_data_type)) => {
-                //todo!()
                 return lhs_data_type == rhs_data_type;
             },
 
             (DataType::DataTypeStruct(lhs_data_type), DataType::DataTypeStruct(rhs_data_type)) => {
-                //todo!()
-
                 // compare the tag only
                 return lhs_data_type.tag == rhs_data_type.tag;
             },

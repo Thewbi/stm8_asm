@@ -175,6 +175,7 @@ pub fn print_ast(program_ast_node_id: &usize, node_map: &Box<HashMap::<usize, As
     // println!("}}");
     // println!("---------------------------------------------------------------------------------");
 
+    // DEBUG
     if debug {
         println!("");
         println!("---------------------------------------------------------------------------------");
@@ -1270,12 +1271,13 @@ fn main() {
                 // [Step 3] Generate TACKY (from AST)
                 //
 
-                // if debug {
+                // DEBUG
+                if debug {
                     println!("\n\n");
                     println!("Symbol Table before TackyVisitor!");
                     symbol_table_rc_2.borrow().print_symbol_table();
                     println!("\n\n");
-                // }
+                }
 
                 let mut tacky_visitor = TackyVisitor::new(
                     variable_naming_source_rc_2, symbol_table_rc_2, type_system_rc_2);
@@ -1411,7 +1413,7 @@ fn main() {
                     let stack_offset_map = asm_ast_fixup_visitor.stack_offset_map.clone();
 
                     // DEBUG
-                    // if debug {
+                    if debug {
                         println!("print_symbol_table() ------------------------------------------------------------");
                         let mut index = 0;
                         for (key, value) in stack_offset_map.clone().into_iter() {
@@ -1420,7 +1422,7 @@ fn main() {
                             index = index + 1;
                         }
                         println!("---------------------------------------------------------------------------------");
-                    // }
+                    }
 
                     // println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                     let mut asm_ast_emitter_visitor = AsmAstMasmEmitterVisitor::new();

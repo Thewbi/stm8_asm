@@ -521,7 +521,11 @@ impl TackyVisitor {
 
                                             if let Some(rhs_sub_id) = ast_node.rhs {
 
-                                                dst_name = self.variable_naming_source.borrow_mut().new_temp_var();
+                                                // need a name
+                                                if dst_name.len() == 0 {
+                                                    dst_name = self.variable_naming_source.borrow_mut().new_temp_var();
+                                                    self.declare_temporary_variable(&dst_name);
+                                                }
 
                                                 // need a name
                                                 assert!(dst_name.len() != 0,
@@ -778,10 +782,10 @@ impl TackyVisitor {
             AstNodeType::Return => {
 
                 // DEBUG
-                // if self.debug {
+                if self.debug {
                     println!("------------------------------------------------------------");
-                    println!("id: {} ast_node: {:?}", ast_node.id, ast_node);
-                // }
+                    println!("[AstNodeType::Return] id: {} ast_node: {:?}", ast_node.id, ast_node);
+                }
 
                 println!("{}", ast_node.get_analyzed_data_type());
 
@@ -967,8 +971,6 @@ impl TackyVisitor {
                             if let Some(rhs_id) = ast_node.rhs {
 
                                 let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-
-                                // asdf
                                 self.declare_temporary_variable(&temp_var_name);
 
                                 let mut br_cnt = 0;
@@ -1047,8 +1049,6 @@ impl TackyVisitor {
                 // LHS - src 2
                 if let Some(lhs_id) = ast_node.lhs {
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-
-                    // asdf
                     self.declare_temporary_variable(&temp_var_name);
 
                     let mut br_cnt = 0;
@@ -1059,8 +1059,6 @@ impl TackyVisitor {
                 // RHS - src
                 if let Some(rhs_id) = ast_node.rhs {
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-
-                    // asdf
                     self.declare_temporary_variable(&temp_var_name);
 
                     let mut br_cnt = 0;
@@ -1180,8 +1178,6 @@ impl TackyVisitor {
                 if let Some(lhs_id) = ast_node.expression {
 
                     exp_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-
-                    // asdf
                     self.declare_temporary_variable(&exp_result_var_name);
 
                     let lhs_value_element = self.visit(lhs_id, node_map, &exp_result_var_name, branch_counter);
@@ -1226,8 +1222,6 @@ impl TackyVisitor {
                 if let Some(lhs_id) = ast_node.lhs {
 
                     stmt_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-
-                    // asdf
                     self.declare_temporary_variable(&stmt_result_var_name);
 
                     let lhs_value_element = self.visit(lhs_id, node_map, &stmt_result_var_name, branch_counter);
@@ -1261,8 +1255,6 @@ impl TackyVisitor {
 
                     // RHS
                     stmt_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-
-                    // asdf
                     self.declare_temporary_variable(&stmt_result_var_name);
 
                     let rhs_value_element = self.visit(rhs_id, node_map, &stmt_result_var_name, branch_counter);
@@ -1313,8 +1305,6 @@ impl TackyVisitor {
                 if let Some(lhs_id) = ast_node.lhs {
 
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-
-                    // asdf
                     self.declare_temporary_variable(&temp_var_name);
 
                     let mut br_cnt = 0;
@@ -1335,8 +1325,6 @@ impl TackyVisitor {
                 // RHS - body/statement
                 if let Some(rhs_id) = ast_node.rhs {
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-
-                    // asdf
                     self.declare_temporary_variable(&temp_var_name);
 
                     let mut br_cnt = 0;
@@ -1396,10 +1384,8 @@ impl TackyVisitor {
                     if self.debug {
                         println!("{:?}", lhs_id);
                     }
-                    let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
 
-                    // asdf
-                    // println!("{:?}", temp_var_name);
+                    let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
                     self.declare_temporary_variable(&temp_var_name);
 
                     let mut br_cnt = 0;
@@ -1425,6 +1411,7 @@ impl TackyVisitor {
 
                     // new temporary variable used as destination to store the comparison result
                     exp_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+                    self.declare_temporary_variable(&exp_result_var_name);
 
                     // add new temporary variable into the symbol table as otherwise the
                     // AsmAstFixupVisitor fails later when it retrieves the variable from the symbol table
@@ -1480,8 +1467,6 @@ impl TackyVisitor {
                 if let Some(rhs_id) = ast_node.rhs {
 
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-
-                    // asdf
                     self.declare_temporary_variable(&temp_var_name);
 
                     let mut br_cnt = 0;
@@ -1925,6 +1910,7 @@ impl TackyVisitor {
 
                         // create new temporary variable name for the destination variable
                         let dest_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+                        self.declare_temporary_variable(&dest_var_name);
 
                         // create temporary variable to cast into
                         let mut dest_var_declaration: Instruction = Instruction::new();
@@ -2153,6 +2139,8 @@ impl TackyVisitor {
 
         let rhs_node_id = ast_node.rhs.unwrap();
         let dst_name = self.variable_naming_source.borrow_mut().new_temp_var();
+        self.declare_temporary_variable(&dst_name);
+
         let mut branch_counter = 0usize;
         let lhs_value_element = self.visit(rhs_node_id, node_map, &dst_name, &mut branch_counter);
 
@@ -2183,7 +2171,10 @@ impl TackyVisitor {
             AstNodeType::ConstUInt |
             AstNodeType::ConstULong |
             AstNodeType::ConstDouble => {
-                subscript_instruction.offset = i32::from_str_radix(&lhs_rhs_node.string_val, 10).expect("REASON");
+                let string_val = lhs_rhs_node.string_val.clone();
+                let temp_val = i32::from_str_radix(&string_val, 10).expect("REASON");
+                subscript_instruction.offset = temp_val.clone();
+                subscript_instruction.index = ValueElement::Constant(string_val.clone());
             }
 
             AstNodeType::Identifier => {

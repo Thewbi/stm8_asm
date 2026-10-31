@@ -47,17 +47,37 @@ impl fmt::Debug for SymbolTableEntry {
 
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 
-        write!(f, "SymbolTableEntry {{\n").expect("Write failed!");
-        write!(f, "  name: {}\n", &self.name).expect("Write failed!");
-        write!(f, "  symbol_table_entry_type: {:?}\n", &self.symbol_table_entry_type).expect("Write failed!");
-        write!(f, "  parameter_count: {}\n", &self.parameter_count).expect("Write failed!");
-        write!(f, "  data_type: {}\n", &self.data_type).expect("Write failed!");
-        write!(f, "  has_body: {}\n", &self.has_body).expect("Write failed!");
-        write!(f, "  is_array: {}\n", &self.is_array).expect("Write failed!");
-        write!(f, "  array_element_count: {}\n", &self.array_element_count).expect("Write failed!");
-        write!(f, "  is_pointer: {}\n", &self.is_pointer).expect("Write failed!");
-        write!(f, "  is_struct: {}\n", &self.is_struct).expect("Write failed!");
-        write!(f, "}}\n").expect("Write failed!");
+        let use_line_break = false;
+
+        if use_line_break {
+
+            write!(f, "SymbolTableEntry {{\n").expect("Write failed!");
+            write!(f, "  name: {}\n", &self.name).expect("Write failed!");
+            write!(f, "  symbol_table_entry_type: {:?}\n", &self.symbol_table_entry_type).expect("Write failed!");
+            write!(f, "  parameter_count: {}\n", &self.parameter_count).expect("Write failed!");
+            write!(f, "  data_type: {}\n", &self.data_type).expect("Write failed!");
+            write!(f, "  has_body: {}\n", &self.has_body).expect("Write failed!");
+            write!(f, "  is_array: {}\n", &self.is_array).expect("Write failed!");
+            write!(f, "  array_element_count: {}\n", &self.array_element_count).expect("Write failed!");
+            write!(f, "  is_pointer: {}\n", &self.is_pointer).expect("Write failed!");
+            write!(f, "  is_struct: {}\n", &self.is_struct).expect("Write failed!");
+            write!(f, "}}\n").expect("Write failed!");
+
+        } else {
+
+            write!(f, "SymbolTableEntry {{ ").expect("Write failed!");
+            write!(f, "  name: {} ", &self.name).expect("Write failed!");
+            write!(f, "  symbol_table_entry_type: {:?} ", &self.symbol_table_entry_type).expect("Write failed!");
+            write!(f, "  parameter_count: {} ", &self.parameter_count).expect("Write failed!");
+            write!(f, "  data_type: {} ", &self.data_type).expect("Write failed!");
+            write!(f, "  has_body: {} ", &self.has_body).expect("Write failed!");
+            write!(f, "  is_array: {} ", &self.is_array).expect("Write failed!");
+            write!(f, "  array_element_count: {} ", &self.array_element_count).expect("Write failed!");
+            write!(f, "  is_pointer: {} ", &self.is_pointer).expect("Write failed!");
+            write!(f, "  is_struct: {} ", &self.is_struct).expect("Write failed!");
+            write!(f, "}}").expect("Write failed!");
+
+        }
 
         Ok(())
     }

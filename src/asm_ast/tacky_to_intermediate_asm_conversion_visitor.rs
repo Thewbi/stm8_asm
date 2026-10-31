@@ -562,7 +562,7 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         // DEBUG
         if self.debug {
-            println!("{:?}", tacky_instruction_subscript);
+            println!("tacky_instruction_subscript: {:?}", tacky_instruction_subscript);
         }
 
         let offset_register = AsmAstReg::RAX;

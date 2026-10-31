@@ -13,6 +13,7 @@ int main()
 {
     //point_t p0;
     struct point p0;
+    p0.x = 100;
 
-    return 0;
+    return p0.x;
 }

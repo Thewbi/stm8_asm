@@ -604,12 +604,12 @@ impl AstNode {
     }
 
     pub fn set_analyzed_data_type(&mut self, data_type: DataType) {
-        println!("{} {}", self.id, data_type);
+        // println!("{} {}", self.id, data_type);
         self.analyzed_data_type = data_type;
     }
 
     pub fn get_analyzed_data_type(&self) -> DataType {
-        println!("{} {}", self.id, self.analyzed_data_type.clone());
+        // println!("{} {}", self.id, self.analyzed_data_type.clone());
         return self.analyzed_data_type.clone();
     }
 

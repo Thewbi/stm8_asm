@@ -116,6 +116,11 @@ impl VariableNamingSource {
     // or if the user-choosen varname has never been processed before
     pub fn is_variable_name_defined(&mut self, varname: &String) -> bool {
 
+        // DEBUG
+        if self.debug {
+            println!("[is_variable_name_defined:{}] varname:'{}'", self.label, varname);
+        }
+
         // look into the topmost map
         // (which automatically contains ALL variable from ALL levels! No need to go down the stack)
         if let Some(varname_map_refcell) = self.varname_map_stack.last() {
@@ -138,12 +143,20 @@ impl VariableNamingSource {
                     // return entry.is_new && !entry.is_external_linkage;
 
                     // variable is defined
+                    // DEBUG
+                    if self.debug {
+                        println!("[is_variable_name_defined:{}] varname:'{}' is defined!", self.label, varname);
+                    }
                     return true;
                 }
             }
         }
 
         // not defined
+        // DEBUG
+        if self.debug {
+            println!("[is_variable_name_defined:{}] varname:'{}' is NOT defined!", self.label, varname);
+        }
         false
     }
 
@@ -180,6 +193,11 @@ impl VariableNamingSource {
 
         let temp = self.VAR_COUNTER.fetch_add(1, Ordering::SeqCst);
 
+        // // DEBUG
+        // if temp == 7 {
+        //     println!("[VarnameMapEntry::new_temp_var] 7");
+        // }
+
         let mut t = String::from("tmp.");
         t.push_str(temp.to_string().as_str());
 
@@ -188,9 +206,14 @@ impl VariableNamingSource {
 
     pub fn new_user_defined_var(&mut self, varname: &String) -> String {
 
+        // DEBUG
+        if self.debug {
+            println!("[new_user_defined_var] varname:'{}'", varname);
+        }
+
         let in_use = self.is_variable_name_defined(&varname);
         if in_use {
-            panic!("Variable Name \"{}\" is used already!", varname);
+            panic!("[new_user_defined_var] Variable Name \"{}\" is used already!", varname);
         }
 
         let temp = self.VAR_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -208,13 +231,14 @@ impl VariableNamingSource {
                 is_external_linkage: false, // a variable is NOT external linkage by default
             };
 
+            // DEBUG
             if self.debug {
-                println!("Mapping: '{}' to '{:?}'", varname, &varname_map_entry);
+                println!("[new_user_defined_var] Mapping: '{}' to '{:?}'", varname, &varname_map_entry);
             }
 
             varname_map.borrow_mut().insert(varname.clone(), varname_map_entry);
         } else {
-            panic!("Not inserting!")
+            panic!("[new_user_defined_var] Not inserting!")
         }
 
         new_unique_varname

@@ -1,23 +1,19 @@
-#include <stddef.h>
+#include <stdint.h>
 
-struct node {
-    //void *val;
-    int val;
-    struct node *next;
+//typedef int own_int;
+
+struct point {
+    int x;
+    int y;
 };
 
-typedef struct node node_t;
+//typedef struct point point_t;
 
-int main() {
+int main()
+{
+    //point_t p0;
+    struct point p0;
+    p0.x = 100;
 
-    node_t struct_1;
-    node_t struct_2;
-
-    struct_1.val = 1;
-    struct_2.val = 2;
-
-    struct_1.next = &struct_2;
-    struct_2.next = NULL;
-
-    return 0;
+    return p0.x;
 }

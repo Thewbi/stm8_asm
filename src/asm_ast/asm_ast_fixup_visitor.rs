@@ -71,10 +71,8 @@ impl AsmAstFixupVisitor {
     #[allow(unreachable_patterns)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
     pub fn replace_pseudo_operand(&mut self,
         asm_ast_operand: &AsmAstOperand,
-        // type_system: &HashMap::<String, DataType>
     ) -> AsmAstOperand
     {
-
         // DESCRIPTION:
         //
         // This is where Nora Sandler, page 267 wants to check the backend symbol
@@ -151,6 +149,8 @@ impl AsmAstFixupVisitor {
                             stack_offset_value = self.stack_offset;
 
                         } else {
+
+                            self.backend_symbol_table.borrow_mut().print_symbol_table();
 
                             panic!("Cannot find symbol '{}' in backend_symbol_table", &pseudo_name);
 

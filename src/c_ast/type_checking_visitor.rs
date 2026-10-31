@@ -84,9 +84,9 @@ impl TypeCheckingVisitor {
                 if self.symbol_table.borrow_mut().contains(&ast_node.string_val) {
                     let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&ast_node.string_val);
                     // DEBUG
-                    // if self.debug {
+                    if self.debug {
                         println!("[TypeCheckingVisitor] {:?}", symbol_table_entry);
-                    // }
+                    }
                     return symbol_table_entry.data_type.clone();
                 } else {
                     todo!("NodeType: {:?}", ast_node.node_type);
@@ -260,8 +260,8 @@ impl TypeCheckingVisitor {
 
             AstNodeType::Dot | AstNodeType::Arrow => {
 
-                println!("-------------------------------------------------------------");
-                println!("ast_node_id: {}", ast_node.id);
+                // println!("-------------------------------------------------------------");
+                // println!("ast_node_id: {}", ast_node.id);
 
                 // Assumption !!!!!
                 // code is: struct.struct_field
@@ -280,7 +280,7 @@ impl TypeCheckingVisitor {
                     // retrieve node by id
                     let left_node = node_map.get(&left_node_id).unwrap();
 
-                    println!("{} {:?}", left_node.id, left_node);
+                    // println!("{} {:?}", left_node.id, left_node);
 
                     struct_variable_name = left_node.string_val.clone();
 
@@ -299,7 +299,7 @@ impl TypeCheckingVisitor {
                     struct_field_name = left_node.string_val.clone();
                 }
 
-                println!("struct:'{}', field:'{}'", struct_variable_name, struct_field_name);
+                // println!("struct:'{}', field:'{}'", struct_variable_name, struct_field_name);
 
                 // println!("print_symbol_table() ------------------------------------------------------------");
                 // let mut index = 0;
@@ -475,7 +475,7 @@ impl TypeCheckingVisitor {
                 if let Some(left_node_id) = ast_node.lhs {
 
                     lhs_data_type = self.visit(left_node_id, node_map, expected_return_data_type);
-                    println!("lhs_data_type: {:?}", lhs_data_type);
+                    // println!("lhs_data_type: {:?}", lhs_data_type);
 
                     // retrieve
                     left_node = node_map.get(&left_node_id).unwrap().clone();
@@ -544,21 +544,17 @@ impl TypeCheckingVisitor {
                     }
 
                     _ => {
-                        //panic!("");
-
-                        //assert_ne!(lhs_type, DataTypeUnknown);
-                        //assert_ne!(rhs_type, DataTypeUnknown);
 
                         // DEBUG
-                        //if self.debug {
+                        if self.debug {
                             println!("------------------------------------------------");
                             println!("{} {:?}", ast_node.id, ast_node);
-                        //}
+                        }
 
                         // DEBUG
-                        // if self.debug {
+                        if self.debug {
                             println!("lhs_type: {:?}, rhs_type: {:?}", lhs_data_type, rhs_data_type);
-                        // }
+                        }
 
                         //
                         // Check for and insert CAST
@@ -698,10 +694,10 @@ impl TypeCheckingVisitor {
             AstNodeType::Return => {
 
                 // DEBUG
-                // if self.debug {
+                if self.debug {
                     println!("-------------------------------------------------------------");
                     println!("id: {} ast_node: {:?}", ast_node.id, ast_node);
-                // }
+                }
 
                 // find the function which is terminated when this return executes
 
@@ -712,7 +708,7 @@ impl TypeCheckingVisitor {
 
                     let data_type = self.visit(left_node_id, node_map, expected_return_data_type);
 
-                    println!("{}", data_type);
+                    // println!("{}", data_type);
 
                     ast_node.set_analyzed_data_type(data_type.clone());
 
@@ -799,10 +795,10 @@ impl TypeCheckingVisitor {
 
             AstNodeType::Unary => {
                 // DEBUG
-                // if self.debug {
+                if self.debug {
                     println!("------------------------------------------------");
                     println!("{} {:?}", ast_node.id, ast_node);
-                // }
+                }
 
                 let mut data_type: DataType = DataType::DataTypeUnknown;
 
@@ -852,6 +848,10 @@ impl TypeCheckingVisitor {
                                 AstNodeOperatorType::AddrOf => {
                                     let data_type_pointer = DataType::DataTypePointer(Box::new(data_type));
                                     return data_type_pointer;
+                                }
+
+                                AstNodeOperatorType::Increment => {
+                                    return left_node.get_analyzed_data_type();
                                 }
 
                                 _ => {
@@ -1001,6 +1001,7 @@ impl TypeCheckingVisitor {
                                 cast_ast_node.lhs = Some(left_node.id); // LHS is the variable or literal (value element) which needs casting
                                 cast_ast_node.set_analyzed_data_type(common_data_type.clone()); // analyzed_data_type is the type to cast into
                                 cast_ast_node.parent_id = Some(ast_node.id);
+                                // TODO insert correct file and line
                                 cast_ast_node.file = String::from("test.c");
                                 cast_ast_node.line = 999;
 
@@ -1043,6 +1044,7 @@ impl TypeCheckingVisitor {
                                 cast_ast_node.lhs = Some(right_node.id); // LHS is the variable or literal (value element) which needs casting
                                 cast_ast_node.set_analyzed_data_type(common_data_type.clone()); // analyzed_data_type is the type to cast into
                                 cast_ast_node.parent_id = Some(ast_node_parent_id);
+                                // TODO insert correct file and line
                                 cast_ast_node.file = String::from("test.c");
                                 cast_ast_node.line = 999;
 
@@ -1197,10 +1199,10 @@ impl TypeCheckingVisitor {
             AstNodeType::VariableDeclaration => {
 
                 // DEBUG
-                // if self.debug {
+                if self.debug {
                     println!("-----------------------------------------------------------");
                     println!("{} {:?} file:{}, line:{}", ast_node.id, ast_node, ast_node.file, ast_node.line);
-                // }
+                }
 
                 let mut data_type: DataType = DataType::DataTypeUnknown;
 
@@ -1263,7 +1265,7 @@ impl TypeCheckingVisitor {
                         _ => {
                             data_type_as_string = left_node.string_val.clone();
 
-                            println!("data_type: '{}'", data_type_as_string);
+                            // println!("data_type: '{}'", data_type_as_string);
 
                             let ts = self.type_system.borrow();
                             if let Some(data_type_ts) = ts.get(&data_type_as_string) {
@@ -1349,11 +1351,10 @@ impl TypeCheckingVisitor {
 
             AstNodeType::StructureDeclaration => {
                 // DEBUG
-                // if self.debug {
+                if self.debug {
                     println!("{} {:?}", ast_node.id, ast_node);
-                // }
+                }
                 return self.type_system.borrow_mut().get(&ast_node.string_val).unwrap().clone();
-                // todo!();
             }
 
             AstNodeType::ParameterDeclaration => {
@@ -1417,7 +1418,7 @@ impl TypeCheckingVisitor {
                     self.visit(statement_node_id, node_map, expected_return_data_type);
                 }
 
-                todo!();
+                return DataType::DataTypeUnknown;
             }
 
             AstNodeType::DoWhile => {
@@ -1447,7 +1448,7 @@ impl TypeCheckingVisitor {
                     self.visit(block_item_id, node_map, expected_return_data_type);
                 }
 
-                todo!();
+                return DataType::DataTypeUnknown;
             }
 
             AstNodeType::FunctionCall => {
@@ -1544,7 +1545,8 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::CompoundInit => {
-                todo!();
+                //todo!();
+                return DataType::DataTypeUnknown;
             }
 
             AstNodeType::Subscript => {
@@ -1575,34 +1577,34 @@ impl TypeCheckingVisitor {
             AstNodeType::Arrow | AstNodeType::Dot => {
 
                 // DEBUG
-                // if self.debug {
+                if self.debug {
                     println!("-----------------------------------------------------------");
                     println!("{} {:?}", ast_node.id, ast_node);
-                // }
+                }
 
                 let node = node_map.get(&ast_node.id).unwrap();
 
                 let rhs_node_id = node.rhs.unwrap();
-                println!("rhs_node_id: {}", &rhs_node_id);
+                // println!("rhs_node_id: {}", &rhs_node_id);
                 let rhs_node = node_map.get(&rhs_node_id).unwrap();
 
                 let field_name = rhs_node.string_val.clone();
 
                 let lhs_node_id = node.lhs.unwrap();
-                println!("lhs_node_id: {}", &lhs_node_id);
+                // println!("lhs_node_id: {}", &lhs_node_id);
                 let lhs_node = node_map.get(&lhs_node_id).unwrap();
 
-                println!("{:?}", lhs_node);
+                // println!("{:?}", lhs_node);
 
                 // resolve variable name to symbol
                 let lhs_symbol = self.symbol_table.borrow_mut().retrieve(&lhs_node.string_val);
 
-                println!("{:?}", lhs_symbol);
+                // println!("{:?}", lhs_symbol);
 
                 // retrieve data type of lhs_symbol
                 let lhs_data_type = lhs_symbol.data_type;
 
-                println!("lhs_data_type: {}", &lhs_data_type);
+                // println!("lhs_data_type: {}", &lhs_data_type);
 
                 let mut struct_decl: StructDecl = StructDecl::new();
 
@@ -1611,12 +1613,11 @@ impl TypeCheckingVisitor {
 
                     DataType::DataTypePointer(dest_data_type) => {
 
-                        println!("dest_data_type: {}", &dest_data_type);
-                        // let struct_decl = dest_data_type;
+                        // println!("dest_data_type: {}", &dest_data_type);
 
                         match *dest_data_type {
                             DataType::DataTypeStruct(struct_decl_val) => {
-                                println!("struct_decl: {:?}", struct_decl_val);
+                                // println!("struct_decl: {:?}", struct_decl_val);
                                 struct_decl = struct_decl_val;
 
                                 let struct_decl_member = struct_decl.members.iter().find(|f| f.member_name == field_name);
@@ -1630,7 +1631,7 @@ impl TypeCheckingVisitor {
                     }
 
                     DataType::DataTypeStruct(struct_decl_val) => {
-                        println!("struct_decl: {:?}", struct_decl_val);
+                        // println!("struct_decl: {:?}", struct_decl_val);
                         struct_decl = struct_decl_val;
                         let struct_decl_member = struct_decl.members.iter().find(|f| f.member_name == field_name);
                         return struct_decl_member.unwrap().data_type.clone();
@@ -1656,16 +1657,16 @@ impl TypeCheckingVisitor {
 
             AstNodeType::Typedef => {
                 // DEBUG
-                // if self.debug {
+                if self.debug {
                     println!("-----------------------------------------------------------");
                     println!("{} {:?}", ast_node.id, ast_node);
-                // }
+                }
 
                 let lhs_node_id = ast_node.lhs.unwrap();
-                println!("lhs_node_id: {}", &lhs_node_id);
+                // println!("lhs_node_id: {}", &lhs_node_id);
                 let lhs_node = node_map.get(&lhs_node_id).unwrap();
 
-                println!("{:?}", lhs_node.string_val);
+                // println!("{:?}", lhs_node.string_val);
 
                 // let type_name = lhs_node.string_val.split(' ').collect::<Vec<_>>().get(0).unwrap();
                 let (type_name, rest) = lhs_node.string_val.split_once(char::is_whitespace).unwrap();
@@ -1673,7 +1674,7 @@ impl TypeCheckingVisitor {
                 let ts = self.type_system.borrow_mut();
                 let data_type = ts.get(type_name);
 
-                println!("{:?}", data_type);
+                // println!("{:?}", data_type);
 
                 return data_type.unwrap().clone();
             }
