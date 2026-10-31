@@ -39,7 +39,7 @@ use crate::asm_ast::asm_ast::AsmAstReg;
 pub struct AsmAstFixupVisitor {
     pub asm_ast_program: AsmAstProgram,
     pub replace_pseudo: bool,
-    pub stack_offset: i32,
+    stack_offset: i32,
     pub stack_offset_map: HashMap::<String, i32>,
     // chapter 15 - talks about a new backend symbol table that is create from the symbol table after TACKY generation
     pub backend_symbol_table: Rc<RefCell<SymbolTable>>, // https://www.youtube.com/watch?v=8O0Nt9qY_vo
@@ -70,8 +70,7 @@ impl AsmAstFixupVisitor {
     #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
     #[allow(unreachable_patterns)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
     pub fn replace_pseudo_operand(&mut self,
-        asm_ast_operand: &AsmAstOperand,
-    ) -> AsmAstOperand
+        asm_ast_operand: &AsmAstOperand) -> AsmAstOperand
     {
         // DESCRIPTION:
         //
@@ -101,9 +100,9 @@ impl AsmAstFixupVisitor {
 
             AsmAstOperandType::Pseudo(pseudo_name) => {
                 // DEBUG
-                if self.debug {
+                // if self.debug {
                     println!("Pseudo. Pseudo-Name: '{}'", pseudo_name);
-                }
+                // }
 
                 assert!(pseudo_name.len() != 0, "[ERR] [asm_ast_fixup_visitor] PseudoVariable has no name! Need a name to replace!");
 
@@ -111,7 +110,8 @@ impl AsmAstFixupVisitor {
 
                     if self.stack_offset_map.contains_key(pseudo_name) {
 
-                        // variable with 'pseudo_name' has already been resolved. Reuse existing value.
+                        // variable with 'pseudo_name' has already been resolved.
+                        // Reuse existing value.
                         stack_offset_value = *self.stack_offset_map.get(pseudo_name).unwrap();
 
                     } else {
@@ -163,9 +163,9 @@ impl AsmAstFixupVisitor {
 
             AsmAstOperandType::PseudoMem(pseudo_name, pseudo_offset) => {
                 // DEBUG
-                if self.debug {
-                    println!("PseudoMem: pseudo_name: {}", pseudo_name.clone());
-                }
+                // if self.debug {
+                    println!("PseudoMem: pseudo_name: '{}'", pseudo_name.clone());
+                // }
 
                 if self.replace_pseudo {
 
@@ -175,9 +175,13 @@ impl AsmAstFixupVisitor {
                     //
 
                     if self.stack_offset_map.contains_key(pseudo_name) {
-                        // variable with 'pseudo_name' has already been resolved. Reuse existing value.
+
+                        // variable with 'pseudo_name' has already been resolved.
+                        // Reuse existing value.
                         stack_offset_value = *self.stack_offset_map.get(pseudo_name).unwrap();
+
                     } else {
+
                         // retrieve type
                         if self.backend_symbol_table.borrow_mut().contains(&pseudo_name) {
 
@@ -186,27 +190,35 @@ impl AsmAstFixupVisitor {
                             let symbol_table_entry = self.backend_symbol_table.borrow_mut().retrieve(&pseudo_name);
 
                             // DEBUG
-                            if self.debug {
-                                println!("[AsmAstFixupVisitor] {:?}", symbol_table_entry);
-                            }
+                            // if self.debug {
+                                println!("[AsmAstFixupVisitor::PseudoMem()] '{:?}'", symbol_table_entry);
+                            // }
 
                             if symbol_table_entry.is_pointer {
                                 panic!("pointer!");
                             }
+
+                            let mut array_element_count = symbol_table_entry.array_element_count;
 
                             if symbol_table_entry.is_array {
                                 // DEBUG
                                 if self.debug {
                                     println!("is_array. ElementCount: {}", symbol_table_entry.array_element_count);
                                 }
+                            } else {
+                                array_element_count = 1;
                             }
 
                             let data_type = symbol_table_entry.data_type;
 
                             // convert the data type into the offset in bytes
-                            self.stack_offset = self.stack_offset - ( data_type.get_size(&self.type_system.borrow()) as i32 ) * symbol_table_entry.array_element_count;
+                            let data_type_size = data_type.get_size(&self.type_system.borrow()) as i32;
+                            println!("DataType: {:?}, DataTypeSize: {}", data_type, data_type_size);
+
+                            self.stack_offset = self.stack_offset - data_type_size * array_element_count;
                             self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
                             stack_offset_value = self.stack_offset;
+
                         } else {
                             panic!("Cannot find symbol '{}' in backend_symbol_table", &pseudo_name);
                         }
@@ -244,8 +256,7 @@ impl AsmAstFixupVisitor {
     //
 
     pub fn visit_asm_ast_program(&mut self,
-        asm_ast_program: &mut AsmAstProgram
-    )
+        asm_ast_program: &mut AsmAstProgram)
     {
         // DEBUG
         if self.debug {
@@ -260,9 +271,7 @@ impl AsmAstFixupVisitor {
 
     // will iterate over all instructions in the function's body and visit them
     pub fn visit_asm_ast_function(&mut self,
-        asm_ast_function: &mut AsmAstFunction,
-        // type_system: &HashMap::<String, DataType>
-    )
+        asm_ast_function: &mut AsmAstFunction)
     {
 
         // DEBUG
@@ -285,7 +294,7 @@ impl AsmAstFixupVisitor {
         // During iterating over all statements in the body, each statement is visited.
         // If a visit encounters the use of a pseudo-variable, this pseudo-variable needs to be
         // replaced by a stack address. When using more memory on the stack, the visited element
-        // needs to update the self.stack_offset member variable to exted the stack frame.
+        // needs to update the self.stack_offset member variable to extend the stack frame.
         //
         // To replace a pseudo variable, each visited element will call the function: replace_pseudo_operand().
         // Check for the usage of replace_pseudo_operand() in this visitor to see where pseudo variables are
@@ -293,14 +302,17 @@ impl AsmAstFixupVisitor {
         let mut new_body = Vec::<Box<AsmAstInstruction>>::new();
         for i in 0..asm_ast_function.body.len() {
             let instruction = asm_ast_function.body[i].as_ref().clone();
-            self.visit_asm_ast_instruction(&mut new_body, instruction/*, type_system */);
+            self.visit_asm_ast_instruction(&mut new_body, instruction);
         }
 
         if self.replace_pseudo {
 
-            // patch allocate stack because right now, the required stack size is readily available
+            // patch allocate stack because right now,
+            // the required stack size is readily available
             let asm_ast_allocate_stack = &mut new_body[0];
-            asm_ast_allocate_stack.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(self.stack_offset * -1) };
+            asm_ast_allocate_stack.src = AsmAstOperand {
+                operand_type: AsmAstOperandType::Imm(self.stack_offset * -1)
+            };
             asm_ast_allocate_stack.comment.push_str("    ; + Updated in AsmAstFixupVisitor::visit_asm_ast_function()\n");
 
             asm_ast_function.stack_frame_size = self.stack_offset * -1;
@@ -325,11 +337,8 @@ impl AsmAstFixupVisitor {
     #[allow(unreachable_patterns)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
     pub fn visit_asm_ast_instruction(&mut self,
         new_body: &mut Vec::<Box<AsmAstInstruction>>,
-        mut asm_ast_instruction: AsmAstInstruction,
-        // type_system: &HashMap::<String, DataType>
-    )
+        mut asm_ast_instruction: AsmAstInstruction)
     {
-
         match asm_ast_instruction.instruction_type {
 
             AsmAstInstructionType::Ret => {

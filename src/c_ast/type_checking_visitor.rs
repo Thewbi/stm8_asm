@@ -1659,14 +1659,17 @@ impl TypeCheckingVisitor {
                 // DEBUG
                 if self.debug {
                     println!("-----------------------------------------------------------");
-                    println!("{} {:?}", ast_node.id, ast_node);
+                    println!("[AstNodeType::Typedef] {} {:?}", ast_node.id, ast_node);
                 }
 
                 let lhs_node_id = ast_node.lhs.unwrap();
                 // println!("lhs_node_id: {}", &lhs_node_id);
                 let lhs_node = node_map.get(&lhs_node_id).unwrap();
 
-                // println!("{:?}", lhs_node.string_val);
+                // DEBUG
+                // if self.debug {
+                    println!("{:?}", lhs_node.string_val);
+                // }
 
                 // let type_name = lhs_node.string_val.split(' ').collect::<Vec<_>>().get(0).unwrap();
                 let (type_name, rest) = lhs_node.string_val.split_once(char::is_whitespace).unwrap();

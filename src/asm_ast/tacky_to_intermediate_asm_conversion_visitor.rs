@@ -116,8 +116,7 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         for i in 0..tacky_node_program.top_level.len() {
 
-            let temp_top_level_item:&Box<TopLevel> = &tacky_node_program.top_level[i];
-
+            let temp_top_level_item: &Box<TopLevel> = &tacky_node_program.top_level[i];
             match &temp_top_level_item.as_ref().top_level_type {
 
                 TopLevelType::Function => {
@@ -153,7 +152,8 @@ impl TackyToIntermediateAsmConversionVisitor {
         // insert allocate stack instruction - page 42
         //
         // placeholder to reserve space for local variables
-        // This instruction is later updated inside the AsmAstFixupVisitor::visit_asm_ast_function()
+        // This instruction is later updated inside the
+        // AsmAstFixupVisitor::visit_asm_ast_function() call
         let mut asm_ast_allocate_stack: AsmAstInstruction = AsmAstInstruction::new();
         asm_ast_allocate_stack.instruction_type = AsmAstInstructionType::AllocateStack;
         asm_ast_allocate_stack.src.operand_type = AsmAstOperandType::Imm(0);
@@ -164,8 +164,9 @@ impl TackyToIntermediateAsmConversionVisitor {
         //
         // Nora Sandler, page 196
         //
-        // Copy all function parameters which are located in registers onto the stack so that there is no need
-        // to store and restore registers to keep the parameters alive as the function executes.
+        // Copy all function parameters which are located in registers onto the stack
+        // so that there is no need to store and restore registers to keep the parameters
+        // alive as the function executes.
         //
         // (System-V ABI, the first six registers ("DI", "SI", "DX", "CX", "R8", "R9")
         // and Win64 FastCall, the first 4 registers (RCX, RDX, R8 and R9))
@@ -304,6 +305,10 @@ impl TackyToIntermediateAsmConversionVisitor {
 
                 InstructionType::CopyToOffset => {
                     self.visit_tacky_copy_to_offset(&mut asm_ast_function, tacky_instruction);
+                }
+
+                InstructionType::CopyFromOffset => {
+                    self.visit_tacky_copy_from_offset(&mut asm_ast_function, tacky_instruction);
                 }
 
                 InstructionType::AddAssignment => {
@@ -862,11 +867,11 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         let offset = tacky_node_copy_to_offset.offset;
 
-        let mut src_data_type: DataType = DataType::DataTypeUnknown;
-
         let mut mov: AsmAstInstruction = AsmAstInstruction::new();
         mov.instruction_type = AsmAstInstructionType::Mov;
         mov.comment = String::from(format!("    ; mov for CopyToOffset(src, dst, offset)").to_string());
+
+        let mut src_data_type: DataType = DataType::DataTypeUnknown;
         match &tacky_node_copy_to_offset.src {
 
             ValueElement::Variable(var_name) => {
@@ -893,11 +898,97 @@ impl TackyToIntermediateAsmConversionVisitor {
         mov.assembly_type = AstAstAssemblyType::from_data_type(&src_data_type);
         match &tacky_node_copy_to_offset.dst {
             ValueElement::Variable(var_name) => {
-                mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::PseudoMem(var_name.clone(), offset) };
+                mov.dst = AsmAstOperand {
+                    operand_type: AsmAstOperandType::PseudoMem(var_name.clone(), offset)
+                };
             }
             // ValueElement::Constant(constant_value) => {
             //     mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
             // }
+            _ => {
+                unimplemented!()
+            }
+        }
+
+        assert_ne!(mov.assembly_type, AstAstAssemblyType::Unknown);
+
+        asm_ast_function.body.push(Box::new(mov));
+    }
+
+    pub fn visit_tacky_copy_from_offset(&mut self,
+        asm_ast_function: &mut AsmAstFunction,
+        tacky_node_copy_from_offset: &Instruction)
+    {
+        // example code
+        // struct point p0;
+        // p0.y = 100;
+
+        // DEBUG
+        if self.debug {
+            println!("[asm_ast_conversion_visitor::visit_tacky_copy_from_offset()]");
+        }
+
+        // println!("[visit_tacky_copy_from_offset] {:?}", tacky_node_copy_from_offset);
+        println!("[visit_tacky_copy_from_offset] struct: '{:?}'", tacky_node_copy_from_offset.src);
+        println!("[visit_tacky_copy_from_offset] offset: '{:?}'", tacky_node_copy_from_offset.offset);
+        println!("[visit_tacky_copy_from_offset] dst: '{:?}'", tacky_node_copy_from_offset.dst);
+        println!("[visit_tacky_copy_from_offset] data_type: '{:?}'", tacky_node_copy_from_offset.data_type);
+
+        let mut mov: AsmAstInstruction = AsmAstInstruction::new();
+        mov.instruction_type = AsmAstInstructionType::Mov;
+        mov.comment = String::from(format!("    ; mov for CopyFromOffset(src, dst, offset)").to_string());
+
+        let mut src_data_type: DataType = DataType::DataTypeUnknown;
+        match &tacky_node_copy_from_offset.src {
+
+            ValueElement::Variable(var_name) => {
+                let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name);
+                src_data_type = symbol_table_entry_option.expect(format!("No symbol for '{}' found in symbol table!\n", var_name).as_str()).data_type;
+                // mov.src = AsmAstOperand {
+                //     operand_type: AsmAstOperandType::Pseudo(var_name.clone())
+                // };
+
+                mov.src = AsmAstOperand {
+                    operand_type: AsmAstOperandType::PseudoMem(var_name.clone(), tacky_node_copy_from_offset.offset)
+                };
+            }
+
+            ValueElement::Constant(constant_value) => {
+                // TODO: how to determine the type of the constant?
+                // Currently use hardcoded Int
+                src_data_type = DataType::DataTypeInt;
+                let value:i32 = i32::from_str_radix(&constant_value, 10).expect("REASON");
+                mov.src = AsmAstOperand {
+                    operand_type: AsmAstOperandType::Imm(value)
+                };
+            }
+
+            _ => {
+                unimplemented!()
+            }
+        }
+
+        //mov.assembly_type = AstAstAssemblyType::from_data_type(&src_data_type);
+        mov.assembly_type = AstAstAssemblyType::from_data_type(&tacky_node_copy_from_offset.data_type);
+
+        match &tacky_node_copy_from_offset.dst {
+
+            ValueElement::Variable(var_name) => {
+                // mov.dst = AsmAstOperand {
+                //     operand_type: AsmAstOperandType::PseudoMem(var_name.clone(), tacky_node_copy_from_offset.offset)
+                // };
+
+                mov.dst = AsmAstOperand {
+                    operand_type: AsmAstOperandType::Pseudo(var_name.clone())
+                };
+            }
+
+            // ValueElement::Constant(constant_value) => {
+            //     mov.dst = AsmAstOperand {
+            //        operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON"))
+            //    };
+            // }
+
             _ => {
                 unimplemented!()
             }

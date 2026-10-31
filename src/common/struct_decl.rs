@@ -102,7 +102,6 @@ impl StructDecl {
             // Instead each field is aligned to a multiple of it's
             // own size!
             let old_offset = offset;
-            //while offset % dt_size != 0 {
             while offset % dt_align != 0 {
                 offset = offset + 1;
             }

@@ -3,7 +3,7 @@ void main() {
     if (i < 10) {
         i++;
     } else if (i < 20) {
-        i++;    
+        i++;
     } else {
         i--;
     }

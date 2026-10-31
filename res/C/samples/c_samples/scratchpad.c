@@ -26,7 +26,7 @@ int main()
 
     head_p->next = &node_b;
     second_p->next = &node_c;
-    
+
     temp = head_p;
 
     while (temp != 0)

@@ -107,14 +107,16 @@ impl TackyVisitor {
     }
 
     fn declare_temporary_variable(&mut self,
-        temp_var_name: &String
+        temp_var_name: &String,
+        data_type: DataType,
     )
     {
         // create symbol table entry for temporary variable
         let mut symbol_table_entry = SymbolTableEntry::new();
         symbol_table_entry.name = temp_var_name.clone();
         symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
-        symbol_table_entry.data_type = DataType::DataTypeInt;
+        // symbol_table_entry.data_type = DataType::DataTypeInt;
+        symbol_table_entry.data_type = data_type.clone();
         symbol_table_entry.is_array = false;
         symbol_table_entry.array_element_count = 0;
 
@@ -123,7 +125,8 @@ impl TackyVisitor {
         // create temporary variable to cast into
         let mut dest_var_declaration: Instruction = Instruction::new();
         dest_var_declaration.instruction_type = InstructionType::VariableDeclaration;
-        dest_var_declaration.data_type = DataType::DataTypeInt;
+        // dest_var_declaration.data_type = DataType::DataTypeInt;
+        dest_var_declaration.data_type = data_type.clone();
         dest_var_declaration.label = temp_var_name.clone();
 
         // append instruction to latest top-level element of the program
@@ -140,10 +143,12 @@ impl TackyVisitor {
         let lhs_lhs_sub = node_map.get(&lhs_lhs_sub_id).unwrap();
 
         // DEBUG
-        println!("{}, {}", lhs_lhs_sub.id, lhs_lhs_sub.string_val);
+        // println!("{}, {}", lhs_lhs_sub.id, lhs_lhs_sub.string_val);
 
         let dst_name = lhs_lhs_sub.string_val.clone();
-        println!("dst_name: {}", dst_name);
+
+        // DEBUG
+        // println!("dst_name: {}", dst_name);
 
         // TODO: learn why borrow_mut() works but borrow() does not!
         let symbol_table_entry = self.symbol_table.borrow_mut().get(&dst_name).unwrap();
@@ -161,7 +166,7 @@ impl TackyVisitor {
         let lhs_rhs_sub = node_map.get(&lhs_rhs_sub_id).unwrap();
 
         // DEBUG
-        println!("{}, {}", lhs_rhs_sub.id, lhs_rhs_sub.string_val);
+        // println!("{}, {}", lhs_rhs_sub.id, lhs_rhs_sub.string_val);
 
         match struct_data_type_disabled {
 
@@ -170,7 +175,7 @@ impl TackyVisitor {
                 let ts = self.type_system.borrow_mut();
                 let struct_data_type = ts.get(&struct_decl.tag).unwrap();
 
-                println!("{:?}", struct_decl);
+                // println!("{:?}", struct_decl);
 
                 // find struct member that matches the RHS of the DOT
                 let field_index_option = struct_decl.members.iter()
@@ -181,6 +186,8 @@ impl TackyVisitor {
 
                 // copy offset into the TACKY instruction
                 copy_instruction.offset = field.offset as i32;
+
+                copy_instruction.data_type = field.data_type.clone();
             }
 
             _ => {
@@ -188,7 +195,6 @@ impl TackyVisitor {
             }
         }
 
-        copy_instruction.data_type = DataType::DataTypeUnknown;
         return ValueElement::Variable(dst_name.clone());
     }
 
@@ -524,7 +530,7 @@ impl TackyVisitor {
                                                 // need a name
                                                 if dst_name.len() == 0 {
                                                     dst_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                                                    self.declare_temporary_variable(&dst_name);
+                                                    self.declare_temporary_variable(&dst_name, DataType::DataTypeInt);
                                                 }
 
                                                 // need a name
@@ -787,11 +793,27 @@ impl TackyVisitor {
                     println!("[AstNodeType::Return] id: {} ast_node: {:?}", ast_node.id, ast_node);
                 }
 
-                println!("{}", ast_node.get_analyzed_data_type());
+                println!("ast_node.get_analyzed_data_type(): {}", ast_node.get_analyzed_data_type());
 
                 // a data type that is NOT unknown is required!
                 assert_ne!(ast_node.get_analyzed_data_type(), DataType::DataTypeUnknown,
                     "[ERR] A type is required!");
+
+                //
+                // add a comment
+                //
+
+                let mut comment: Instruction = Instruction::new();
+                comment.instruction_type = InstructionType::Comment;
+                comment.label = "Return instruction".to_string();
+
+                // append comment to latest top-level element of the program
+                let last = self.program.top_level.len() - 1;
+                self.program.top_level[last].body.push(Box::new(comment));
+
+                //
+                // add a statement
+                //
 
                 if let Some(expression_id) = ast_node.lhs {
 
@@ -799,15 +821,20 @@ impl TackyVisitor {
                     // Case: return with value
                     //
 
-                    // let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+                    let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+                    self.declare_temporary_variable(&temp_var_name, ast_node.get_analyzed_data_type());
 
-                    // // create symbol table entry for temporary variable
-                    // let mut symbol_table_entry = SymbolTableEntry::new();
-                    // symbol_table_entry.name = temp_var_name.clone();
-                    // symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
-                    // symbol_table_entry.data_type = DataType::DataTypeInt;
-                    // symbol_table_entry.is_array = false;
-                    // symbol_table_entry.array_element_count = 0;
+                    // create symbol table entry for temporary variable
+                    let mut symbol_table_entry = SymbolTableEntry::new();
+                    symbol_table_entry.name = temp_var_name.clone();
+                    symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
+
+                    //symbol_table_entry.data_type = DataType::DataTypeInt;
+                    // symbol_table_entry.data_type = DataType::DataTypeUnknown;
+                    symbol_table_entry.data_type = ast_node.get_analyzed_data_type();
+
+                    symbol_table_entry.is_array = false;
+                    symbol_table_entry.array_element_count = 0;
 
                     // self.symbol_table.borrow_mut().insert(temp_var_name.clone(), symbol_table_entry);
 
@@ -822,12 +849,15 @@ impl TackyVisitor {
                     // self.program.top_level[last].body.push(Box::new(dest_var_declaration));
 
                     // DEBUG
-                    if self.debug {
-                        println!("{}", dst_name);
-                    }
+                    // if self.debug {
+                        println!("[AstNodeType::Return] dst_name: '{}'", dst_name);
+                    // }
 
                     let mut br_cnt = 0;
-                    let return_value: ValueElement = self.visit(expression_id, node_map, &dst_name, &mut br_cnt);
+                    let return_value: ValueElement
+                        = self.visit(expression_id, node_map, &temp_var_name, &mut br_cnt);
+
+                    println!("[AstNodeType::Return]  return_value: {:?}", return_value);
 
                     // OPTIMIZATION: potential for optimization
                     // Currently, return will always return a local temporary variable e.g. tmp.0
@@ -971,7 +1001,7 @@ impl TackyVisitor {
                             if let Some(rhs_id) = ast_node.rhs {
 
                                 let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                                self.declare_temporary_variable(&temp_var_name);
+                                self.declare_temporary_variable(&temp_var_name, DataType::DataTypeInt);
 
                                 let mut br_cnt = 0;
                                 let rhs_value_element = self.visit(rhs_id, node_map, &temp_var_name, &mut br_cnt);
@@ -1049,7 +1079,7 @@ impl TackyVisitor {
                 // LHS - src 2
                 if let Some(lhs_id) = ast_node.lhs {
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    self.declare_temporary_variable(&temp_var_name);
+                    self.declare_temporary_variable(&temp_var_name, DataType::DataTypeInt);
 
                     let mut br_cnt = 0;
                     let lhs_value_element = self.visit(lhs_id, node_map, &temp_var_name, &mut br_cnt);
@@ -1059,7 +1089,7 @@ impl TackyVisitor {
                 // RHS - src
                 if let Some(rhs_id) = ast_node.rhs {
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    self.declare_temporary_variable(&temp_var_name);
+                    self.declare_temporary_variable(&temp_var_name, DataType::DataTypeInt);
 
                     let mut br_cnt = 0;
                     let rhs_value_element = self.visit(rhs_id, node_map, &temp_var_name, &mut br_cnt);
@@ -1178,7 +1208,7 @@ impl TackyVisitor {
                 if let Some(lhs_id) = ast_node.expression {
 
                     exp_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    self.declare_temporary_variable(&exp_result_var_name);
+                    self.declare_temporary_variable(&exp_result_var_name, DataType::DataTypeInt);
 
                     let lhs_value_element = self.visit(lhs_id, node_map, &exp_result_var_name, branch_counter);
 
@@ -1222,7 +1252,7 @@ impl TackyVisitor {
                 if let Some(lhs_id) = ast_node.lhs {
 
                     stmt_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    self.declare_temporary_variable(&stmt_result_var_name);
+                    self.declare_temporary_variable(&stmt_result_var_name, DataType::DataTypeInt);
 
                     let lhs_value_element = self.visit(lhs_id, node_map, &stmt_result_var_name, branch_counter);
 
@@ -1255,7 +1285,7 @@ impl TackyVisitor {
 
                     // RHS
                     stmt_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    self.declare_temporary_variable(&stmt_result_var_name);
+                    self.declare_temporary_variable(&stmt_result_var_name, DataType::DataTypeInt);
 
                     let rhs_value_element = self.visit(rhs_id, node_map, &stmt_result_var_name, branch_counter);
                 }
@@ -1305,7 +1335,7 @@ impl TackyVisitor {
                 if let Some(lhs_id) = ast_node.lhs {
 
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    self.declare_temporary_variable(&temp_var_name);
+                    self.declare_temporary_variable(&temp_var_name, DataType::DataTypeInt);
 
                     let mut br_cnt = 0;
                     let lhs_value_element = self.visit(lhs_id, node_map, &temp_var_name, &mut br_cnt);
@@ -1325,7 +1355,7 @@ impl TackyVisitor {
                 // RHS - body/statement
                 if let Some(rhs_id) = ast_node.rhs {
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    self.declare_temporary_variable(&temp_var_name);
+                    self.declare_temporary_variable(&temp_var_name, DataType::DataTypeInt);
 
                     let mut br_cnt = 0;
                     let rhs_value_element = self.visit(rhs_id, node_map, &temp_var_name, &mut br_cnt);
@@ -1386,7 +1416,7 @@ impl TackyVisitor {
                     }
 
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    self.declare_temporary_variable(&temp_var_name);
+                    self.declare_temporary_variable(&temp_var_name, DataType::DataTypeInt);
 
                     let mut br_cnt = 0;
                     let lhs_value_element = self.visit(lhs_id, node_map, &temp_var_name, &mut br_cnt);
@@ -1411,7 +1441,7 @@ impl TackyVisitor {
 
                     // new temporary variable used as destination to store the comparison result
                     exp_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    self.declare_temporary_variable(&exp_result_var_name);
+                    self.declare_temporary_variable(&exp_result_var_name, DataType::DataTypeInt);
 
                     // add new temporary variable into the symbol table as otherwise the
                     // AsmAstFixupVisitor fails later when it retrieves the variable from the symbol table
@@ -1467,7 +1497,7 @@ impl TackyVisitor {
                 if let Some(rhs_id) = ast_node.rhs {
 
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    self.declare_temporary_variable(&temp_var_name);
+                    self.declare_temporary_variable(&temp_var_name, DataType::DataTypeInt);
 
                     let mut br_cnt = 0;
                     let rhs_value_element = self.visit(rhs_id, node_map, &temp_var_name, &mut br_cnt);
@@ -1910,7 +1940,7 @@ impl TackyVisitor {
 
                         // create new temporary variable name for the destination variable
                         let dest_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                        self.declare_temporary_variable(&dest_var_name);
+                        self.declare_temporary_variable(&dest_var_name, DataType::DataTypeInt);
 
                         // create temporary variable to cast into
                         let mut dest_var_declaration: Instruction = Instruction::new();
@@ -2139,7 +2169,7 @@ impl TackyVisitor {
 
         let rhs_node_id = ast_node.rhs.unwrap();
         let dst_name = self.variable_naming_source.borrow_mut().new_temp_var();
-        self.declare_temporary_variable(&dst_name);
+        self.declare_temporary_variable(&dst_name, DataType::DataTypeInt);
 
         let mut branch_counter = 0usize;
         let lhs_value_element = self.visit(rhs_node_id, node_map, &dst_name, &mut branch_counter);
