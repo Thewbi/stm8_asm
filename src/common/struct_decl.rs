@@ -47,11 +47,15 @@ impl StructDecl {
         let len = self.members.len();
         for i in 0..len {
 
-            let memb = &self.members[i];
+            let member: &StructDeclMember = &self.members[i];
 
-            // distingish between elementary data type and arrays
+            println!("{:?}", member);
+
+            assert_ne!(member.data_type, DataType::DataTypeUnknown, "Need a valid datatype!");
+
+            // distinguish between elementary data type and arrays
             // the alignment of an array is the alignment of the element type
-            match &memb.data_type {
+            match &member.data_type {
                 DataType::DataTypeArray(element_data_type, size_option) => {
 
                     if let Some(size) = size_option {
@@ -70,7 +74,7 @@ impl StructDecl {
                     }
                 }
                 _ => {
-                    let temp_align = memb.data_type.get_align(type_system);
+                    let temp_align = member.data_type.get_align(type_system);
                     if align < temp_align {
                         align = temp_align;
                     }

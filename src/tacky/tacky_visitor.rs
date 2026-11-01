@@ -220,6 +220,14 @@ impl TackyVisitor {
         match &ast_node.node_type {
 
             AstNodeType::Program => {
+
+                // insert global scope into program
+                let mut top_level_global: TopLevel = TopLevel::new();
+                top_level_global.name = String::from("global");
+                top_level_global.top_level_type = TopLevelType::Scope;
+                top_level_global.global = true;
+                self.program.top_level.push(Box::new(top_level_global));
+
                 // visit all items in the body of the program
                 for i in 0..ast_node.block_items.len() {
                     let block_item_id = ast_node.block_items[ast_node.block_items.len()-1-i];
@@ -1541,8 +1549,12 @@ impl TackyVisitor {
                 comment_declaration.label = node_as_string;
 
                 // append comment to latest top-level element of the program
-                let last = self.program.top_level.len() - 1;
-                self.program.top_level[last].body.push(Box::new(comment_declaration));
+                // if self.program.top_level.len() > 0 {
+                    let last = self.program.top_level.len() - 1;
+                    self.program.top_level[last].body.push(Box::new(comment_declaration));
+                // } else {
+                //     self.program.top_level[0].body.push(Box::new(comment_declaration));
+                // }
 
                 // In TACKY, variables are not declared. It is allowed to use variables
                 // without declaring them. Only if a variable is initialized, this is

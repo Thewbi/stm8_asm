@@ -119,7 +119,11 @@ impl TackyToIntermediateAsmConversionVisitor {
             let temp_top_level_item: &Box<TopLevel> = &tacky_node_program.top_level[i];
             match &temp_top_level_item.as_ref().top_level_type {
 
-                TopLevelType::Function => {
+                // TopLevelType::Scope => {
+                //     self.visit_tacky_scope(&temp_top_level_item.as_ref());
+                // }
+
+                TopLevelType::Scope | TopLevelType::Function => {
                     self.visit_tacky_function(&temp_top_level_item.as_ref());
                 }
 
@@ -947,7 +951,6 @@ impl TackyToIntermediateAsmConversionVisitor {
                 // mov.src = AsmAstOperand {
                 //     operand_type: AsmAstOperandType::Pseudo(var_name.clone())
                 // };
-
                 mov.src = AsmAstOperand {
                     operand_type: AsmAstOperandType::PseudoMem(var_name.clone(), tacky_node_copy_from_offset.offset)
                 };
@@ -977,7 +980,6 @@ impl TackyToIntermediateAsmConversionVisitor {
                 // mov.dst = AsmAstOperand {
                 //     operand_type: AsmAstOperandType::PseudoMem(var_name.clone(), tacky_node_copy_from_offset.offset)
                 // };
-
                 mov.dst = AsmAstOperand {
                     operand_type: AsmAstOperandType::Pseudo(var_name.clone())
                 };

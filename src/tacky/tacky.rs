@@ -124,6 +124,7 @@ impl TopLevel {
 }
 
 pub enum TopLevelType {
+    Scope, // global scope without being a function. Just the global, top-level namespace
     Function,
     StaticVariable,
     StaticConstant,
@@ -286,7 +287,7 @@ pub fn print_tacky_top_level(top_level: &TopLevel, string_buffer: &mut String, i
 
     match top_level.top_level_type {
 
-        TopLevelType::Function => {
+        TopLevelType::Function | TopLevelType::Scope => {
             print_tacky_function(top_level, string_buffer, indent);
         }
 

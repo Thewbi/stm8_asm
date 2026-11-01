@@ -647,10 +647,10 @@ impl AsmAstMasmEmitterVisitor {
                 self.string_buffer.push_str("\n");
             }
 
-            // https://www.felixcloutier.com/x86/mul
-            //
-            // This binary was generated inside: asm_ast_conversion_visitor
             AsmAstInstructionType::Binary => {
+                // https://www.felixcloutier.com/x86/mul
+                //
+                // This binary was generated inside: asm_ast_conversion_visitor
                 self.string_buffer.push_str(format!("    {} ", asm_ast_instruction.binary_operator.to_string()).as_str());
                 self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(", ");

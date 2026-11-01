@@ -187,19 +187,19 @@ impl AsmAstFixupVisitor {
 
                             // first, determine the data type. This is needed in order to determine
                             // the correct amount of bytes to increment the stack pointer with
-                            let symbol_table_entry = self.backend_symbol_table.borrow_mut().retrieve(&pseudo_name);
+                            let symbol_table_entry =
+                                self.backend_symbol_table.borrow_mut().retrieve(&pseudo_name);
 
                             // DEBUG
-                            // if self.debug {
+                            if self.debug {
                                 println!("[AsmAstFixupVisitor::PseudoMem()] '{:?}'", symbol_table_entry);
-                            // }
+                            }
 
                             if symbol_table_entry.is_pointer {
                                 panic!("pointer!");
                             }
 
                             let mut array_element_count = symbol_table_entry.array_element_count;
-
                             if symbol_table_entry.is_array {
                                 // DEBUG
                                 if self.debug {
@@ -358,8 +358,8 @@ impl AsmAstFixupVisitor {
                 }
 
                 // replace pseudo operand by relative address on stack
-                asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src/*, type_system */);
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
+                asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
                 if self.replace_pseudo {
 
@@ -367,8 +367,8 @@ impl AsmAstFixupVisitor {
                     let mut fix: bool = false;
 
                     // x86 mov cannot move from memory (stack or other memory) to memory directly!
-                    if matches!(asm_ast_instruction.src.operand_type, AsmAstOperandType::Memory(_, _)) {
-                        if matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::Memory(_, _)) {
+                    if matches!(asm_ast_instruction.src.operand_type, AsmAstOperandType::Memory(_, _)) || matches!(asm_ast_instruction.src.operand_type, AsmAstOperandType::PseudoMem(_, _)) {
+                        if matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::Memory(_, _)) || matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::PseudoMem(_, _)) {
                             fix = true;
                         }
                     }
@@ -411,7 +411,7 @@ impl AsmAstFixupVisitor {
                     println!("Unary {:?} {:?}", asm_ast_instruction.unary_operator, asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
@@ -422,8 +422,8 @@ impl AsmAstFixupVisitor {
                     println!("Binary {:?} {:?} {:?}", asm_ast_instruction.binary_operator, asm_ast_instruction.src_2, asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.src_2 = self.replace_pseudo_operand(&mut asm_ast_instruction.src_2/*, type_system */);
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
+                asm_ast_instruction.src_2 = self.replace_pseudo_operand(&mut asm_ast_instruction.src_2);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
                 match asm_ast_instruction.binary_operator {
 
@@ -492,7 +492,7 @@ impl AsmAstFixupVisitor {
                     println!("Idiv {:?}", asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
@@ -503,7 +503,7 @@ impl AsmAstFixupVisitor {
                     println!("Mod {:?}", asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
@@ -514,7 +514,7 @@ impl AsmAstFixupVisitor {
                     println!("Mul {:?}", asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
@@ -528,8 +528,8 @@ impl AsmAstFixupVisitor {
                         asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.src_2 = self.replace_pseudo_operand(&mut asm_ast_instruction.src_2/*, type_system */);
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
+                asm_ast_instruction.src_2 = self.replace_pseudo_operand(&mut asm_ast_instruction.src_2);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
                 // does this instruction require a fix?
                 let mut fix: bool = false;
@@ -599,7 +599,7 @@ impl AsmAstFixupVisitor {
                     println!("SetCC {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
@@ -610,8 +610,8 @@ impl AsmAstFixupVisitor {
                     println!("Lea {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src/*, type_system */);
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst/*, type_system */);
+                asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
                 // asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
                 new_body.push(Box::new(asm_ast_instruction));

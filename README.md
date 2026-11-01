@@ -105,7 +105,7 @@ This file contains all rules along with their id and their components.
 
 # The Preprocessor
 
-[Preprocessor](Preprocessor.md)
+[Preprocessor](md/Preprocessor.md)
 
 # The Lexer
 
@@ -2426,19 +2426,19 @@ Good Overview of x86 and also x86-64 bit:
 
 To assemble the output, you may use MASM from within Visual Studio.
 
-[MASM](MASM.md)
+[MASM](md/MASM.md)
 
 ### FASM
 
 https://gpfault.net/posts/asm-tut-0.txt.html
 
-[FASM](FASM.md)
+[FASM](md/FASM.md)
 
 ### NASM
 
 https://cs.lmu.edu/~ray/notes/nasmtutorial/
 
-[NASM](NASM.md)
+[NASM](md/NASM.md)
 
 # Debugger
 
@@ -2446,7 +2446,7 @@ https://cs.lmu.edu/~ray/notes/nasmtutorial/
 
 https://github.com/TimMisiak/dbgrs
 
-[dbgrs](dbgrs.md)
+[dbgrs](md/dbgrs.md)
 
 
 

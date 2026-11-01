@@ -178,7 +178,7 @@ impl fmt::Debug for AstNode {
 
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 
-        println!("AST-NODE {{");
+        println!("AST-NODE id: {} {{", self.id);
 
         match &self.node_type {
 
@@ -381,7 +381,7 @@ impl fmt::Debug for AstNode {
                     print!("LHS: {:?}", left_node);
                 }
                 if let Some(right_node) = self.rhs.as_ref() {
-                    print!("RHS: {:?}", right_node);
+                    print!(" RHS: {:?}", right_node);
                 }
             }
 
@@ -391,7 +391,7 @@ impl fmt::Debug for AstNode {
                     print!("LHS: {:?}", left_node_id);
                 }
                 if let Some(right_node_id) = self.rhs.as_ref() {
-                    print!("RHS: {:?}", right_node_id);
+                    print!(" RHS: {:?}", right_node_id);
                 }
             }
 
@@ -411,7 +411,7 @@ impl fmt::Debug for AstNode {
                     print!("LHS: {:?}", left_node);
                 }
                 if let Some(right_node) = self.rhs.as_ref() {
-                    print!("RHS: {:?}", right_node);
+                    print!(" RHS: {:?}", right_node);
                 }
             }
 
@@ -421,7 +421,7 @@ impl fmt::Debug for AstNode {
                     print!("LHS: {:?}", left_node);
                 }
                 if let Some(right_node) = self.rhs.as_ref() {
-                    print!("RHS: {:?}", right_node);
+                    print!(" RHS: {:?}", right_node);
                 }
             }
 
@@ -431,7 +431,7 @@ impl fmt::Debug for AstNode {
                     print!("LHS: {:?}", left_node);
                 }
                 if let Some(right_node) = self.rhs.as_ref() {
-                    print!("RHS: {:?}", right_node);
+                    print!(" RHS: {:?}", right_node);
                 }
             }
 
@@ -441,7 +441,7 @@ impl fmt::Debug for AstNode {
                     print!("LHS: {:?}", left_node);
                 }
                 if let Some(right_node) = self.rhs.as_ref() {
-                    print!("RHS: {:?}", right_node);
+                    print!(" RHS: {:?}", right_node);
                 }
             }
 
@@ -451,7 +451,17 @@ impl fmt::Debug for AstNode {
                     print!("LHS: {:?}", left_node);
                 }
                 if let Some(right_node) = self.rhs.as_ref() {
-                    print!("RHS: {:?}", right_node);
+                    print!(" RHS: {:?}", right_node);
+                }
+            }
+
+            AstNodeType::MemberTypeDeclaration => {
+                println!("MemberTypeDeclaration: '{}'", self.string_val);
+                if let Some(left_node) = self.lhs.as_ref() {
+                    print!("LHS: {:?}", left_node);
+                }
+                if let Some(right_node) = self.rhs.as_ref() {
+                    print!(" RHS: {:?}", right_node);
                 }
             }
 
@@ -464,16 +474,16 @@ impl fmt::Debug for AstNode {
                 }
                 // expression - expression_ast_node, condition, e.g. a < 10
                 if let Some(expression_node) = self.expression.as_ref() {
-                    print!("{:?}", expression_node);
+                    print!(" {:?}", expression_node);
                 }
                 // RHS - post, e.g.: a = a + 1
                 if let Some(right_node) = self.rhs.as_ref() {
-                    print!("RHS: {:?}", right_node);
+                    print!(" RHS: {:?}", right_node);
                 }
                 // BLOCK_ITEMS - instructions and declarations
                 for i in 0..self.block_items.len() {
                     let block_item_ast_node = &self.block_items[self.block_items.len()-1-i];
-                    print!("BLOCK_ITEM: {:?}", block_item_ast_node);
+                    print!(" BLOCK_ITEM: {:?}", block_item_ast_node);
                 }
             }
 

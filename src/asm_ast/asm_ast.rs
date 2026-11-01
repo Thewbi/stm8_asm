@@ -425,11 +425,11 @@ impl AsmAstReg {
 
                 // append suffix for data type
                 match data_type {
-                    // AstAstAssemblyType::Doubleword => {
-                    //     string_buffer.push_str("d");
-                    // }
                     AstAstAssemblyType::Doubleword => {
                         string_buffer.push_str("d");
+                    }
+                    AstAstAssemblyType::Quadword => {
+                        string_buffer.push_str("");
                     }
                     AstAstAssemblyType::Unknown => {
                         panic!("Has no type! Found: {:?}", data_type);
