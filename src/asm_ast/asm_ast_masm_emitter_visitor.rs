@@ -66,8 +66,7 @@ impl AsmAstMasmEmitterVisitor {
     pub fn add_stack_variable(&self,
         assembly_type: &AstAstAssemblyType,
         stack_val: &i32,
-        register: &AsmAstReg)
-        -> String
+        register: &AsmAstReg) -> String
     {
         match assembly_type {
 
@@ -145,8 +144,85 @@ impl AsmAstMasmEmitterVisitor {
         data_type_size: &AstAstAssemblyType,
         offset_register: &AsmAstReg,
         stack_val: &i32,
-        register: &AsmAstReg)
-        -> String
+        register: &AsmAstReg) -> String
+    {
+        match data_type_size {
+
+            AstAstAssemblyType::Byte => {
+                if *stack_val == 0 {
+                    // DEBUG
+                    if self.print_to_console {
+                        print!("byte ptr [rbp+{}]", stack_val);
+                    }
+                    format!("byte ptr [{}+{}]", register.to_string(), stack_val)
+                } else {
+                    // DEBUG
+                    if self.print_to_console {
+                        print!("byte ptr [rbp{}]", stack_val);
+                    }
+                    format!("byte ptr [{}{}]", register.to_string(), stack_val)
+                }
+            }
+
+            AstAstAssemblyType::Word => {
+                if *stack_val == 0 {
+                    // DEBUG
+                    if self.print_to_console {
+                        print!("word ptr [rbp+{}]", stack_val);
+                    }
+                    format!("word ptr [{}+{}]", register.to_string(), stack_val)
+                } else {
+                    // DEBUG
+                    if self.print_to_console {
+                        print!("word ptr [rbp{}]", stack_val);
+                    }
+                    format!("word ptr [{}{}]", register.to_string(), stack_val)
+                }
+            }
+
+            AstAstAssemblyType::Doubleword => {
+                // if *stack_val == 0 {
+                //     // DEBUG
+                //     if self.print_to_console {
+                //         print!("dword ptr [{}+{}]", register.to_string(), stack_val);
+                //     }
+                //     format!("dword ptr [{}+{}]", register.to_string(), stack_val)
+                // } else {
+                    // DEBUG
+                    if self.print_to_console {
+                        print!("dword ptr [{}-{}+{}*4]", register.to_string(), stack_val, offset_register);
+                    }
+                    format!("dword ptr [{}-{}+{}*4]", register.to_string(), stack_val, offset_register)
+                // }
+            }
+
+            AstAstAssemblyType::Quadword => {
+                if *stack_val == 0 {
+                    // DEBUG
+                    if self.print_to_console {
+                        print!("qword ptr [rbp+{}]", stack_val);
+                    }
+                    format!("qword ptr [{}+{}]", register.to_string(), stack_val)
+                } else {
+                    // DEBUG
+                    if self.print_to_console {
+                        print!("qword ptr [rbp{}]", stack_val);
+                    }
+                    format!("qword ptr [{}{}]", register.to_string(), stack_val)
+                }
+            }
+
+            _ => {
+                unimplemented!("Unimplemented type: {:?}", &data_type_size);
+            }
+        }
+    }
+
+    pub fn add_stack_variable_with_immediate_offset(&self,
+        data_type_size: &AstAstAssemblyType,
+        offset_imm: &i32,
+        stack_val: &i32,
+        register: &AsmAstReg) -> String
     {
         match data_type_size {
 
@@ -186,15 +262,15 @@ impl AsmAstMasmEmitterVisitor {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
-                        print!("dword ptr [{}+{}]", register.to_string(), stack_val);
+                        print!("dword ptr [{}+{}-{}*4]", register.to_string(), stack_val, offset_imm);
                     }
-                    format!("dword ptr [{}+{}]", register.to_string(), stack_val)
+                    format!("dword ptr [{}+{}-{}*4]", register.to_string(), stack_val, offset_imm)
                 } else {
                     // DEBUG
                     if self.print_to_console {
-                        print!("dword ptr [{}{}+{}*4]", register.to_string(), stack_val, offset_register);
+                        print!("dword ptr [{}{}-{}*4]", register.to_string(), stack_val, offset_imm);
                     }
-                    format!("dword ptr [{}{}+{}*4]", register.to_string(), stack_val, offset_register)
+                    format!("dword ptr [{}{}-{}*4]", register.to_string(), stack_val, offset_imm)
                 }
             }
 
@@ -224,17 +300,18 @@ impl AsmAstMasmEmitterVisitor {
         data_type_size: &AstAstAssemblyType,
         stack_val: &i32,
         offset: &i32,
-        register: &AsmAstReg)
-        -> String
+        register: &AsmAstReg) -> String
     {
         match data_type_size {
             AstAstAssemblyType::Byte => {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
-                        print!("byte ptr [rbp+{}+{}]", stack_val, offset);
+                        // print!("byte ptr [rbp+{}+{}]", stack_val, offset);
+                        print!("byte ptr [rbp+{}-{}]", stack_val, offset);
                     }
-                    format!("byte ptr [{}+{}+{}]", register.to_string(), stack_val, offset)
+                    // format!("byte ptr [{}+{}+{}]", register.to_string(), stack_val, offset)
+                    format!("byte ptr [{}+{}-{}]", register.to_string(), stack_val, offset)
                 } else {
                     // DEBUG
                     if self.print_to_console {
@@ -247,9 +324,11 @@ impl AsmAstMasmEmitterVisitor {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
-                        print!("word ptr [rbp+{}+{}]", stack_val, offset);
+                        // print!("word ptr [rbp+{}+{}]", stack_val, offset);
+                        print!("word ptr [rbp+{}-{}]", stack_val, offset);
                     }
-                    format!("word ptr [{}+{}+{}]", register.to_string(), stack_val, offset)
+                    // format!("word ptr [{}+{}+{}]", register.to_string(), stack_val, offset)
+                    format!("word ptr [{}+{}-{}]", register.to_string(), stack_val, offset)
                 } else {
                     // DEBUG
                     if self.print_to_console {
@@ -262,9 +341,11 @@ impl AsmAstMasmEmitterVisitor {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
-                        print!("dword ptr [rbp+{}+{}]", stack_val, offset);
+                        // print!("dword ptr [rbp+{}+{}]", stack_val, offset);
+                        print!("dword ptr [rbp+{}-{}]", stack_val, offset);
                     }
-                    format!("dword ptr [{}+{}+{}]", register.to_string(), stack_val, offset)
+                    // format!("dword ptr [{}+{}+{}]", register.to_string(), stack_val, offset)
+                    format!("dword ptr [{}+{}-{}]", register.to_string(), stack_val, offset)
                 } else {
                     // DEBUG
                     if self.print_to_console {
@@ -277,9 +358,11 @@ impl AsmAstMasmEmitterVisitor {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
-                        print!("qword ptr [{}+{}+{}]", register.to_string(), stack_val, offset);
+                        // print!("qword ptr [{}+{}+{}]", register.to_string(), stack_val, offset);
+                        print!("qword ptr [{}+{}-{}]", register.to_string(), stack_val, offset);
                     }
-                    format!("qword ptr [{}+{}+{}]", register.to_string(), stack_val, offset)
+                    // format!("qword ptr [{}+{}+{}]", register.to_string(), stack_val, offset)
+                    format!("qword ptr [{}+{}-{}]", register.to_string(), stack_val, offset)
                 } else {
                     // DEBUG
                     if self.print_to_console {
@@ -334,6 +417,31 @@ impl AsmAstMasmEmitterVisitor {
                 self.string_buffer.push_str(&register_for_data_type);
             }
 
+            AsmAstOperandType::DerefReg(asm_ast_reg_val) => {
+                // let mut string_buffer: String = String::from("deref(");
+                // string_buffer.push_str(&asm_ast_reg_val.to_string());
+                // string_buffer.push_str(")");
+
+                let mut string_buffer: String = String::new();
+
+                match assembly_type {
+                    AstAstAssemblyType::Doubleword => {
+                        string_buffer.push_str("dword ptr[");
+                    }
+                    AstAstAssemblyType::Quadword => {
+                        string_buffer.push_str("qword ptr[");
+                    }
+                    _ => {
+                        panic!("Unhandled type {:?}", &assembly_type);
+                    }
+                }
+
+                string_buffer.push_str(&asm_ast_reg_val.to_string());
+                string_buffer.push_str("]");
+
+                self.string_buffer.push_str(&string_buffer.to_string());
+            }
+
             AsmAstOperandType::Pseudo(pseudo_val) => {
                 // DEBUG
                 if self.print_to_console {
@@ -373,6 +481,10 @@ impl AsmAstMasmEmitterVisitor {
 
                     AsmAstOperandType::Reg(reg_name) => {
                         value_as_string = self.add_stack_variable_with_register_offset(assembly_type, &reg_name, stack_val, register);
+                    }
+
+                    AsmAstOperandType::Imm(offset) => {
+                        value_as_string = self.add_stack_variable_with_immediate_offset(assembly_type, &offset, stack_val, register);
                     }
 
                     _ => {
@@ -561,10 +673,17 @@ impl AsmAstMasmEmitterVisitor {
 
     #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
     #[allow(unreachable_patterns)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
-    pub fn visit_asm_ast_instruction(&mut self, asm_ast_instruction: &AsmAstInstruction, stack_frame_size: i32) {
+    pub fn visit_asm_ast_instruction(&mut self,
+        asm_ast_instruction: &AsmAstInstruction,
+        stack_frame_size: i32)
+    {
 
         // DEBUG
         // println!("[AsmAstMasmEmitterVisitor::visit_asm_ast_instruction()] instruction={:?}", asm_ast_instruction);
+
+        if asm_ast_instruction.id == 122 {
+            println!("test");
+        }
 
         match asm_ast_instruction.instruction_type {
 
@@ -820,9 +939,18 @@ impl AsmAstMasmEmitterVisitor {
 
             AsmAstInstructionType::Lea => {
                 self.string_buffer.push_str("    lea ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+
+                println!("{:?}", asm_ast_instruction);
+
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst,
+                    &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                    //&asm_ast_instruction.dst,
+                    &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(", ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.src, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                self.emit_asm_ast_operand(&asm_ast_instruction.src,
+                    &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                    //&asm_ast_instruction.src,
+                    &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str("\n");
             }
 
@@ -832,28 +960,3 @@ impl AsmAstMasmEmitterVisitor {
         }
     }
 }
-
-
-// DEBUG
-                // println!("movl {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
-
-                // // DEBUG
-                // if asm_ast_instruction.id == 123 {
-                //     println!("test");
-                // }
-
-                // match &asm_ast_instruction.offset.operand_type {
-                //     AsmAstOperandType::Unknown => {
-                //         // no offset specified
-                //         //self.emit_asm_ast_operand(&asm_ast_instruction.src, &asm_ast_instruction.assembly_type);
-                //     }
-                //     AsmAstOperandType::Reg(register_name) => {
-                //         // println!("test");
-                //         panic!();
-                //     }
-                //     _ => {
-                //         panic!();
-                //     }
-                // }
-
-                // print!("    mov ");

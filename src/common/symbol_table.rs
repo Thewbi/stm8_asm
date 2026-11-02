@@ -13,6 +13,7 @@ pub enum SymbolTableEntryType {
 #[derive(Clone)]
 pub struct SymbolTableEntry {
     pub name: String,
+    pub initial_name: String,
     pub symbol_table_entry_type: SymbolTableEntryType,
     pub data_type: DataType,
     pub parameter_count: usize,
@@ -30,6 +31,7 @@ impl SymbolTableEntry {
     pub fn new() -> SymbolTableEntry {
         let instance = SymbolTableEntry {
             name: String::new(),
+            initial_name: String::new(),
             symbol_table_entry_type: SymbolTableEntryType::Unknown,
             data_type: DataType::DataTypeUnknown, // data type of variable and return data type for functions
             parameter_count: 0usize,
@@ -47,12 +49,11 @@ impl fmt::Debug for SymbolTableEntry {
 
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 
-        let use_line_break = false;
-
+        let use_line_break = true;
         if use_line_break {
-
             write!(f, "SymbolTableEntry {{\n").expect("Write failed!");
             write!(f, "  name: {}\n", &self.name).expect("Write failed!");
+            write!(f, "  initial_name: {}\n", &self.initial_name).expect("Write failed!");
             write!(f, "  symbol_table_entry_type: {:?}\n", &self.symbol_table_entry_type).expect("Write failed!");
             write!(f, "  parameter_count: {}\n", &self.parameter_count).expect("Write failed!");
             write!(f, "  data_type: {}\n", &self.data_type).expect("Write failed!");
@@ -62,11 +63,10 @@ impl fmt::Debug for SymbolTableEntry {
             write!(f, "  is_pointer: {}\n", &self.is_pointer).expect("Write failed!");
             write!(f, "  is_struct: {}\n", &self.is_struct).expect("Write failed!");
             write!(f, "}}\n").expect("Write failed!");
-
         } else {
-
             write!(f, "SymbolTableEntry {{ ").expect("Write failed!");
             write!(f, "  name: {} ", &self.name).expect("Write failed!");
+            write!(f, "  initial_name: {} ", &self.initial_name).expect("Write failed!");
             write!(f, "  symbol_table_entry_type: {:?} ", &self.symbol_table_entry_type).expect("Write failed!");
             write!(f, "  parameter_count: {} ", &self.parameter_count).expect("Write failed!");
             write!(f, "  data_type: {} ", &self.data_type).expect("Write failed!");
@@ -76,7 +76,6 @@ impl fmt::Debug for SymbolTableEntry {
             write!(f, "  is_pointer: {} ", &self.is_pointer).expect("Write failed!");
             write!(f, "  is_struct: {} ", &self.is_struct).expect("Write failed!");
             write!(f, "}}").expect("Write failed!");
-
         }
 
         Ok(())

@@ -108,12 +108,12 @@ impl TackyVisitor {
 
     fn declare_temporary_variable(&mut self,
         temp_var_name: &String,
-        data_type: DataType,
-    )
+        data_type: DataType)
     {
         // create symbol table entry for temporary variable
         let mut symbol_table_entry = SymbolTableEntry::new();
         symbol_table_entry.name = temp_var_name.clone();
+        symbol_table_entry.initial_name = temp_var_name.clone();
         symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
         // symbol_table_entry.data_type = DataType::DataTypeInt;
         symbol_table_entry.data_type = data_type.clone();
@@ -134,7 +134,13 @@ impl TackyVisitor {
         self.program.top_level[last].body.push(Box::new(dest_var_declaration));
     }
 
-    fn ast_node_to_copy_instruction(&mut self,
+    /// Will enrich the input copy_instruction parameter.
+    /// Will insert values into the offset and data_type members.
+    ///
+    /// e.g.
+    /// b = struct_ptr->a;
+    /// b = struct_0.a;
+    fn ast_node_to_copy_from_offset_instruction(&mut self,
         lhs_sub: &AstNode,
         node_map: &Box<HashMap<usize, AstNode>>,
         copy_instruction: &mut Instruction) -> ValueElement
@@ -145,16 +151,18 @@ impl TackyVisitor {
         // DEBUG
         // println!("{}, {}", lhs_lhs_sub.id, lhs_lhs_sub.string_val);
 
-        let dst_name = lhs_lhs_sub.string_val.clone();
+        let src_name = lhs_lhs_sub.string_val.clone();
 
-        // DEBUG
-        // println!("dst_name: {}", dst_name);
+        // // DEBUG
+        // println!("src_name: {}", src_name);
 
         // TODO: learn why borrow_mut() works but borrow() does not!
-        let symbol_table_entry = self.symbol_table.borrow_mut().get(&dst_name).unwrap();
-        // // DEBUG
-        // println!("symbol_table_entry: {:?}", symbol_table_entry);
-        let struct_data_type_disabled = symbol_table_entry.data_type;
+        let symbol_table_entry = self.symbol_table.borrow_mut().get(&src_name).unwrap();
+
+        // DEBUG
+        println!("symbol_table_entry: {:?}", symbol_table_entry);
+
+        let symbol_data_type = symbol_table_entry.data_type;
 
         //
         // to identify the offset, extract the name from the RHS.
@@ -166,15 +174,18 @@ impl TackyVisitor {
         let lhs_rhs_sub = node_map.get(&lhs_rhs_sub_id).unwrap();
 
         // DEBUG
-        // println!("{}, {}", lhs_rhs_sub.id, lhs_rhs_sub.string_val);
+        println!("Node_id: {}, node.string_val: '{}'", lhs_rhs_sub.id, lhs_rhs_sub.string_val);
 
-        match struct_data_type_disabled {
+        match symbol_data_type {
 
             DataType::DataTypeStruct(struct_decl) => {
 
-                let ts = self.type_system.borrow_mut();
-                let struct_data_type = ts.get(&struct_decl.tag).unwrap();
+                // // DEBUG
+                // let ts = self.type_system.borrow_mut();
+                // let struct_data_type = ts.get(&struct_decl.tag).unwrap();
+                // println!("{:?}", struct_data_type);
 
+                // // DEBUG
                 // println!("{:?}", struct_decl);
 
                 // find struct member that matches the RHS of the DOT
@@ -186,16 +197,42 @@ impl TackyVisitor {
 
                 // copy offset into the TACKY instruction
                 copy_instruction.offset = field.offset as i32;
-
                 copy_instruction.data_type = field.data_type.clone();
             }
 
+            DataType::DataTypePointer(ptr_target_data_type) => {
+
+                // DEBUG
+                println!("{:?}", ptr_target_data_type);
+
+                match *ptr_target_data_type {
+
+                    DataType::DataTypeStruct(struct_decl) => {
+
+                        // find struct member that matches the RHS of the DOT
+                        let field_index_option = struct_decl.members.iter()
+                            .position(|m| m.member_name == lhs_rhs_sub.string_val);
+                        let field_index = field_index_option.expect("Field not found in struct!");
+                        let field_option = struct_decl.members.get(field_index);
+                        let field = field_option.unwrap();
+
+                        // copy offset into the TACKY instruction
+                        copy_instruction.offset = field.offset as i32;
+                        copy_instruction.data_type = field.data_type.clone();
+                    }
+
+                    _ => {
+                        todo!();
+                    }
+                }
+            }
+
             _ => {
-                panic!();
+                todo!("Unhandled data type: {:?}", symbol_data_type);
             }
         }
 
-        return ValueElement::Variable(dst_name.clone());
+        return ValueElement::Variable(src_name.clone());
     }
 
     pub fn visit(&mut self,
@@ -221,12 +258,12 @@ impl TackyVisitor {
 
             AstNodeType::Program => {
 
-                // insert global scope into program
-                let mut top_level_global: TopLevel = TopLevel::new();
-                top_level_global.name = String::from("global");
-                top_level_global.top_level_type = TopLevelType::Scope;
-                top_level_global.global = true;
-                self.program.top_level.push(Box::new(top_level_global));
+                // // insert global scope into program
+                // let mut top_level_global: TopLevel = TopLevel::new();
+                // top_level_global.name = String::from("global");
+                // top_level_global.top_level_type = TopLevelType::Scope;
+                // top_level_global.global = true;
+                // self.program.top_level.push(Box::new(top_level_global));
 
                 // visit all items in the body of the program
                 for i in 0..ast_node.block_items.len() {
@@ -415,9 +452,9 @@ impl TackyVisitor {
             AstNodeType::Expression => {
 
                 // DEBUG
-                // if self.debug {
+                if self.debug {
                     println!("[Expression] AstNodeId: {}, AstNodeType: {:?}", ast_node.id, ast_node.node_type);
-                // }
+                }
 
                 match ast_node.operator_type {
 
@@ -457,7 +494,7 @@ impl TackyVisitor {
 
                                         AstNodeType::Dot | AstNodeType::Arrow => {
                                             copy_instruction.instruction_type = InstructionType::CopyToOffset;
-                                            let value_element = self.ast_node_to_copy_instruction(lhs_sub,
+                                            let value_element = self.ast_node_to_copy_from_offset_instruction(lhs_sub,
                                                 node_map, &mut copy_instruction);
                                             copy_instruction.dst = value_element;
                                         }
@@ -799,9 +836,8 @@ impl TackyVisitor {
                 if self.debug {
                     println!("------------------------------------------------------------");
                     println!("[AstNodeType::Return] id: {} ast_node: {:?}", ast_node.id, ast_node);
+                    println!("ast_node.get_analyzed_data_type(): {}", ast_node.get_analyzed_data_type());
                 }
-
-                println!("ast_node.get_analyzed_data_type(): {}", ast_node.get_analyzed_data_type());
 
                 // a data type that is NOT unknown is required!
                 assert_ne!(ast_node.get_analyzed_data_type(), DataType::DataTypeUnknown,
@@ -835,6 +871,7 @@ impl TackyVisitor {
                     // create symbol table entry for temporary variable
                     let mut symbol_table_entry = SymbolTableEntry::new();
                     symbol_table_entry.name = temp_var_name.clone();
+                    symbol_table_entry.initial_name = temp_var_name.clone();
                     symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
 
                     //symbol_table_entry.data_type = DataType::DataTypeInt;
@@ -857,15 +894,18 @@ impl TackyVisitor {
                     // self.program.top_level[last].body.push(Box::new(dest_var_declaration));
 
                     // DEBUG
-                    // if self.debug {
+                    if self.debug {
                         println!("[AstNodeType::Return] dst_name: '{}'", dst_name);
-                    // }
+                    }
 
                     let mut br_cnt = 0;
                     let return_value: ValueElement
                         = self.visit(expression_id, node_map, &temp_var_name, &mut br_cnt);
 
-                    println!("[AstNodeType::Return]  return_value: {:?}", return_value);
+                    // DEBUG
+                    if self.debug {
+                        println!("[AstNodeType::Return]  return_value: {:?}", return_value);
+                    }
 
                     // OPTIMIZATION: potential for optimization
                     // Currently, return will always return a local temporary variable e.g. tmp.0
@@ -945,13 +985,13 @@ impl TackyVisitor {
                             // println!("{:?}", ast_node.rhs);
 
                             // add a comment
-                            let mut comment_declaration: Instruction = Instruction::new();
-                            comment_declaration.instruction_type = InstructionType::Comment;
-                            comment_declaration.label = "dereference".to_string();
+                            let mut comment: Instruction = Instruction::new();
+                            comment.instruction_type = InstructionType::Comment;
+                            comment.label = "dereference".to_string();
 
                             // append comment to latest top-level element of the program
                             let last = self.program.top_level.len() - 1;
-                            self.program.top_level[last].body.push(Box::new(comment_declaration));
+                            self.program.top_level[last].body.push(Box::new(comment));
 
                             // the dereference operation generates a LOAD instruction
                             // LOAD referres to memory-load. The address stored in the src
@@ -967,6 +1007,8 @@ impl TackyVisitor {
 
                             // insert dst into the symbol table
                             let mut symbol_table_entry: SymbolTableEntry = SymbolTableEntry::new();
+                            symbol_table_entry.name = dst_name.to_string().clone();
+                            symbol_table_entry.initial_name = dst_name.to_string().clone();
                             symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
                             symbol_table_entry.data_type = DataType::DataTypePointer(Box::new(DataType::DataTypeLong));
                             symbol_table_entry.parameter_count = 0usize;
@@ -1457,6 +1499,7 @@ impl TackyVisitor {
                     // create symbol table entry for temporary variable
                     let mut symbol_table_entry = SymbolTableEntry::new();
                     symbol_table_entry.name = exp_result_var_name.clone();
+                    symbol_table_entry.initial_name = exp_result_var_name.clone();
                     symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
                     symbol_table_entry.data_type = DataType::DataTypeInt;
                     symbol_table_entry.is_array = false;
@@ -1541,20 +1584,17 @@ impl TackyVisitor {
             }
 
             AstNodeType::VariableDeclaration => {
-                let node_as_string = ast_node.serialize(node_map);
+                let mut node_as_string = String::from("");
+                node_as_string.push_str(ast_node.serialize(node_map).as_str());
 
                 // add a comment
-                let mut comment_declaration: Instruction = Instruction::new();
-                comment_declaration.instruction_type = InstructionType::Comment;
-                comment_declaration.label = node_as_string;
+                let mut comment: Instruction = Instruction::new();
+                comment.instruction_type = InstructionType::Comment;
+                comment.label = node_as_string;
 
                 // append comment to latest top-level element of the program
-                // if self.program.top_level.len() > 0 {
-                    let last = self.program.top_level.len() - 1;
-                    self.program.top_level[last].body.push(Box::new(comment_declaration));
-                // } else {
-                //     self.program.top_level[0].body.push(Box::new(comment_declaration));
-                // }
+                let last = self.program.top_level.len() - 1;
+                self.program.top_level[last].body.push(Box::new(comment));
 
                 // In TACKY, variables are not declared. It is allowed to use variables
                 // without declaring them. Only if a variable is initialized, this is
@@ -1705,26 +1745,23 @@ impl TackyVisitor {
                     assert_ne!(array_element_count, 0, "[ERR] An array of size 0 is not allowed!");
                 }
 
-                // create temporary variable
+                // create TACKY variable declaration
                 let mut var_declaration: Instruction = Instruction::new();
                 var_declaration.instruction_type = InstructionType::VariableDeclaration;
-                // let type_system = self.type_system.borrow();
                 let data_type: DataType = self.type_system.borrow().get(&data_type_as_string).unwrap().clone();
-                //var_declaration.data_type = DataType::from_str(&data_type_as_string).expect("Need analyzed data type!");
                 var_declaration.data_type = data_type.clone();
                 var_declaration.label = variable_identifier.clone();
 
-                // create symbol table entry for temporary variable
-                let mut symbol_table_entry = SymbolTableEntry::new();
-                symbol_table_entry.name = variable_identifier.clone();
-                symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
-                symbol_table_entry.data_type = data_type.clone();
-                symbol_table_entry.is_array = is_array;
-                symbol_table_entry.array_element_count = array_element_count;
-
-                // println!("[TackyVisitor] {:?}", symbol_table_entry);
-
-                self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
+                // // create symbol table entry for temporary variable
+                // let mut symbol_table_entry = SymbolTableEntry::new();
+                // symbol_table_entry.name = variable_identifier.clone();
+                // symbol_table_entry.initial_name = variable_identifier.clone();
+                // symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
+                // symbol_table_entry.data_type = data_type.clone();
+                // symbol_table_entry.is_array = is_array;
+                // symbol_table_entry.array_element_count = array_element_count;
+                // println!("[TackyVisitor] key:'{}', value{:?}", variable_identifier.clone(), symbol_table_entry);
+                // self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
 
                 // append instruction to latest top-level element of the program
                 let last = self.program.top_level.len() - 1;
@@ -1966,6 +2003,8 @@ impl TackyVisitor {
 
                         // create symbol table entry for temporary variable
                         let mut symbol_table_entry = SymbolTableEntry::new();
+                        symbol_table_entry.name = dest_var_name.clone();
+                        symbol_table_entry.initial_name = dest_var_name.clone();
                         symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
 
                         let temp = ast_node.get_analyzed_data_type();
@@ -2076,22 +2115,54 @@ impl TackyVisitor {
                 // TODO: check that the typedeffed type actually exists!
             }
 
-            AstNodeType::Dot | AstNodeType::Arrow => {
-                println!("ast_node_id: {}", ast_node_id);
+            AstNodeType::Dot => {
+                let ast_node = node_map.get(&ast_node_id).unwrap();
+
+                println!("ast_node_id: {} file: {}, line: {}", ast_node_id, ast_node.file, ast_node.line);
 
                 // retrieve the value of this expression, write it into
                 // a temporary variable and return a ValueElement
 
                 let mut copy_instruction: Instruction = Instruction::new();
                 copy_instruction.instruction_type = InstructionType::CopyFromOffset;
-                let value_element = self.ast_node_to_copy_instruction(&ast_node, node_map, &mut copy_instruction);
+                let value_element
+                    = self.ast_node_to_copy_from_offset_instruction(&ast_node,
+                        node_map, &mut copy_instruction);
                 copy_instruction.src = value_element;
                 copy_instruction.dst = ValueElement::Variable(dst_name.clone());
 
-                // println!("{:?}", copy_instruction.src);
-                // copy_instruction.offset = 123;
+                // DEBUG
+                if self.debug {
+                    println!("{:?}", copy_instruction);
+                }
 
-                println!("{:?}", copy_instruction);
+                // append instruction to latest top-level element of the program
+                let last = self.program.top_level.len() - 1;
+                self.program.top_level[last].body.push(Box::new(copy_instruction));
+
+                return ValueElement::Variable(dst_name.clone());
+            }
+
+            AstNodeType::Arrow => {
+                let ast_node = node_map.get(&ast_node_id).unwrap();
+
+                println!("ast_node_id: {} file: {}, line: {}", ast_node_id, ast_node.file, ast_node.line);
+
+                // retrieve the value of this expression, write it into
+                // a temporary variable and return a ValueElement
+
+                let mut copy_instruction: Instruction = Instruction::new();
+                copy_instruction.instruction_type = InstructionType::CopyFromOffsetPointerDeref;
+                let value_element
+                    = self.ast_node_to_copy_from_offset_instruction(&ast_node,
+                        node_map, &mut copy_instruction);
+                copy_instruction.src = value_element;
+                copy_instruction.dst = ValueElement::Variable(dst_name.clone());
+
+                // DEBUG
+                if self.debug {
+                    println!("{:?}", copy_instruction);
+                }
 
                 // append instruction to latest top-level element of the program
                 let last = self.program.top_level.len() - 1;

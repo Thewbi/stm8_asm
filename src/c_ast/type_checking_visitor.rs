@@ -1120,6 +1120,7 @@ impl TypeCheckingVisitor {
                 let mut temp_parameter_count = 0;
 
                 let mut symbol_table_entry = SymbolTableEntry::new();
+
                 symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Function;
 
                 {
@@ -1127,6 +1128,9 @@ impl TypeCheckingVisitor {
                     if let Some(function_name_id) = ast_node.function_name_ast_node {
                         let function_name_node = node_map.get(&function_name_id).unwrap();
                         temp_function_name = function_name_node.string_val.clone();
+
+                        symbol_table_entry.name = temp_function_name.clone();
+                        symbol_table_entry.initial_name = temp_function_name.clone();
                     }
                 }
 
@@ -1297,12 +1301,19 @@ impl TypeCheckingVisitor {
                         print!("{}, {:?}", right_node.id, right_node);
                     }
                     varname = right_node.string_val.clone();
+                    let initial_varname = right_node.initial_string_val.clone();
+
+                    symbol_table_entry.name = varname.clone();
+                    symbol_table_entry.initial_name = initial_varname.clone();
 
                     // detect the fact that this variable is a pointer
                     match &right_node.node_type {
 
                         AstNodeType::Pointer => {
                             symbol_table_entry.is_pointer = true;
+                            // a pointer is neither an array nor a struct
+                            symbol_table_entry.is_array = false;
+                            symbol_table_entry.is_struct = false;
 
                             // TODO: asdf
 
@@ -1322,7 +1333,6 @@ impl TypeCheckingVisitor {
                         }
                     }
                 }
-                symbol_table_entry.name = varname.clone();
 
                 // DEBUG
                 if self.debug {

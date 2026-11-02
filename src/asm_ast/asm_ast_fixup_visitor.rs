@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use crate::asm_ast::asm_ast::AstAstAssemblyType;
 use crate::common::data_type::DataType;
 use crate::common::symbol_table::SymbolTable;
 use crate::tacky::tacky::ValueElement;
@@ -100,9 +101,9 @@ impl AsmAstFixupVisitor {
 
             AsmAstOperandType::Pseudo(pseudo_name) => {
                 // DEBUG
-                // if self.debug {
-                    println!("Pseudo. Pseudo-Name: '{}'", pseudo_name);
-                // }
+                if self.debug {
+                    println!("Pseudo: Pseudo-Name: '{}'", pseudo_name);
+                }
 
                 assert!(pseudo_name.len() != 0, "[ERR] [asm_ast_fixup_visitor] PseudoVariable has no name! Need a name to replace!");
 
@@ -163,9 +164,9 @@ impl AsmAstFixupVisitor {
 
             AsmAstOperandType::PseudoMem(pseudo_name, pseudo_offset) => {
                 // DEBUG
-                // if self.debug {
+                if self.debug {
                     println!("PseudoMem: pseudo_name: '{}'", pseudo_name.clone());
-                // }
+                }
 
                 if self.replace_pseudo {
 
@@ -238,6 +239,13 @@ impl AsmAstFixupVisitor {
                 // DEBUG
                 if self.debug {
                     println!("Reg, register_name:{:?}", register_name);
+                }
+            }
+
+            AsmAstOperandType::DerefReg(register_name) => {
+                // DEBUG
+                if self.debug {
+                    println!("DerefReg, register_name:{:?}", register_name);
                 }
             }
 
@@ -339,6 +347,10 @@ impl AsmAstFixupVisitor {
         new_body: &mut Vec::<Box<AsmAstInstruction>>,
         mut asm_ast_instruction: AsmAstInstruction)
     {
+
+        if asm_ast_instruction.id == 122 {
+            println!("tset");
+        }
         match asm_ast_instruction.instruction_type {
 
             AsmAstInstructionType::Ret => {
@@ -355,6 +367,10 @@ impl AsmAstFixupVisitor {
                 // DEBUG
                 if self.debug {
                     println!("Mov {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
+                }
+
+                if asm_ast_instruction.id == 1111 {
+                    println!("test");
                 }
 
                 // replace pseudo operand by relative address on stack
@@ -385,10 +401,15 @@ impl AsmAstFixupVisitor {
 
                         let mut mov_1 = asm_ast_instruction.clone();
                         mov_1.instruction_type = AsmAstInstructionType::Mov;
+                        mov_1.comment.push_str(" ; - clone 1");
+
+                        // TODO:
+                        // mov_1.assembly_type = AstAstAssemblyType::Quadword;
                         mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
                         new_body.push(Box::new(mov_1));
 
-                        asm_ast_instruction.src = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
+                        asm_ast_instruction.src = AsmAstOperand {
+                            operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
                         new_body.push(Box::new(asm_ast_instruction));
 
                     } else {
@@ -444,6 +465,7 @@ impl AsmAstFixupVisitor {
 
                                 // mov dword ptr [ebp-8], R10
                                 let mut mov_1 = asm_ast_instruction.clone();
+                                mov_1.comment.push_str(" ; - clone 2");
                                 mov_1.instruction_type = AsmAstInstructionType::Mov;
                                 mov_1.src = asm_ast_instruction.src_2.clone();
                                 mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
@@ -545,6 +567,7 @@ impl AsmAstFixupVisitor {
                 if fix {
 
                     let mut mov_1 = asm_ast_instruction.clone();
+                    mov_1.comment.push_str(" - clone 3");
 
                     // println!("{:?}", mov_1);
 

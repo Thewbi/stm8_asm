@@ -182,6 +182,7 @@ pub enum InstructionType {
     AddPtr,
     CopyToOffset,
     CopyFromOffset,
+    CopyFromOffsetPointerDeref,
     Label,
     FunCall,
     ZeroExtend,
@@ -337,7 +338,7 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
     match &instruction.instruction_type {
 
         InstructionType::Comment => {
-            string_buffer.push_str(format!("// {}\n", instruction.label).as_str());
+            string_buffer.push_str(format!("\n// {}\n", instruction.label).as_str());
         }
 
         InstructionType::Return => {
@@ -393,6 +394,10 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
             // why has label been used here ?
             //string_buffer.push_str(format!("CopyFromOffset(src:{:?}, offset:{}, dst:{:?})\n", instruction.label, instruction.offset, instruction.dst).as_str());
             string_buffer.push_str(format!("CopyFromOffset(src:{:?}, offset:{}, dst:{:?})\n", instruction.src, instruction.offset, instruction.dst).as_str());
+        }
+
+        InstructionType::CopyFromOffsetPointerDeref => {
+            string_buffer.push_str(format!("CopyFromOffsetPointerDeref(src:{:?}, offset:{}, dst:{:?})\n", instruction.src, instruction.offset, instruction.dst).as_str());
         }
 
         InstructionType::Label => {

@@ -2895,3 +2895,69 @@ match asm_ast_instruction.binary_operator {
         // copy_instruction.dst = ValueElement::Variable(dst_name.clone());
     // }
 
+
+
+                                                // TODO TYPE-SYSTEM
+                                                // TODO create StructDecl here. Move out of identifier visitor
+
+                                                /*
+                                                let struct_tag = ast_node.string_val.clone();
+
+                                                let define_struct = false;
+                                                if define_struct {
+
+                                                    let mut struct_decl = StructDecl::new();
+                                                    struct_decl.tag = struct_tag.clone();
+
+                                                    for i in 0..ast_node.block_items.len() {
+
+                                                        let member_node_id = &ast_node.block_items[i];
+
+                                                        let member_declaration_node = node_map.get(&member_node_id).unwrap().clone();
+
+                                                        let member_type_node_id = member_declaration_node.lhs.unwrap();
+                                                        let member_name_node_id = member_declaration_node.rhs.unwrap();
+
+                                                        let member_name_node = node_map.get(&member_type_node_id).unwrap().clone();
+                                                        let member_type_node = node_map.get(&member_name_node_id).unwrap().clone();
+
+                                                        let mut struct_member = StructDeclMember::new();
+                                                        struct_member.member_name = member_name_node.string_val.clone();
+                                                        struct_member.member_type = member_type_node.string_val.clone();
+
+                                                        struct_decl.members.push(struct_member);
+                                                    }
+
+                                                    // DEBUG
+                                                    if self.debug {
+                                                        println!("{:?}", &struct_decl);
+                                                    }
+                                                }
+                                                */
+
+
+
+
+// DEBUG
+                // println!("movl {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
+
+                // // DEBUG
+                // if asm_ast_instruction.id == 123 {
+                //     println!("test");
+                // }
+
+                // match &asm_ast_instruction.offset.operand_type {
+                //     AsmAstOperandType::Unknown => {
+                //         // no offset specified
+                //         //self.emit_asm_ast_operand(&asm_ast_instruction.src, &asm_ast_instruction.assembly_type);
+                //     }
+                //     AsmAstOperandType::Reg(register_name) => {
+                //         // println!("test");
+                //         panic!();
+                //     }
+                //     _ => {
+                //         panic!();
+                //     }
+                // }
+
+                // print!("    mov ");

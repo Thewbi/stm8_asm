@@ -2022,7 +2022,7 @@ impl AstNode {
 
             // connect parent and child
             // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"LHS\"]\n", ast_node_id, lhs_ast_node_id).as_str());
         }
 
         // rhs - identifier
@@ -2032,7 +2032,7 @@ impl AstNode {
 
             // connect parent and child
             // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"RHS\"]\n", ast_node_id, rhs_ast_node_id).as_str());
         }
 
         ast_node_id

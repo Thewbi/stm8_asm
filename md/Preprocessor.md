@@ -40,7 +40,7 @@ The compiler explorer is available under https://godbolt.org/
 
 When selecting the compiler x86-64 gcc (trunk), the preprocessor tool is available using the "+ Add New..." drop down menu and selecting the option "# Preprocessor".
 
-![Preprocessor Tool](res/images/Godbolt_Compiler_Explorer_Preprocessor.png "Preprocessor Tool")
+![Preprocessor Tool](../res/images/Godbolt_Compiler_Explorer_Preprocessor.png "Preprocessor Tool")
 
 Inside the preprocessor view which opens up on the right side, the output of the preprocessor before it hits the compiler is displayed.
 

@@ -285,8 +285,9 @@ impl AsmAstOperand {
 pub enum AsmAstOperandType {
     Imm(i32),
     Reg(AsmAstReg),
+    DerefReg(AsmAstReg),
     Pseudo(String),
-    PseudoMem(String, i32),
+    PseudoMem(String, i32), // destination/register name, offset
     // Stack(i32), // implicitly uses the RBP register as a base plus an i32 offset
     Memory(AsmAstReg, i32), // on page 375, the Stack Operand is replaced by a more
     // general Memory Operand that uses an explicit register instead of implicit RBP like Stack(i32) did.

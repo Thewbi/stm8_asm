@@ -1290,6 +1290,7 @@ fn main() {
                 // Print symbol table after TACKY conversion
                 //
 
+                // DEBUG
                 if debug {
                     println!("\n\n");
                     println!("Symbol Table after TACKY conversion!");
@@ -1333,6 +1334,7 @@ fn main() {
                 // Print symbol table after Intermediate ASM conversion
                 //
 
+                // DEBUG
                 if debug {
                     println!("\n\n");
                     println!("Symbol Table after Intermediate ASM conversion!");
@@ -1414,7 +1416,7 @@ fn main() {
 
                     // DEBUG
                     if debug {
-                        println!("print_symbol_table() ------------------------------------------------------------");
+                        println!("stack_offset_map ----------------------------------------------------------------");
                         let mut index = 0;
                         for (key, value) in stack_offset_map.clone().into_iter() {
                             println!("{}) {} / {:?}", index, key, value);
