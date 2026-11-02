@@ -1,18 +1,12 @@
-struct listnode
-{
-    int a;
-    int b;
-    int c;
+struct point {
+    int x;
+    long y;
 };
 
-int main() {
+int main()
+{
+    struct point p0;
+    p0.y = 100;
 
-    int b;
-
-    struct listnode struct_1;
-    struct_1.b = 177;
-
-    b = struct_1.b;
-
-    return b;
+    return p0.y;
 }

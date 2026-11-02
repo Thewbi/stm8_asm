@@ -1291,12 +1291,12 @@ fn main() {
                 //
 
                 // DEBUG
-                if debug {
+                // if debug {
                     println!("\n\n");
                     println!("Symbol Table after TACKY conversion!");
                     symbol_table_rc_5.borrow().print_symbol_table();
                     println!("\n\n");
-                }
+                // }
 
                 //
                 // DEBUG print TACKY statements to file

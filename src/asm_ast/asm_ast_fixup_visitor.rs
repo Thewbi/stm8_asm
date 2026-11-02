@@ -206,9 +206,12 @@ impl AsmAstFixupVisitor {
                                 if self.debug {
                                     println!("is_array. ElementCount: {}", symbol_table_entry.array_element_count);
                                 }
+                                assert_ne!(symbol_table_entry.array_element_count, 0, "An array type variable should not have a length of zero!");
                             } else {
                                 array_element_count = 1;
                             }
+
+                            assert_ne!(array_element_count, 0);
 
                             let data_type = symbol_table_entry.data_type;
 
@@ -317,7 +320,11 @@ impl AsmAstFixupVisitor {
 
             // patch allocate stack because right now,
             // the required stack size is readily available
+
+            // first instruction is AllocateStack
             let asm_ast_allocate_stack = &mut new_body[0];
+
+            // replace the src parameter
             asm_ast_allocate_stack.src = AsmAstOperand {
                 operand_type: AsmAstOperandType::Imm(self.stack_offset * -1)
             };

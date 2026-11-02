@@ -873,11 +873,9 @@ impl TackyVisitor {
                     symbol_table_entry.name = temp_var_name.clone();
                     symbol_table_entry.initial_name = temp_var_name.clone();
                     symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
-
-                    //symbol_table_entry.data_type = DataType::DataTypeInt;
+                    // symbol_table_entry.data_type = DataType::DataTypeInt;
                     // symbol_table_entry.data_type = DataType::DataTypeUnknown;
                     symbol_table_entry.data_type = ast_node.get_analyzed_data_type();
-
                     symbol_table_entry.is_array = false;
                     symbol_table_entry.array_element_count = 0;
 
@@ -949,7 +947,6 @@ impl TackyVisitor {
                     match operator.operator_type {
 
                         AstNodeOperatorType::AddrOf => {
-
                             // DEBUG
                             if self.debug {
                                 println!("{:?}", ast_node);
@@ -1635,7 +1632,7 @@ impl TackyVisitor {
                     }
                 }
 
-                let mut explicit_array_element_count:i32 = -1;
+                let mut explicit_array_element_count: i32 = -1;
 
                 // LHS - data type
                 let mut data_type_as_string = String::from("ERROR");
@@ -1678,10 +1675,10 @@ impl TackyVisitor {
                                 let left_node_lhs = node_map.get(&left_node_lhs_id).unwrap();
 
                                 // DEBUG
-                                if self.debug {
+                                // if self.debug {
                                     println!("****Id: {}, {:?}", left_node_lhs.id, left_node_lhs);
                                     println!("{}", left_node_lhs.string_val);
-                                }
+                                // }
 
                                 explicit_array_element_count = i32::from_str_radix(&left_node_lhs.string_val, 10).expect("REASON")
                             }
@@ -1745,6 +1742,9 @@ impl TackyVisitor {
                     assert_ne!(array_element_count, 0, "[ERR] An array of size 0 is not allowed!");
                 }
 
+                println!("explicit_array_element_count: {}", explicit_array_element_count);
+                println!("implicit_array_element_count: {}", implicit_array_element_count);
+
                 // create TACKY variable declaration
                 let mut var_declaration: Instruction = Instruction::new();
                 var_declaration.instruction_type = InstructionType::VariableDeclaration;
@@ -1752,16 +1752,16 @@ impl TackyVisitor {
                 var_declaration.data_type = data_type.clone();
                 var_declaration.label = variable_identifier.clone();
 
-                // // create symbol table entry for temporary variable
-                // let mut symbol_table_entry = SymbolTableEntry::new();
-                // symbol_table_entry.name = variable_identifier.clone();
-                // symbol_table_entry.initial_name = variable_identifier.clone();
-                // symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
-                // symbol_table_entry.data_type = data_type.clone();
-                // symbol_table_entry.is_array = is_array;
-                // symbol_table_entry.array_element_count = array_element_count;
-                // println!("[TackyVisitor] key:'{}', value{:?}", variable_identifier.clone(), symbol_table_entry);
-                // self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
+                // create symbol table entry for temporary variable
+                let mut symbol_table_entry = SymbolTableEntry::new();
+                symbol_table_entry.name = variable_identifier.clone();
+                symbol_table_entry.initial_name = variable_identifier.clone();
+                symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
+                symbol_table_entry.data_type = data_type.clone();
+                symbol_table_entry.is_array = is_array;
+                symbol_table_entry.array_element_count = array_element_count;
+                println!("[TackyVisitor] key:'{}', value{:?}", variable_identifier.clone(), symbol_table_entry);
+                self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
 
                 // append instruction to latest top-level element of the program
                 let last = self.program.top_level.len() - 1;

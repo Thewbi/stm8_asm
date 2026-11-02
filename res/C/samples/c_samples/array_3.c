@@ -3,5 +3,5 @@ int main() {
 
     arr[0] = 1;
 
-    return 0;
+    return arr[0];
 }

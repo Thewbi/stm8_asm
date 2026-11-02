@@ -192,7 +192,11 @@ impl AsmAstMasmEmitterVisitor {
                     if self.print_to_console {
                         print!("dword ptr [{}-{}+{}*4]", register.to_string(), stack_val, offset_register);
                     }
-                    format!("dword ptr [{}-{}+{}*4]", register.to_string(), stack_val, offset_register)
+                    if *stack_val < 0i32 {
+                        format!("dword ptr [{}{}+{}*4]", register.to_string(), stack_val, offset_register)
+                    } else {
+                        format!("dword ptr [{}-{}+{}*4]", register.to_string(), stack_val, offset_register)
+                    }
                 // }
             }
 
