@@ -1710,26 +1710,26 @@ impl TackyVisitor {
                     // the array with angular brackets, then the length of the initializer
                     // becomes the length of the array
                     implicit_array_element_count = expression_node.block_items.len() as i32;
+                    if implicit_array_element_count == 0 {
+                        implicit_array_element_count = -1;
+                    }
                 }
 
-                let mut array_element_count:i32 = 0;
+                println!("explicit_array_element_count: {}", explicit_array_element_count);
+                println!("implicit_array_element_count: {}", implicit_array_element_count);
+
+                let mut array_element_count: i32 = 0;
 
                 // check array dimension
                 if is_array {
 
                     if explicit_array_element_count < 0 && implicit_array_element_count < 0 {
                         panic!("[ERR] No length found for array!");
-                    }
-
-                    if explicit_array_element_count < 0 && implicit_array_element_count > 0 {
+                    } else if explicit_array_element_count < 0 && implicit_array_element_count > 0 {
                         array_element_count = implicit_array_element_count;
-                    }
-
-                    if explicit_array_element_count > 0 && implicit_array_element_count < 0 {
+                    } else if explicit_array_element_count > 0 && implicit_array_element_count <= 0 {
                         array_element_count = explicit_array_element_count;
-                    }
-
-                    if explicit_array_element_count > 0 && implicit_array_element_count > 0 {
+                    } else if explicit_array_element_count > 0 && implicit_array_element_count > 0 {
                         if explicit_array_element_count != implicit_array_element_count {
                             panic!("[ERR] Explicit array length and length of initializer do not match!");
                         } else {
@@ -1744,6 +1744,7 @@ impl TackyVisitor {
 
                 println!("explicit_array_element_count: {}", explicit_array_element_count);
                 println!("implicit_array_element_count: {}", implicit_array_element_count);
+                println!("=> array_element_count: {}", array_element_count);
 
                 // create TACKY variable declaration
                 let mut var_declaration: Instruction = Instruction::new();

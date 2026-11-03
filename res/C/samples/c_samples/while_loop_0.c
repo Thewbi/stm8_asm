@@ -6,7 +6,8 @@ int main() {
     int j = 0;
     while (data[i] != 0xaa) {
         j = j + data[i];
+        i = i + 1;
     }
 
-    return 0;
+    return j;
 }

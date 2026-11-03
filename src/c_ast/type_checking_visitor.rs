@@ -872,31 +872,44 @@ impl TypeCheckingVisitor {
             AstNodeType::Binary => {
 
                 // DEBUG
-                if self.debug {
-                   println!("{:?}", ast_node);
-                }
+                // if self.debug {
+                   println!("{} {:?}", ast_node.id, ast_node);
+                // }
 
                 let mut lhs_type = DataType::DataTypeUnknown;
                 let mut rhs_type = DataType::DataTypeUnknown;
 
                 // LHS
+                let mut left_node_id_retrieved = 0;
                 if let Some(left_node_id) = ast_node.lhs {
+
+                    left_node_id_retrieved = left_node_id;
 
                     // // DEBUG
                     // if left_node_id == 67 {
                     //     println!("test");
                     // }
 
-                    self.visit(left_node_id, node_map, expected_return_data_type);
+                    let analyzed_type = self.visit(left_node_id, node_map, expected_return_data_type);
+                    println!("LHS: analyzed_type: {:?}", analyzed_type);
 
-                    let left_node = node_map.get(&left_node_id).unwrap();
 
-                    lhs_type = self.retrieve_data_type_from_node_type(left_node, node_map);
+
+                    let mut left_node = node_map.get(&left_node_id).unwrap().clone();
+                    let left_node_symbol_name = left_node.string_val.clone();
+                    left_node.set_analyzed_data_type(analyzed_type.clone());
+                    node_map.insert(left_node.id, left_node);
+                    // println!("LHS: left_node.get_analyzed_data_type(): {:?}", left_node.get_analyzed_data_type());
+
+                    // println!("LHS: id:{} {:?}", left_node_id, left_node);
+
+                    //lhs_type = self.retrieve_data_type_from_node_type(left_node, node_map);
+                    lhs_type = analyzed_type.clone();
 
                     // check if a function name is used where a variable name should be used (e.g. b = foo + a)
-                    if self.symbol_table.borrow_mut().contains(&left_node.string_val) {
+                    if self.symbol_table.borrow_mut().contains(&left_node_symbol_name) {
 
-                        let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&left_node.string_val);
+                        let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&left_node_symbol_name);
 
                         // DEBUG
                         if self.debug {
@@ -918,18 +931,29 @@ impl TypeCheckingVisitor {
                 }
 
                 // RHS
+                let mut right_node_id_retrieved = 0;
                 if let Some(right_node_id) = ast_node.rhs {
 
-                    self.visit(right_node_id.clone(), node_map, expected_return_data_type);
+                    right_node_id_retrieved = right_node_id;
 
-                    let right_node = node_map.get(&right_node_id).unwrap();
+                    let analyzed_type = self.visit(right_node_id.clone(), node_map, expected_return_data_type);
+                    println!("RHS: analyzed_type: {:?}", analyzed_type);
 
-                    rhs_type = self.retrieve_data_type_from_node_type(right_node, node_map);
+                    let mut right_node = node_map.get(&right_node_id).unwrap().clone();
+                    let right_node_symbol_name = right_node.string_val.clone();
+                    right_node.set_analyzed_data_type(analyzed_type.clone());
+                    node_map.insert(right_node.id, right_node);
+                    // println!("LHS: right_node.get_analyzed_data_type(): {:?}", right_node.get_analyzed_data_type());
+
+                    // println!("RHS: id:{} {:?}", right_node_id, right_node);
+
+                    //rhs_type = self.retrieve_data_type_from_node_type(right_node, node_map);
+                    rhs_type = analyzed_type.clone();
 
                     // check if a function name is used where a variable name should be used (e.g. b = a + foo)
-                    if self.symbol_table.borrow_mut().contains(&right_node.string_val) {
+                    if self.symbol_table.borrow_mut().contains(&right_node_symbol_name) {
 
-                        let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&right_node.string_val);
+                        let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&right_node_symbol_name);
 
                         // DEBUG
                         if self.debug {
@@ -948,10 +972,10 @@ impl TypeCheckingVisitor {
                 }
 
                 // DEBUG
-                if self.debug {
-                    println!("LHS-Type: {}", lhs_type);
-                    println!("RHS-Type: {}", rhs_type);
-                }
+                // if self.debug {
+                    println!("Node_ID: {}, LHS-Type: {}", left_node_id_retrieved, lhs_type);
+                    println!("Node_ID: {}, RHS-Type: {}", right_node_id_retrieved, rhs_type);
+                // }
 
                 let common_data_type;
 
@@ -1031,8 +1055,13 @@ impl TypeCheckingVisitor {
                         if let Some(right_node_id) = ast_node.rhs {
 
                             let mut right_node = node_map.get(&right_node_id).unwrap().clone();
+
                             // the node needs a type!
-                            assert_ne!(right_node.get_analyzed_data_type(), DataType::DataTypeUnknown, "Node-Id: {}, Node has no analyzed_data_type!", right_node.id);
+                            assert_ne!(right_node.get_analyzed_data_type(),
+                                DataType::DataTypeUnknown,
+                                "Node-Id: {}, Node has no analyzed_data_type!",
+                                right_node.id);
+
                             if right_node.get_analyzed_data_type() != common_data_type {
 
                                 // retrieve id

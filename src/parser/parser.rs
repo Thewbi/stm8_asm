@@ -783,10 +783,12 @@ impl Parser<String> {
                                                             ast_node.node_type = AstNodeType::ConstULong;
                                                             data_type_ast_node.string_val = String::from("ULong");
                                                             data_type_ast_node.set_analyzed_data_type(DataType::DataTypeUnsignedLong);
+                                                            ast_node.string_val = u64::to_string(&result);
                                                         } else {
                                                             ast_node.node_type = AstNodeType::ConstUInt;
                                                             data_type_ast_node.string_val = String::from("UInt");
                                                             data_type_ast_node.set_analyzed_data_type(DataType::DataTypeUnsignedInt);
+                                                            ast_node.string_val = u64::to_string(&result);
                                                         }
                                                     }
                                                     Err(e) => {
@@ -794,7 +796,7 @@ impl Parser<String> {
                                                     }
                                                 };
 
-                                                ast_node.string_val = value;
+                                                //ast_node.string_val = value;
                                                 ast_node.data_type = Some(data_type_ast_node.id);
 
                                                 self.ast_stack.push(ast_node.id);
