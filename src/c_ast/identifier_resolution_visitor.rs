@@ -15,8 +15,8 @@ use crate::common::data_type::DataType::DataTypeStruct;
 use crate::common::struct_decl::StructDecl;
 use crate::common::struct_decl::StructDeclMember;
 
-use crate::common::symbol_table;
-use crate::common::symbol_table::SymbolTable;
+// use crate::common::symbol_table;
+// use crate::common::symbol_table::SymbolTable;
 use crate::tacky::tacky::BinaryOperator;
 
 use crate::common::variable_naming_source::VariableNamingSource;
@@ -42,7 +42,7 @@ pub struct IdentifierResolutionVisitor {
     // https://www.youtube.com/watch?v=8O0Nt9qY_vo
     variable_naming_source: Rc<RefCell<VariableNamingSource>>,
     structure_naming_source: Rc<RefCell<VariableNamingSource>>,
-    symbol_table: Rc<RefCell<SymbolTable>>,
+    // symbol_table: Rc<RefCell<SymbolTable>>,
     is_in_dot_or_arrow: bool,
     debug: bool,
 }
@@ -51,12 +51,13 @@ impl IdentifierResolutionVisitor {
 
     pub fn new(variable_naming_source_param: Rc<RefCell<VariableNamingSource>>,
         structure_naming_source_param: Rc<RefCell<VariableNamingSource>>,
-        symbol_table_param: Rc<RefCell<SymbolTable>>,) -> IdentifierResolutionVisitor
+        // symbol_table_param: Rc<RefCell<SymbolTable>>
+    ) -> IdentifierResolutionVisitor
     {
         IdentifierResolutionVisitor {
             variable_naming_source: variable_naming_source_param,
             structure_naming_source: structure_naming_source_param,
-            symbol_table: symbol_table_param,
+            // symbol_table: symbol_table_param,
             is_in_dot_or_arrow: false,
             debug: false,
         }
@@ -576,12 +577,14 @@ impl IdentifierResolutionVisitor {
                 }
             }
 
-            // Structure:
-            // RHS - return type
-            // string_val - function name
-            // parameters - the parameters
-            // LHS - is a block which contains all instructions in it's block_items field
             AstNodeType::FunctionDeclaration => {
+
+                // Structure:
+                // RHS - return type
+                // string_val - function name
+                // parameters - the parameters
+                // LHS - is a block which contains all instructions in it's block_items field
+
                 // DEBUG
                 if self.debug {
                     println!("[FunctionDeclaration] AstNodeId: {}, AstNodeType: {:?}", ast_node.id, ast_node.node_type);
@@ -623,7 +626,9 @@ impl IdentifierResolutionVisitor {
                 //
 
                 // DEBUG
-                // println!("[AstNodeType::FunctionDeclaration ENTER_SCOPE]");
+                if self.debug {
+                    println!("[identifier_resolution_visitor::FunctionDeclaration()] [AstNodeType::FunctionDeclaration ENTER_SCOPE]");
+                }
                 self.variable_naming_source.borrow_mut().enter_scope();
 
                 // parameters - are visited in the same context (= same varname_map on the stack) as the function declaration itself
@@ -631,7 +636,28 @@ impl IdentifierResolutionVisitor {
                     // let index = ast_node.parameters.len()-1-i;
                     // self.visit(&mut ast_node.parameters[index]);
 
-                    self.visit(ast_node.parameters[i], node_map);
+                    let parameter_id: usize = ast_node.parameters[i];
+                    let identifier_resolution_node = self.visit(parameter_id, node_map);
+
+                    // DEBUG
+                    if self.debug {
+                        println!("identifier_resolution_node: '{:?}'", identifier_resolution_node);
+                    }
+
+                    let replaced_var_name = identifier_resolution_node.string_val;
+                    let initial_var_name = identifier_resolution_node.initial_string_val;
+
+                    // DEBUG
+                    if self.debug {
+                        println!("initial_var_name: '{}', replaced_var_name: '{}'", initial_var_name, replaced_var_name);
+                    }
+
+                    let mut parameter_ast_node = node_map.get(&parameter_id).unwrap().clone();
+                    parameter_ast_node.string_val = replaced_var_name;
+                    parameter_ast_node.initial_string_val = initial_var_name;
+
+                    // update changed node
+                    node_map.insert(parameter_ast_node.id, parameter_ast_node);
                 }
 
                 //
@@ -666,7 +692,9 @@ impl IdentifierResolutionVisitor {
                 }
 
                 // DEBUG
-                // println!("[AstNodeType::FunctionDeclaration EXIT_SCOPE]");
+                if self.debug {
+                    println!("[identifier_resolution_visitor::FunctionDeclaration()] [AstNodeType::FunctionDeclaration EXIT_SCOPE]");
+                }
                 self.variable_naming_source.borrow_mut().exit_scope();
             }
 
@@ -730,7 +758,7 @@ impl IdentifierResolutionVisitor {
 
                     // DEBUG
                     if self.debug {
-                        println!("[NAMING-2] Name replaced: old: {}, new: {}", user_defined_varname, replaced_varname);
+                        println!("[NAMING-2] Name replaced: old: '{}', new: '{}'", user_defined_varname, replaced_varname);
                     }
 
                     // replace the variable name by the unique variable name from the scope.
@@ -840,7 +868,7 @@ impl IdentifierResolutionVisitor {
             AstNodeType::ParameterDeclaration => {
                 // DEBUG
                 if self.debug {
-                    println!("AstNode-Id: {}, AstNodeType: {:?}", ast_node.id, ast_node.node_type);
+                    println!("[AstNodeType::ParameterDeclaration] AstNode-Id: {}, ast_node: {:?}, AstNodeType: {:?}", ast_node.id, ast_node, ast_node.node_type);
                 }
 
                 // parameter's data type (RHS)
@@ -877,18 +905,24 @@ impl IdentifierResolutionVisitor {
                     let user_define_varname = self.variable_naming_source.borrow_mut()
                         .new_user_defined_var(&param_name);
 
-                    let mut node = IdentifierResolutionNode::new();
-                    node.node_type = AstNodeType::ParameterDeclaration;
-                    node.string_val = user_define_varname;
+                    // DEBUG
+                    if self.debug {
+                        println!("[identifier_resolution_visitor.rs::AstNodeType::ParameterDeclaration][NAMING-4] Name replaced: old: '{}', new: '{}'", param_name, user_define_varname);
+                    }
 
-                    return node;
+                    let mut identifier_resolution_node = IdentifierResolutionNode::new();
+                    identifier_resolution_node.node_type = AstNodeType::ParameterDeclaration;
+                    identifier_resolution_node.string_val = user_define_varname;
+                    identifier_resolution_node.initial_string_val = param_name;
+
+                    return identifier_resolution_node;
                 }
             }
 
             AstNodeType::VariadicParameterDeclaration => {
                 // DEBUG
                 if self.debug {
-                    println!("AstNode-Id: {}, AstNodeType: {:?}", ast_node.id, ast_node.node_type);
+                    println!("[AstNodeType::VariadicParameterDeclaration] AstNode-Id: {}, AstNodeType: {:?}", ast_node.id, ast_node.node_type);
                 }
 
                 let mut node = IdentifierResolutionNode::new();

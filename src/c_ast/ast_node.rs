@@ -172,6 +172,7 @@ pub struct AstNode {
     pub file: String,
     pub line: usize,
     pub print_file_line: bool,
+    pub debug: bool,
 }
 
 impl fmt::Debug for AstNode {
@@ -231,9 +232,11 @@ impl fmt::Debug for AstNode {
             AstNodeType::ConstUInt |
             AstNodeType::ConstULong |
             AstNodeType::ConstDouble => {
-                print!("AstNodeType::Constant Int/Long/UInt/ULong/Double");
-                print!(" string_val:'{:?}'", self.string_val);
-                println!(" analyzed_data_type: ['{:?}']", self.analyzed_data_type);
+                if self.debug {
+                    println!("AstNodeType::Constant Int/Long/UInt/ULong/Double");
+                    println!(" string_val:'{:?}'", self.string_val);
+                    println!(" analyzed_data_type: ['{:?}']", self.analyzed_data_type);
+                }
             }
 
             AstNodeType::Declaration => {
@@ -244,14 +247,18 @@ impl fmt::Debug for AstNode {
             }
 
             AstNodeType::ParameterDeclaration => {
-                println!("ParameterDeclaration");
+                if self.debug {
+                    println!("ParameterDeclaration");
+                    println!("  string_val:'{:?}'", self.string_val);
+                    println!("  initial_string_val:'{:?}'", self.initial_string_val);
+                }
                 // name
                 if let Some(left_node) = self.lhs.as_ref() {
-                    print!("{:?}", left_node);
+                    println!("{:?}", left_node);
                 }
                 // data type
                 if let Some(right_node) = self.rhs.as_ref() {
-                    print!("{:?}", right_node);
+                    println!("{:?}", right_node);
                 }
             }
 
@@ -608,18 +615,23 @@ impl AstNode {
             line: 0,
 
             print_file_line: false,
+            debug: false,
         };
 
         ast_node
     }
 
     pub fn set_analyzed_data_type(&mut self, data_type: DataType) {
-        println!("{} {}", self.id, data_type);
+        if self.debug {
+            println!("[set_analyzed_data_type] {} {}", self.id, data_type);
+        }
         self.analyzed_data_type = data_type;
     }
 
     pub fn get_analyzed_data_type(&self) -> DataType {
-        println!("{} {}", self.id, self.analyzed_data_type.clone());
+        if self.debug {
+            println!("[get_analyzed_data_type] {} {}", self.id, self.analyzed_data_type.clone());
+        }
         return self.analyzed_data_type.clone();
     }
 

@@ -781,8 +781,6 @@ fn main() {
 
     let file_content = input_tuple.0.clone();
 
-
-
     // the type system. Mapping from type name to DataType
     let mut type_system = HashMap::<String, DataType>::new();
 
@@ -1012,16 +1010,10 @@ fn main() {
         {
             let ts = type_system_rc_4.borrow_mut();
             for (key, value) in ts.iter() {
-
-                // println!("{}", key);
-
                 match value {
                     DataType::DataTypeStruct(struct_decl) => {
                         struct_decl_vector.push((key.clone(), struct_decl.clone()));
                     }
-                    // DataType::DataTypeTypedeffed(data_type) => {
-                    //     println!("{}", data_type);
-                    // }
                     _ => {
                     }
                 }
@@ -1030,7 +1022,11 @@ fn main() {
 
         // use the copied structs to compute their layout
         {
-            println!("{}", struct_decl_vector.len());
+            // DEBUG
+            if debug {
+                println!("compute_memory_layout()");
+                println!("struct_decl_vector.len(): {}", struct_decl_vector.len());
+            }
             for i in 0..struct_decl_vector.len() {
                 let (key, struct_decl_var) = &mut struct_decl_vector[i];
                 struct_decl_var.compute_memory_layout(&type_system_rc_4.borrow_mut());
@@ -1041,13 +1037,11 @@ fn main() {
         // a completely new insert which will replace the old entries
         // by new entries that contain offsets for each field
         {
-            let mut zool = type_system_rc_4.borrow_mut();
+            let mut temp_entry = type_system_rc_4.borrow_mut();
             for i in 0..struct_decl_vector.len() {
                 let (key, struct_decl_var) = &mut struct_decl_vector[i];
-
-                println!("key:'{}' value:'{:?}'", &key, struct_decl_var);
-
-                zool.insert(key.clone(), DataType::DataTypeStruct(struct_decl_var.clone()));
+                // println!("key:'{}' value:'{:?}'", &key, struct_decl_var);
+                temp_entry.insert(key.clone(), DataType::DataTypeStruct(struct_decl_var.clone()));
             }
         }
 
@@ -1055,9 +1049,9 @@ fn main() {
         // DEBUG - Print the TYPE-SYSTEM
         //
 
+        // DEBUG
         if debug {
             println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-            //for (key, value) in type_system_rc_99.borrow().clone().into_iter() {
             for (key, value) in type_system_rc_22.borrow().clone().into_iter() {
                 println!("key: {}, \t\tvalue: {}", key, value);
             }
@@ -1142,7 +1136,7 @@ fn main() {
                     IdentifierResolutionVisitor::new(
                         variable_naming_source_rc_1,
                         struct_naming_source_rc_1,
-                        symbol_table_rc_22);
+                    );
                 identifier_resolution_visitor.visit(program_ast_node_id, &mut node_map);
 
                 //
@@ -1173,6 +1167,7 @@ fn main() {
                 // Print symbol table before TypeChecking
                 //
 
+                // DEBUG
                 if debug {
                     println!("\n\n");
                     println!("Symbol Table before Type Checking!");
@@ -1184,15 +1179,18 @@ fn main() {
                 // DEBUG - Print the TYPE-SYSTEM
                 //
 
-                // if debug {
+                if debug {
                     println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
                     for (key, value) in type_system_rc_22.borrow().clone().into_iter() {
                         println!("key: {}, \t\tvalue: {}", key, value);
                     }
                     println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-                // }
+                }
 
-                let mut type_checking_visitor = TypeCheckingVisitor::new(symbol_table_rc_1, type_system_rc_22);
+                let mut type_checking_visitor = TypeCheckingVisitor::new(
+                    symbol_table_rc_1,
+                    type_system_rc_22);
+
                 type_checking_visitor.visit(program_ast_node_id, &mut node_map, &DataType::DataTypeVoid);
 
                 //
@@ -1291,12 +1289,12 @@ fn main() {
                 //
 
                 // DEBUG
-                // if debug {
+                if debug {
                     println!("\n\n");
-                    println!("Symbol Table after TACKY conversion!");
+                    println!("[main] Symbol Table after TACKY conversion:");
                     symbol_table_rc_5.borrow().print_symbol_table();
                     println!("\n\n");
-                // }
+                }
 
                 //
                 // DEBUG print TACKY statements to file
@@ -1354,7 +1352,8 @@ fn main() {
                 let mut string_buffer = String::from("");
                 let indent = 0usize;
 
-                print_asm_ast_program(&tacky_to_intermediate_asm_conversion_visitor.asm_ast_program, &mut string_buffer, indent);
+                print_asm_ast_program(&tacky_to_intermediate_asm_conversion_visitor.asm_ast_program,
+                    &mut string_buffer, indent);
 
                 // 1. Create or overwrite the file
                 // extension intasm == intermediate assembler code

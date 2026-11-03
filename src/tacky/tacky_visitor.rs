@@ -160,7 +160,9 @@ impl TackyVisitor {
         let symbol_table_entry = self.symbol_table.borrow_mut().get(&src_name).unwrap();
 
         // DEBUG
-        println!("symbol_table_entry: {:?}", symbol_table_entry);
+        if self.debug {
+            println!("symbol_table_entry: {:?}", symbol_table_entry);
+        }
 
         let symbol_data_type = symbol_table_entry.data_type;
 
@@ -174,7 +176,9 @@ impl TackyVisitor {
         let lhs_rhs_sub = node_map.get(&lhs_rhs_sub_id).unwrap();
 
         // DEBUG
-        println!("Node_id: {}, node.string_val: '{}'", lhs_rhs_sub.id, lhs_rhs_sub.string_val);
+        if self.debug {
+            println!("Node_id: {}, node.string_val: '{}'", lhs_rhs_sub.id, lhs_rhs_sub.string_val);
+        }
 
         match symbol_data_type {
 
@@ -203,7 +207,9 @@ impl TackyVisitor {
             DataType::DataTypePointer(ptr_target_data_type) => {
 
                 // DEBUG
-                println!("{:?}", ptr_target_data_type);
+                if self.debug {
+                    println!("{:?}", ptr_target_data_type);
+                }
 
                 match *ptr_target_data_type {
 
@@ -675,12 +681,16 @@ impl TackyVisitor {
 
                                 match parameter_ast_node.node_type {
 
-                                    AstNodeType::ConstInt | AstNodeType::ConstLong => {
-                                        function_call_instruction.parameters.push(Box::new(ValueElement::Constant(String::from(parameter_ast_node.string_val.clone()))));
+                                    AstNodeType::ConstInt |
+                                    AstNodeType::ConstLong |
+                                    AstNodeType::ConstUInt => {
+                                        function_call_instruction.parameters.push(
+                                            Box::new(ValueElement::Constant(
+                                                String::from(parameter_ast_node.string_val.clone()))));
                                     }
 
                                     _ => {
-                                        panic!("Please add node_type!");
+                                        panic!("Please add node_type for {:?}!", parameter_ast_node.node_type);
                                     }
 
                                 }
@@ -1675,10 +1685,10 @@ impl TackyVisitor {
                                 let left_node_lhs = node_map.get(&left_node_lhs_id).unwrap();
 
                                 // DEBUG
-                                // if self.debug {
+                                if self.debug {
                                     println!("****Id: {}, {:?}", left_node_lhs.id, left_node_lhs);
                                     println!("{}", left_node_lhs.string_val);
-                                // }
+                                }
 
                                 explicit_array_element_count = i32::from_str_radix(&left_node_lhs.string_val, 10).expect("REASON")
                             }
@@ -1714,10 +1724,10 @@ impl TackyVisitor {
                         implicit_array_element_count = -1;
                     }
                 }
-
-                println!("explicit_array_element_count: {}", explicit_array_element_count);
-                println!("implicit_array_element_count: {}", implicit_array_element_count);
-
+                if self.debug {
+                    println!("explicit_array_element_count: {}", explicit_array_element_count);
+                    println!("implicit_array_element_count: {}", implicit_array_element_count);
+                }
                 let mut array_element_count: i32 = 0;
 
                 // check array dimension
@@ -1741,11 +1751,11 @@ impl TackyVisitor {
                     // https://stackoverflow.com/questions/9722632/what-happens-if-i-define-a-0-size-array-in-c-c
                     assert_ne!(array_element_count, 0, "[ERR] An array of size 0 is not allowed!");
                 }
-
-                println!("explicit_array_element_count: {}", explicit_array_element_count);
-                println!("implicit_array_element_count: {}", implicit_array_element_count);
-                println!("=> array_element_count: {}", array_element_count);
-
+                if self.debug {
+                    println!("explicit_array_element_count: {}", explicit_array_element_count);
+                    println!("implicit_array_element_count: {}", implicit_array_element_count);
+                    println!("=> array_element_count: {}", array_element_count);
+                }
                 // create TACKY variable declaration
                 let mut var_declaration: Instruction = Instruction::new();
                 var_declaration.instruction_type = InstructionType::VariableDeclaration;
@@ -1761,7 +1771,9 @@ impl TackyVisitor {
                 symbol_table_entry.data_type = data_type.clone();
                 symbol_table_entry.is_array = is_array;
                 symbol_table_entry.array_element_count = array_element_count;
-                println!("[TackyVisitor] key:'{}', value{:?}", variable_identifier.clone(), symbol_table_entry);
+                if self.debug {
+                    println!("[TackyVisitor] key:'{}', value{:?}", variable_identifier.clone(), symbol_table_entry);
+                }
                 self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
 
                 // append instruction to latest top-level element of the program

@@ -5564,8 +5564,11 @@ impl Parser<String> {
 
                                                         let member_type_node = node_map.get(&member_type_node_id).unwrap().clone();
 
-                                                        println!("member_type_node: '{}'", &member_type_node.string_val);
-                                                        println!("type_ast_node.node_type: '{:?}'", &member_type_node.node_type);
+                                                        // DEBUG
+                                                        if debug {
+                                                            println!("member_type_node: '{}'", &member_type_node.string_val);
+                                                            println!("type_ast_node.node_type: '{:?}'", &member_type_node.node_type);
+                                                        }
 
                                                         match member_type_node.node_type {
 
@@ -6033,10 +6036,10 @@ impl Parser<String> {
                                                         AstNodeType::Pointer => {
 
                                                             // DEBUG
-                                                            // if debug {
+                                                            if debug {
                                                                 println!("pointer! {:?}", ast_node);
                                                                 println!("pointer! NAME: '{:?}'", ast_node.string_val);
-                                                            // }
+                                                            }
 
                                                             //member_declaration_ast_node.lhs = Some(ast_node_id);
                                                             //member_declaration_ast_node.rhs = Some(ast_node_id);
@@ -6074,19 +6077,25 @@ impl Parser<String> {
                                                                 // LHS
                                                                 let lhs_type_name_ast_node_id = type_ast_node.lhs.unwrap();
                                                                 let lhs_type_name_ast_node = node_map.get(&lhs_type_name_ast_node_id).unwrap();
-                                                                println!("LHS: {:?}", lhs_type_name_ast_node);
+                                                                if debug {
+                                                                    println!("LHS: {:?}", lhs_type_name_ast_node);
+                                                                }
 
                                                                 // RHS
                                                                 let rhs_type_name_ast_node_id = type_ast_node.rhs.unwrap();
                                                                 let rhs_type_name_ast_node = node_map.get(&rhs_type_name_ast_node_id).unwrap();
-                                                                println!("RHS: {:?}", rhs_type_name_ast_node);
+                                                                if debug {
+                                                                    println!("RHS: {:?}", rhs_type_name_ast_node);
+                                                                }
 
                                                                 let mut struct_decl = StructDecl::new();
                                                                 struct_decl.tag = String::from(rhs_type_name_ast_node.string_val.clone());
 
                                                                 let data_type = DataType::DataTypeStruct(struct_decl);
                                                                 let data_type_ptr = DataType::DataTypePointer(Box::new(data_type));
-                                                                println!("data_type: {:?}", data_type_ptr);
+                                                                if debug {
+                                                                    println!("data_type: {:?}", data_type_ptr);
+                                                                }
                                                                 ast_node.set_analyzed_data_type(data_type_ptr.clone());
 
                                                                 let mut identifier_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
@@ -6206,7 +6215,9 @@ impl Parser<String> {
 
                                                 self.struct_field_counter = self.struct_field_counter + 1;
 
-                                                println!("{:?}", member_declaration_ast_node);
+                                                if debug {
+                                                    println!("{:?}", member_declaration_ast_node);
+                                                }
 
                                                 self.ast_stack.push(member_declaration_ast_node.id);
 
@@ -8654,17 +8665,17 @@ impl Parser<String> {
 
                                                         AstNodeType::FunctionDeclaration => {
                                                             if let Some(function_name_ast_node_id) = sub_ast_node.function_name_ast_node {
-
                                                                 let function_name_ast_node = node_map.get(&function_name_ast_node_id).unwrap();
                                                                 function_name = function_name_ast_node.string_val.clone();
                                                             }
-                                                            //function_definition_ast_node.parameters = std::mem::take(&mut sub_ast_node.parameters);
                                                             function_definition_ast_node.parameters = sub_ast_node.parameters.clone();
 
-                                                            // function_name = sub_ast_node.string_val;
-
-                                                            // there should be a non-empty name for the function to call
+                                                            // ASSERT - there should be a non-empty name for the function to call
                                                             assert!(function_name.len() > 0);
+
+                                                            // TODO: no mnemonic names are allowed
+                                                            assert_ne!(function_name, "add", "Function Name invalid! Function Name is: '{}'. Cannot name function like an assembler mnemonic!", function_name);
+                                                            assert_ne!(function_name, "mul", "Function Name invalid! Function Name is: '{}'. Cannot name function like an assembler mnemonic!", function_name);
                                                         }
 
                                                         _ => {

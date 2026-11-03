@@ -52,8 +52,8 @@ impl fmt::Debug for SymbolTableEntry {
         let use_line_break = true;
         if use_line_break {
             write!(f, "SymbolTableEntry {{\n").expect("Write failed!");
-            write!(f, "  name: {}\n", &self.name).expect("Write failed!");
-            write!(f, "  initial_name: {}\n", &self.initial_name).expect("Write failed!");
+            write!(f, "  name: '{}'\n", &self.name).expect("Write failed!");
+            write!(f, "  initial_name: '{}'\n", &self.initial_name).expect("Write failed!");
             write!(f, "  symbol_table_entry_type: {:?}\n", &self.symbol_table_entry_type).expect("Write failed!");
             write!(f, "  parameter_count: {}\n", &self.parameter_count).expect("Write failed!");
             write!(f, "  data_type: {}\n", &self.data_type).expect("Write failed!");
@@ -106,7 +106,7 @@ impl SymbolTable {
     pub fn insert(&mut self, varname: String, symbol_table_entry: SymbolTableEntry) {
         // DEBUG
         if self.debug {
-            println!("Inserting '{}' with type {:?}", varname, symbol_table_entry);
+            println!("[SymbolTable::insert()] Inserting '{}' with type {:?}", varname, symbol_table_entry);
         }
         self.identifier_type_map.insert(varname, symbol_table_entry);
     }

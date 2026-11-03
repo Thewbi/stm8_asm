@@ -315,7 +315,13 @@ pub enum AsmAstReg {
     DX, // -> EDX
 
     DI,
+    EDI,
+    RDI,
+
     SI,
+    ESI,
+    RSI,
+
     R8,
     R9,
     R10,
@@ -372,6 +378,7 @@ impl AsmAstReg {
                 // }
                 string_buffer.push_str("rax");
             }
+
             AsmAstReg::BX => {
                 match data_type {
                     AstAstAssemblyType::Doubleword => {
@@ -413,13 +420,18 @@ impl AsmAstReg {
             }
 
             AsmAstReg::DI => {
-                string_buffer.push_str("r10ddi");
+                string_buffer.push_str("di");
+            }
+            AsmAstReg::EDI => {
+                string_buffer.push_str("edi");
+            }
+            AsmAstReg::RDI => {
+                string_buffer.push_str("rdi");
             }
 
             AsmAstReg::SI => {
                 string_buffer.push_str("rsi");
             }
-
 
             AsmAstReg::R10 => {
                 string_buffer.push_str("r10");
@@ -474,8 +486,13 @@ impl fmt::Display for AsmAstReg {
 
             AsmAstReg::DX => write!(f, "rdx"),
 
-            AsmAstReg::DI => write!(f, "rdi"),
-            AsmAstReg::SI => write!(f, "rsi"),
+            AsmAstReg::DI => write!(f, "di"),
+            AsmAstReg::EDI => write!(f, "edi"),
+            AsmAstReg::RDI => write!(f, "rdi"),
+
+            AsmAstReg::SI => write!(f, "si"),
+            AsmAstReg::ESI => write!(f, "esi"),
+            AsmAstReg::RSI => write!(f, "rsi"),
 
             AsmAstReg::R8 => write!(f, "r8"),
             // AsmAstReg::R8 => write!(f, "r8d"),
@@ -738,7 +755,6 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction, string
                 asm_ast_instruction.dst).as_str());
         }
 
-
         AsmAstInstructionType::AllocateStack => {
             match asm_ast_instruction.src.operand_type {
                 AsmAstOperandType::Imm(imm_value) => {
@@ -797,6 +813,12 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction, string
             string_buffer.push_str(format!("Jmp(dst:{:?}, src:{:?})\n",
                 asm_ast_instruction.dst,
                 asm_ast_instruction.src
+            ).as_str());
+        }
+
+        AsmAstInstructionType::FunctionCall => {
+            string_buffer.push_str(format!("FunctionCall(function_identifier:{:?})\n",
+                asm_ast_instruction.identifier
             ).as_str());
         }
 
