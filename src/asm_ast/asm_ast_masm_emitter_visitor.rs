@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::asm_ast::asm_ast::AsmAstReg::EAX;
 use crate::asm_ast::asm_ast::AstAstAssemblyType;
 use crate::tacky::tacky::Program;
 use crate::tacky::tacky::TopLevel;
@@ -417,7 +418,8 @@ impl AsmAstMasmEmitterVisitor {
                 // WRONG:
                 //self.string_buffer.push_str(&asm_ast_reg_val.to_string());
 
-                let register_for_data_type = asm_ast_reg_val.output_register_matching_datatype(&assembly_type);
+                let register_for_data_type
+                    = asm_ast_reg_val.output_register_matching_datatype(&assembly_type);
                 self.string_buffer.push_str(&register_for_data_type);
             }
 
@@ -685,13 +687,18 @@ impl AsmAstMasmEmitterVisitor {
         // DEBUG
         // println!("[AsmAstMasmEmitterVisitor::visit_asm_ast_instruction()] instruction={:?}", asm_ast_instruction);
 
-        if asm_ast_instruction.id == 122 {
+        if asm_ast_instruction.id == 4 {
             println!("test");
         }
+
+
 
         match asm_ast_instruction.instruction_type {
 
             AsmAstInstructionType::Mov => {
+
+                assert_ne!(asm_ast_instruction.assembly_type, AstAstAssemblyType::Unknown,
+                    "\n\n[ERROR] asm_ast_instruction.id: {}, {:?} has data type unknown", asm_ast_instruction.id, asm_ast_instruction);
 
                 self.string_buffer.push_str("    mov ");
                 self.emit_asm_ast_operand(
@@ -841,8 +848,27 @@ impl AsmAstMasmEmitterVisitor {
             }
 
             AsmAstInstructionType::Mul => {
+
+                //asm_ast_instruction.assembly_type
+
+                //AstAstAssemblyType::f
+
+                println!("\n\n");
+                println!("{:?}", asm_ast_instruction);
+
                 self.string_buffer.push_str("    mul ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+
+                // self.emit_asm_ast_operand(
+                //     &asm_ast_instruction.dst,
+                //     &AsmAstOperand { operand_type: AsmAstOperandType::Reg(EAX) },
+                //     &asm_ast_instruction.assembly_type);
+
+                self.emit_asm_ast_operand(
+                    &asm_ast_instruction.src,
+                    //&AsmAstOperand { operand_type: AsmAstOperandType::Reg(EAX) },
+                    &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                    &asm_ast_instruction.assembly_type);
+
                 self.string_buffer.push_str("\n");
             }
 

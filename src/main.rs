@@ -1075,11 +1075,13 @@ fn main() {
                 let variable_naming_source_rc_1 = Rc::new(RefCell::new(variable_naming_source));
                 let variable_naming_source_rc_2 = variable_naming_source_rc_1.clone();
                 let variable_naming_source_rc_3 = variable_naming_source_rc_1.clone();
+                let variable_naming_source_rc_4 = variable_naming_source_rc_1.clone();
 
                 // naming source for structures
                 // structures are a separate namespace from variables and functions
                 let struct_naming_source = VariableNamingSource::new(String::from("userdef_struct."));
                 let struct_naming_source_rc_1 = Rc::new(RefCell::new(struct_naming_source));
+                let struct_naming_source_rc_2 = struct_naming_source_rc_1.clone();
                 let struct_naming_source_rc_99 = struct_naming_source_rc_1.clone();
 
                 //
@@ -1323,8 +1325,11 @@ fn main() {
                 // Before generating ASM for a real target, this step emits intermediate ASM!
                 //
 
-                let mut tacky_to_intermediate_asm_conversion_visitor = TackyToIntermediateAsmConversionVisitor::new(
-                    symbol_table_rc_4
+                let mut tacky_to_intermediate_asm_conversion_visitor
+                    = TackyToIntermediateAsmConversionVisitor::new(
+                        variable_naming_source_rc_4,
+                        struct_naming_source_rc_2,
+                        symbol_table_rc_4,
                 );
                 tacky_to_intermediate_asm_conversion_visitor.visit_tacky_program(&tacky_visitor.program);
 

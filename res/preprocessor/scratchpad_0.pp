@@ -1,10 +1,12 @@
-int add_func(int x, int y) {
-    return x + y;
-}
-
 int main() {
-    int i = 0;
-    i = add_func(1, 2);
+    int a;
+    int b;
+    int result;
 
-    return i;
+    a = 10;
+    b = 5;
+
+    result = a - b;
+
+    return result;
 }

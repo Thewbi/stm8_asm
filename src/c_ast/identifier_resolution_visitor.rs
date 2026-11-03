@@ -631,21 +631,31 @@ impl IdentifierResolutionVisitor {
                 }
                 self.variable_naming_source.borrow_mut().enter_scope();
 
-                // parameters - are visited in the same context (= same varname_map on the stack) as the function declaration itself
+                // parameters - are visited in the same context
+                // (= same varname_map on the stack) as the function declaration itself
                 for i in 0..ast_node.parameters.len() {
-                    // let index = ast_node.parameters.len()-1-i;
-                    // self.visit(&mut ast_node.parameters[index]);
 
                     let parameter_id: usize = ast_node.parameters[i];
+
+                    println!("parameter_id: {}", parameter_id);
+
                     let identifier_resolution_node = self.visit(parameter_id, node_map);
+
+                    let replaced_var_name = identifier_resolution_node.string_val.clone();
+                    let initial_var_name = identifier_resolution_node.initial_string_val.clone();
+
+                    let param_node = node_map.get(&parameter_id).unwrap();
+                    let mut lhs_param_node = node_map.get(&param_node.lhs.unwrap()).unwrap().clone();
+                    lhs_param_node.initial_string_val = initial_var_name.clone();
+                    lhs_param_node.string_val = replaced_var_name.clone();
+
+                    // update changed node
+                    node_map.insert(lhs_param_node.id, lhs_param_node);
 
                     // DEBUG
                     if self.debug {
                         println!("identifier_resolution_node: '{:?}'", identifier_resolution_node);
                     }
-
-                    let replaced_var_name = identifier_resolution_node.string_val;
-                    let initial_var_name = identifier_resolution_node.initial_string_val;
 
                     // DEBUG
                     if self.debug {

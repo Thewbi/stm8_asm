@@ -74,10 +74,12 @@ impl AstAstAssemblyType {
     }
 }
 
+static mut INSTRUCTION_ID: i32 = 0;
+
 // Type for a intermediate ASM instruction.
 // Intermediate means that this is not final MASM, TASM, FASM, GAS, ...
 // but it is an abstract, intermediate assembly language
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct AsmAstInstruction {
     pub(crate) id: i32,
 
@@ -95,8 +97,10 @@ pub struct AsmAstInstruction {
 
 impl AsmAstInstruction {
     pub fn new() -> AsmAstInstruction {
+        unsafe { INSTRUCTION_ID = INSTRUCTION_ID + 1 };
+
         AsmAstInstruction {
-            id: 0,
+            id: unsafe { INSTRUCTION_ID },
 
             instruction_type: AsmAstInstructionType::Ret,
             unary_operator: AsmAstUnaryOperator::Not,
@@ -109,6 +113,47 @@ impl AsmAstInstruction {
             assembly_type: AstAstAssemblyType::Unknown,
             offset: AsmAstOperand::new(),
         }
+    }
+}
+
+#[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
+#[allow(unreachable_patterns)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
+impl fmt::Debug for AsmAstInstruction {
+
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
+        let use_line_break = true;
+        if use_line_break {
+            write!(f, "SymbolTableEntry {{\n").expect("Write failed!");
+            write!(f, "  id: '{}'\n", &self.id).expect("Write failed!");
+            write!(f, "  instruction_type: '{:?}'\n", &self.instruction_type).expect("Write failed!");
+            write!(f, "  unary_operator: {:?}\n", &self.unary_operator).expect("Write failed!");
+            write!(f, "  binary_operator: {}\n", &self.binary_operator).expect("Write failed!");
+            write!(f, "  src: {:?}\n", &self.src).expect("Write failed!");
+            write!(f, "  src_2: {:?}\n", &self.src_2).expect("Write failed!");
+            write!(f, "  dst: {:?}\n", &self.dst).expect("Write failed!");
+            write!(f, "  identifier: {}\n", &self.identifier).expect("Write failed!");
+            write!(f, "  comment: {}\n", &self.comment).expect("Write failed!");
+            write!(f, "  assembly_type: {:?}\n", &self.assembly_type).expect("Write failed!");
+            write!(f, "  offset: {:?}\n", &self.offset).expect("Write failed!");
+            write!(f, "}}\n").expect("Write failed!");
+        } else {
+            write!(f, "SymbolTableEntry {{").expect("Write failed!");
+            write!(f, "  id: '{}'", &self.id).expect("Write failed!");
+            write!(f, "  instruction_type: '{:?}'", &self.instruction_type).expect("Write failed!");
+            write!(f, "  unary_operator: {:?}", &self.unary_operator).expect("Write failed!");
+            write!(f, "  binary_operator: {}", &self.binary_operator).expect("Write failed!");
+            write!(f, "  src: {:?}", &self.src).expect("Write failed!");
+            write!(f, "  src_2: {:?}", &self.src_2).expect("Write failed!");
+            write!(f, "  dst: {:?}", &self.dst).expect("Write failed!");
+            write!(f, "  identifier: {}", &self.identifier).expect("Write failed!");
+            write!(f, "  comment: {}", &self.comment).expect("Write failed!");
+            write!(f, "  assembly_type: {:?}", &self.assembly_type).expect("Write failed!");
+            write!(f, "  offset: {:?}", &self.offset).expect("Write failed!");
+            write!(f, "}}\n").expect("Write failed!");
+        }
+
+        Ok(())
     }
 }
 
@@ -338,46 +383,48 @@ impl AsmAstReg {
         let mut string_buffer = String::from("");
 
         match self {
-            AsmAstReg::AX => {
-                // panic!("Unhandled: {}", self);
-
+            AsmAstReg::AX | AsmAstReg::EAX | AsmAstReg::RAX => {
                 // append suffix for data type
                 match data_type {
-                    AstAstAssemblyType::Doubleword => {
-                        string_buffer.push_str("rax");
+                    AstAstAssemblyType::Word => {
+                        string_buffer.push_str("ax");
                     }
-                    _ => {
-                        panic!("");
-                    }
-                }
-            }
-            AsmAstReg::EAX => {
-                // panic!("Unhandled: {}", self);
-
-                // append suffix for data type
-                match data_type {
                     AstAstAssemblyType::Doubleword => {
                         string_buffer.push_str("eax");
                     }
+                    AstAstAssemblyType::Quadword => {
+                        string_buffer.push_str("rax");
+                    }
                     _ => {
-                        panic!("");
+                        panic!("Unhandled data_type: {:?}", data_type);
                     }
                 }
             }
-            AsmAstReg::RAX => {
-                // // panic!("Unhandled: {}", self);
-
-                // // append suffix for data type
-                // match data_type_size {
-                //     AstAstAssemblyType::Doubleword => {
-                //         string_buffer.push_str("rax");
-                //     }
-                //     _ => {
-                //         panic!("");
-                //     }
-                // }
-                string_buffer.push_str("rax");
-            }
+            // AsmAstReg::EAX => {
+            //     // panic!("Unhandled: {}", self);
+            //     // append suffix for data type
+            //     match data_type {
+            //         AstAstAssemblyType::Doubleword => {
+            //             string_buffer.push_str("eax");
+            //         }
+            //         _ => {
+            //             panic!("");
+            //         }
+            //     }
+            // }
+            // AsmAstReg::RAX => {
+            //     // // panic!("Unhandled: {}", self);
+            //     // // append suffix for data type
+            //     // match data_type_size {
+            //     //     AstAstAssemblyType::Doubleword => {
+            //     //         string_buffer.push_str("rax");
+            //     //     }
+            //     //     _ => {
+            //     //         panic!("");
+            //     //     }
+            //     // }
+            //     string_buffer.push_str("rax");
+            // }
 
             AsmAstReg::BX => {
                 match data_type {
@@ -420,7 +467,22 @@ impl AsmAstReg {
             }
 
             AsmAstReg::DI => {
-                string_buffer.push_str("di");
+                // string_buffer.push_str("di");
+                // append suffix for data type
+                match data_type {
+                    AstAstAssemblyType::Word => {
+                        string_buffer.push_str("di");
+                    }
+                    AstAstAssemblyType::Doubleword => {
+                        string_buffer.push_str("edi");
+                    }
+                    AstAstAssemblyType::Quadword => {
+                        string_buffer.push_str("rdi");
+                    }
+                    _ => {
+                        panic!("");
+                    }
+                }
             }
             AsmAstReg::EDI => {
                 string_buffer.push_str("edi");
@@ -430,7 +492,22 @@ impl AsmAstReg {
             }
 
             AsmAstReg::SI => {
-                string_buffer.push_str("rsi");
+                // string_buffer.push_str("rsi");
+                // append suffix for data type
+                match data_type {
+                    AstAstAssemblyType::Word => {
+                        string_buffer.push_str("si");
+                    }
+                    AstAstAssemblyType::Doubleword => {
+                        string_buffer.push_str("esi");
+                    }
+                    AstAstAssemblyType::Quadword => {
+                        string_buffer.push_str("rsi");
+                    }
+                    _ => {
+                        panic!("");
+                    }
+                }
             }
 
             AsmAstReg::R10 => {
@@ -749,6 +826,13 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction, string
                 asm_ast_instruction.dst).as_str());
         }
 
+        AsmAstInstructionType::Mul => {
+            string_buffer.push_str(format!("Mul(assembly_type:{:?}, src_2:{:?}, dst:{:?})",
+                asm_ast_instruction.assembly_type,
+                asm_ast_instruction.src_2,
+                asm_ast_instruction.dst).as_str());
+        }
+
         AsmAstInstructionType::Lea => {
             string_buffer.push_str(format!("Lea(src:{:?}, dst:{:?})\n",
                 asm_ast_instruction.src,
@@ -823,7 +907,7 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction, string
         }
 
         _ => {
-            panic!("{}", format!("Unhandled ASM AST Type: '{:?}'!\n", asm_ast_instruction.instruction_type).as_str());
+            panic!("{}", format!("Unhandled AsmAstInstructionType: '{:?}'!\n", asm_ast_instruction.instruction_type).as_str());
         }
     }
 }

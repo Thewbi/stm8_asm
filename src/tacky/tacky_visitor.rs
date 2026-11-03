@@ -789,33 +789,6 @@ impl TackyVisitor {
 
                             let mut br_cnt = 0;
                             add_assignment_instruction.src = self.visit(rhs_sub_id, node_map, &dst_name, &mut br_cnt);
-
-                            // let rhs_sub = node_map.get(&rhs_sub_id).unwrap();
-
-                            // // DEBUG
-                            // if self.debug {
-                            //     println!("RHS: {:?}", rhs_sub);
-                            // }
-
-                            // // determine if the copy instruction is output or not
-                            // match rhs_sub.node_type {
-
-                            //     AstNodeType::Binary => {
-                            //         // DEBUG
-                            //         // println!("binary");
-                            //         //output_copy_instruction = false;
-                            //     }
-
-                            //     AstNodeType::Expression => {
-                            //         // DEBUG
-                            //         // println!("binary");
-                            //         //output_copy_instruction = false;
-                            //     }
-
-                            //     _ => {
-                            //         println!("NodeType: {:?}", rhs_sub.node_type);
-                            //     }
-                            // }
                         }
 
                         // append instruction to latest top-level element of the program
@@ -1155,8 +1128,8 @@ impl TackyVisitor {
 
                 // operator
                 if let Some(operator_id) = ast_node.operator {
-                    let operator = node_map.get(&operator_id).unwrap();
-                    match operator.operator_type {
+                    let operator_ast_node = node_map.get(&operator_id).unwrap();
+                    match operator_ast_node.operator_type {
 
                         AstNodeOperatorType::Addition => {
                             binary_instruction.binary_operator = BinaryOperator::Add;
@@ -1235,7 +1208,7 @@ impl TackyVisitor {
                         // }
 
                         _ => {
-                            panic!("{}", format!("Unhandled OperatorType {:?}!\n", operator.operator_type).as_str());
+                            panic!("{}", format!("Unhandled OperatorType {:?}!\n", operator_ast_node.operator_type).as_str());
                         }
                     }
                 }
@@ -2291,7 +2264,6 @@ impl TackyVisitor {
         // because the index might be created from a more complex expression which needs visiting itself!
 
         match lhs_rhs_node.node_type {
-
             AstNodeType::ConstInt |
             AstNodeType::ConstLong |
             AstNodeType::ConstUInt |
@@ -2302,15 +2274,12 @@ impl TackyVisitor {
                 subscript_instruction.offset = temp_val.clone();
                 subscript_instruction.index = ValueElement::Constant(string_val.clone());
             }
-
             AstNodeType::Identifier => {
                 subscript_instruction.index = ValueElement::Variable(lhs_rhs_node.string_val.clone());
             }
-
             _ => {
                 panic!("");
             }
-
         }
 
         let symbol_table_entry: SymbolTableEntry = self.symbol_table.borrow_mut().get(&lhs_lhs_node.string_val).unwrap();
@@ -2324,3 +2293,31 @@ impl TackyVisitor {
         subscript_instruction
     }
 }
+
+
+// let rhs_sub = node_map.get(&rhs_sub_id).unwrap();
+
+                            // // DEBUG
+                            // if self.debug {
+                            //     println!("RHS: {:?}", rhs_sub);
+                            // }
+
+                            // // determine if the copy instruction is output or not
+                            // match rhs_sub.node_type {
+
+                            //     AstNodeType::Binary => {
+                            //         // DEBUG
+                            //         // println!("binary");
+                            //         //output_copy_instruction = false;
+                            //     }
+
+                            //     AstNodeType::Expression => {
+                            //         // DEBUG
+                            //         // println!("binary");
+                            //         //output_copy_instruction = false;
+                            //     }
+
+                            //     _ => {
+                            //         println!("NodeType: {:?}", rhs_sub.node_type);
+                            //     }
+                            // }

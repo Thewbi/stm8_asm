@@ -6,5 +6,6 @@ int main() {
     int result;
     result = a + 3 * (y - 10);
 
-    return 0;
+    // 4 + 3 * (20 - 10) = 4 + 3 * 10 = 34
+    return result;
 }

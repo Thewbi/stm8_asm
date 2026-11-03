@@ -100,10 +100,18 @@ impl AsmAstFixupVisitor {
             }
 
             AsmAstOperandType::Pseudo(pseudo_name) => {
-                // DEBUG
-                if self.debug {
-                    println!("Pseudo: Pseudo-Name: '{}'", pseudo_name);
+
+                if pseudo_name == "x" {
+                    panic!();
                 }
+                if pseudo_name == "y" {
+                    panic!();
+                }
+
+                // DEBUG
+                // if self.debug {
+                    println!("[ASM Fixup Visitor::replace_pseudo_operand] Pseudo: Pseudo-Name: '{}'", pseudo_name);
+                // }
 
                 assert!(pseudo_name.len() != 0, "[ERR] [asm_ast_fixup_visitor] PseudoVariable has no name! Need a name to replace!");
 
@@ -158,6 +166,11 @@ impl AsmAstFixupVisitor {
                         }
                     }
                 }
+
+                // DEBUG
+                // if self.debug {
+                    println!("[ASM Fixup Visitor::replace_pseudo_operand] Pseudo: Pseudo-Name: '{}' -> stack_offset_value: '{}'", pseudo_name, stack_offset_value);
+                // }
 
                 return AsmAstOperand { operand_type: AsmAstOperandType::Memory(AsmAstReg::RBP, stack_offset_value) };
             }
@@ -227,7 +240,6 @@ impl AsmAstFixupVisitor {
                             panic!("Cannot find symbol '{}' in backend_symbol_table", &pseudo_name);
                         }
                     }
-
                 }
             }
 
@@ -253,7 +265,7 @@ impl AsmAstFixupVisitor {
             }
 
             _ => {
-                panic!("{}", format!("Unhandled operand_type {:?}!\n", asm_ast_operand.operand_type ).as_str());
+                panic!("{}", format!("Unhandled operand_type {:?}!\n", asm_ast_operand.operand_type).as_str());
 
                 return asm_ast_operand.clone();
             }
@@ -276,6 +288,13 @@ impl AsmAstFixupVisitor {
         }
 
         for i in 0..asm_ast_program.functions.len() {
+
+            // DEBUG
+            if self.debug {
+                let instr = &asm_ast_program.functions[i];
+                println!("instr: {:?}", instr);
+            }
+
             self.visit_asm_ast_function(&mut asm_ast_program.functions[i]);
         }
     }
@@ -284,7 +303,6 @@ impl AsmAstFixupVisitor {
     pub fn visit_asm_ast_function(&mut self,
         asm_ast_function: &mut AsmAstFunction)
     {
-
         // DEBUG
         if self.debug {
             println!("[FixupAsmAstVisitor::visit_asm_ast_function()]");
@@ -312,6 +330,13 @@ impl AsmAstFixupVisitor {
         // replaced.
         let mut new_body = Vec::<Box<AsmAstInstruction>>::new();
         for i in 0..asm_ast_function.body.len() {
+
+            // DEBUG
+            // if self.debug {
+                let instr = &asm_ast_function.body[i].as_ref().clone();
+                println!("\n\ninstr: {:?}", instr);
+            // }
+
             let instruction = asm_ast_function.body[i].as_ref().clone();
             self.visit_asm_ast_instruction(&mut new_body, instruction);
         }
@@ -354,10 +379,11 @@ impl AsmAstFixupVisitor {
         new_body: &mut Vec::<Box<AsmAstInstruction>>,
         mut asm_ast_instruction: AsmAstInstruction)
     {
-
+        // DEBUG
         if asm_ast_instruction.id == 122 {
             println!("tset");
         }
+
         match asm_ast_instruction.instruction_type {
 
             AsmAstInstructionType::Ret => {
@@ -409,10 +435,9 @@ impl AsmAstFixupVisitor {
                         let mut mov_1 = asm_ast_instruction.clone();
                         mov_1.instruction_type = AsmAstInstructionType::Mov;
                         mov_1.comment.push_str(" ; - clone 1");
-
-                        // TODO:
-                        // mov_1.assembly_type = AstAstAssemblyType::Quadword;
                         mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
+
+                        println!("{:?}", &mov_1);
                         new_body.push(Box::new(mov_1));
 
                         asm_ast_instruction.src = AsmAstOperand {
@@ -455,7 +480,7 @@ impl AsmAstFixupVisitor {
 
                 match asm_ast_instruction.binary_operator {
 
-                    AsmAstBinaryOperator::Add => {
+                    AsmAstBinaryOperator::Add | AsmAstBinaryOperator::Subtract => {
 
                         if self.replace_pseudo {
 
@@ -500,8 +525,12 @@ impl AsmAstFixupVisitor {
                         }
                     }
 
-                    _ => {
+                    AsmAstBinaryOperator::Multiply => {
+                        panic!();
+                    }
 
+                    _ => {
+                        panic!("Unhandled: {}", asm_ast_instruction.binary_operator);
                     }
                 }
             }
@@ -543,7 +572,8 @@ impl AsmAstFixupVisitor {
                     println!("Mul {:?}", asm_ast_instruction.dst);
                 }
 
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                //asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
