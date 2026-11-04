@@ -2961,3 +2961,31 @@ match asm_ast_instruction.binary_operator {
                 // }
 
                 // print!("    mov ");
+
+
+
+
+
+
+// AstNodeType::Arrow => {
+            //     // DEBUG
+            //     //if self.debug {
+            //         println!("[Arrow] AstNodeId: {}, AstNodeType: {:?}", ast_node.id, ast_node.node_type);
+            //     //}
+
+            //     self.is_in_dot_or_arrow = true;
+
+            //     // LHS
+            //     if let Some(left_node_id) = ast_node.lhs {
+            //         let indentifier_resolution_node = self.visit(left_node_id, node_map);
+            //     }
+
+            //     // DO NOT VISIT RHS after DOT or ARROW because the names of fields
+            //     // of structs are not replaced
+            //     // RHS
+            //     if let Some(right_node_id) = ast_node.rhs {
+            //         self.is_in_dot_or_arrow = true;
+            //         self.visit(right_node_id, node_map);
+            //         self.is_in_dot_or_arrow = false;
+            //     }
+            // }

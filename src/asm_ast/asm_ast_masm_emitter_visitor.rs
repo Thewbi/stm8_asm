@@ -867,9 +867,13 @@ impl AsmAstMasmEmitterVisitor {
 
             AsmAstInstructionType::Cmp => {
                 self.string_buffer.push_str("    cmp ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.src_2, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                self.emit_asm_ast_operand(&asm_ast_instruction.src_2,
+                    &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                    &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(", ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst,
+                    &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                    &asm_ast_instruction.assembly_type);
 
                 // comment
                 // print!("{}", asm_ast_instruction.comment);

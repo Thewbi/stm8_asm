@@ -124,7 +124,7 @@ impl fmt::Debug for AsmAstInstruction {
 
         let use_line_break = true;
         if use_line_break {
-            write!(f, "SymbolTableEntry {{\n").expect("Write failed!");
+            write!(f, "AsmAstInstruction {{\n").expect("Write failed!");
             write!(f, "  id: '{}'\n", &self.id).expect("Write failed!");
             write!(f, "  instruction_type: '{:?}'\n", &self.instruction_type).expect("Write failed!");
             write!(f, "  unary_operator: {:?}\n", &self.unary_operator).expect("Write failed!");
@@ -138,7 +138,7 @@ impl fmt::Debug for AsmAstInstruction {
             write!(f, "  offset: {:?}\n", &self.offset).expect("Write failed!");
             write!(f, "}}\n").expect("Write failed!");
         } else {
-            write!(f, "SymbolTableEntry {{").expect("Write failed!");
+            write!(f, "AsmAstInstruction {{").expect("Write failed!");
             write!(f, "  id: '{}'", &self.id).expect("Write failed!");
             write!(f, "  instruction_type: '{:?}'", &self.instruction_type).expect("Write failed!");
             write!(f, "  unary_operator: {:?}", &self.unary_operator).expect("Write failed!");

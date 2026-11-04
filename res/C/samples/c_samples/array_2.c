@@ -4,5 +4,8 @@ int main() {
     int i;
     i = arr[2];
 
-    return i;
+    if (i == 3) {
+        return 0;
+    }
+    return 1;
 }

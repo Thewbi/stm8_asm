@@ -2228,7 +2228,8 @@ impl TackyToIntermediateAsmConversionVisitor {
     }
 
     pub fn visit_tacky_binary_division(&mut self, asm_ast_function: &mut AsmAstFunction,
-        tacky_node_binary: &Instruction, instruction_type_param: &AsmAstInstructionType) {
+        tacky_node_binary: &Instruction,
+        instruction_type_param: &AsmAstInstructionType) {
 
         // println!("[AsmAstConversionVisitor::visit_tacky_binary_division()]");
 
@@ -2329,7 +2330,9 @@ impl TackyToIntermediateAsmConversionVisitor {
         asm_ast_function.body.push(Box::new(mov));
     }
 
-    pub fn visit_tacky_binary_remainder(&mut self, asm_ast_function: &mut AsmAstFunction, tacky_node_binary: &Instruction) {
+    pub fn visit_tacky_binary_remainder(&mut self, asm_ast_function:
+        &mut AsmAstFunction,
+        tacky_node_binary: &Instruction) {
         // println!("[AsmAstConversionVisitor::visit_tacky_binary_remainder()]");
 
         todo!();
@@ -2627,7 +2630,7 @@ impl TackyToIntermediateAsmConversionVisitor {
                         mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
                     }
                     ValueElement::Variable(variable_name) => {
-                        println!("variable_name: {}", variable_name);
+                        // println!("variable_name: {}", variable_name);
                         mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
                     }
                     _ => {
@@ -2725,13 +2728,9 @@ impl TackyToIntermediateAsmConversionVisitor {
             }
         }
 
-
-
-
-
-
-        println!("binary: {:?}", binary);
-
+        if self.debug {
+            println!("binary: {:?}", binary);
+        }
 
         assert_ne!(binary.assembly_type, AstAstAssemblyType::Unknown);
 

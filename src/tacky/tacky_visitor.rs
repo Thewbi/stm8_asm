@@ -134,6 +134,90 @@ impl TackyVisitor {
         self.program.top_level[last].body.push(Box::new(dest_var_declaration));
     }
 
+    fn do_while(&mut self, ast_node: &AstNode, node_map: &mut Box<HashMap<usize, AstNode>>) {
+        // int main() {
+        //     int count = 5;
+        //     do {
+        //         count = count - 1;
+        //     } while (count <= 0);
+        //     return 0;
+        // }
+
+        // Label<continue_label>
+        //
+        //     -- body
+        //     <instructions for body>
+        //
+        //     -- condition
+        //     <instructions for condition>
+        //     v = <result of condition>
+        //     JumpIfZero(v, end_label) -- if the condition is false, jump to the end_label
+        //
+        //     Jump(continue_label) -- next iteration
+        //
+        // Label<end_label>
+
+        let continue_label_name = self.continue_label(&ast_node, "while_");
+
+        // continue label
+        let mut label_instruction: Instruction = Instruction::new();
+        label_instruction.instruction_type = InstructionType::Label;
+        label_instruction.label = continue_label_name.clone();
+        // append instruction to latest top-level element of the program
+        let last = self.program.top_level.len() - 1;
+        self.program.top_level[last].body.push(Box::new(label_instruction));
+
+        //
+        // Body Statement - block_items
+        //
+
+        for i in 0..ast_node.block_items.len() {
+            let block_item_id = ast_node.block_items[ast_node.block_items.len()-1-i];
+            let block_item = node_map.get(&block_item_id).unwrap();
+            let mut br_cnt = 0;
+            self.visit(block_item_id, node_map,  &String::from(""), &mut br_cnt);
+        }
+
+        // LHS - expression
+        if let Some(lhs_id) = ast_node.expression {
+
+            let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+            self.declare_temporary_variable(&temp_var_name, DataType::DataTypeInt);
+
+            let mut br_cnt = 0;
+            let lhs_value_element = self.visit(lhs_id, node_map, &temp_var_name, &mut br_cnt);
+
+            // println!("lhs_value_element: {:?}", lhs_value_element);
+
+            // JumpIfZero (jump to end label if the condition is false)
+            let mut jump_if_zero_instruction: Instruction = Instruction::new();
+            jump_if_zero_instruction.instruction_type = InstructionType::JumpIfZero;
+            jump_if_zero_instruction.src = lhs_value_element;
+
+            jump_if_zero_instruction.label = self.final_end_label(&ast_node, "while_");
+
+            // append instruction to latest top-level element of the program
+            let last = self.program.top_level.len() - 1;
+            self.program.top_level[last].body.push(Box::new(jump_if_zero_instruction));
+        }
+
+        // jump to continue label
+        let mut jump_instruction: Instruction = Instruction::new();
+        jump_instruction.instruction_type = InstructionType::Jump;
+        jump_instruction.label = continue_label_name.clone();
+        // append instruction to latest top-level element of the program
+        let last = self.program.top_level.len() - 1;
+        self.program.top_level[last].body.push(Box::new(jump_instruction));
+
+        // end label
+        let mut label_instruction: Instruction = Instruction::new();
+        label_instruction.instruction_type = InstructionType::Label;
+        label_instruction.label = self.final_end_label(&ast_node, "while_");
+        // append instruction to latest top-level element of the program
+        let last = self.program.top_level.len() - 1;
+        self.program.top_level[last].body.push(Box::new(label_instruction));
+    }
+
     /// Will enrich the input copy_instruction parameter.
     /// Will insert values into the offset and data_type members.
     ///
@@ -426,10 +510,13 @@ impl TackyVisitor {
 
             AstNodeType::Block => {
                 // println!("id: {}", ast_node.node_id);
+                let mut value_element: ValueElement = ValueElement::None;
                 for i in 0..ast_node.block_items.len() {
                     let mut br_cnt = 0;
-                    self.visit(ast_node.block_items[ast_node.block_items.len()-1-i], node_map, &String::from(""), &mut br_cnt);
+                    let bli = ast_node.block_items[ast_node.block_items.len()-1-i];
+                    value_element = self.visit(bli, node_map, &String::from(""), &mut br_cnt);
                 }
+                return value_element;
             }
 
             AstNodeType::BlockItem => {
@@ -438,20 +525,20 @@ impl TackyVisitor {
                     let compound = node_map.get(&compound_id).unwrap();
                     if let Some(left_node_id) = compound.lhs {
                         let mut br_cnt = 0;
-                        self.visit(left_node_id, node_map, &String::from(""), &mut br_cnt);
+                        return self.visit(left_node_id, node_map, &String::from(""), &mut br_cnt);
                     }
                 }
             }
 
             AstNodeType::Statement => {
                 if let Some(sub_id) = ast_node.lhs {
-                    self.visit(sub_id, node_map, &dst_name, branch_counter);
+                    return self.visit(sub_id, node_map, &dst_name, branch_counter);
                 }
             }
 
             AstNodeType::Compound => {
                 if let Some(sub_id) = ast_node.lhs {
-                    self.visit(sub_id, node_map, &dst_name, branch_counter);
+                    return self.visit(sub_id, node_map, &dst_name, branch_counter);
                 }
             }
 
@@ -1338,12 +1425,12 @@ impl TackyVisitor {
                 //
                 //     -- condition
                 //     <instructions for condition>
-                //     v = <result of condition>       // There is no TACKY definition for an assignment! How is this assignment defined?
-                //     JumpIfNotZero(v, break_label)
+                //     v = <result of condition> -- There is no TACKY definition for an assignment! How is this assignment defined?
+                //     JumpIfZero(v, break_label) -- if the condition is false, jump to the break_label
                 //
                 //     -- body
                 //     <instructions for body>
-                //     Jump(continue_label)
+                //     Jump(continue_label) -- next iteration
                 //
                 // Label<break_label>
 
@@ -1370,7 +1457,7 @@ impl TackyVisitor {
                     let mut br_cnt = 0;
                     let lhs_value_element = self.visit(lhs_id, node_map, &temp_var_name, &mut br_cnt);
 
-                    // JumpIfZero
+                    // JumpIfZero (jump to end label if the condition is false)
                     let mut jump_if_zero_instruction: Instruction = Instruction::new();
                     jump_if_zero_instruction.instruction_type = InstructionType::JumpIfZero;
                     jump_if_zero_instruction.src = lhs_value_element;
@@ -1406,6 +1493,10 @@ impl TackyVisitor {
                 // append instruction to latest top-level element of the program
                 let last = self.program.top_level.len() - 1;
                 self.program.top_level[last].body.push(Box::new(label_instruction));
+            }
+
+            AstNodeType::DoWhile => {
+                self.do_while(&ast_node, node_map);
             }
 
             AstNodeType::For => {
@@ -1904,14 +1995,10 @@ impl TackyVisitor {
                                 }
                             }
                         }
-
                         _ => {
                             panic!("test");
                         }
-
                     }
-
-                    // Copy
                 }
             }
 
@@ -1959,7 +2046,7 @@ impl TackyVisitor {
 
                     ValueElement::Variable(ref variable_name) => {
 
-                        println!("variable_name: '{}'", variable_name);
+                        // println!("variable_name: '{}'", variable_name);
 
                         // determine the type of the variable which is cast
                         let symbol_table_entry: SymbolTableEntry =

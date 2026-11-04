@@ -637,7 +637,7 @@ impl IdentifierResolutionVisitor {
 
                     let parameter_id: usize = ast_node.parameters[i];
 
-                    println!("parameter_id: {}", parameter_id);
+                    // println!("parameter_id: {}", parameter_id);
 
                     let identifier_resolution_node = self.visit(parameter_id, node_map);
 
@@ -1028,6 +1028,18 @@ impl IdentifierResolutionVisitor {
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
+
+                // Expression - expression_ast_node, condition, e.g. a < 10
+                if let Some(expression_node_id) = ast_node.expression {
+                    self.visit(expression_node_id, node_map);
+                }
+
+                // BLOCK_ITEMS - instructions and declarations
+                for i in 0..ast_node.block_items.len() {
+                    let idx = ast_node.block_items.len()-1-i;
+                    let block_item_id = ast_node.block_items[idx];
+                    self.visit(block_item_id, node_map);
+                }
             }
 
             AstNodeType::While | AstNodeType::For => {
@@ -1260,29 +1272,6 @@ impl IdentifierResolutionVisitor {
                     self.is_in_dot_or_arrow = false;
                 }
             }
-
-            // AstNodeType::Arrow => {
-            //     // DEBUG
-            //     //if self.debug {
-            //         println!("[Arrow] AstNodeId: {}, AstNodeType: {:?}", ast_node.id, ast_node.node_type);
-            //     //}
-
-            //     self.is_in_dot_or_arrow = true;
-
-            //     // LHS
-            //     if let Some(left_node_id) = ast_node.lhs {
-            //         let indentifier_resolution_node = self.visit(left_node_id, node_map);
-            //     }
-
-            //     // DO NOT VISIT RHS after DOT or ARROW because the names of fields
-            //     // of structs are not replaced
-            //     // RHS
-            //     if let Some(right_node_id) = ast_node.rhs {
-            //         self.is_in_dot_or_arrow = true;
-            //         self.visit(right_node_id, node_map);
-            //         self.is_in_dot_or_arrow = false;
-            //     }
-            // }
 
             AstNodeType::AssignmentOperator => {
                 // DEBUG

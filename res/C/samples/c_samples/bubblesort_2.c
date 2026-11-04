@@ -7,7 +7,7 @@
     // int swapped;
 
     // for (i = 0; i < n - 1; i++) {
-    //     swapped = 0; // Optimierung: Prüfen, ob ein Tausch stattgefunden hat
+    //     swapped = 0; // Optimierung: Pruefen, ob ein Tausch stattgefunden hat
 
     //     for (j = 0; j < n - i - 1; j++) {
     //         if (arr[j] > arr[j + 1]) {

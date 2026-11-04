@@ -11,5 +11,8 @@ int main() {
 
     temp = temp + temp;
 
+    if (temp == 34) {
+        return 0;
+    }
     return temp;
 }

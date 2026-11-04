@@ -441,7 +441,8 @@ impl AsmAstFixupVisitor {
                         mov_1.comment.push_str(" ; - clone 1");
                         mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
 
-                        println!("{:?}", &mov_1);
+                        // println!("{:?}", &mov_1);
+
                         new_body.push(Box::new(mov_1));
 
                         asm_ast_instruction.src = AsmAstOperand {
@@ -595,38 +596,42 @@ impl AsmAstFixupVisitor {
                 asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
 
                 // does this instruction require a fix?
-                let mut fix: bool = false;
+                // let mut fix: bool = false;
 
-                // x86 mov cannot move from memory (stack or other memory) to memory directly!
+                // x86 cmp cannot compare memory (stack or other memory) to memory directly!
                 if matches!(asm_ast_instruction.src_2.operand_type, AsmAstOperandType::Memory(_, _)) {
                     if matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::Memory(_, _)) {
-                        fix = true;
+
+                        // insert a mov command to mitigate the situation
+
+                        // clone the compare instruction into a move instruction
+                        // The move, moves src_2 parameter into R10
+                        let mut mov_1 = asm_ast_instruction.clone();
+                        mov_1.comment.push_str(" - move for compare");
+                        mov_1.instruction_type = AsmAstInstructionType::Mov;
+                        mov_1.src = mov_1.src_2.clone();
+                        mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
+                        new_body.push(Box::new(mov_1));
+
+                        // in the original cmp, parameter 2 becomes the register R10
+                        asm_ast_instruction.src_2 = AsmAstOperand {
+                            operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
+                        new_body.push(Box::new(asm_ast_instruction));
+                    } else {
+                        new_body.push(Box::new(asm_ast_instruction));
                     }
-                }
+                } else if matches!(asm_ast_instruction.src_2.operand_type, AsmAstOperandType::Imm(_)) {
+                    if matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::Memory(_, _)) {
+                        let temp = asm_ast_instruction.src_2;
+                        asm_ast_instruction.src_2 = asm_ast_instruction.dst;
+                        asm_ast_instruction.dst = temp;
 
-                // if the operands won't assemble/compile, change them!
-                if fix {
-
-                    let mut mov_1 = asm_ast_instruction.clone();
-                    mov_1.comment.push_str(" - clone 3");
-
-                    // println!("{:?}", mov_1);
-
-                    mov_1.instruction_type = AsmAstInstructionType::Mov;
-                    mov_1.src = mov_1.src_2.clone();
-                    mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
-
-                    // println!("{:?}", mov_1);
-
-                    new_body.push(Box::new(mov_1));
-
-                    asm_ast_instruction.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
-                    new_body.push(Box::new(asm_ast_instruction));
-
+                        new_body.push(Box::new(asm_ast_instruction));
+                    } else {
+                        new_body.push(Box::new(asm_ast_instruction));
+                    }
                 } else {
-
                     new_body.push(Box::new(asm_ast_instruction));
-
                 }
             }
 

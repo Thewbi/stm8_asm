@@ -8,3 +8,6 @@ edition = "2024"
 #faster-pest = "0.1.4"
 #finite-automata = "0.1.1"
 #segment-map = "0.1.1"
+
+#[build]
+#rustflags = ["-C", "link-arg=-zstack-size=134217728"]

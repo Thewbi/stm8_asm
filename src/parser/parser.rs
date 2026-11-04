@@ -8324,18 +8324,20 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let body_ast_node = self.ast_stack.pop().unwrap();
-                                                let expression_ast_node = self.ast_stack.pop().unwrap();
+                                                let expression_ast_node_id = self.ast_stack.pop().unwrap();
+                                                // println!("expression_ast_node_id: {:?}", expression_ast_node_id);
 
-                                                // for
+                                                let body_ast_node_id = self.ast_stack.pop().unwrap();
+                                                // println!("body_ast_node_id: {:?}", body_ast_node_id);
+
+                                                // DoWhile
                                                 let mut for_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 for_ast_node.node_type = AstNodeType::DoWhile;
-                                                for_ast_node.expression = Some(expression_ast_node); // condition, e.g. a < 10
+                                                for_ast_node.expression = Some(expression_ast_node_id); // condition, e.g. a < 10
+                                                for_ast_node.block_items.push(body_ast_node_id);
                                                 for_ast_node.string_val = "DO_WHILE: insert label here!".to_string();
                                                 for_ast_node.file = file.clone();
                                                 for_ast_node.line = line;
-
-                                                for_ast_node.block_items.push(body_ast_node);
 
                                                 // statement
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));

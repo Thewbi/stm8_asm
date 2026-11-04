@@ -1,34 +1,109 @@
-cls
 @ECHO OFF
 
-set input_file=res/C/samples/c_samples/array_0.c
-CALL "target/debug/rust_pest_asm.exe" -i "%input_file%"
+REM https://stackoverflow.com/questions/3942265/errorlevel-in-a-for-loop-windows-batch
+setlocal EnableDelayedExpansion
 
-REM echo test 1
-REM call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
-REM echo test 2
-ml64.exe /c main.asm >NUL 2>&1
-REM echo test 3
-link.exe /SUBSYSTEM:console /LARGEADDRESSAWARE:NO /ENTRY:main main.obj >NUL 2>&1
-REM echo test 4
-REM echo calling main.exe
-REM for /f %%a in ('main.exe') do set "dow=%%a"
-REM %dow%
-REM echo blibb: %dow%
-CALL main.exe
-SET bbb=%ERRORLEVEL%
-REM bbb = %ERRORLEVEL%
-REM echo %bbb%
-REM echo Return Value: %bbb%
-REM echo test 5
-IF "%bbb%" == "0" ( echo [SUCCESS] %input_file% ) ELSE ( echo [FAILURE] %input_file% )
+call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
 
-set input_file=res/C/samples/c_samples/array_1.c
-CALL "target/debug/rust_pest_asm.exe" -i "%input_file%"
-ml64.exe /c main.asm >NUL 2>&1
-link.exe /SUBSYSTEM:console /LARGEADDRESSAWARE:NO /ENTRY:main main.obj >NUL 2>&1
-CALL main.exe
-SET bbb=%ERRORLEVEL%
-IF "%bbb%" == "0" ( echo [SUCCESS] %input_file% ) ELSE ( echo [FAILURE] %input_file% )
-
+cls
+for %%L in (
+    res/C/samples/c_samples/array_1.c
+    res/C/samples/c_samples/array_2.c
+    res/C/samples/c_samples/array_3.c
+    res/C/samples/c_samples/array_4.c
+    res/C/samples/c_samples/array_5.c
+    res/C/samples/c_samples/array_6.c
+    res/C/samples/c_samples/array_declaration_with_size.c
+    res\C\samples\c_samples\array_declaration_without_size.c
+    res\C\samples\c_samples\binary_0.c
+    res\C\samples\c_samples\bubblesort_1.c
+    res\C\samples\c_samples\bubblesort_2.c
+    res\C\samples\c_samples\bubblesort_3.c
+) do (
+    del main.asm main.obj main.exe
+    call "target/debug/rust_pest_asm.exe" -i %%L
+    call ml64.exe /c main.asm >NUL 2>&1
+    call link.exe /SUBSYSTEM:console /LARGEADDRESSAWARE:NO /ENTRY:main main.obj >NUL 2>&1
+    call main.exe
+    IF "!errorlevel!" == "0" ( echo [SUCCESS] %%L ) ELSE ( echo [FAILURE] %%L )
+)
+del main.asm main.obj main.exe
 echo [DONE]
+
+
+
+REM
+REM
+REM
+REM    res\C\samples\c_samples\bubblesort_broken.c
+REM    res\C\samples\c_samples\do_loop_0.c
+REM    res\C\samples\c_samples\do_loop_1.c
+REM    res\C\samples\c_samples\expression_0.c
+REM    res\C\samples\c_samples\expression_1.c
+REM    res\C\samples\c_samples\expression_2.c
+REM    res\C\samples\c_samples\for_loop_0.c
+REM    res\C\samples\c_samples\for_loop_1.c
+REM    res\C\samples\c_samples\for_loop.asm
+REM    res\C\samples\c_samples\for_loop.c
+REM    res\C\samples\c_samples\function_call_0.c
+REM    res\C\samples\c_samples\function_call_1.c
+REM    res\C\samples\c_samples\hex_array_0.c
+REM    res\C\samples\c_samples\hex_numeric_0.c
+REM    res\C\samples\c_samples\hex_variable_0.c
+REM    res\C\samples\c_samples\if_0.c
+REM    res\C\samples\c_samples\if_1.c
+REM    res\C\samples\c_samples\if_else_if_0.c
+REM    res\C\samples\c_samples\linked_list_0.c
+REM    res\C\samples\c_samples\linked_list_1.c
+REM    res\C\samples\c_samples\linked_list_without_malloc.c
+REM    res\C\samples\c_samples\main_0.c
+REM    res\C\samples\c_samples\multiplication_0.c
+REM    res\C\samples\c_samples\parameter_pointer.c
+REM    res\C\samples\c_samples\printf_0.c
+REM    res\C\samples\c_samples\printf_1.c
+REM    res\C\samples\c_samples\printf_2.c
+REM    res\C\samples\c_samples\quicksort_2.c
+REM    res\C\samples\c_samples\quicksort.c
+REM    res\C\samples\c_samples\README.md
+REM    res\C\samples\c_samples\return_0.c
+REM    res\C\samples\c_samples\return_1.c
+REM    res\C\samples\c_samples\scratchpad.c
+REM    res\C\samples\c_samples\struct_0.c
+REM    res\C\samples\c_samples\struct_1.c
+REM    res\C\samples\c_samples\struct_2.c
+REM    res\C\samples\c_samples\struct_3.c
+REM    res\C\samples\c_samples\struct_4.c
+REM    res\C\samples\c_samples\struct_6.c
+REM    res\C\samples\c_samples\struct_7.c
+REM    res\C\samples\c_samples\struct_8.c
+REM    res\C\samples\c_samples\struct_9.c
+REM    res\C\samples\c_samples\struct_10.c
+REM    res\C\samples\c_samples\struct_11.c
+REM    res\C\samples\c_samples\struct_12.c
+REM    res\C\samples\c_samples\struct_field_access_arrow_0.c
+REM    res\C\samples\c_samples\struct_field_access_arrow_1.c
+REM    res\C\samples\c_samples\struct_field_access_dot_0.c
+REM    res\C\samples\c_samples\struct_field_access_dot_1.c
+REM    res\C\samples\c_samples\struct_field_access_dot_2.c
+REM    res\C\samples\c_samples\struct_field_assignment_dot_0.c
+REM    res\C\samples\c_samples\struct_field_assignment_dot_1.c
+REM    res\C\samples\c_samples\struct_field_assignment_ptr_0.c
+REM    res\C\samples\c_samples\struct_field_assignment_ptr_1.c
+REM    res\C\samples\c_samples\struct_field_getAddress_0.c
+REM    res\C\samples\c_samples\struct_initializer_0.c
+REM    res\C\samples\c_samples\struct_initializer_1.c
+REM    res\C\samples\c_samples\struct_pointer_0.c
+REM    res\C\samples\c_samples\struct_recursive_0.c
+REM    res\C\samples\c_samples\sub_0.c
+REM    res\C\samples\c_samples\subscript_0.c
+REM    res\C\samples\c_samples\subscript_1.c
+REM    res\C\samples\c_samples\swap.c
+REM    res\C\samples\c_samples\switch_0.c
+REM    res\C\samples\c_samples\test_0.c
+REM    res\C\samples\c_samples\test_1.c
+REM    res\C\samples\c_samples\typedef_0.c
+REM    res\C\samples\c_samples\variadic_parameter_0.c
+REM    res\C\samples\c_samples\while_loop_0.c
+REM    res\C\samples\c_samples\while_loop_1.c
+REM    res\C\samples\c_samples\while_loop_2.c
+REM    res\C\samples\c_samples\while_loop_3.c

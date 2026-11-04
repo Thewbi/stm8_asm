@@ -534,7 +534,7 @@ impl fmt::Debug for AstNode {
             }
 
             AstNodeType::Pointer => {
-                println!("Pointer");
+                // println!("Pointer");
 
                 // // LHS - true-case
                 // if let Some(left_node) = self.lhs.as_ref() {
@@ -1612,7 +1612,7 @@ impl AstNode {
 
             // connect parent and child
             // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, expression_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"expression\"]\n", ast_node_id, expression_ast_node_id).as_str());
         }
 
         // instructions and declarations
@@ -1622,7 +1622,7 @@ impl AstNode {
 
             // connect parent and child
             // println!("{} -> {}", ast_node_id, block_item_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, block_item_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"block_items\"]\n", ast_node_id, block_item_ast_node_id).as_str());
         }
 
         ast_node_id

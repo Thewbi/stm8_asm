@@ -701,7 +701,7 @@ fn main() {
         println!("");
         println!("Input:\n{}", input_tuple.0); // text data
         println!("Filename:\n{}", input_tuple.1); // filename
-    }
+     }
 
     let use_preprocessor = true;
     // let use_preprocessor = false;
@@ -1259,7 +1259,8 @@ fn main() {
                     symbol_table_rc_1,
                     type_system_rc_22);
 
-                type_checking_visitor.visit(program_ast_node_id, &mut node_map, &DataType::DataTypeVoid);
+                let depth: usize = 1;
+                type_checking_visitor.visit(program_ast_node_id, &mut node_map, &DataType::DataTypeVoid/* , depth*/);
 
                 //
                 // Print AST to dot after TypeChecking
@@ -1527,7 +1528,6 @@ fn main() {
         println!("AST is empty!");
     }
 
-
     //
     // Compile main.asm
     //
@@ -1586,8 +1586,6 @@ fn main() {
     //     panic!("Operating System not supported yet! :(");
     // };
 
-
-
     // let output = if cfg!(target_os = "windows") {
     //     Command::new("cmd")
     //         .args(&["/C", "test_driver.bat"])
@@ -1597,8 +1595,6 @@ fn main() {
     //     panic!("Operating System not supported yet! :(");
     // };
     // println!("{:?}", output);
-
-
 
     // println!("end");
 

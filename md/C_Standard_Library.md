@@ -42,11 +42,6 @@ The set of header files are listed:
 <wctype.h>
 ```
 
-
-
-
-
-
 # printf with var args
 
 Source: https://www.firmcodes.com/write-printf-function-c/
@@ -95,13 +90,9 @@ va_end(arg);
 ```
 Finally, when we’re finished processing the all arguments, we call va_end(), which performs any necessary cleanup.
 
-
 In reality these functions (va_start, va_arg and va_end) are not actually functions,
 but implemented as preprocessor macros. The actual implementation also depends on the compiler,
 as different compilers can have different layout of the stack and how it pushes arguments on the stack.
-
-
-
 
 But why it is not set to the beginning by default?
 
