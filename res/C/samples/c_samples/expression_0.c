@@ -7,5 +7,8 @@ int main() {
     result = a + 3 * (y - 10);
 
     // 4 + 3 * (20 - 10) = 4 + 3 * 10 = 34
-    return result;
+    if (result == 34) {
+        return 0;
+    }
+    return 1;
 }

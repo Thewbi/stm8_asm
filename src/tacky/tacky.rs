@@ -130,7 +130,6 @@ pub enum TopLevelType {
     StaticConstant,
 }
 
-//#[derive(Debug)]
 pub struct Instruction {
     pub instruction_type: InstructionType,
     pub src: ValueElement,
@@ -276,8 +275,6 @@ pub enum BinaryOperator {
 
     LogicalAnd,
     LogicalOr,
-
-    // AddAssignment,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]

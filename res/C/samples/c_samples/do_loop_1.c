@@ -1,9 +1,9 @@
 int main() {
-    int count;
+    int count = 100;
 
     do {
         count = count - 1;
-    } while (count <= 0);
+    } while (count > 0);
 
-    return 0;
+    return count;
 }

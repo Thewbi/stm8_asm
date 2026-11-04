@@ -1683,7 +1683,7 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::EmptyStatement => {
-                todo!();
+                return DataType::DataTypeUnknown;
             }
 
             AstNodeType::SingleInit => {

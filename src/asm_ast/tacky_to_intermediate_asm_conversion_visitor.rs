@@ -222,7 +222,11 @@ impl TackyToIntermediateAsmConversionVisitor {
             // AsmAstOperandType::Pseudo defined in asm_ast.rs
 
             let symbol_table_entry = self.symbol_table.borrow_mut().get(&param.name.clone());
-            println!("test {:?}", symbol_table_entry);
+
+            // DEBUG
+            if self.debug {
+                println!("test {:?}", symbol_table_entry);
+            }
 
             // let replaced_variable_name = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&param.name.clone()).expect("need replaced identifier!");
 
@@ -2412,7 +2416,9 @@ impl TackyToIntermediateAsmConversionVisitor {
                 assert_ne!(mov.assembly_type, AstAstAssemblyType::Unknown);
 
                 // DEBUG
-                println!("{:?}", &mov);
+                if self.debug {
+                    println!("{:?}", &mov);
+                }
 
                 asm_ast_function.body.push(Box::new(mov));
 
@@ -2433,7 +2439,7 @@ impl TackyToIntermediateAsmConversionVisitor {
             }
         }
 
-        println!("mul-instruction: {:?}", mul);
+        // println!("mul-instruction: {:?}", mul);
 
         asm_ast_function.body.push(Box::new(mul));
 
