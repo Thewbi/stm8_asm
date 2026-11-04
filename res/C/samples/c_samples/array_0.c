@@ -5,5 +5,8 @@ int main() {
     arr[1] = 2;
     arr[2] = 3;
 
-    return arr[2];
+    if (arr[2] == 3) {
+        return 0;
+    }
+    return 1;
 }

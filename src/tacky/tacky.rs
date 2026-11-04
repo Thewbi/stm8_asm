@@ -130,7 +130,7 @@ pub enum TopLevelType {
     StaticConstant,
 }
 
-#[derive(Debug)]
+//#[derive(Debug)]
 pub struct Instruction {
     pub instruction_type: InstructionType,
     pub src: ValueElement,
@@ -164,6 +164,49 @@ impl Instruction {
             index: ValueElement::None,
             scale: 0u32,
         }
+    }
+}
+
+impl fmt::Debug for Instruction {
+
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
+        let use_line_break = true;
+        if use_line_break {
+            write!(f, "\n\nInstruction {{\n").expect("Write failed!");
+            write!(f, "  instruction_type: '{:?}'\n", &self.instruction_type).expect("Write failed!");
+            write!(f, "  src: '{:?}'\n", &self.src).expect("Write failed!");
+            write!(f, "  src_2: {:?}\n", &self.src_2).expect("Write failed!");
+            write!(f, "  dst: {:?}\n", &self.dst).expect("Write failed!");
+            write!(f, "  unary_operator: {:?}\n", &self.unary_operator).expect("Write failed!");
+            write!(f, "  binary_operator: {:?}\n", &self.binary_operator).expect("Write failed!");
+            write!(f, "  label: {}\n", &self.label).expect("Write failed!");
+            write!(f, "  data_type: {}\n", &self.data_type).expect("Write failed!");
+            write!(f, "  function_name: {}\n", &self.function_name).expect("Write failed!");
+            write!(f, "  parameters: {:?}\n", &self.parameters).expect("Write failed!");
+            write!(f, "  offset: {}\n", &self.offset).expect("Write failed!");
+            write!(f, "  index: {:?}\n", &self.index).expect("Write failed!");
+            write!(f, "  scale: {}\n", &self.scale).expect("Write failed!");
+            write!(f, "}}\n").expect("Write failed!");
+        } else {
+            write!(f, "\n\nInstruction {{").expect("Write failed!");
+            write!(f, "  instruction_type: '{:?}'", &self.instruction_type).expect("Write failed!");
+            write!(f, "  src: '{:?}'", &self.src).expect("Write failed!");
+            write!(f, "  src_2: {:?}", &self.src_2).expect("Write failed!");
+            write!(f, "  dst: {:?}", &self.dst).expect("Write failed!");
+            write!(f, "  unary_operator: {:?}", &self.unary_operator).expect("Write failed!");
+            write!(f, "  binary_operator: {:?}", &self.binary_operator).expect("Write failed!");
+            write!(f, "  label: {}", &self.label).expect("Write failed!");
+            write!(f, "  data_type: {}", &self.data_type).expect("Write failed!");
+            write!(f, "  function_name: {}", &self.function_name).expect("Write failed!");
+            write!(f, "  parameters: {:?}", &self.parameters).expect("Write failed!");
+            write!(f, "  offset: {}", &self.offset).expect("Write failed!");
+            write!(f, "  index: {:?}", &self.index).expect("Write failed!");
+            write!(f, "  scale: {}", &self.scale).expect("Write failed!");
+            write!(f, "}}\n").expect("Write failed!");
+        }
+
+        Ok(())
     }
 }
 

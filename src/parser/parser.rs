@@ -5525,7 +5525,9 @@ impl Parser<String> {
                                                 self.struct_decl.tag = struct_tag.clone();
 
                                                 // DEBUG
-                                                self.print_ast_stack(node_map);
+                                                if debug {
+                                                    self.print_ast_stack(node_map);
+                                                }
 
                                                 // the stack contains the struct members in inverse order
                                                 // The order matters for memory layout
@@ -6019,7 +6021,9 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 // DEBUG
-                                                self.print_ast_stack(node_map);
+                                                if debug {
+                                                    self.print_ast_stack(node_map);
+                                                }
 
                                                 // new node, a new member inside the struct definition
                                                 let mut member_declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));

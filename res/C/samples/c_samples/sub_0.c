@@ -8,5 +8,8 @@ int main() {
 
     result = a - b;
 
-    return result;
+    if (result == 5) {
+        return 0;
+    }
+    return 1;
 }

@@ -1819,6 +1819,7 @@ impl TackyVisitor {
 
                             // the data type of the objects in the initializer list is
                             let data_type = DataType::from_str(&data_type_as_string).expect("Need type");
+
                             // DEBUG
                             if self.debug {
                                 println!("DataType: {}", data_type);
@@ -2104,7 +2105,10 @@ impl TackyVisitor {
             AstNodeType::Dot => {
                 let ast_node = node_map.get(&ast_node_id).unwrap();
 
-                println!("ast_node_id: {} file: {}, line: {}", ast_node_id, ast_node.file, ast_node.line);
+                // DEBUG
+                if self.debug {
+                    println!("ast_node_id: {} file: {}, line: {}", ast_node_id, ast_node.file, ast_node.line);
+                }
 
                 // retrieve the value of this expression, write it into
                 // a temporary variable and return a ValueElement
@@ -2132,7 +2136,10 @@ impl TackyVisitor {
             AstNodeType::Arrow => {
                 let ast_node = node_map.get(&ast_node_id).unwrap();
 
-                println!("ast_node_id: {} file: {}, line: {}", ast_node_id, ast_node.file, ast_node.line);
+                // DEBUG
+                if self.debug {
+                    println!("ast_node_id: {} file: {}, line: {}", ast_node_id, ast_node.file, ast_node.line);
+                }
 
                 // retrieve the value of this expression, write it into
                 // a temporary variable and return a ValueElement

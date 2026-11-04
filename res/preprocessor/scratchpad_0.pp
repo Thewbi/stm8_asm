@@ -1,12 +1,15 @@
-int main() {
+struct listnode
+{
     int a;
+};
+
+int main() {
+
     int b;
-    int result;
 
-    a = 10;
-    b = 5;
+    struct listnode struct_1;
+    struct_1.a = 123;
+    b = struct_1.a;
 
-    result = a - b;
-
-    return result;
+    return b;
 }

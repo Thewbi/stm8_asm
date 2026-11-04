@@ -109,9 +109,9 @@ impl AsmAstFixupVisitor {
                 }
 
                 // DEBUG
-                // if self.debug {
+                if self.debug {
                     println!("[ASM Fixup Visitor::replace_pseudo_operand] Pseudo: Pseudo-Name: '{}'", pseudo_name);
-                // }
+                }
 
                 assert!(pseudo_name.len() != 0, "[ERR] [asm_ast_fixup_visitor] PseudoVariable has no name! Need a name to replace!");
 
@@ -168,9 +168,9 @@ impl AsmAstFixupVisitor {
                 }
 
                 // DEBUG
-                // if self.debug {
+                if self.debug {
                     println!("[ASM Fixup Visitor::replace_pseudo_operand] Pseudo: Pseudo-Name: '{}' -> stack_offset_value: '{}'", pseudo_name, stack_offset_value);
-                // }
+                }
 
                 return AsmAstOperand { operand_type: AsmAstOperandType::Memory(AsmAstReg::RBP, stack_offset_value) };
             }
@@ -230,7 +230,11 @@ impl AsmAstFixupVisitor {
 
                             // convert the data type into the offset in bytes
                             let data_type_size = data_type.get_size(&self.type_system.borrow()) as i32;
-                            println!("DataType: {:?}, DataTypeSize: {}", data_type, data_type_size);
+
+                            // DEBUG
+                            if self.debug {
+                                println!("DataType: {:?}, DataTypeSize: {}", data_type, data_type_size);
+                            }
 
                             self.stack_offset = self.stack_offset - data_type_size * array_element_count;
                             self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
@@ -332,10 +336,10 @@ impl AsmAstFixupVisitor {
         for i in 0..asm_ast_function.body.len() {
 
             // DEBUG
-            // if self.debug {
+            if self.debug {
                 let instr = &asm_ast_function.body[i].as_ref().clone();
                 println!("\n\ninstr: {:?}", instr);
-            // }
+            }
 
             let instruction = asm_ast_function.body[i].as_ref().clone();
             self.visit_asm_ast_instruction(&mut new_body, instruction);
@@ -379,10 +383,10 @@ impl AsmAstFixupVisitor {
         new_body: &mut Vec::<Box<AsmAstInstruction>>,
         mut asm_ast_instruction: AsmAstInstruction)
     {
-        // DEBUG
-        if asm_ast_instruction.id == 122 {
-            println!("tset");
-        }
+        // // DEBUG
+        // if asm_ast_instruction.id == 122 {
+        //     println!("tset");
+        // }
 
         match asm_ast_instruction.instruction_type {
 
@@ -402,9 +406,9 @@ impl AsmAstFixupVisitor {
                     println!("Mov {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
                 }
 
-                if asm_ast_instruction.id == 1111 {
-                    println!("test");
-                }
+                // if asm_ast_instruction.id == 1111 {
+                //     println!("test");
+                // }
 
                 // replace pseudo operand by relative address on stack
                 asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);

@@ -267,7 +267,13 @@ impl TackyToIntermediateAsmConversionVisitor {
         // emit all instructions in the body
         for i in 0..tacky_node_top_level_function.body.len() {
 
-            let tacky_instruction:&Instruction = &tacky_node_top_level_function.body[i].as_ref();
+            let tacky_instruction: &Instruction = &tacky_node_top_level_function.body[i].as_ref();
+
+            // DEBUG
+            if self.debug {
+                println!("[visit_tacky_function] {:?}", &tacky_instruction);
+            }
+
             match tacky_instruction.instruction_type {
 
                 InstructionType::Comment => {
@@ -480,7 +486,7 @@ impl TackyToIntermediateAsmConversionVisitor {
                 //match &tacky_instruction_subscript.index {
                 // match &tacky_instruction_subscript.src {
                     // ValueElement::Variable(var_name) => {
-                        println!("var_name: '{}'", var_name);
+                        // println!("var_name: '{}'", var_name);
                         // retrieve address
                         // let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name);
                         // src_data_type = symbol_table_entry_option.expect(format!("No symbol for '{}' found in symbol table!\n", var_name).as_str()).data_type;
@@ -2018,6 +2024,10 @@ impl TackyToIntermediateAsmConversionVisitor {
         }
     }
 
+    //
+    // Binary Instructions
+    //
+
     pub fn visit_tacky_binary(&mut self, asm_ast_function: &mut AsmAstFunction, tacky_instruction: &Instruction) {
 
         // DESCRIPTION
@@ -2546,6 +2556,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         let mut binary: AsmAstInstruction = AsmAstInstruction::new();
         binary.instruction_type = AsmAstInstructionType::Binary;
         binary.assembly_type = AstAstAssemblyType::from_data_type(&tacky_node_binary.data_type);
+
         match &tacky_node_binary.binary_operator {
             BinaryOperator::Add => {
                 binary.binary_operator = AsmAstBinaryOperator::Add;
@@ -2603,13 +2614,15 @@ impl TackyToIntermediateAsmConversionVisitor {
         match case {
             1 => {
 
-                // move operand src into dst
+                // case 1 - (both srces are not destination) move operand src into dst
 
                 let mut mov: AsmAstInstruction = AsmAstInstruction::new();
                 mov.instruction_type = AsmAstInstructionType::Mov;
                 mov.assembly_type = AstAstAssemblyType::Doubleword;
+                mov.comment = String::from("\t; case 1 - (both srces are not destination) move operand src into dst");
 
-                match &tacky_node_binary.src {
+                //match &tacky_node_binary.src {
+                match &tacky_node_binary.src_2 {
                     ValueElement::Constant(constant_value) => {
                         mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
                     }
@@ -2637,7 +2650,8 @@ impl TackyToIntermediateAsmConversionVisitor {
 
 
                 // second operand is used in the binary operation
-                match &tacky_node_binary.src_2 {
+                //match &tacky_node_binary.src_2 {
+                match &tacky_node_binary.src {
                     ValueElement::Constant(constant_value) => {
                         binary.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
                     }
@@ -2716,7 +2730,7 @@ impl TackyToIntermediateAsmConversionVisitor {
 
 
 
-
+        println!("binary: {:?}", binary);
 
 
         assert_ne!(binary.assembly_type, AstAstAssemblyType::Unknown);

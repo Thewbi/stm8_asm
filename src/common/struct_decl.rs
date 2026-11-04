@@ -49,7 +49,10 @@ impl StructDecl {
 
             let member: &StructDeclMember = &self.members[i];
 
-            println!("{:?}", member);
+            // DEBUG
+            if self.debug {
+                println!("{:?}", member);
+            }
 
             assert_ne!(member.data_type, DataType::DataTypeUnknown, "Need a valid datatype!");
 

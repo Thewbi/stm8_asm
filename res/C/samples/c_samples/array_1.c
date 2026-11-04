@@ -14,5 +14,8 @@ int main() {
     int result;
     result = arr[2];
 
-    return result;
+    if (result == 30) {
+        return 0;
+    }
+    return 1;
 }

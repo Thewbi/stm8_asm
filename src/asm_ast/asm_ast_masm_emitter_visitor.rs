@@ -498,8 +498,8 @@ impl AsmAstMasmEmitterVisitor {
                     }
                 }
 
-                // DEBUG
-                println!("{}", &value_as_string);
+                // // DEBUG
+                // println!("{}", &value_as_string);
 
                 self.string_buffer.push_str(&value_as_string);
             }
@@ -683,15 +683,12 @@ impl AsmAstMasmEmitterVisitor {
         asm_ast_instruction: &AsmAstInstruction,
         stack_frame_size: i32)
     {
-
         // DEBUG
         // println!("[AsmAstMasmEmitterVisitor::visit_asm_ast_instruction()] instruction={:?}", asm_ast_instruction);
 
-        if asm_ast_instruction.id == 4 {
-            println!("test");
-        }
-
-
+        // if asm_ast_instruction.id == 4 {
+        //     println!("test");
+        // }
 
         match asm_ast_instruction.instruction_type {
 
@@ -849,12 +846,8 @@ impl AsmAstMasmEmitterVisitor {
 
             AsmAstInstructionType::Mul => {
 
-                //asm_ast_instruction.assembly_type
-
-                //AstAstAssemblyType::f
-
-                println!("\n\n");
-                println!("{:?}", asm_ast_instruction);
+                // println!("\n\n");
+                // println!("{:?}", asm_ast_instruction);
 
                 self.string_buffer.push_str("    mul ");
 
@@ -970,7 +963,7 @@ impl AsmAstMasmEmitterVisitor {
             AsmAstInstructionType::Lea => {
                 self.string_buffer.push_str("    lea ");
 
-                println!("{:?}", asm_ast_instruction);
+                // println!("{:?}", asm_ast_instruction);
 
                 self.emit_asm_ast_operand(&asm_ast_instruction.dst,
                     &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },

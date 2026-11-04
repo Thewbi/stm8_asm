@@ -91,13 +91,15 @@ impl<'a> Preprocessor<'a> {
         writer: &mut BufWriter<File>,
         defined_symbol_map: &mut HashMap<String, DefineSymbol>)
     {
-        // DEBUG - output all symbols so far
-        println!("DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG");
-        println!("output all symbols so far: symbol count: {}", defined_symbol_map.len());
-        for (key, value) in defined_symbol_map.into_iter() {
-            println!("{} / {}", key, value);
+        // DEBUG - output all symbols detected by the preprocessor so far
+        if self.debug {
+            println!("DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG");
+            println!("output all symbols so far: symbol count: {}", defined_symbol_map.len());
+            for (key, value) in defined_symbol_map.into_iter() {
+                println!("{} / {}", key, value);
+            }
+            println!("DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG");
         }
-        println!("DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG DEBUG");
 
         // the expression parser is used to parse well-formed text to an AST for evaluation
         // Well-formed text appears in all PPI that need to be evaluated such as #if, #elif
@@ -530,7 +532,10 @@ impl<'a> Preprocessor<'a> {
                                                     let mut concat: bool = false;
                                                     let mut stringize: bool = false;
 
-                                                    println!("{}", new_string);
+                                                    // DEBUG
+                                                    if self.debug {
+                                                        println!("{}", new_string);
+                                                    }
 
                                                     let mut string_buf = String::new();
                                                     for text_data in new_string.split(&[' ']) {

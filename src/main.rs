@@ -14,10 +14,11 @@ use std::collections::{HashMap, HashSet, BTreeSet, BTreeMap};
 use std::hash::Hash;
 use std::os::windows::fs::FileTypeExt;
 use std::panic::AssertUnwindSafe;
+use std::process::Command;
 use std::{
     sync::atomic::{AtomicUsize, Ordering}
 };
-use std::fs;
+use std::{env, fs};
 use std::fs::File;
 // use std::borrow::BorrowMut; // DO NOT IMPORT THIS! https://www.reddit.com/r/rust/comments/1cbsbdu/how_to_get_value_out_of_an_rcrefcell/
 
@@ -237,11 +238,54 @@ impl PpIfFrame {
     }
 }
 
+const INPUT_FILENAME_PARAM_NAME: &'static str = "-i";
+
 fn main() {
+
+    // println!("start");
 
     let debug = false;
 
-    println!("start");
+    let args: Vec<String> = env::args().collect();
+
+    // DEBUG
+    if debug {
+        println!("{:?}", args);
+    }
+
+    let mut command_line_param_input_filename = String::new();
+    let mut has_command_line_param_input_filename = false;
+
+    let mut i = 1;
+    while i < args.len() {
+        match args[i].as_str() {
+            INPUT_FILENAME_PARAM_NAME => {
+                // the filename parameter -i mandates that the next
+                // paramter is the path to the file to compile
+                i = i + 1;
+                // DEBUG
+                if debug {
+                    println!("File: '{}'", args[i]);
+                }
+                // store the input file
+                command_line_param_input_filename = args[i].clone();
+                // change internal state so that the input file from the
+                // command line parameter is processed over the default
+                // scratchpad_0.pp file
+                has_command_line_param_input_filename = true;
+            }
+            _ => {
+                panic!("Unknown paramter: {}", &args[i]);
+            }
+        }
+        i = i + 1;
+    }
+
+
+
+
+
+
 
     let mut parse_table = HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>::new();
 
@@ -636,8 +680,20 @@ fn main() {
     // Process some input for the preprocessor
     //
 
-    // ( str, filename )
-    let input_tuple = provide_sourcode_input();
+    let mut input_tuple = (String::new(), String::new());
+
+    if has_command_line_param_input_filename {
+        // command line has input file parameter. Use it with priority over other input
+
+        let str: String = fs::read_to_string(&command_line_param_input_filename)
+            .expect(format!("file '{:?}' cannot be read!", &command_line_param_input_filename).as_str());
+        input_tuple = ( str.to_string(), command_line_param_input_filename.clone() )
+    } else {
+        // application code defines input file
+
+        // ( str, filename )
+        input_tuple = provide_sourcode_input();
+    }
 
     // DEBUG
     if debug {
@@ -671,7 +727,9 @@ fn main() {
         //
         // START TIME - PREPROCESSOR
         //
-        println!("START - PREPROCESSOR.");
+        if debug {
+            println!("START - PREPROCESSOR.");
+        }
 
         let now = Instant::now();
 
@@ -704,17 +762,21 @@ fn main() {
         //
 
         let elapsed = now.elapsed();
-        println!("STOP TIME - PREPROCESSOR. Elapsed: {:.2?}", elapsed);
+        if debug {
+            println!("STOP TIME - PREPROCESSOR. Elapsed: {:.2?}", elapsed);
+        }
 
         //
         // DEBUG output all preprocessor symbols
         //
 
-        println!("pp pp pp pp pp pp pp pp pp   preprocessor symbols  pp pp pp pp pp pp pp pp pp pp");
-        for (key, value) in defined_symbol_map.into_iter() {
-            println!("{} / {}", key, value);
+        if debug {
+            println!("pp pp pp pp pp pp pp pp pp   preprocessor symbols  pp pp pp pp pp pp pp pp pp pp");
+            for (key, value) in defined_symbol_map.into_iter() {
+                println!("{} / {}", key, value);
+            }
+            println!("pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp");
         }
-        println!("pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp");
 
         // DEBUG
         // expression_parser.print_dot();
@@ -723,10 +785,14 @@ fn main() {
         // 4. Explicitly flush the remaining data to disk
         writer.flush().expect("flush failed!");
 
-        println!("*********************************************************************************");
+        if debug {
+            println!("*********************************************************************************");
+        }
     }
 
-    println!("*********************************************************************************");
+    if debug {
+        println!("*********************************************************************************");
+    }
 
     //
     // Process some input for the compiler
@@ -1461,5 +1527,80 @@ fn main() {
         println!("AST is empty!");
     }
 
-    println!("end");
+
+    //
+    // Compile main.asm
+    //
+    // 1. load tooling:
+    // "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
+    //
+    // 2. assemble
+    // ml64.exe /c main.asm
+    //
+    // 3. link
+    // link.exe /SUBSYSTEM:console /LARGEADDRESSAWARE:NO main.obj
+    //
+    // 4. execute
+    // ucrt_stdlib_printf_1.exe
+    //
+
+    // let output = if cfg!(target_os = "windows") {
+    //     Command::new("cmd")
+    //         .args(&["/C", "echo hello"])
+    //         .output()
+    //         // .expect("failed to execute process")
+    // } else {
+    //     panic!("Operating System not supported yet! :(");
+    // };
+
+    // let output = if cfg!(target_os = "windows") {
+    //     Command::new("cmd")
+    //         .args(&["/C", "C:\"Program Files (x86)\"\\\"Microsoft Visual Studio\"\\2022\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat x64"])
+    //         //.args(&["\"C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat\" x64"])
+    //         .output()
+    //         // .expect("failed to execute process")
+    // } else {
+    //     panic!("Operating System not supported yet! :(");
+    // };
+    // println!("{:?}", output);
+
+
+    // let output = if cfg!(target_os = "windows") {
+    //     Command::new("cmd")
+    //         .args(&["/C", "ml64.exe /c main.asm"])
+    //         .output()
+    //         // .expect("failed to execute process")
+    // } else {
+    //     panic!("Operating System not supported yet! :(");
+    // };
+    // println!("{:?}", output);
+
+
+
+    // let output = if cfg!(target_os = "windows") {
+    //     Command::new("cmd")
+    //         .args(&["/C", "echo hello"])
+    //         .output()
+    //         // .expect("failed to execute process")
+    // } else {
+    //     panic!("Operating System not supported yet! :(");
+    // };
+
+
+
+    // let output = if cfg!(target_os = "windows") {
+    //     Command::new("cmd")
+    //         .args(&["/C", "test_driver.bat"])
+    //         .output()
+    //         // .expect("failed to execute process")
+    // } else {
+    //     panic!("Operating System not supported yet! :(");
+    // };
+    // println!("{:?}", output);
+
+
+
+    // println!("end");
+
+    std::process::exit(100);
 }

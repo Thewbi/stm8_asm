@@ -10,7 +10,8 @@
             "request": "launch",
             "program": "${workspaceFolder}/target/debug/rust_pest_asm.exe",
             "args": [
-                //"no_launcher"
+                //"-i",
+                //"res/C/samples/c_samples/array_0.c"
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
