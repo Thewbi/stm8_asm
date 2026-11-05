@@ -1994,6 +1994,9 @@ impl TackyToIntermediateAsmConversionVisitor {
                     UnaryOperator::Increment => {
                         unary.unary_operator = AsmAstUnaryOperator::Increment;
                     }
+                    UnaryOperator::Decrement => {
+                        unary.unary_operator = AsmAstUnaryOperator::Decrement;
+                    }
                     UnaryOperator::Dereference => {
                         // unary.unary_operator = AsmAstUnaryOperator::Dereference;
                         // Nora Sandler, page 376

@@ -16,7 +16,7 @@ int partition(int arr[], int low, int high) {
     for (int j = low; j <= high - 1; j++) {
         // Wenn das aktuelle Element kleiner oder gleich dem Pivot ist
         if (arr[j] <= pivot) {
-            i++; // Index erhöhen
+            i++; // Index erhoehen
             swap(&arr[i], &arr[j]);
         }
     }
@@ -47,12 +47,12 @@ void printArray(int arr[], int size) {
 int main() {
     int arr[] = {10, 7, 8, 9, 1, 5};
     int n = sizeof(arr) / sizeof(arr[0]);
-    
+
     printf("Unsortiertes Array: \n");
     printArray(arr, n);
-    
+
     quickSort(arr, 0, n - 1);
-    
+
     printf("Sortiertes Array: \n");
     printArray(arr, n);
     return 0;

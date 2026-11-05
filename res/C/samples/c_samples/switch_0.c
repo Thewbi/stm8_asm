@@ -1,5 +1,6 @@
 int main() {
     int wochentag = 3;
+    int a = 0;
 
     switch (wochentag) {
         case 1: {
@@ -14,5 +15,8 @@ int main() {
             break;
     }
 
-    return 0;
+    if (a == 0) {
+        return 0;
+    }
+    return a;
 }

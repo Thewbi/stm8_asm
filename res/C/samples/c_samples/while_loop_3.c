@@ -7,5 +7,8 @@ int main() {
         i = i + 1;
     }
 
+    if (j == 2) {
+        return 0;
+    }
     return j;
 }

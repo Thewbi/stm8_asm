@@ -9,5 +9,8 @@ int main() {
         i = i + 1;
     }
 
+    if (j == 55) {
+        return 0;
+    }
     return j;
 }

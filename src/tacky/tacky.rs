@@ -248,6 +248,7 @@ pub enum UnaryOperator {
     Negate,
     Not,
     Increment,
+    Decrement,
     Dereference,
     AddrOf,
     AddAssignment,

@@ -1,3 +1,8 @@
 {
-    "debug.toolBarLocation": "docked"
+    "debug.toolBarLocation": "docked",
+    "workbench.colorCustomizations": {
+        "tab.activeBackground": "#0a3b5c",
+        "tab.activeForeground": "#ffffff",
+        "tab.activeBorderTop": "#000000"
+    }
 }

@@ -61,5 +61,8 @@ int main() {
         swapped = arr[i];
     }
 
+    if (swapped == 90) {
+        return 0;
+    }
     return swapped;
 }

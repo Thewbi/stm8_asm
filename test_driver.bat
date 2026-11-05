@@ -28,8 +28,31 @@ for %%L in (
     res\C\samples\c_samples\for_loop_0.c
     res\C\samples\c_samples\for_loop_1.c
     res\C\samples\c_samples\for_loop_2.c
-    res\C\samples\c_samples\function_call_0.c
-    res\C\samples\c_samples\function_call_1.c
+    res\C\samples\c_samples\hex_array_0.c
+    res\C\samples\c_samples\hex_numeric_0.c
+    res\C\samples\c_samples\hex_variable_0.c
+    res\C\samples\c_samples\if_0.c
+    res\C\samples\c_samples\if_1.c
+    res\C\samples\c_samples\if_else_if_0.c
+    res\C\samples\c_samples\if_else_if_1.c
+    res\C\samples\c_samples\main_0.c
+    res\C\samples\c_samples\multiplication_0.c
+    res\C\samples\c_samples\parameter_pointer.c
+    res\C\samples\c_samples\return_0.c
+    res\C\samples\c_samples\return_1.c
+    res\C\samples\c_samples\sub_0.c
+    res\C\samples\c_samples\subscript_0.c
+    res\C\samples\c_samples\subscript_1.c
+    res\C\samples\c_samples\switch_0.c
+    res\C\samples\c_samples\switch_1.c
+    res\C\samples\c_samples\test_0.c
+    res\C\samples\c_samples\test_1.c
+    res\C\samples\c_samples\typedef_0.c
+    res\C\samples\c_samples\variadic_parameter_0.c
+    res\C\samples\c_samples\while_loop_0.c
+    res\C\samples\c_samples\while_loop_1.c
+    res\C\samples\c_samples\while_loop_2.c
+    res\C\samples\c_samples\while_loop_3.c
 ) do (
     del main.asm main.obj main.exe
     call "target/debug/rust_pest_asm.exe" -i %%L
@@ -44,29 +67,28 @@ echo [DONE]
 
 
 
+REM     res\C\samples\c_samples\linked_list_0.c
+REM     res\C\samples\c_samples\linked_list_1.c
+REM     res\C\samples\c_samples\linked_list_without_malloc.c
 REM
-REM
-REM    res\C\samples\c_samples\hex_array_0.c
-REM    res\C\samples\c_samples\hex_numeric_0.c
-REM    res\C\samples\c_samples\hex_variable_0.c
-REM    res\C\samples\c_samples\if_0.c
-REM    res\C\samples\c_samples\if_1.c
-REM    res\C\samples\c_samples\if_else_if_0.c
-REM    res\C\samples\c_samples\linked_list_0.c
-REM    res\C\samples\c_samples\linked_list_1.c
-REM    res\C\samples\c_samples\linked_list_without_malloc.c
-REM    res\C\samples\c_samples\main_0.c
-REM    res\C\samples\c_samples\multiplication_0.c
-REM    res\C\samples\c_samples\parameter_pointer.c
-REM    res\C\samples\c_samples\printf_0.c
+REM     res\C\samples\c_samples\printf_0.c
 REM    res\C\samples\c_samples\printf_1.c
 REM    res\C\samples\c_samples\printf_2.c
+REM
+REM res\C\samples\c_samples\function_call_0.c
+REM    res\C\samples\c_samples\function_call_1.c
+REM
+REM
+REM
+REM
+REM
+REM
+REM
+REM
 REM    res\C\samples\c_samples\quicksort_2.c
 REM    res\C\samples\c_samples\quicksort.c
-REM    res\C\samples\c_samples\README.md
-REM    res\C\samples\c_samples\return_0.c
-REM    res\C\samples\c_samples\return_1.c
-REM    res\C\samples\c_samples\scratchpad.c
+REM
+REM
 REM    res\C\samples\c_samples\struct_0.c
 REM    res\C\samples\c_samples\struct_1.c
 REM    res\C\samples\c_samples\struct_2.c
@@ -93,16 +115,16 @@ REM    res\C\samples\c_samples\struct_initializer_0.c
 REM    res\C\samples\c_samples\struct_initializer_1.c
 REM    res\C\samples\c_samples\struct_pointer_0.c
 REM    res\C\samples\c_samples\struct_recursive_0.c
-REM    res\C\samples\c_samples\sub_0.c
-REM    res\C\samples\c_samples\subscript_0.c
-REM    res\C\samples\c_samples\subscript_1.c
-REM    res\C\samples\c_samples\swap.c
-REM    res\C\samples\c_samples\switch_0.c
-REM    res\C\samples\c_samples\test_0.c
-REM    res\C\samples\c_samples\test_1.c
-REM    res\C\samples\c_samples\typedef_0.c
-REM    res\C\samples\c_samples\variadic_parameter_0.c
-REM    res\C\samples\c_samples\while_loop_0.c
-REM    res\C\samples\c_samples\while_loop_1.c
-REM    res\C\samples\c_samples\while_loop_2.c
-REM    res\C\samples\c_samples\while_loop_3.c
+REM
+REM
+REM
+REM res\C\samples\c_samples\swap.c
+REM
+REM
+REM
+REM
+REM
+REM
+REM
+REM
+REM

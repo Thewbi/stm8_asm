@@ -590,6 +590,7 @@ pub enum AsmAstUnaryOperator {
     Neg,
     Not,
     Increment,
+    Decrement,
     AddAssignment,
 }
 
@@ -608,6 +609,9 @@ impl fmt::Display for AsmAstUnaryOperator {
             }
             AsmAstUnaryOperator::Increment => {
                 write!(f, "increment").expect("Write failed!");
+            }
+            AsmAstUnaryOperator::Decrement => {
+                write!(f, "decrement").expect("Write failed!");
             }
             AsmAstUnaryOperator::AddAssignment => {
                 write!(f, "add_assignment").expect("Write failed!");

@@ -325,6 +325,43 @@ impl TackyVisitor {
         return ValueElement::Variable(src_name.clone());
     }
 
+    fn expression_to_varname(&mut self,
+        ast_node: &AstNode,
+        node_map: &mut Box<HashMap<usize, AstNode>>,
+        branch_counter: &mut usize) -> String
+    {
+        let mut exp_result_var_name = String::new();
+        if let Some(lhs_id) = ast_node.expression {
+
+            exp_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+            self.declare_temporary_variable(&exp_result_var_name, DataType::DataTypeInt);
+
+            let lhs_value_element
+                = self.visit(lhs_id, node_map, &exp_result_var_name, branch_counter);
+
+            // DEBUG
+            if self.debug {
+                println!("{:?}", lhs_value_element);
+            }
+
+            match lhs_value_element {
+                ValueElement::Variable(variable_identifier) => {
+                    exp_result_var_name = variable_identifier;
+                }
+
+                ValueElement::Constant(constant_value) => {
+                    // do nothing
+                }
+
+                ValueElement::None => {
+                    // do nothing
+                }
+            }
+        }
+
+        return exp_result_var_name;
+    }
+
     pub fn visit(&mut self,
         ast_node_id: usize,
         node_map: &mut Box<HashMap<usize, AstNode>>,
@@ -1152,6 +1189,10 @@ impl TackyVisitor {
                                         unary_instruction.unary_operator = UnaryOperator::Increment;
                                     }
 
+                                    AstNodeOperatorType::Decrement => {
+                                        unary_instruction.unary_operator = UnaryOperator::Decrement;
+                                    }
+
                                     AstNodeOperatorType::Dereference => {
                                         // DEBUG
                                         if self.debug {
@@ -1320,34 +1361,79 @@ impl TackyVisitor {
 
             AstNodeType::If => {
 
+                //
+                // Case 1 - if without else or else-if
+                //
+
+                // -- condition
+                // <instructions for condition>
+                // v = <result of condition>
+                // JumpIfZero(v, if-end-label) -- if the condition is false, jump to the if-end-label
+                //      -- body
+                //     <instructions for body>
+                //     Jump(if-end-label) -- branch taken, jump to the final end label
+                // Label<if-end-label> -- create the if-end-label
+
+                //
+                // Case 2 - if with else (no else-if)
+                //
+
+                // -- condition
+                // <instructions for condition>
+                // v = <result of condition>
+                // JumpIfZero(v, if-0-label) -- if the condition is false, jump to the if-0-label
+                //     -- body
+                //     <instructions for body>
+                //     Jump(if-end-label) -- branch taken, jump to the final end label
+                // Label<if-0-label>
+                //     -- body
+                //     <instructions for body>
+                //     Jump(if-end-label) -- branch taken, jump to the final end label
+                // Label<if-end-label> -- create the if-end-label
+
+                //
+                // Case 3 - if with else (no else-if)
+                //
+
+                // -- condition 0
+                // <instructions for condition 0>
+                // v = <result of condition 0>
+                // JumpIfZero(v, if-0-label) -- if the condition is false, jump to the if-0-label
+                //     -- body
+                //     <instructions for body 0>
+                //     Jump(if-end-label) -- branch taken, jump to the final end label
+                //
+                // Label<if-0-label>
+                // -- condition 1
+                // <instructions for condition 1>
+                // v = <result of condition 1>
+                // JumpIfZero(v, if-1-label) -- if the condition is false, jump to the if-1-label
+                //     -- body
+                //     <instructions for body 1>
+                //     Jump(if-end-label) -- branch taken, jump to the final end label
+                //
+                // ...
+                //
+                // Label<if-(n-1)-label>
+                // -- condition (n-1)
+                // <instructions for condition (n-1)>
+                // v = <result of condition (n-1)>
+                // JumpIfZero(v, if-n-label) -- if the condition is false, jump to the if-n-label
+                //     -- body
+                //     <instructions for body (n-1)>
+                //     Jump(if-end-label) -- branch taken, jump to the final end label
+                //
+                // Label<if-n-label>
+                //     -- body
+                //     <instructions for body>
+                //     Jump(if-end-label) -- branch taken, jump to the final end label
+                // Label<if-end-label> -- create the if-end-label
+
+
+
                 // expression
-                let mut exp_result_var_name = String::from("");
-                if let Some(lhs_id) = ast_node.expression {
-
-                    exp_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    self.declare_temporary_variable(&exp_result_var_name, DataType::DataTypeInt);
-
-                    let lhs_value_element = self.visit(lhs_id, node_map, &exp_result_var_name, branch_counter);
-
-                    // DEBUG
-                    if self.debug {
-                        println!("{:?}", lhs_value_element);
-                    }
-
-                    match lhs_value_element {
-                        ValueElement::Variable(variable_identifier) => {
-                            exp_result_var_name = variable_identifier;
-                        }
-
-                        ValueElement::Constant(constant_value) => {
-                            // do nothing
-                        }
-
-                        ValueElement::None => {
-                            // do nothing
-                        }
-                    }
-                }
+                let exp_result_var_name
+                    = self.expression_to_varname(&ast_node, node_map, branch_counter);
 
                 // JumpIfZero
                 let mut jump_if_zero_instruction: Instruction = Instruction::new();
@@ -1355,8 +1441,10 @@ impl TackyVisitor {
                 jump_if_zero_instruction.src = ValueElement::Variable(exp_result_var_name);
 
                 if ast_node.rhs.is_none() {
+                    // jump to the final end label, if there are no else or if-else branches
                     jump_if_zero_instruction.label = self.final_end_label(&ast_node, "if_");
                 } else {
+                    // if there is a else or if-else branch, jump to that label
                     jump_if_zero_instruction.label = self.new_end_label(&ast_node, "if_", branch_counter);
                 }
 
@@ -1384,7 +1472,7 @@ impl TackyVisitor {
                         let last = self.program.top_level.len() - 1;
                         self.program.top_level[last].body.push(Box::new(jump_instruction));
 
-                        // Label
+                        // Label - for this current branch
                         let mut label_instruction: Instruction = Instruction::new();
                         label_instruction.instruction_type = InstructionType::Label;
                         label_instruction.label = self.new_end_label(&ast_node, "if_", branch_counter);
@@ -1395,7 +1483,8 @@ impl TackyVisitor {
                     }
                 }
 
-                // RHS - else-branch statement / body
+                // RHS - else-branch or else-if statement / body
+                // recurse into the rest of the else / else-if branches
                 if let Some(rhs_id) = ast_node.rhs {
 
                     *branch_counter = *branch_counter + 1;
@@ -1404,10 +1493,11 @@ impl TackyVisitor {
                     stmt_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
                     self.declare_temporary_variable(&stmt_result_var_name, DataType::DataTypeInt);
 
-                    let rhs_value_element = self.visit(rhs_id, node_map, &stmt_result_var_name, branch_counter);
+                    let rhs_value_element
+                        = self.visit(rhs_id, node_map, &stmt_result_var_name, branch_counter);
                 }
 
-                // Label
+                // Label - final end label
                 let mut label_instruction: Instruction = Instruction::new();
                 label_instruction.instruction_type = InstructionType::Label;
                 label_instruction.label = self.final_end_label(&ast_node, "if_");
@@ -1417,6 +1507,39 @@ impl TackyVisitor {
                 self.program.top_level[last].body.push(Box::new(label_instruction));
 
                 return ValueElement::Constant(ast_node.string_val.clone());
+            }
+
+            AstNodeType::Switch => {
+
+                //
+                // Body Statement - block_items
+                //
+
+                for i in 0..ast_node.block_items.len() {
+
+                    let block_item_id = ast_node.block_items[ast_node.block_items.len()-1-i];
+                    let block_item = node_map.get(&block_item_id).unwrap();
+
+                    //println!("{:?}", block_item);
+
+                    // look for the default item
+                    match block_item.node_type {
+                        AstNodeType::Case => {
+
+                        }
+                        AstNodeType::Default => {
+                            todo!();
+                        }
+                        _ => {
+                            panic!();
+                        }
+                    }
+
+                    let mut br_cnt = 0;
+                    self.visit(block_item_id, node_map,  &String::from(""), &mut br_cnt);
+                }
+
+                panic!();
             }
 
             AstNodeType::While => {

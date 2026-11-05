@@ -450,8 +450,6 @@ impl TypeCheckingVisitor {
     {
         // println!("[visit] ast_node_id: {}, depth: {}", ast_node_id, depth);
 
-        // let mut ast_node = AstNode::new(0);
-
         let mut ast_node = node_map.get(&ast_node_id).unwrap().clone();
 
         // DEBUG
@@ -893,6 +891,10 @@ impl TypeCheckingVisitor {
                                 }
 
                                 AstNodeOperatorType::Increment => {
+                                    return left_node.get_analyzed_data_type();
+                                }
+
+                                AstNodeOperatorType::Decrement => {
                                     return left_node.get_analyzed_data_type();
                                 }
 
@@ -1663,7 +1665,7 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Switch => {
-                todo!();
+                return DataType::DataTypeUnknown;
             }
 
             AstNodeType::Case => {
@@ -1695,7 +1697,6 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::CompoundInit => {
-                //todo!();
                 return DataType::DataTypeUnknown;
             }
 

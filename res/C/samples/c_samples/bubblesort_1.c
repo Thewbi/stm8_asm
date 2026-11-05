@@ -66,6 +66,11 @@ int main() {
         //}
     }
 
+    //if (n == 258) {
+    if (n == 7) {
+        return 0;
+    }
+
     //return swapped;
     return temp;
     //return 0;

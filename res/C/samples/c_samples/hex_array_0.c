@@ -5,5 +5,8 @@ int main() {
     arr[1] = 0x20;
     arr[2] = 0x30;
 
+    if (arr[2] == 0x30) {
+        return 0;
+    }
     return arr[2];
 }

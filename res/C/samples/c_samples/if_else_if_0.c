@@ -4,9 +4,13 @@ int main() {
         i++;
     } else if (i < 20) {
         i++;
+        i++;
     } else {
         i--;
     }
 
+    if (i == 1) {
+        return 0;
+    }
     return i;
 }
