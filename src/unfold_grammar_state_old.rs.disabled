@@ -2989,3 +2989,69 @@ match asm_ast_instruction.binary_operator {
             //         self.is_in_dot_or_arrow = false;
             //     }
             // }
+
+// let rhs_sub = node_map.get(&rhs_sub_id).unwrap();
+
+                            // // DEBUG
+                            // if self.debug {
+                            //     println!("RHS: {:?}", rhs_sub);
+                            // }
+
+                            // // determine if the copy instruction is output or not
+                            // match rhs_sub.node_type {
+
+                            //     AstNodeType::Binary => {
+                            //         // DEBUG
+                            //         // println!("binary");
+                            //         //output_copy_instruction = false;
+                            //     }
+
+                            //     AstNodeType::Expression => {
+                            //         // DEBUG
+                            //         // println!("binary");
+                            //         //output_copy_instruction = false;
+                            //     }
+
+                            //     _ => {
+                            //         println!("NodeType: {:?}", rhs_sub.node_type);
+                            //     }
+                            // }
+
+
+                            // DEBUG
+//println!("{:?}", identifier_ast_node);
+
+// function_declaration_ast_node.string_val = identifier_ast_node.string_val;
+
+// let mut function_name_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+// function_name_ast_node.node_type = AstNodeType::Identifier;
+// function_name_ast_node.string_val = identifier_ast_node.string_val;
+
+// function_declaration_ast_node.function_name_ast_node = Some(Box::new(function_name_ast_node));
+
+
+
+// if self.is_typedef_active() {
+                                            //     println!("is_typedef_active");
+                                            //     self.set_typedef_active(false);
+                                            // }
+
+                                            // //
+                                            // // TYPEDEF HANDLING
+                                            // //
+
+                                            // if self.typedef_found {
+
+                                            //     // insert a new type mapping into the types table
+                                            //     //self.defined_types.push(self.last_type_specifier.clone());
+
+                                            //     let type_name = self.last_type_specifier.clone();
+                                            //     //self.type_system.push(type_name, DataType);
+
+                                            //     println!("type_name: '{}'", type_name);
+
+                                            //     // reset
+                                            //     self.typedef_found = false;
+                                            //     self.last_type_specifier = String::new();
+                                            //     self.last_source_type = String::new();
+                                            // }

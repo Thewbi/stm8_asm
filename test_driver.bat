@@ -7,6 +7,7 @@ call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliar
 
 cls
 for %%L in (
+    res\C\samples\c_samples\array_0.c
     res\C\samples\c_samples\array_1.c
     res\C\samples\c_samples\array_2.c
     res\C\samples\c_samples\array_3.c
@@ -28,6 +29,8 @@ for %%L in (
     res\C\samples\c_samples\for_loop_0.c
     res\C\samples\c_samples\for_loop_1.c
     res\C\samples\c_samples\for_loop_2.c
+
+
     res\C\samples\c_samples\hex_array_0.c
     res\C\samples\c_samples\hex_numeric_0.c
     res\C\samples\c_samples\hex_variable_0.c
@@ -35,11 +38,31 @@ for %%L in (
     res\C\samples\c_samples\if_1.c
     res\C\samples\c_samples\if_else_if_0.c
     res\C\samples\c_samples\if_else_if_1.c
+
+
+
     res\C\samples\c_samples\main_0.c
     res\C\samples\c_samples\multiplication_0.c
     res\C\samples\c_samples\parameter_pointer.c
-    res\C\samples\c_samples\return_0.c
-    res\C\samples\c_samples\return_1.c
+
+
+
+
+
+
+    res\C\samples\c_samples\struct_0.c
+    res\C\samples\c_samples\struct_1.c
+    res\C\samples\c_samples\struct_2.c
+    res\C\samples\c_samples\struct_3.c
+    res\C\samples\c_samples\struct_4.c
+    res\C\samples\c_samples\struct_6.c
+    res\C\samples\c_samples\struct_7.c
+    res\C\samples\c_samples\struct_8.c
+
+
+
+
+
     res\C\samples\c_samples\sub_0.c
     res\C\samples\c_samples\subscript_0.c
     res\C\samples\c_samples\subscript_1.c
@@ -48,7 +71,7 @@ for %%L in (
     res\C\samples\c_samples\test_0.c
     res\C\samples\c_samples\test_1.c
     res\C\samples\c_samples\typedef_0.c
-    res\C\samples\c_samples\variadic_parameter_0.c
+    res\C\samples\c_samples\typedef_1.c
     res\C\samples\c_samples\while_loop_0.c
     res\C\samples\c_samples\while_loop_1.c
     res\C\samples\c_samples\while_loop_2.c
@@ -81,7 +104,7 @@ REM
 REM
 REM
 REM
-REM
+REM es\C\samples\c_samples\variadic_parameter_0.c
 REM
 REM
 REM

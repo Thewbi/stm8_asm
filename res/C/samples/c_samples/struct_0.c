@@ -3,3 +3,7 @@ struct Date {
     int month;
     int day;
 };
+
+int main() {
+    return 0;
+}

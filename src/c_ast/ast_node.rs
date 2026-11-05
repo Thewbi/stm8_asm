@@ -2279,8 +2279,10 @@ impl AstNode {
         ast_node_id
     }
 
-    fn pretty_print_ast_typedef_dot(&self, string_buffer: &mut String,
-        node_map: &Box<HashMap::<usize, AstNode>>) -> usize {
+    fn pretty_print_ast_typedef_dot(&self,
+        string_buffer: &mut String,
+        node_map: &Box<HashMap::<usize, AstNode>>) -> usize
+    {
 
         // create node for this AstNode
         let ast_node_id = self.id;

@@ -409,7 +409,27 @@ impl TypeCheckingVisitor {
         return DataType::DataTypeLong;
     }
 
-    pub fn do_while(&mut self,
+    pub fn while_handler(&mut self,
+        ast_node_id: usize,
+        node_map: &mut Box<HashMap<usize, AstNode>>,
+        expected_return_data_type: &DataType) -> DataType
+    {
+        let ast_node = node_map.get(&ast_node_id).unwrap().clone();
+
+        // LHS - expression_ast_node, condition, e.g. a < 10
+        if let Some(expression_node_id) = ast_node.lhs {
+            self.visit(expression_node_id, node_map, expected_return_data_type);
+        }
+
+        // RHS - statement
+        if let Some(statement_node_id) = ast_node.rhs {
+            self.visit(statement_node_id, node_map, expected_return_data_type);
+        }
+
+        return DataType::DataTypeUnknown;
+    }
+
+    pub fn do_while_handler(&mut self,
         ast_node_id: usize,
         node_map: &mut Box<HashMap<usize, AstNode>>,
         expected_return_data_type: &DataType) -> DataType
@@ -441,11 +461,71 @@ impl TypeCheckingVisitor {
         return DataType::DataTypeUnknown;
     }
 
+    pub fn for_handler(&mut self,
+        ast_node_id: usize,
+        node_map: &mut Box<HashMap<usize, AstNode>>,
+        expected_return_data_type: &DataType) -> DataType
+    {
+        let ast_node = node_map.get(&ast_node_id).unwrap().clone();
+
+        // LHS - initialization, e.g.: a = 0
+        if let Some(left_node_id) = ast_node.lhs {
+            self.visit(left_node_id, node_map, expected_return_data_type);
+        }
+
+        // expression - expression_ast_node, condition, e.g. a < 10
+        if let Some(expression_node_id) = ast_node.expression {
+            self.visit(expression_node_id, node_map, expected_return_data_type);
+        }
+
+        // RHS - post, e.g.: a = a + 1
+        if let Some(right_node_id) = ast_node.rhs {
+            self.visit(right_node_id, node_map, expected_return_data_type);
+        }
+
+        // BLOCK_ITEMS - instructions and declarations
+        for i in 0..ast_node.block_items.len() {
+            let idx = ast_node.block_items.len()-1-i;
+            let block_item_id = ast_node.block_items[idx];
+            self.visit(block_item_id, node_map, expected_return_data_type);
+        }
+
+        return DataType::DataTypeUnknown;
+    }
+
+    pub fn switch_handler(&mut self,
+        ast_node_id: usize,
+        node_map: &mut Box<HashMap<usize, AstNode>>,
+        expected_return_data_type: &DataType) -> DataType
+    {
+        let ast_node = node_map.get(&ast_node_id).unwrap().clone();
+
+        //
+        // expression
+        //
+
+        if let Some(expression_id) = ast_node.expression {
+            self.visit(expression_id, node_map, expected_return_data_type);
+        }
+
+        //
+        // Body Statement - block_items (cases and a default statement)
+        //
+
+        // BLOCK_ITEMS - instructions and declarations
+        for i in 0..ast_node.block_items.len() {
+            let idx = ast_node.block_items.len()-1-i;
+            let block_item_id = ast_node.block_items[idx];
+            self.visit(block_item_id, node_map, expected_return_data_type);
+        }
+
+        return DataType::DataTypeUnknown;
+    }
+
     pub fn visit(&mut self,
         ast_node_id: usize,
         node_map: &mut Box<HashMap<usize, AstNode>>,
-        expected_return_data_type: &DataType,
-        // depth: usize
+        expected_return_data_type: &DataType
     ) -> DataType
     {
         // println!("[visit] ast_node_id: {}, depth: {}", ast_node_id, depth);
@@ -1557,47 +1637,15 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::While => {
-                // LHS - expression_ast_node, condition, e.g. a < 10
-                if let Some(expression_node_id) = ast_node.lhs {
-                    self.visit(expression_node_id, node_map, expected_return_data_type);
-                }
-
-                // RHS - statement
-                if let Some(statement_node_id) = ast_node.rhs {
-                    self.visit(statement_node_id, node_map, expected_return_data_type);
-                }
-
-                return DataType::DataTypeUnknown;
+                return self.while_handler(ast_node.id, node_map, expected_return_data_type);
             }
 
             AstNodeType::DoWhile => {
-                return self.do_while(ast_node.id, node_map, expected_return_data_type);
+                return self.do_while_handler(ast_node.id, node_map, expected_return_data_type);
             }
 
             AstNodeType::For => {
-                // LHS - initialization, e.g.: a = 0
-                if let Some(left_node_id) = ast_node.lhs {
-                    self.visit(left_node_id, node_map, expected_return_data_type);
-                }
-
-                // expression - expression_ast_node, condition, e.g. a < 10
-                if let Some(expression_node_id) = ast_node.expression {
-                    self.visit(expression_node_id, node_map, expected_return_data_type);
-                }
-
-                // RHS - post, e.g.: a = a + 1
-                if let Some(right_node_id) = ast_node.rhs {
-                    self.visit(right_node_id, node_map, expected_return_data_type);
-                }
-
-                // BLOCK_ITEMS - instructions and declarations
-                for i in 0..ast_node.block_items.len() {
-                    let idx = ast_node.block_items.len()-1-i;
-                    let block_item_id = ast_node.block_items[idx];
-                    self.visit(block_item_id, node_map, expected_return_data_type);
-                }
-
-                return DataType::DataTypeUnknown;
+                return self.for_handler(ast_node.id, node_map, expected_return_data_type);
             }
 
             AstNodeType::FunctionCall => {
@@ -1665,26 +1713,7 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Switch => {
-                //
-                // expression
-                //
-
-                if let Some(expression_id) = ast_node.expression {
-                    self.visit(expression_id, node_map, expected_return_data_type);
-                }
-
-                //
-                // Body Statement - block_items (cases and a default statement)
-                //
-
-                // BLOCK_ITEMS - instructions and declarations
-                for i in 0..ast_node.block_items.len() {
-                    let idx = ast_node.block_items.len()-1-i;
-                    let block_item_id = ast_node.block_items[idx];
-                    self.visit(block_item_id, node_map, expected_return_data_type);
-                }
-
-                return DataType::DataTypeUnknown;
+                return self.switch_handler(ast_node.id, node_map, expected_return_data_type);
             }
 
             AstNodeType::Case => {
@@ -1862,24 +1891,46 @@ impl TypeCheckingVisitor {
                     println!("[AstNodeType::Typedef] {} {:?}", ast_node.id, ast_node);
                 }
 
+
+                let rhs_node_id = ast_node.rhs.unwrap();
+                let rhs_node = node_map.get(&rhs_node_id).unwrap();
+                // println!("rhs_node.string_val: '{:?}'", rhs_node.string_val);
+
+
                 let lhs_node_id = ast_node.lhs.unwrap();
-                // println!("lhs_node_id: {}", &lhs_node_id);
                 let lhs_node = node_map.get(&lhs_node_id).unwrap();
+                // println!("lhs_node.string_val: '{:?}'", lhs_node.string_val);
+                // println!("lhs_node '{:?}'", lhs_node);
 
                 // DEBUG
-                // if self.debug {
-                    println!("{:?}", lhs_node.string_val);
-                // }
+                if self.debug {
+                    println!("[TypeCheckingVisitor::pub fn visit][AstNodeType::Typedef] lhs_node.string_val: '{:?}'", lhs_node.string_val);
+                }
+
+                //let mut touple: (type_name, rest) = ("", "");
+
+                let split_result = lhs_node.string_val.split_once(char::is_whitespace);
+                if let Some(split_result_touple) = split_result {
+
+                    let ts = self.type_system.borrow_mut();
+                    let data_type = ts.get(split_result_touple.1);
+
+                    // println!("{:?}", data_type);
+
+                    return data_type.unwrap().clone();
+
+                } else {
+
+                    let ts = self.type_system.borrow_mut();
+                    let data_type = ts.get(&lhs_node.string_val);
+
+                    return data_type.unwrap().clone();
+                }
 
                 // let type_name = lhs_node.string_val.split(' ').collect::<Vec<_>>().get(0).unwrap();
-                let (type_name, rest) = lhs_node.string_val.split_once(char::is_whitespace).unwrap();
+                //let (type_name, rest) = lhs_node.string_val.split_once(char::is_whitespace).unwrap();
 
-                let ts = self.type_system.borrow_mut();
-                let data_type = ts.get(type_name);
-
-                // println!("{:?}", data_type);
-
-                return data_type.unwrap().clone();
+                // return DataType::DataTypeUnknown;
             }
 
             _ => {

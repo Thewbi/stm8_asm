@@ -281,12 +281,6 @@ fn main() {
         i = i + 1;
     }
 
-
-
-
-
-
-
     let mut parse_table = HashMap::<usize, HashMap::<RuleElement<String>, ParseTableCell<usize>>>::new();
 
     //

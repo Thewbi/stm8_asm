@@ -9,10 +9,12 @@ struct point {
     int y;
 };
 
-void main()
+int main()
 {
-    struct point {
-        int x;
-        int y;
-    };
+    // struct point {
+    //     int x;
+    //     int y;
+    // };
+
+    return 0;
 }

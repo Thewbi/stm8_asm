@@ -17,3 +17,7 @@ struct listnode
 };
 
 typedef struct listnode listnode_t;
+
+int main() {
+    return 0;
+}

@@ -20,3 +20,7 @@ typedef struct point point_t;
 //     int z;
 // };
 // typedef struct point point_t;
+
+int main() {
+    return 0;
+}

@@ -3,12 +3,14 @@ struct point {
     int y;
 };
 
-struct point pt;
-
-void main()
+int main()
 {
-    struct point {
-        int x;
-        int y;
-    } p1, p2, p3;
+    struct point pt;
+
+    // struct point {
+        // int x;
+        // int y;
+    // } p1, p2, p3;
+
+    return 0;
 }

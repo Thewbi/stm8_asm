@@ -97,10 +97,11 @@ pub struct AsmAstInstruction {
 
 impl AsmAstInstruction {
     pub fn new() -> AsmAstInstruction {
-        unsafe { INSTRUCTION_ID = INSTRUCTION_ID + 1 };
+        // unsafe { INSTRUCTION_ID = INSTRUCTION_ID + 1 };
 
         AsmAstInstruction {
-            id: unsafe { INSTRUCTION_ID },
+            // id: unsafe { INSTRUCTION_ID },
+            id: 0,
 
             instruction_type: AsmAstInstructionType::Ret,
             unary_operator: AsmAstUnaryOperator::Not,
