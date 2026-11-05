@@ -1849,14 +1849,14 @@ impl AstNode {
 
             // connect parent and child
             // println!("{} -> {}", ast_node_id, expression_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, expression_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"EXPRESSION\"]\n", ast_node_id, expression_ast_node_id).as_str());
         }
 
         for i in 0..self.block_items.len() {
             let block_item_ast_node_id = node_map.get(&self.block_items[i]).unwrap().pretty_print_ast_dot(string_buffer, node_map);
             // connect parent and child
             // println!("{} -> {}", ast_node_id, block_item_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, block_item_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"BLOCK_ITEM\"]\n", ast_node_id, block_item_ast_node_id).as_str());
         }
 
         ast_node_id

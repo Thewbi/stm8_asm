@@ -1125,6 +1125,25 @@ impl IdentifierResolutionVisitor {
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
+
+                //
+                // expression
+                //
+
+                if let Some(expression_id) = ast_node.expression {
+                    self.visit(expression_id, node_map);
+                }
+
+                //
+                // Body Statement - block_items (cases and a default statement)
+                //
+
+                // BLOCK_ITEMS - instructions and declarations
+                for i in 0..ast_node.block_items.len() {
+                    let idx = ast_node.block_items.len()-1-i;
+                    let block_item_id = ast_node.block_items[idx];
+                    self.visit(block_item_id, node_map);
+                }
             }
 
             AstNodeType::Case => {
@@ -1132,12 +1151,30 @@ impl IdentifierResolutionVisitor {
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
+
+                //
+                // Body Statement - block_items (cases and a default statement)
+                //
+
+                // BLOCK_ITEMS - instructions and declarations
+                for i in 0..ast_node.block_items.len() {
+                    let idx = ast_node.block_items.len()-1-i;
+                    let block_item_id = ast_node.block_items[idx];
+                    self.visit(block_item_id, node_map);
+                }
             }
 
             AstNodeType::Default => {
                 // DEBUG
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
+                }
+
+                // BLOCK_ITEMS - instructions and declarations
+                for i in 0..ast_node.block_items.len() {
+                    let idx = ast_node.block_items.len()-1-i;
+                    let block_item_id = ast_node.block_items[idx];
+                    self.visit(block_item_id, node_map);
                 }
             }
 

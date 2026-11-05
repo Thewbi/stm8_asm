@@ -1331,10 +1331,6 @@ impl TackyVisitor {
                             binary_instruction.binary_operator = BinaryOperator::LogicalOr;
                         }
 
-                        // AstNodeOperatorType::AddAssignment => {
-                        //     binary_instruction.binary_operator = BinaryOperator::AddAssignment;
-                        // }
-
                         _ => {
                             panic!("{}", format!("Unhandled OperatorType {:?}!\n", operator_ast_node.operator_type).as_str());
                         }
@@ -1343,6 +1339,11 @@ impl TackyVisitor {
 
                 // copy data type from type-checked ast node into the TACKY instruction
                 binary_instruction.data_type = ast_node.get_analyzed_data_type().clone();
+
+                // println!("{:?}", ast_node);
+
+                assert_ne!(binary_instruction.data_type, DataType::DataTypeUnknown,
+                    "{}", format!("AST-Node {:?} has no data type!", ast_node.id).as_str());
 
                 // append instruction to latest top-level element of the program
                 let last = self.program.top_level.len() - 1;
@@ -1512,8 +1513,28 @@ impl TackyVisitor {
             AstNodeType::Switch => {
 
                 //
-                // Body Statement - block_items
+                // The goal is to convert the AST nodes of a switch into
+                // TACKY instructions
                 //
+
+                // create the final end-label
+                let mut final_end_label_instruction: Instruction = Instruction::new();
+                final_end_label_instruction.instruction_type = InstructionType::Label;
+                final_end_label_instruction.label = self.final_end_label(&ast_node, "switch_final_");
+
+                //
+                // expression
+                //
+
+                let global_selector_var_name
+                    = self.expression_to_varname(&ast_node, node_map, branch_counter);
+
+                //
+                // Body Statement - block_items (cases and a default statement)
+                //
+
+                let mut default_branch_option: Option::<usize> = None;
+                let mut counter: usize = 0;
 
                 for i in 0..ast_node.block_items.len() {
 
@@ -1524,22 +1545,198 @@ impl TackyVisitor {
 
                     // look for the default item
                     match block_item.node_type {
+
                         AstNodeType::Case => {
 
+                            //
+                            // For each case, first evaluate an equals expression
+                            // between the switch-statements selector value and
+                            // the case's local selector value. If they match,
+                            // execute the body statements and then jump to the
+                            // overall end label of the switch statement.
+                            // If they are not equal, jump to the local end label
+                            // which is local to that case statement
+                            //
+
+                            // DEBUG
+                            // println!("[CASE]");
+
+                            // add a comment
+                            let mut comment: Instruction = Instruction::new();
+                            comment.instruction_type = InstructionType::Comment;
+                            comment.label = "".to_string();
+                            // append comment to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(comment));
+                            // add a comment
+                            let mut comment: Instruction = Instruction::new();
+                            comment.instruction_type = InstructionType::Comment;
+                            comment.label = format!("CASE #{}", counter).to_string();
+                            // append comment to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(comment));
+                            // add a comment
+                            let mut comment: Instruction = Instruction::new();
+                            comment.instruction_type = InstructionType::Comment;
+                            comment.label = "".to_string();
+                            // append comment to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(comment));
+
+                            // create the local end-label for this case
+                            let mut local_end_label_instruction: Instruction = Instruction::new();
+                            local_end_label_instruction.instruction_type = InstructionType::Label;
+                            local_end_label_instruction.label = self.new_end_label(&block_item, "switch_case_", &mut counter);
+                            counter = counter + 1;
+
+                            // retrieve the target value (= local selector value) from EXPRESSION
+                            let local_selector_ast_node = node_map.get(&block_item.expression.unwrap()).unwrap();
+
+                            // DEBUG
+                            // println!("[CASE-EXPRESSION] {:?}", &local_selector_ast_node.string_val);
+
+                            // temp variable to capture the result of the comparison between
+                            // the global and the local selector
+                            let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+                            let temp_var = self.declare_temporary_variable(&temp_var_name.clone(), DataType::DataTypeInt);
+
+                            // add a comment
+                            let mut comment: Instruction = Instruction::new();
+                            comment.instruction_type = InstructionType::Comment;
+                            comment.label = "perform equals comparison between local and global selector".to_string();
+                            // append comment to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(comment));
+
+                            // compare the switch'S input variable (global selector) to the
+                            // case expression local selector
+                            let mut cmp_equals_instruction: Instruction = Instruction::new();
+                            cmp_equals_instruction.instruction_type = InstructionType::Binary;
+                            cmp_equals_instruction.binary_operator = BinaryOperator::Equal;
+                            cmp_equals_instruction.data_type = DataType::DataTypeInt;
+                            cmp_equals_instruction.src = ValueElement::Variable(global_selector_var_name.clone());
+                            cmp_equals_instruction.src_2 = ValueElement::Constant(local_selector_ast_node.string_val.clone());
+                            cmp_equals_instruction.dst = ValueElement::Variable(temp_var_name.clone());
+                            // append instruction to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(cmp_equals_instruction));
+
+                            // add a comment
+                            let mut comment: Instruction = Instruction::new();
+                            comment.instruction_type = InstructionType::Comment;
+                            comment.label = "jump over the body to the local end label if the expression evaluates to false".to_string();
+                            // append comment to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(comment));
+                            // jump over the body to the local end label if the expression evaluates to false
+                            let mut jump_if_zero_instruction: Instruction = Instruction::new();
+                            jump_if_zero_instruction.instruction_type = InstructionType::JumpIfZero;
+                            jump_if_zero_instruction.src = ValueElement::Variable(temp_var_name.clone());
+                            jump_if_zero_instruction.label = local_end_label_instruction.label.clone();
+                            // append instruction to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(jump_if_zero_instruction));
+
+                            // add a comment
+                            let mut comment: Instruction = Instruction::new();
+                            comment.instruction_type = InstructionType::Comment;
+                            comment.label = "output statements for the body".to_string();
+                            // append comment to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(comment));
+                            // output statements for the body
+                            let mut br_cnt = 0;
+                            self.visit(block_item_id, node_map, &String::from(""), &mut br_cnt);
+
+                            // add a comment
+                            let mut comment: Instruction = Instruction::new();
+                            comment.instruction_type = InstructionType::Comment;
+                            comment.label = "jump to final end label because only one branch is executed ever".to_string();
+                            // append comment to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(comment));
+                            // jump to final end label because only one branch is executed ever
+                            let mut jump_instruction: Instruction = Instruction::new();
+                            jump_instruction.instruction_type = InstructionType::Jump;
+                            jump_instruction.label = final_end_label_instruction.label.clone();
+
+                            // append instruction to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(jump_instruction));
+
+                            // insert local end label
+                            // append instruction to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(local_end_label_instruction));
                         }
                         AstNodeType::Default => {
-                            todo!();
+
+                            // DEBUG
+                            // println!("[DEFAULT]");
+
+                            default_branch_option = Some(block_item_id);
                         }
                         _ => {
                             panic!();
                         }
                     }
+                }
 
+                // process the buffered default branch
+                // output statements for the body
+                if let Some(default_branch_id) = default_branch_option {
+
+                    // add a comment
+                    let mut comment: Instruction = Instruction::new();
+                    comment.instruction_type = InstructionType::Comment;
+                    comment.label = "".to_string();
+                    // append comment to latest top-level element of the program
+                    let last = self.program.top_level.len() - 1;
+                    self.program.top_level[last].body.push(Box::new(comment));
+                    // add a comment
+                    let mut comment: Instruction = Instruction::new();
+                    comment.instruction_type = InstructionType::Comment;
+                    comment.label = format!("DEFAULT").to_string();
+                    // append comment to latest top-level element of the program
+                    let last = self.program.top_level.len() - 1;
+                    self.program.top_level[last].body.push(Box::new(comment));
+                    // add a comment
+                    let mut comment: Instruction = Instruction::new();
+                    comment.instruction_type = InstructionType::Comment;
+                    comment.label = "".to_string();
+                    // append comment to latest top-level element of the program
+                    let last = self.program.top_level.len() - 1;
+                    self.program.top_level[last].body.push(Box::new(comment));
+
+                    let mut br_cnt = 0;
+                    self.visit(default_branch_id, node_map, &String::from(""), &mut br_cnt);
+                }
+
+                // append instruction to latest top-level element of the program
+                let last = self.program.top_level.len() - 1;
+                self.program.top_level[last].body.push(Box::new(final_end_label_instruction));
+            }
+
+            AstNodeType::Case => {
+                for i in 0..ast_node.block_items.len() {
+                    let block_item_id = ast_node.block_items[ast_node.block_items.len()-1-i];
+                    let block_item = node_map.get(&block_item_id).unwrap();
                     let mut br_cnt = 0;
                     self.visit(block_item_id, node_map,  &String::from(""), &mut br_cnt);
                 }
+            }
 
-                panic!();
+            AstNodeType::Default => {
+                for i in 0..ast_node.block_items.len() {
+                    let block_item_id = ast_node.block_items[ast_node.block_items.len()-1-i];
+                    let block_item = node_map.get(&block_item_id).unwrap();
+                    let mut br_cnt = 0;
+                    self.visit(block_item_id, node_map,  &String::from(""), &mut br_cnt);
+                }
+            }
+
+            AstNodeType::Break => {
+
             }
 
             AstNodeType::While => {
@@ -1584,7 +1781,6 @@ impl TackyVisitor {
                     let mut jump_if_zero_instruction: Instruction = Instruction::new();
                     jump_if_zero_instruction.instruction_type = InstructionType::JumpIfZero;
                     jump_if_zero_instruction.src = lhs_value_element;
-
                     jump_if_zero_instruction.label = self.final_end_label(&ast_node, "while_");
 
                     // append instruction to latest top-level element of the program

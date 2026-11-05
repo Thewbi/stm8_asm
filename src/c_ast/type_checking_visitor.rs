@@ -418,24 +418,24 @@ impl TypeCheckingVisitor {
 
         // LHS
         if let Some(expression_node_id) = ast_node.lhs {
-            self.visit(expression_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+            self.visit(expression_node_id, node_map, expected_return_data_type);
         }
 
         // RHS
         if let Some(statement_node_id) = ast_node.rhs {
-            self.visit(statement_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+            self.visit(statement_node_id, node_map, expected_return_data_type);
         }
 
         // expression - expression_ast_node, condition, e.g. a < 10
         if let Some(expression_node_id) = ast_node.expression {
-            self.visit(expression_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+            self.visit(expression_node_id, node_map, expected_return_data_type);
         }
 
         // BLOCK_ITEMS - instructions and declarations
         for i in 0..ast_node.block_items.len() {
             let idx = ast_node.block_items.len()-1-i;
             let block_item_id = ast_node.block_items[idx];
-            self.visit(block_item_id, node_map, expected_return_data_type/*,  depth+1*/);
+            self.visit(block_item_id, node_map, expected_return_data_type);
         }
 
         return DataType::DataTypeUnknown;
@@ -465,7 +465,7 @@ impl TypeCheckingVisitor {
                 for i in 0..ast_node.block_items.len() {
                     let index = ast_node.block_items.len()-1-i;
                     let block_item_id = ast_node.block_items[index];
-                    data_type = self.visit(block_item_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    data_type = self.visit(block_item_id, node_map, expected_return_data_type);
                 }
                 return data_type;
             }
@@ -511,7 +511,7 @@ impl TypeCheckingVisitor {
                 let mut lhs_data_type = DataType::DataTypeUnknown;
                 let mut left_node = AstNode::new(0);
                 if let Some(left_node_id) = ast_node.lhs {
-                    lhs_data_type = self.visit(left_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    lhs_data_type = self.visit(left_node_id, node_map, expected_return_data_type);
                     // println!("lhs_data_type: {:?}", lhs_data_type);
                     // retrieve
                     left_node = node_map.get(&left_node_id).unwrap().clone();
@@ -524,7 +524,7 @@ impl TypeCheckingVisitor {
                 if let Some(right_node_id) = ast_node.rhs {
 
                     // visit the right side - This might change the AST by inserting cast() nodes
-                    rhs_data_type = self.visit(right_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    rhs_data_type = self.visit(right_node_id, node_map, expected_return_data_type);
 
                     match rhs_data_type {
 
@@ -746,7 +746,7 @@ impl TypeCheckingVisitor {
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
 
-                    let data_type = self.visit(left_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    let data_type = self.visit(left_node_id, node_map, expected_return_data_type);
 
                     // println!("{}", data_type);
 
@@ -817,17 +817,17 @@ impl TypeCheckingVisitor {
             AstNodeType::If => {
                 // Expression
                 if let Some(expression_node_id) = ast_node.expression {
-                    self.visit(expression_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    self.visit(expression_node_id, node_map, expected_return_data_type);
                 }
 
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
-                    self.visit(left_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    self.visit(left_node_id, node_map, expected_return_data_type);
                 }
 
                 // RHS
                 if let Some(right_node_id) = ast_node.rhs {
-                    self.visit(right_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    self.visit(right_node_id, node_map, expected_return_data_type);
                 }
 
                 return DataType::DataTypeUnknown;
@@ -847,7 +847,7 @@ impl TypeCheckingVisitor {
                 // RHS
                 if let Some(right_node_id) = ast_node.rhs {
 
-                    self.visit(right_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    self.visit(right_node_id, node_map, expected_return_data_type);
 
                     let right_node = node_map.get(&right_node_id).unwrap();
 
@@ -934,7 +934,7 @@ impl TypeCheckingVisitor {
                     //     println!("test");
                     // }
 
-                    let analyzed_type = self.visit(left_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    let analyzed_type = self.visit(left_node_id, node_map, expected_return_data_type);
                     // println!("LHS: analyzed_type: {:?}", analyzed_type);
 
                     let mut left_node = node_map.get(&left_node_id).unwrap().clone();
@@ -977,7 +977,7 @@ impl TypeCheckingVisitor {
 
                     right_node_id_retrieved = right_node_id;
 
-                    let analyzed_type = self.visit(right_node_id.clone(), node_map, expected_return_data_type/*,  depth+1*/);
+                    let analyzed_type = self.visit(right_node_id.clone(), node_map, expected_return_data_type);
                     // println!("RHS: analyzed_type: {:?}", analyzed_type);
 
                     let mut right_node = node_map.get(&right_node_id).unwrap().clone();
@@ -1173,7 +1173,7 @@ impl TypeCheckingVisitor {
             AstNodeType::Declaration => {
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
-                    return self.visit(left_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    return self.visit(left_node_id, node_map, expected_return_data_type);
                 }
 
                 panic!();
@@ -1210,7 +1210,7 @@ impl TypeCheckingVisitor {
                     temp_parameter_count = ast_node.parameters.len();
                     for i in 0..ast_node.parameters.len() {
                         let parameter_node_id = ast_node.parameters[i];
-                        self.visit(parameter_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                        self.visit(parameter_node_id, node_map, expected_return_data_type);
                     }
                 }
 
@@ -1237,13 +1237,13 @@ impl TypeCheckingVisitor {
                         Err(e) => panic!("should be valid DataType: {e}"),
                     };
 
-                    return_type = self.visit(right_node_id, node_map, &data_type_as_enum/*,  depth+1*/);
+                    return_type = self.visit(right_node_id, node_map, &data_type_as_enum);
                 }
 
                 {
                     // LHS - body of function == block with statements as block_items
                     if let Some(left_node_id) = ast_node.lhs {
-                        self.visit(left_node_id, node_map, &data_type_as_enum/*,  depth+1*/);
+                        self.visit(left_node_id, node_map, &data_type_as_enum);
 
                         symbol_table_entry.has_body = true;
                     }
@@ -1425,7 +1425,7 @@ impl TypeCheckingVisitor {
                     if self.debug {
                         print!("{:?}", expression_node);
                     }
-                    self.visit(expression_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    self.visit(expression_node_id, node_map, expected_return_data_type);
                 }
 
                 return data_type;
@@ -1475,7 +1475,7 @@ impl TypeCheckingVisitor {
                         println!("RHS: {} {:?} file:{}, line:{}", right_node.id, right_node, right_node.file, right_node.line);
                     }
 
-                    data_type = self.visit(right_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    data_type = self.visit(right_node_id, node_map, expected_return_data_type);
                     right_node.set_analyzed_data_type(data_type.clone());
 
                     // update changed node
@@ -1517,7 +1517,7 @@ impl TypeCheckingVisitor {
             AstNodeType::Statement => {
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
-                    return self.visit(left_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    return self.visit(left_node_id, node_map, expected_return_data_type);
                 }
                 panic!();
             }
@@ -1531,7 +1531,7 @@ impl TypeCheckingVisitor {
                     }
                     let index = ast_node.block_items.len()-1-i;
                     let block_item_id = ast_node.block_items[index];
-                    data_type = self.visit(block_item_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    data_type = self.visit(block_item_id, node_map, expected_return_data_type);
                 }
                 return data_type;
             }
@@ -1539,7 +1539,7 @@ impl TypeCheckingVisitor {
             AstNodeType::BlockItem => {
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
-                    return self.visit(left_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    return self.visit(left_node_id, node_map, expected_return_data_type);
                 }
                 todo!();
             }
@@ -1551,7 +1551,7 @@ impl TypeCheckingVisitor {
             AstNodeType::Compound => {
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
-                    return self.visit(left_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    return self.visit(left_node_id, node_map, expected_return_data_type);
                 }
                 todo!();
             }
@@ -1559,12 +1559,12 @@ impl TypeCheckingVisitor {
             AstNodeType::While => {
                 // LHS - expression_ast_node, condition, e.g. a < 10
                 if let Some(expression_node_id) = ast_node.lhs {
-                    self.visit(expression_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    self.visit(expression_node_id, node_map, expected_return_data_type);
                 }
 
                 // RHS - statement
                 if let Some(statement_node_id) = ast_node.rhs {
-                    self.visit(statement_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    self.visit(statement_node_id, node_map, expected_return_data_type);
                 }
 
                 return DataType::DataTypeUnknown;
@@ -1577,24 +1577,24 @@ impl TypeCheckingVisitor {
             AstNodeType::For => {
                 // LHS - initialization, e.g.: a = 0
                 if let Some(left_node_id) = ast_node.lhs {
-                    self.visit(left_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    self.visit(left_node_id, node_map, expected_return_data_type);
                 }
 
                 // expression - expression_ast_node, condition, e.g. a < 10
                 if let Some(expression_node_id) = ast_node.expression {
-                    self.visit(expression_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    self.visit(expression_node_id, node_map, expected_return_data_type);
                 }
 
                 // RHS - post, e.g.: a = a + 1
                 if let Some(right_node_id) = ast_node.rhs {
-                    self.visit(right_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    self.visit(right_node_id, node_map, expected_return_data_type);
                 }
 
                 // BLOCK_ITEMS - instructions and declarations
                 for i in 0..ast_node.block_items.len() {
                     let idx = ast_node.block_items.len()-1-i;
                     let block_item_id = ast_node.block_items[idx];
-                    self.visit(block_item_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    self.visit(block_item_id, node_map, expected_return_data_type);
                 }
 
                 return DataType::DataTypeUnknown;
@@ -1665,23 +1665,70 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Switch => {
+                //
+                // expression
+                //
+
+                if let Some(expression_id) = ast_node.expression {
+                    self.visit(expression_id, node_map, expected_return_data_type);
+                }
+
+                //
+                // Body Statement - block_items (cases and a default statement)
+                //
+
+                // BLOCK_ITEMS - instructions and declarations
+                for i in 0..ast_node.block_items.len() {
+                    let idx = ast_node.block_items.len()-1-i;
+                    let block_item_id = ast_node.block_items[idx];
+                    self.visit(block_item_id, node_map, expected_return_data_type);
+                }
+
                 return DataType::DataTypeUnknown;
             }
 
             AstNodeType::Case => {
-                todo!();
+                //
+                // expression
+                //
+
+                if let Some(expression_id) = ast_node.expression {
+                    self.visit(expression_id, node_map, expected_return_data_type);
+                }
+
+                //
+                // Body Statement - block_items (cases and a default statement)
+                //
+
+                // BLOCK_ITEMS - instructions and declarations
+                for i in 0..ast_node.block_items.len() {
+                    let idx = ast_node.block_items.len()-1-i;
+                    let block_item_id = ast_node.block_items[idx];
+                    self.visit(block_item_id, node_map, expected_return_data_type);
+                }
+
+                return DataType::DataTypeUnknown;
             }
 
             AstNodeType::Default => {
-                todo!();
+                // BLOCK_ITEMS - instructions and declarations
+                for i in 0..ast_node.block_items.len() {
+                    let idx = ast_node.block_items.len()-1-i;
+                    let block_item_id = ast_node.block_items[idx];
+                    self.visit(block_item_id, node_map, expected_return_data_type);
+                }
+
+                return DataType::DataTypeUnknown;
             }
 
             AstNodeType::Break => {
-                todo!();
+                // todo!();
+                return DataType::DataTypeUnknown;
             }
 
             AstNodeType::Continue => {
-                todo!();
+                // todo!();
+                return DataType::DataTypeUnknown;
             }
 
             AstNodeType::EmptyStatement => {
@@ -1691,7 +1738,7 @@ impl TypeCheckingVisitor {
             AstNodeType::SingleInit => {
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
-                    return self.visit(left_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    return self.visit(left_node_id, node_map, expected_return_data_type);
                 }
                 todo!();
             }
@@ -1707,7 +1754,7 @@ impl TypeCheckingVisitor {
                 // RHS contains the type
                 if let Some(right_node_id) = ast_node.rhs {
 
-                    self.visit(right_node_id, node_map, expected_return_data_type/*,  depth+1*/);
+                    self.visit(right_node_id, node_map, expected_return_data_type);
 
                     let right_node = node_map.get(&right_node_id).unwrap();
                     let rhs_type = self.retrieve_data_type_from_node_type(right_node, node_map);
