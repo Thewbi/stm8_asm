@@ -627,7 +627,7 @@ impl AsmAstMasmEmitterVisitor {
         // Prelude
         //
 
-        self.string_buffer.push_str("\n    ; prelude - create stack frame and shadow area\n");
+        self.string_buffer.push_str("\n\n    ; prelude - create stack frame and shadow area\n");
 
         // 32_BIT
         // self.string_buffer.push_str("    push ebp ; save base of current stack frame to restore it later\n"); // save base of current stack frame to restore it later

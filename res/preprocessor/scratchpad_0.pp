@@ -1,8 +1,21 @@
 struct listnode
 {
-   int *data_int_ptr;
+    int a;
 };
 
 int main() {
-    return 0;
+
+    int b;
+
+    struct listnode struct_0;
+    struct_0.a = 8;
+
+    struct listnode *struct_ptr;
+    struct_ptr = &struct_0;
+    //struct_ptr = 0;
+
+    b = struct_ptr->a;
+
+    return b;
+    //return struct_ptr;
 }

@@ -2267,6 +2267,7 @@ impl TackyVisitor {
                     // https://stackoverflow.com/questions/9722632/what-happens-if-i-define-a-0-size-array-in-c-c
                     assert_ne!(array_element_count, 0, "[ERR] An array of size 0 is not allowed!");
                 }
+                // DEBUG
                 if self.debug {
                     println!("explicit_array_element_count: {}", explicit_array_element_count);
                     println!("implicit_array_element_count: {}", implicit_array_element_count);
@@ -2279,18 +2280,55 @@ impl TackyVisitor {
                 var_declaration.data_type = data_type.clone();
                 var_declaration.label = variable_identifier.clone();
 
-                // create symbol table entry for temporary variable
-                let mut symbol_table_entry = SymbolTableEntry::new();
-                symbol_table_entry.name = variable_identifier.clone();
-                symbol_table_entry.initial_name = variable_identifier.clone();
-                symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
-                symbol_table_entry.data_type = data_type.clone();
-                symbol_table_entry.is_array = is_array;
-                symbol_table_entry.array_element_count = array_element_count;
-                if self.debug {
-                    println!("[TackyVisitor] key:'{}', value{:?}", variable_identifier.clone(), symbol_table_entry);
+                if self.symbol_table.borrow_mut().contains_key(&variable_identifier) {
+                    // this branch will perform an update and leave all other properties
+                    // as is. This is is important because the type checking visitor which
+                    // created the initial entry has added status about the variable being
+                    // a pointer. This status should not be lost!
+                    // This is a mess!!!!!
+                    //
+                    // TODO: Why is there a new entry inserted into the symbol table?
+                    // I think that here, the status if it is an array and the amount of array
+                    // elements are updated. If this is the case, why was this not done directly
+                    // inside the type_checking_visitor?
+                    //
+                    // Maybe move all symbol_table_entry creation into the type checking visitor
+                    // There are more creations inside this tacky visistor. It is unclear why
+                    // there is a separation between the type checking- and the tacky visitor
+                    // for symbol table updates!?!?!?!?
+                    let mut symbol_table_entry = self.symbol_table.borrow_mut().get(&variable_identifier).unwrap();
+                    symbol_table_entry.is_array = is_array;
+                    symbol_table_entry.array_element_count = array_element_count;
+                    // DEBUG
+                    if self.debug {
+                        println!("[TackyVisitor] key:'{}', value{:?}", variable_identifier.clone(), symbol_table_entry);
+                    }
+                    self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
+                } else {
+                    // create symbol table entry for temporary variable
+                    let mut symbol_table_entry = SymbolTableEntry::new();
+                    symbol_table_entry.name = variable_identifier.clone();
+                    symbol_table_entry.initial_name = variable_identifier.clone();
+                    symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
+                    symbol_table_entry.data_type = data_type.clone();
+                    symbol_table_entry.is_array = is_array;
+                    symbol_table_entry.array_element_count = array_element_count;
+                    // DEBUG
+                    if self.debug {
+                        println!("[TackyVisitor] key:'{}', value{:?}", variable_identifier.clone(), symbol_table_entry);
+                    }
+
+                    // TODO: Why is there a new entry inserted into the symbol table?
+                    // I think that here, the status if it is an array and the amount of array
+                    // elements are updated. If this is the case, why was this not done directly
+                    // inside the type_checking_visitor?
+                    //
+                    // Maybe move all symbol_table_entry creation into the type checking visitor
+                    // There are more creations inside this tacky visistor. It is unclear why
+                    // there is a separation between the type checking- and the tacky visitor
+                    // for symbol table updates!?!?!?!?
+                    self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
                 }
-                self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
 
                 // append instruction to latest top-level element of the program
                 let last = self.program.top_level.len() - 1;

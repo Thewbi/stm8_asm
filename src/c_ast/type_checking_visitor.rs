@@ -227,8 +227,9 @@ impl TypeCheckingVisitor {
                 }
                 // ASSERT - LHS needs to have a type
                 assert_ne!(lhs_data_type, DataType::DataTypeUnknown);
+
                 // DEBUG
-                println!("[TCV][AstNodeType::Binary] LHS type: {:?}", lhs_data_type);
+                // println!("[TCV][AstNodeType::Binary] LHS type: {:?}", lhs_data_type);
 
                 // RHS
                 let mut rhs_data_type = DataType::DataTypeUnknown;
@@ -260,12 +261,12 @@ impl TypeCheckingVisitor {
                 // ASSERT - RHS needs to have a type
                 assert_ne!(rhs_data_type, DataType::DataTypeUnknown);
                 // DEBUG
-                println!("[TCV][AstNodeType::Binary] RHS type: {:?}", rhs_data_type);
+                // println!("[TCV][AstNodeType::Binary] RHS type: {:?}", rhs_data_type);
 
                 let common_data_type = self.get_common_type(&lhs_data_type, &rhs_data_type);
 
                 // DEBUG
-                println!("[TCV][AstNodeType::Binary] common_data_type: {:?}", common_data_type);
+                // println!("[TCV][AstNodeType::Binary] common_data_type: {:?}", common_data_type);
 
                 // ast_node.analyzed_data_type = common_data_type.clone();
 
@@ -442,10 +443,10 @@ impl TypeCheckingVisitor {
         let mut ast_node = node_map.get(&ast_node_id).unwrap().clone();
 
         // DEBUG
-        // if self.debug {
+        if self.debug {
             println!("[TCV][AstNodeType::Expression] ------------------------------------------------");
             println!("{} {:?}", ast_node.id, ast_node);
-        // }
+        }
 
         assert!(ast_node.lhs.is_some());
 
@@ -459,7 +460,7 @@ impl TypeCheckingVisitor {
             left_node = node_map.get(&left_node_id).unwrap().clone();
         }
         // DEBUG
-        println!("[TCV][AstNodeType::Expression] lhs_data_type: \n\n{:?}", lhs_data_type);
+        // println!("[TCV][AstNodeType::Expression] lhs_data_type: \n\n{:?}", lhs_data_type);
 
         // RHS - variable name or const/literal value
         let mut rhs_data_type = DataType::DataTypeUnknown;
@@ -500,7 +501,7 @@ impl TypeCheckingVisitor {
             rhs_variable_name = right_node.string_val.clone();
         }
         // DEBUG
-        println!("[TCV][AstNodeType::Expression] rhs_data_type: \n\n{:?}", rhs_data_type);
+        // println!("[TCV][AstNodeType::Expression] rhs_data_type: \n\n{:?}", rhs_data_type);
 
         //
         // check types and insert cast if needed
@@ -544,9 +545,9 @@ impl TypeCheckingVisitor {
                 if rhs_data_type != DataType::DataTypeUnknown && lhs_data_type != rhs_data_type {
 
                     // DEBUG
-                    // if self.debug {
+                    if self.debug {
                         println!("[TCV][AstNodeType::Expression]\n\n lhs_type: \n\n{:?}, \n\n rhs_type: \n\n{:?} \n\n", lhs_data_type, rhs_data_type);
-                    // }
+                    }
 
                     // insert a cast node into the AST!
                     let cast_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -803,17 +804,17 @@ impl TypeCheckingVisitor {
         let ast_node = node_map.get(&ast_node_id).unwrap().clone();
 
         // DEBUG
-        // if self.debug {
+        if self.debug {
             println!("[TCV][AstNodeType::Arrow | AstNodeType::Dot] -----------------------------------------------------------");
             println!("{} {:?}", ast_node.id, ast_node);
-        // }
+        }
 
         let node = node_map.get(&ast_node.id).unwrap();
 
         // LHS - base object (ptr or struct)
         let lhs_node_id = node.lhs.unwrap();
         // DEBUG
-        println!("[TCV] lhs_node_id: {}", &lhs_node_id);
+        // println!("[TCV] lhs_node_id: {}", &lhs_node_id);
         let lhs_node = node_map.get(&lhs_node_id).unwrap();
         let base_object_name = lhs_node.string_val.clone();
         // println!("{:?}", lhs_node);
@@ -821,21 +822,21 @@ impl TypeCheckingVisitor {
         // RHS - retrieve the accessed field that is contained inside the base object
         let rhs_node_id = node.rhs.unwrap();
         // DEBUG
-        println!("[TCV] rhs_node_id: {}", &rhs_node_id);
+        // println!("[TCV] rhs_node_id: {}", &rhs_node_id);
         let rhs_node = node_map.get(&rhs_node_id).unwrap();
         let field_name = rhs_node.string_val.clone();
         // DEBUG
-        println!("[TCV] rhs_node_id: {}, field_name: '{}'", &rhs_node_id, field_name);
+        // println!("[TCV] rhs_node_id: {}, field_name: '{}'", &rhs_node_id, field_name);
 
         // resolve base variable name to symbol
         let lhs_symbol = self.symbol_table.borrow_mut().retrieve(&lhs_node.string_val);
         // DEBUG
-        println!("[TCV] lhs_symbol: \n\n{:?}", lhs_symbol);
+        // println!("[TCV] lhs_symbol: \n\n{:?}", lhs_symbol);
 
         // retrieve data type of base variable / lhs_symbol
         let lhs_data_type = lhs_symbol.data_type;
         // DEBUG
-        println!("[TCV] lhs_data_type: \n\n {}", &lhs_data_type);
+        // println!("[TCV] lhs_data_type: \n\n {}", &lhs_data_type);
 
         //
         // this final step determines the type which is ultimately returned as the
@@ -867,8 +868,8 @@ impl TypeCheckingVisitor {
                 let return_data_type = struct_decl_member.unwrap().data_type.clone();
 
                 // DEBUG
-                println!("[TCV] For base-object: '{}', field-Name: '{}' returning data type: \n\n{:?}",
-                    base_object_name, field_name, return_data_type);
+                // println!("[TCV] For base-object: '{}', field-Name: '{}' returning data type: \n\n{:?}",
+                //     base_object_name, field_name, return_data_type);
 
                 return return_data_type;
             }
@@ -1655,7 +1656,7 @@ impl TypeCheckingVisitor {
                     let right_node = node_map.get(&right_node_id).unwrap();
                     // DEBUG
                     if self.debug {
-                        print!("{}, {:?}", right_node.id, right_node);
+                        print!("[type_checking_visitor::VariableDeclaration] {}, {:?}", right_node.id, right_node);
                     }
                     varname = right_node.string_val.clone();
                     let initial_varname = right_node.initial_string_val.clone();
@@ -1672,8 +1673,6 @@ impl TypeCheckingVisitor {
                             symbol_table_entry.is_array = false;
                             symbol_table_entry.is_struct = false;
 
-                            // TODO: asdf
-
                             // this was inserted for res\C\samples\c_samples\struct_pointer_0.c
                             // Change the type. Replace 'base type' by 'pointer to base type' because
                             // when the expression is evaluated as the type_checking_visitor (this
@@ -1683,6 +1682,8 @@ impl TypeCheckingVisitor {
                             // the cast.
                             let base_data_type = symbol_table_entry.data_type;
                             symbol_table_entry.data_type = DataType::DataTypePointer(Box::new(base_data_type));
+
+                            data_type = symbol_table_entry.data_type.clone();
                         }
 
                         _ => {
@@ -1693,7 +1694,7 @@ impl TypeCheckingVisitor {
 
                 // DEBUG
                 if self.debug {
-                    println!("[TypeCheckingVisitor] symbol_table_entry:\n {:?}", symbol_table_entry);
+                    println!("[TypeCheckingVisitor] Inserting varname: '{}' -> symbol_table_entry:\n {:?}", varname, symbol_table_entry);
                 }
 
                 // add identifier into symbol table

@@ -174,7 +174,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         let mut asm_ast_allocate_stack: AsmAstInstruction = AsmAstInstruction::new();
         asm_ast_allocate_stack.instruction_type = AsmAstInstructionType::AllocateStack;
         asm_ast_allocate_stack.src.operand_type = AsmAstOperandType::Imm(0);
-        asm_ast_allocate_stack.comment = String::from("    ; Function Preamble - save space on stack for all local variables - [AsmAstConversionVisitor::visit_tacky_function()]");
+        asm_ast_allocate_stack.comment = String::from("\n    ; Function Preamble - save space on stack for all local variables - [AsmAstConversionVisitor::visit_tacky_function()]");
         asm_ast_function.body.push(Box::new(asm_ast_allocate_stack));
 
         // DESCRIPTION
@@ -239,7 +239,6 @@ impl TackyToIntermediateAsmConversionVisitor {
             mov.comment = String::from(format!("    ; Parameter {:?}) {:?} is located in register {:?}", i, param, SYSTEM_V_ABI_REGISTER_ORDER[i]).to_string());
             mov.src = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(SYSTEM_V_ABI_REGISTER_ORDER[i].clone()) };
             mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(param.name.clone()) };
-            // mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(replaced_variable_name.clone()) };
             mov.assembly_type = AstAstAssemblyType::from_data_type(&param.data_type);
 
             // insert the generated local variable into the symbol table otherwise

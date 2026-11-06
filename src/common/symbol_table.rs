@@ -106,7 +106,7 @@ impl SymbolTable {
     pub fn insert(&mut self, varname: String, symbol_table_entry: SymbolTableEntry) {
         // DEBUG
         if self.debug {
-            println!("[SymbolTable::insert()] Inserting '{}' with type {:?}", varname, symbol_table_entry);
+            println!("[SymbolTable::insert()] Inserting '{}' with type\n {:?}", varname, symbol_table_entry);
         }
         self.identifier_type_map.insert(varname, symbol_table_entry);
     }

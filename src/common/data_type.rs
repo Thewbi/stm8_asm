@@ -171,7 +171,7 @@ impl DataType {
             }
             DataType::DataTypeArray(data_type, size_option) => {
                 if let Some(size) = size_option {
-                    println!("size: {}, data_type: {}", size, data_type);
+                    // println!("size: {}, data_type: {}", size, data_type);
                     let data_type_size = data_type.get_size(type_system);
                     return data_type_size * size;
                 } else {

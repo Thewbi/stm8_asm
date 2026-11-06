@@ -103,6 +103,33 @@ if generate_lalr_1 {
 Run the application. The parser is generated and a rule_table.txt file is generated.
 This file contains all rules along with their id and their components.
 
+## Where is a stack frame layout constructed?
+
+The stack frame layout is constructed in the emitter visitor, which converts
+TACKY to the intermediate ASM.
+This visitor is ```src\asm_ast\tacky_to_intermediate_asm_conversion_visitor.rs```.
+
+The first step is to move the stack pointer to the end of the stack frame.
+This is done, using a sub command on the rsp register such as
+
+```
+sub rsp, 16
+```
+
+This sub command is prepared inside ```tacky_to_intermediate_asm_conversion_visitor::visit_tacky_function()```. At this point,
+the size of the stack frame is not known yet so only a placeholder
+AsmAstInstruction is inserted.
+
+The stack frame size is computed in ???
+
+The placeholder is updated inside the call to ```AsmAstFixupVisitor::visit_asm_ast_function()```.
+
+The stack frame layout is output in the emitter visitor.
+For different targets, there are different emitter visitors.
+The emitter visitor for MSVC on x64 is src\asm_ast\asm_ast_masm_emitter_visitor.rs
+
+Inside src\asm_ast\asm_ast_masm_emitter_visitor.rs,
+
 # The Preprocessor
 
 [Preprocessor](md/Preprocessor.md)

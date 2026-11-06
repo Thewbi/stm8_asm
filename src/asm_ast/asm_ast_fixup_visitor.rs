@@ -86,7 +86,7 @@ impl AsmAstFixupVisitor {
         // long - 8 Byte
         // pointer to anyhting - 8 Byte
 
-        let mut stack_offset_value = 0i32;
+
 
         match &asm_ast_operand.operand_type {
 
@@ -115,6 +115,8 @@ impl AsmAstFixupVisitor {
 
                 assert!(pseudo_name.len() != 0, "[ERR] [asm_ast_fixup_visitor] PseudoVariable has no name! Need a name to replace!");
 
+                let mut stack_offset_value = 0i32;
+
                 if self.replace_pseudo {
 
                     if self.stack_offset_map.contains_key(pseudo_name) {
@@ -136,7 +138,8 @@ impl AsmAstFixupVisitor {
                             if symbol_table_entry.is_pointer {
 
                                 // if the variable is identified to be a pointer (to any type),
-                                // then the pointer will always use the same amount of bytes on the stack.
+                                // then the pointer will always use the same amount of bytes on
+                                // the stack.
                                 // On 64-bit platform, a pointer/address is 8 Byte
                                 // On 32-bit platform, a pointer/address is 4 Byte
 
@@ -155,6 +158,8 @@ impl AsmAstFixupVisitor {
                             }
 
                             self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
+
+                            // update stack offset_value
                             stack_offset_value = self.stack_offset;
 
                         } else {
@@ -172,16 +177,20 @@ impl AsmAstFixupVisitor {
                     println!("[ASM Fixup Visitor::replace_pseudo_operand] Pseudo: Pseudo-Name: '{}' -> stack_offset_value: '{}'", pseudo_name, stack_offset_value);
                 }
 
-                return AsmAstOperand { operand_type: AsmAstOperandType::Memory(AsmAstReg::RBP, stack_offset_value) };
+                return AsmAstOperand {
+                    operand_type: AsmAstOperandType::Memory(AsmAstReg::RBP, stack_offset_value)
+                };
             }
 
             AsmAstOperandType::PseudoMem(pseudo_name, pseudo_offset) => {
                 // DEBUG
                 if self.debug {
-                    println!("PseudoMem: pseudo_name: '{}'", pseudo_name.clone());
+                    println!("[ASM_AST_FIXUP_VISITOR::replace_pseudo_operand] PseudoMem: pseudo_name: '{}'", pseudo_name.clone());
                 }
 
                 if self.replace_pseudo {
+
+                    // let mut stack_offset_value = 0i32;
 
                     //
                     // Here, replace the PseudoMem(pseudo_name, pseudo_offset) by a stack address
@@ -192,7 +201,7 @@ impl AsmAstFixupVisitor {
 
                         // variable with 'pseudo_name' has already been resolved.
                         // Reuse existing value.
-                        stack_offset_value = *self.stack_offset_map.get(pseudo_name).unwrap();
+                        // stack_offset_value = *self.stack_offset_map.get(pseudo_name).unwrap();
 
                     } else {
 
@@ -233,12 +242,15 @@ impl AsmAstFixupVisitor {
 
                             // DEBUG
                             if self.debug {
-                                println!("DataType: {:?}, DataTypeSize: {}", data_type, data_type_size);
+                                println!("[ASM_AST_FIXUP_VISITOR::replace_pseudo_operand] DataType: {:?}, DataTypeSize: {}", data_type, data_type_size);
                             }
 
+                            // update stack offset (for normal variables and for arrays)
                             self.stack_offset = self.stack_offset - data_type_size * array_element_count;
                             self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
-                            stack_offset_value = self.stack_offset;
+
+                            // remember new stack offset
+                            // stack_offset_value = self.stack_offset;
 
                         } else {
                             panic!("Cannot find symbol '{}' in backend_symbol_table", &pseudo_name);
@@ -324,7 +336,7 @@ impl AsmAstFixupVisitor {
         // recursion and instead of mutating the original body vector, the statements along with the
         // newly created statements are inserted in this 'new_body' statement.
         //
-        // During iterating over all statements in the body, each statement is visited.
+        // During iteration over all statements in the body, each statement is visited.
         // If a visit encounters the use of a pseudo-variable, this pseudo-variable needs to be
         // replaced by a stack address. When using more memory on the stack, the visited element
         // needs to update the self.stack_offset member variable to extend the stack frame.
@@ -359,6 +371,7 @@ impl AsmAstFixupVisitor {
             };
             asm_ast_allocate_stack.comment.push_str("    ; + Updated in AsmAstFixupVisitor::visit_asm_ast_function()\n");
 
+            // update stack frame size
             asm_ast_function.stack_frame_size = self.stack_offset * -1;
         }
 

@@ -5552,9 +5552,9 @@ impl Parser<String> {
                                                         node_map.get(&member_declaration_ast_node_id).unwrap().clone();
 
                                                     // DEBUG
-                                                    // if debug {
+                                                    if debug {
                                                         println!("{:?}", member_declaration_node);
-                                                    // }
+                                                    }
 
                                                     let mut struct_member = StructDeclMember::new();
 
@@ -5700,7 +5700,8 @@ impl Parser<String> {
                                                 if debug {
                                                     println!("[TYPE-SYSTEM-3] Inserting Struct Type: '{}'", &struct_tag);
                                                 }
-let struct_declaration_ast_node = self.ast_stack_pop().unwrap();
+
+                                                let struct_declaration_ast_node = self.ast_stack_pop().unwrap();
                                                 let struct_tag_clone = struct_tag.clone();
                                                 let struct_decl_clone = self.struct_decl.clone();
                                                 let temp_data_type = DataType::DataTypeStruct(struct_decl_clone);
@@ -5760,7 +5761,10 @@ let struct_declaration_ast_node = self.ast_stack_pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, declarator_node.id).as_str());
 
-                                            debug_node_stack.push(debug_node);
+                                            // DEBUG
+                                            if debug {
+                                                debug_node_stack.push(debug_node);
+                                            }
 
                                             //
                                             // TYPEDEF HANDLING
@@ -5824,6 +5828,7 @@ let struct_declaration_ast_node = self.ast_stack_pop().unwrap();
                                             for terminal_rev in rule_reverse.iter().rev() {
                                                 value = terminal_rev.clone().unwrap().data;
 
+                                                // DEBUG
                                                 if debug {
                                                     println!("[Parser::consume()] [109] TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
                                                     println!("");
@@ -6031,9 +6036,9 @@ let struct_declaration_ast_node = self.ast_stack_pop().unwrap();
                                             if self.construct_ast {
 
                                                 // DEBUG
-                                                // if debug {
+                                                if debug {
                                                     self.print_ast_stack(node_map);
-                                                // }
+                                                }
 
                                                 // new node, a new member inside the struct definition
                                                 let mut member_declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
@@ -6178,7 +6183,8 @@ let struct_declaration_ast_node = self.ast_stack_pop().unwrap();
 
                                                                     let string_val = type_ast_node.string_val.as_str();
 
-                                                                    println!("string_val: {:?}", string_val);
+                                                                    // DEBUG
+                                                                    // println!("string_val: {:?}", string_val);
 
                                                                     let data_type = DataType::from_str(string_val).expect("Error");
                                                                     ast_node.set_analyzed_data_type(data_type.clone());

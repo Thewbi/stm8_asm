@@ -64,6 +64,8 @@ for %%L in (
     res\C\samples\c_samples\struct_8.c
     res\C\samples\c_samples\struct_9.c
     res\C\samples\c_samples\struct_10.c
+    res\C\samples\c_samples\struct_11.c
+
 
 
 
