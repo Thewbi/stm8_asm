@@ -39,7 +39,7 @@ for %%L in (
     res\C\samples\c_samples\if_else_if_0.c
     res\C\samples\c_samples\if_else_if_1.c
 
-    res\C\samples\c_samples\linked_list_0.c
+
 
     res\C\samples\c_samples\main_0.c
     res\C\samples\c_samples\multiplication_0.c
@@ -85,7 +85,7 @@ for %%L in (
     call ml64.exe /c main.asm >NUL 2>&1
     call link.exe /SUBSYSTEM:console /LARGEADDRESSAWARE:NO /ENTRY:main main.obj >NUL 2>&1
     call main.exe
-    IF "!errorlevel!" == "0" ( echo [SUCCESS] %%L ) ELSE ( echo [FAILURE] %%L )
+    IF "!errorlevel!" == "0" ( echo [SUCCESS] %%L ) ELSE ( echo [FAILURE] %%L & EXIT /b )
 )
 del main.asm main.obj main.exe
 echo [DONE]

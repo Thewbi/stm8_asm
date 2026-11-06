@@ -1325,20 +1325,20 @@ impl IdentifierResolutionVisitor {
                 }
             }
 
-            AstNodeType::Cast => {
-                // DEBUG
-                if self.debug {
-                    println!("AstNodeType: {:?}", &ast_node.node_type);
-                }
-                // LHS
-                if let Some(left_node_id) = ast_node.lhs {
-                    self.visit(left_node_id, node_map);
-                }
-                // RHS
-                if let Some(right_node_id) = ast_node.rhs {
-                    self.visit(right_node_id, node_map);
-                }
-            }
+            // AstNodeType::Cast => {
+            //     // DEBUG
+            //     if self.debug {
+            //         println!("AstNodeType: {:?}", &ast_node.node_type);
+            //     }
+            //     // LHS
+            //     if let Some(left_node_id) = ast_node.lhs {
+            //         self.visit(left_node_id, node_map);
+            //     }
+            //     // RHS
+            //     if let Some(right_node_id) = ast_node.rhs {
+            //         self.visit(right_node_id, node_map);
+            //     }
+            // }
 
             AstNodeType::AddAssignment => {
                 todo!();
@@ -1359,6 +1359,10 @@ impl IdentifierResolutionVisitor {
                     println!("AstNodeType: {:?}", ast_node.node_type);
                 }
                 panic!("Unknown");
+            }
+
+            _ => {
+                todo!();
             }
         }
 
