@@ -39,7 +39,7 @@ for %%L in (
     res\C\samples\c_samples\if_else_if_0.c
     res\C\samples\c_samples\if_else_if_1.c
 
-
+    res\C\samples\c_samples\linked_list_0.c
 
     res\C\samples\c_samples\main_0.c
     res\C\samples\c_samples\multiplication_0.c
@@ -66,12 +66,15 @@ for %%L in (
     res\C\samples\c_samples\sub_0.c
     res\C\samples\c_samples\subscript_0.c
     res\C\samples\c_samples\subscript_1.c
+
     res\C\samples\c_samples\switch_0.c
     res\C\samples\c_samples\switch_1.c
     res\C\samples\c_samples\test_0.c
     res\C\samples\c_samples\test_1.c
     res\C\samples\c_samples\typedef_0.c
     res\C\samples\c_samples\typedef_1.c
+    res\C\samples\c_samples\typedef_2.c
+
     res\C\samples\c_samples\while_loop_0.c
     res\C\samples\c_samples\while_loop_1.c
     res\C\samples\c_samples\while_loop_2.c
@@ -89,7 +92,9 @@ echo [DONE]
 
 
 
-
+REM res\C\samples\c_samples\function_call_0.c
+REM    res\C\samples\c_samples\function_call_1.c
+REM
 REM     res\C\samples\c_samples\linked_list_0.c
 REM     res\C\samples\c_samples\linked_list_1.c
 REM     res\C\samples\c_samples\linked_list_without_malloc.c
@@ -98,8 +103,6 @@ REM     res\C\samples\c_samples\printf_0.c
 REM    res\C\samples\c_samples\printf_1.c
 REM    res\C\samples\c_samples\printf_2.c
 REM
-REM res\C\samples\c_samples\function_call_0.c
-REM    res\C\samples\c_samples\function_call_1.c
 REM
 REM
 REM

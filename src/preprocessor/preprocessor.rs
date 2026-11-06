@@ -1782,7 +1782,10 @@ impl<'a> Preprocessor<'a> {
 
                                 let trimmed = rem_first_and_last(&include_file_buffer);
 
-                                println!("trimmed: '{}'", trimmed);
+                                // DEBUG
+                                if self.debug {
+                                    println!("trimmed: '{}'", trimmed);
+                                }
 
                                 // ignore some header files!
                                 if trimmed == "CodeAnalysis/sourceannotations.h" {
@@ -1803,11 +1806,14 @@ impl<'a> Preprocessor<'a> {
                                 // }
                                 else {
 
-                                    println!("");
-                                    println!("");
-                                    println!("");
-                                    println!("");
-                                    println!("Trying to include {:?}", trimmed);
+                                    // DEBUG
+                                    if self.debug {
+                                        println!("");
+                                        println!("");
+                                        println!("");
+                                        println!("");
+                                        println!("Trying to include {:?}", trimmed);
+                                    }
 
                                     let mut absolute_path = String::new();
                                     let mut final_include_filename = String::new();
@@ -1832,15 +1838,21 @@ impl<'a> Preprocessor<'a> {
                                                 absolute_path.push_str("\\");
                                                 absolute_path.push_str(trimmed);
 
-                                                println!("Trying path: {:?}", &absolute_path);
+                                                // DEBUG
+                                                if self.debug {
+                                                    println!("Trying path: {:?}", &absolute_path);
+                                                }
 
                                                 let path = Path::new(absolute_path.as_str());
                                                 if path.exists() {
 
-                                                    println!("<<<");
-                                                    println!("Found here - {}", final_include_filename);
-                                                    println!("Found here - {}", absolute_path);
-                                                    println!(">>>");
+                                                    // DEBUG
+                                                    if self.debug {
+                                                        println!("<<<");
+                                                        println!("Found here - {}", final_include_filename);
+                                                        println!("Found here - {}", absolute_path);
+                                                        println!(">>>");
+                                                    }
 
                                                     if file_found_counter > 0 {
                                                         if ERROR_ON_DUPLICATE_HEADER_FILES {
@@ -1851,7 +1863,7 @@ impl<'a> Preprocessor<'a> {
 
                                                     final_include_filename = absolute_path;
                                                 } else {
-                                                    println!("NOT FOUND: {:?}", &absolute_path);
+                                                    panic!("NOT FOUND: {:?}", &absolute_path);
                                                 }
                                             }
 
@@ -1867,7 +1879,7 @@ impl<'a> Preprocessor<'a> {
                                             // include relative to the local code base
                                             //
 
-                                            todo!();
+                                            todo!(); // not implemented yet
                                         }
                                         _=> {
                                             panic!("Cannot process include mode: {}", ppi_include_mode);

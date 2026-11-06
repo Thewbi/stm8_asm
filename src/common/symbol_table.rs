@@ -127,8 +127,8 @@ impl SymbolTable {
         if let Some(mapped_value) = self.identifier_type_map.get(varname) {
             return Some(mapped_value.clone());
         } else {
-            println!("IdentifierMap does not contain an entry for '{}'", varname);
-            None
+            panic!("IdentifierMap does not contain an entry for '{}'", varname);
+            // None
         }
     }
 

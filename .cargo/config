@@ -1,7 +1,0 @@
-#[build]
-#rustflags = ["-C", "link-args=-Wl,-zstack-size=33554432"]
-#rustflags = ["-C", "link-arg=-zstack-size=134217728"]
-
-#[term]
-#quiet = false                    # whether cargo output is quiet
-#verbose = false                  # whether cargo provides verbose output

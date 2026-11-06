@@ -74,7 +74,7 @@ impl AstAstAssemblyType {
     }
 }
 
-static mut INSTRUCTION_ID: i32 = 0;
+//static mut INSTRUCTION_ID: i32 = 0;
 
 // Type for a intermediate ASM instruction.
 // Intermediate means that this is not final MASM, TASM, FASM, GAS, ...

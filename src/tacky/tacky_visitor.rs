@@ -2346,7 +2346,10 @@ impl TackyVisitor {
                 // println!("{:?}", ast_node);
                 // println!("End Cast");
 
-                println!("id: {}, {:?}", ast_node.id, ast_node);
+                // DEBUG
+                if self.debug {
+                    println!("[tacky_visitor][AstNodeType::Cast] id: {}, {:?}", ast_node.id, ast_node);
+                }
 
                 let left_node_id = ast_node.lhs.unwrap();
                 let left_node = node_map.get(&left_node_id).unwrap();

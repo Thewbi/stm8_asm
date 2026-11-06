@@ -1,7 +1,6 @@
 #include <stddef.h>
 
 struct node {
-    //void *val;
     int val;
     struct node *next;
 };
