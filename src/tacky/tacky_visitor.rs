@@ -1449,6 +1449,7 @@ impl TackyVisitor {
                             symbol_table_entry.name = dst_name.to_string().clone();
                             symbol_table_entry.initial_name = dst_name.to_string().clone();
                             symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
+                            // pointers are 64-bit (long) on 64-bit systems always
                             symbol_table_entry.data_type = DataType::DataTypePointer(Box::new(DataType::DataTypeLong));
                             symbol_table_entry.parameter_count = 0usize;
                             symbol_table_entry.has_body = false;

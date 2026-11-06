@@ -1,7 +1,6 @@
 #include <stddef.h>
 
 struct node {
-    //void *val;
     int val;
     struct node *next;
 };
@@ -28,5 +27,5 @@ int main() {
     struct_4.next = &struct_5;
     struct_5.next = NULL;
 
-    return 0;
+    return struct_5.next;
 }

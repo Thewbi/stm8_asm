@@ -348,7 +348,6 @@ impl fmt::Debug for AstNode {
             }
 
             AstNodeType::Binary => {
-
                 let mut has_left: bool = false;
                 let mut has_right: bool = false;
 
@@ -534,19 +533,16 @@ impl fmt::Debug for AstNode {
             }
 
             AstNodeType::Pointer => {
-                // println!("Pointer");
-
-                // // LHS - true-case
-                // if let Some(left_node) = self.lhs.as_ref() {
-                //     print!("TRUE-Branch: {:?}", left_node);
-                // }
-
-                // RHS - user defined variable name
-                if let Some(right_node) = self.rhs.as_ref() {
-                    print!("User Choosen Variable Name: {:?}. ", right_node);
+                println!("Pointer");
+                // LHS
+                if let Some(left_node) = self.lhs.as_ref() {
+                    print!("LHS: {:?}", left_node);
                 }
-
-                println!("Replaced Variable Name: {:?}", self.string_val);
+                // RHS
+                if let Some(right_node) = self.rhs.as_ref() {
+                    print!("RHS: {:?}. ", right_node);
+                }
+                println!("self.string_val: '{:?}'", self.string_val);
             }
 
             AstNodeType::Cast => {
@@ -1773,7 +1769,8 @@ impl AstNode {
         ast_node_id
     }
 
-    fn pretty_print_ast_pointer_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
+    fn pretty_print_ast_pointer_dot(&self,
+        string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
 
         // create node for this AstNode
         let ast_node_id = self.id;

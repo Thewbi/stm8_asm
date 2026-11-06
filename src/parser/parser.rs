@@ -150,7 +150,6 @@ pub struct Parser<T> {
 
     // type table / type system
     pub type_system: Rc<RefCell<HashMap::<String, DataType>>>,
-    //type_system: &'a mut HashMap::<String, DataType>,
     struct_decl: StructDecl,
 
     // AST
@@ -5546,23 +5545,27 @@ impl Parser<String> {
                                                     // TODO TYPE-SYSTEM
                                                     // TODO create StructDeclMember here. Move out of identifier visitor
 
-                                                    //let member_declaration_ast_node_id = self.ast_stack_pop().unwrap();
                                                     let member_declaration_ast_node_id = reverse.get(counter-i-1).unwrap();
                                                     struct_ast_node.block_items.push(member_declaration_ast_node_id.clone());
 
-                                                    let member_declaration_node = node_map.get(&member_declaration_ast_node_id.clone()).unwrap().clone();
+                                                    let member_declaration_node =
+                                                        node_map.get(&member_declaration_ast_node_id).unwrap().clone();
 
-                                                    // println!("{:?}", member_declaration_node);
+                                                    // DEBUG
+                                                    // if debug {
+                                                        println!("{:?}", member_declaration_node);
+                                                    // }
 
                                                     let mut struct_member = StructDeclMember::new();
 
+                                                    // RHS - member name
                                                     // assign name to new struct_member object
                                                     if let Some(member_name_node_id) = member_declaration_node.rhs {
                                                         let member_name_node = node_map.get(&member_name_node_id).unwrap().clone();
                                                         struct_member.member_name = member_name_node.string_val.clone();
                                                     }
 
-                                                    // assign datatype to new struct_member object
+                                                    // LHS - assign datatype to new struct_member object
                                                     if let Some(member_type_node_id) = member_declaration_node.lhs {
 
                                                         let member_type_node = node_map.get(&member_type_node_id).unwrap().clone();
@@ -5667,7 +5670,8 @@ impl Parser<String> {
                                                                 struct_member.member_type = member_type_node.get_analyzed_data_type().to_string();
 
                                                                 let dataT = member_type_node.get_analyzed_data_type();
-                                                                let data_type = DataType::DataTypePointer(Box::new(dataT));
+                                                                //let data_type = DataType::DataTypePointer(Box::new(dataT));
+                                                                let data_type = dataT;
                                                                 struct_member.data_type = data_type;
                                                             }
 
@@ -5675,6 +5679,11 @@ impl Parser<String> {
                                                                 panic!("Unexpected: {:?} in '{:?}'", member_type_node.node_type, member_type_node);
                                                             }
                                                         }
+
+                                                    } else {
+
+                                                        struct_member.data_type = member_declaration_node.get_analyzed_data_type().clone();
+
                                                     }
 
                                                     assert_ne!(struct_member.data_type, DataType::DataTypeUnknown, "Need datatype!");
@@ -6022,15 +6031,18 @@ let struct_declaration_ast_node = self.ast_stack_pop().unwrap();
                                             if self.construct_ast {
 
                                                 // DEBUG
-                                                if debug {
+                                                // if debug {
                                                     self.print_ast_stack(node_map);
-                                                }
+                                                // }
 
                                                 // new node, a new member inside the struct definition
                                                 let mut member_declaration_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 member_declaration_ast_node.node_type = AstNodeType::MemberDeclaration;
                                                 member_declaration_ast_node.file = file.clone();
                                                 member_declaration_ast_node.line = line;
+
+                                                // RHS - member name
+                                                // LHS - assign datatype to new struct_member object
 
                                                 // check if the first node is a pointer node
                                                 if let Some(ast_node_id) = self.ast_stack_pop() {
@@ -6066,105 +6078,113 @@ let struct_declaration_ast_node = self.ast_stack_pop().unwrap();
                                                             // - struct
                                                             // - [const] int, long, float, double, ...
 
-                                                            if type_ast_node.node_type == AstNodeType::Structure {
+                                                            match type_ast_node.node_type {
 
-                                                                // this is for pointers to structs as members of a struct
-                                                                // This happens when building linked lists using structs
-                                                                // where the struct has a pointer to itself
-                                                                //
-                                                                // struct listnode
-                                                                // {
-                                                                //     int a;
-                                                                //     int *a;
-                                                                //     struct listnode *next;
-                                                                // };
+                                                                AstNodeType::Structure => {
 
-                                                                // LHS
-                                                                let lhs_type_name_ast_node_id = type_ast_node.lhs.unwrap();
-                                                                let lhs_type_name_ast_node = node_map.get(&lhs_type_name_ast_node_id).unwrap();
-                                                                if debug {
-                                                                    println!("LHS: {:?}", lhs_type_name_ast_node);
+                                                                    // this is for pointers to structs as members of a struct
+                                                                    // This happens when building linked lists using structs
+                                                                    // where the struct has a pointer to itself
+                                                                    //
+                                                                    // struct listnode
+                                                                    // {
+                                                                    //     int a;
+                                                                    //     int *a;
+                                                                    //     struct listnode *next;
+                                                                    // };
+
+                                                                    // LHS
+                                                                    let lhs_type_name_ast_node_id = type_ast_node.lhs.unwrap();
+                                                                    let lhs_type_name_ast_node = node_map.get(&lhs_type_name_ast_node_id).unwrap();
+                                                                    if debug {
+                                                                        println!("LHS: {:?}", lhs_type_name_ast_node);
+                                                                    }
+
+                                                                    // RHS
+                                                                    let rhs_type_name_ast_node_id = type_ast_node.rhs.unwrap();
+                                                                    let rhs_type_name_ast_node = node_map.get(&rhs_type_name_ast_node_id).unwrap();
+                                                                    // DEBUG
+                                                                    if debug {
+                                                                        println!("RHS: {:?}", rhs_type_name_ast_node);
+                                                                    }
+
+                                                                    let mut struct_decl = StructDecl::new();
+                                                                    struct_decl.tag = String::from(rhs_type_name_ast_node.string_val.clone());
+
+                                                                    let data_type = DataType::DataTypeStruct(struct_decl);
+                                                                    let data_type_ptr = DataType::DataTypePointer(Box::new(data_type));
+                                                                    // DEBUG
+                                                                    if debug {
+                                                                        println!("[parser][114] ast_node.id: {}, data_type: {:?}", ast_node.id, data_type_ptr);
+                                                                    }
+                                                                    ast_node.set_analyzed_data_type(data_type_ptr.clone());
+
+                                                                    let mut identifier_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                                    identifier_ast_node.node_type = AstNodeType::Identifier;
+                                                                    identifier_ast_node.string_val = ast_node.string_val.clone();
+                                                                    identifier_ast_node.file = file.clone();
+                                                                    identifier_ast_node.line = line;
+
+                                                                    let mut type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
+                                                                    type_ast_node.node_type = AstNodeType::Pointer;
+                                                                    type_ast_node.string_val = rhs_type_name_ast_node.string_val.clone();
+                                                                    type_ast_node.file = file.clone();
+                                                                    type_ast_node.line = line;
+                                                                    type_ast_node.set_analyzed_data_type(data_type_ptr.clone());
+
+                                                                    member_declaration_ast_node.lhs = Some(type_ast_node.id);
+                                                                    member_declaration_ast_node.rhs = Some(identifier_ast_node.id);
+                                                                    member_declaration_ast_node.set_analyzed_data_type(data_type_ptr.clone());
+
+                                                                    // // update node
+                                                                    // node_map.insert(member_declaration_ast_node.id, member_declaration_ast_node);
+
+                                                                    node_map.insert(identifier_ast_node.id, identifier_ast_node);
+                                                                    node_map.insert(type_ast_node.id, type_ast_node);
                                                                 }
 
-                                                                // RHS
-                                                                let rhs_type_name_ast_node_id = type_ast_node.rhs.unwrap();
-                                                                let rhs_type_name_ast_node = node_map.get(&rhs_type_name_ast_node_id).unwrap();
-                                                                if debug {
-                                                                    println!("RHS: {:?}", rhs_type_name_ast_node);
+                                                                AstNodeType::MemberTypeDeclaration => {
+
+                                                                    // DEBUG
+                                                                    // self.print_ast_stack(node_map);
+
+                                                                    // struct options {
+                                                                    //     const char *filename;       /* filename of the input file             */
+                                                                    //     const char *output_file;    /* where to store the output              */
+                                                                    // } opt;
+
+                                                                    // // LHS
+                                                                    // let type_name_ast_node_id = type_ast_node.lhs.unwrap();
+                                                                    // let type_name_ast_node = node_map.get(&type_name_ast_node_id).unwrap();
+                                                                    // println!("{:?}", type_name_ast_node);
+
+                                                                    // // RHS
+                                                                    // let type_name_ast_node_id = type_ast_node.rhs.unwrap();
+                                                                    // let type_name_ast_node = node_map.get(&type_name_ast_node_id).unwrap();
+                                                                    // println!("{:?}", type_name_ast_node);
+
+                                                                    let data_type = DataType::DataTypeFloat;
+                                                                    ast_node.set_analyzed_data_type(data_type.clone());
+
+                                                                    member_declaration_ast_node.lhs = Some(type_ast_node_id);
+                                                                    member_declaration_ast_node.set_analyzed_data_type(data_type.clone());
                                                                 }
 
-                                                                let mut struct_decl = StructDecl::new();
-                                                                struct_decl.tag = String::from(rhs_type_name_ast_node.string_val.clone());
+                                                                _ => {
 
-                                                                let data_type = DataType::DataTypeStruct(struct_decl);
-                                                                let data_type_ptr = DataType::DataTypePointer(Box::new(data_type));
-                                                                if debug {
-                                                                    println!("data_type: {:?}", data_type_ptr);
+                                                                    // this is for normal fields
+
+                                                                    // println!("{:?}", type_ast_node);
+
+                                                                    let string_val = type_ast_node.string_val.as_str();
+
+                                                                    println!("string_val: {:?}", string_val);
+
+                                                                    let data_type = DataType::from_str(string_val).expect("Error");
+                                                                    ast_node.set_analyzed_data_type(data_type.clone());
+
+                                                                    member_declaration_ast_node.set_analyzed_data_type(data_type.clone());
                                                                 }
-                                                                ast_node.set_analyzed_data_type(data_type_ptr.clone());
-
-                                                                let mut identifier_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
-                                                                identifier_ast_node.node_type = AstNodeType::Identifier;
-                                                                //identifier_ast_node.string_val = String::from("test");
-                                                                // identifier_ast_node.string_val = field_identifier_node.label.clone();
-                                                                identifier_ast_node.string_val = ast_node.string_val.clone();
-                                                                identifier_ast_node.file = file.clone();
-                                                                identifier_ast_node.line = line;
-
-                                                                let mut type_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
-                                                                //type_ast_node.node_type = AstNodeType::DataType;
-                                                                type_ast_node.node_type = AstNodeType::Pointer;
-                                                                //type_ast_node.string_val = String::from("struct node");
-                                                                //type_ast_node.string_val = String::from("node");
-                                                                type_ast_node.string_val = rhs_type_name_ast_node.string_val.clone();
-                                                                type_ast_node.file = file.clone();
-                                                                type_ast_node.line = line;
-                                                                type_ast_node.set_analyzed_data_type(data_type_ptr.clone());
-
-                                                                member_declaration_ast_node.lhs = Some(type_ast_node.id);
-                                                                member_declaration_ast_node.rhs = Some(identifier_ast_node.id);
-                                                                member_declaration_ast_node.set_analyzed_data_type(data_type_ptr.clone());
-
-                                                                node_map.insert(identifier_ast_node.id, identifier_ast_node);
-                                                                node_map.insert(type_ast_node.id, type_ast_node);
-
-                                                            } else if type_ast_node.node_type == AstNodeType::MemberTypeDeclaration {
-
-                                                                // DEBUG
-                                                                // self.print_ast_stack(node_map);
-
-                                                                // struct options {
-                                                                //     const char *filename;       /* filename of the input file             */
-                                                                //     const char *output_file;    /* where to store the output              */
-                                                                // } opt;
-
-                                                                // // LHS
-                                                                // let type_name_ast_node_id = type_ast_node.lhs.unwrap();
-                                                                // let type_name_ast_node = node_map.get(&type_name_ast_node_id).unwrap();
-                                                                // println!("{:?}", type_name_ast_node);
-
-                                                                // // RHS
-                                                                // let type_name_ast_node_id = type_ast_node.rhs.unwrap();
-                                                                // let type_name_ast_node = node_map.get(&type_name_ast_node_id).unwrap();
-                                                                // println!("{:?}", type_name_ast_node);
-
-                                                                let data_type = DataType::DataTypeFloat;
-                                                                ast_node.set_analyzed_data_type(data_type.clone());
-
-                                                                member_declaration_ast_node.lhs = Some(type_ast_node_id);
-                                                                member_declaration_ast_node.set_analyzed_data_type(data_type.clone());
-
-                                                            } else {
-
-                                                                // this is for normal fields
-
-                                                                // println!("{:?}", type_ast_node);
-
-                                                                let string_val = type_ast_node.string_val.as_str();
-                                                                let data_type = DataType::from_str(string_val).expect("Error");
-                                                                ast_node.set_analyzed_data_type(data_type.clone());
-
-                                                                member_declaration_ast_node.set_analyzed_data_type(data_type.clone());
                                                             }
 
                                                             node_map.insert(ast_node_id, ast_node);
@@ -6459,6 +6479,11 @@ let struct_declaration_ast_node = self.ast_stack_pop().unwrap();
 
                                             if self.construct_ast {
 
+                                                // DEBUG
+                                                if debug {
+                                                    self.print_ast_stack(node_map);
+                                                }
+
                                                 // referenced type
                                                 let referenced_type_ast_node_id = self.ast_stack_pop().unwrap();
                                                 let referenced_type_ast_node = node_map.get(&referenced_type_ast_node_id).unwrap();
@@ -6471,8 +6496,12 @@ let struct_declaration_ast_node = self.ast_stack_pop().unwrap();
                                                 pointer_ast_node.line = line;
 
                                                 self.ast_stack.push(pointer_ast_node.id);
-
                                                 node_map.insert(pointer_ast_node.id, pointer_ast_node);
+
+                                                // DEBUG
+                                                if debug {
+                                                    self.print_ast_stack(node_map);
+                                                }
                                             }
                                         }
 

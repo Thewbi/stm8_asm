@@ -39,14 +39,18 @@ for %%L in (
     res\C\samples\c_samples\if_else_if_0.c
     res\C\samples\c_samples\if_else_if_1.c
 
+    res\C\samples\c_samples\linked_list_0.c
+    res\C\samples\c_samples\linked_list_1.c
 
 
     res\C\samples\c_samples\main_0.c
     res\C\samples\c_samples\multiplication_0.c
-    res\C\samples\c_samples\parameter_pointer.c
+    res\C\samples\c_samples\parameter_pointer_0.c
+    res\C\samples\c_samples\pointer_0.c
 
 
-
+    res\C\samples\c_samples\return_0.c
+    res\C\samples\c_samples\return_1.c
 
 
 
@@ -58,8 +62,8 @@ for %%L in (
     res\C\samples\c_samples\struct_6.c
     res\C\samples\c_samples\struct_7.c
     res\C\samples\c_samples\struct_8.c
-
-
+    res\C\samples\c_samples\struct_9.c
+    res\C\samples\c_samples\struct_10.c
 
 
 
