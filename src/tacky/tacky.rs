@@ -66,6 +66,8 @@ use std::fmt::Display;
 
 use std::option::Option::None;
 
+use crate::asm_ast::asm_ast::AsmAstBinaryOperator::AddAssignment;
+use crate::c_ast::ast_node::AstNodeOperatorType;
 use crate::common::data_type::DataType;
 
 pub struct Program {
@@ -236,10 +238,21 @@ pub enum InstructionType {
     DoubleToUInt,
     VariableDeclaration,
     AddAssignment,
+    MulAssignment,
     SubscriptSrc,
     SubscriptDst,
 
     Comment, // artifically added
+}
+
+impl InstructionType {
+    pub fn from_operator_type(operator_type: &AstNodeOperatorType) -> InstructionType {
+        match operator_type {
+            AstNodeOperatorType::AddAssignment => { return InstructionType::AddAssignment; }
+            AstNodeOperatorType::MulAssignment => { return InstructionType::MulAssignment; }
+            _ => { todo!(); }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -493,6 +506,10 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
 
         InstructionType::AddAssignment => {
             string_buffer.push_str(format!("AddAssignment(src:{:?}, dst:{:?})\n", instruction.src, instruction.dst).as_str());
+        }
+
+        InstructionType::MulAssignment => {
+            string_buffer.push_str(format!("MulAssignment(src:{:?}, dst:{:?})\n", instruction.src, instruction.dst).as_str());
         }
 
         InstructionType::SubscriptSrc => {

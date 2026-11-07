@@ -783,6 +783,13 @@ impl AsmAstMasmEmitterVisitor {
                         self.string_buffer.push_str(", ");
                         self.emit_asm_ast_operand(&asm_ast_instruction.src, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
                     }
+                    AsmAstUnaryOperator::MulAssignment => {
+                        mnemonic = "mul".to_string();
+                        self.string_buffer.push_str(format!("    {} ", mnemonic).as_str());
+                        self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                        self.string_buffer.push_str(", ");
+                        self.emit_asm_ast_operand(&asm_ast_instruction.src, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                    }
                     _ => {
                         panic!("{}", format!("Unhandled AsmAstInstructionType {:?}!\n", asm_ast_instruction.unary_operator).as_str());
                     }

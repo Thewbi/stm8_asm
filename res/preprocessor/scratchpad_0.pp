@@ -1,27 +1,15 @@
-struct listnode
-{
-    int a;
-    int b;
-    int c;
-};
-
 int main() {
 
-    //int a;
-    //a = 1;
+    int nums[] = { 4, 2, 7, 1, 9 };
+    int n = 5;
+    int max = nums[0];
 
-    int *b;
-
-    struct listnode struct_1;
-    struct_1.b = 8;
-
-    b = &struct_1.b;
-
-    if (*b == 8) {
-        return 0;
+    int i = 0;
+    for (i = 1; i < n; i++) {
+        if (nums[i] > max) {
+            max = nums[i];
+        }
     }
 
-    //return b;
-
-    return 500;
+    return max;
 }

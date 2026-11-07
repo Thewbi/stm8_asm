@@ -636,6 +636,7 @@ pub enum AsmAstUnaryOperator {
     Increment,
     Decrement,
     AddAssignment,
+    MulAssignment,
 }
 
 #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
@@ -659,6 +660,9 @@ impl fmt::Display for AsmAstUnaryOperator {
             }
             AsmAstUnaryOperator::AddAssignment => {
                 write!(f, "add_assignment").expect("Write failed!");
+            }
+            AsmAstUnaryOperator::MulAssignment => {
+                write!(f, "mul_assignment").expect("Write failed!");
             }
         }
 

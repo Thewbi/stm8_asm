@@ -1314,10 +1314,10 @@ impl TackyVisitor {
                         return dest_variable_element;
                     }
 
-                    AstNodeOperatorType::AddAssignment => {
+                    AstNodeOperatorType::MulAssignment | AstNodeOperatorType::AddAssignment => {
 
                         let mut add_assignment_instruction: Instruction = Instruction::new();
-                        add_assignment_instruction.instruction_type = InstructionType::AddAssignment;
+                        add_assignment_instruction.instruction_type = InstructionType::from_operator_type(&ast_node.operator_type);
 
                         let mut dst_name = String::from("");
 
@@ -1334,7 +1334,6 @@ impl TackyVisitor {
 
                         // RHS - used as src (The value that is assigned)
                         if let Some(rhs_sub_id) = ast_node.rhs {
-
                             let mut br_cnt = 0;
                             add_assignment_instruction.src = self.visit(rhs_sub_id, node_map, &dst_name, &mut br_cnt);
                         }

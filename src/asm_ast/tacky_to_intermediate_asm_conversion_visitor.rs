@@ -352,7 +352,13 @@ impl TackyToIntermediateAsmConversionVisitor {
                 }
 
                 InstructionType::AddAssignment => {
-                    self.visit_tacky_add_assignment(&mut asm_ast_function, tacky_instruction);
+                    self.visit_tacky_operator_assignment(&mut asm_ast_function,
+                        &AsmAstUnaryOperator::AddAssignment, tacky_instruction);
+                }
+
+                InstructionType::MulAssignment => {
+                    self.visit_tacky_operator_assignment(&mut asm_ast_function,
+                        &AsmAstUnaryOperator::MulAssignment, tacky_instruction);
                 }
 
                 InstructionType::SubscriptSrc => {
@@ -720,9 +726,10 @@ impl TackyToIntermediateAsmConversionVisitor {
         asm_ast_function.body.push(Box::new(mov_1));
     }
 
-    pub fn visit_tacky_add_assignment(&mut self,
+    pub fn visit_tacky_operator_assignment(&mut self,
         asm_ast_function: &mut AsmAstFunction,
-        tacky_instruction_add_assignment: &Instruction)
+        asm_ast_operator: &AsmAstUnaryOperator,
+        instruction: &Instruction)
     {
         //
         // a += 123;
@@ -740,13 +747,14 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         let mut add: AsmAstInstruction = AsmAstInstruction::new();
         add.instruction_type = AsmAstInstructionType::Unary;
-        add.unary_operator = AsmAstUnaryOperator::AddAssignment;
+        //add.unary_operator = AsmAstUnaryOperator::AddAssignment;
+        add.unary_operator = asm_ast_operator.clone();
         add.comment = String::from(format!("    ; add for AddAssignment (e.g. a += 123;)").to_string());
 
         // source
         // set data type and also set the object that is used as source
         let mut src_data_type: DataType = DataType::DataTypeUnknown;
-        match &tacky_instruction_add_assignment.src {
+        match &instruction.src {
             ValueElement::Variable(var_name) => {
                 let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name);
                 // src_data_type = symbol_table_entry.data_type;
@@ -766,7 +774,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         add.assembly_type = AstAstAssemblyType::from_data_type(&src_data_type);
 
         // destination
-        match &tacky_instruction_add_assignment.dst {
+        match &instruction.dst {
             ValueElement::Variable(var_name) => {
                 // add.dst = AsmAstOperand { operand_type: AsmAstOperandType::PseudoMem(var_name.clone(), offset) };
                 add.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };

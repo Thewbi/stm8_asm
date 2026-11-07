@@ -1,0 +1,8 @@
+int main() {
+    int a = 2;
+    a *= 3;
+    if (a == 6) {
+        return 0;
+    }
+    return a;
+}
