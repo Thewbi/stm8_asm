@@ -154,7 +154,7 @@ use crate::preprocessor::expression_parser::{self, ExpressionParser};
 use crate::preprocessor::preprocessor_operating_mode::{self, PreprocessorOperatingMode};
 
 // const BASE_PATH: &'static str = "C:\\Users\\U5353\\source\\repos\\x64_test\\";
-const BASE_PATH: &'static str = "";
+const BASE_PATH: &'static str = "build/";
 
 // https://stackoverflow.com/questions/32935808/generate-sequential-ids-for-each-instance-of-a-struct
 static RULE_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -435,7 +435,7 @@ fn main() {
         let mut rule_ids = Vec::<usize>::new();
         output_parse_table_to_csv(&mut parse_table_string_buffer,
             &parse_table, &grammar_state_hashmap, &mut rules, &mut rule_ids, &mut rule_map);
-        write_string_to_file("parse_table.txt", &parse_table_string_buffer);
+        write_string_to_file("temp_toolchain/parse_table.txt", &parse_table_string_buffer);
 
         //
         // Output Rule Table into file
@@ -446,7 +446,7 @@ fn main() {
 
         let mut rules_string_buffer = String::new();
         serialize_rules(&rules, &mut rules_string_buffer);
-        write_string_to_file("rule_table.txt", &rules_string_buffer);
+        write_string_to_file("temp_toolchain/rule_table.txt", &rules_string_buffer);
     }
 
     //
@@ -471,7 +471,7 @@ fn main() {
     }
 
     let mut rule_map = BTreeMap::<usize, Rule<String>>::new();
-    let rule_map_filename = "rule_table.txt";
+    let rule_map_filename = "temp_toolchain/rule_table.txt";
     read_rule_map(rule_map_filename, &mut rule_map);
 
     if debug {
@@ -490,7 +490,7 @@ fn main() {
     }
 
     parse_table.clear();
-    read_parse_table_from_csv("parse_table.txt", &mut parse_table);
+    read_parse_table_from_csv("temp_toolchain/parse_table.txt", &mut parse_table);
 
     if debug {
         println!("*********************************************************************************");
@@ -516,10 +516,10 @@ fn main() {
     if generate_lexer {
         lexer_dfa = produce_c_lexer();
         // store into file
-        enfa_serialize(&mut lexer_dfa, "enfa.txt");
+        enfa_serialize(&mut lexer_dfa, "temp_toolchain/enfa.txt");
     } else {
         // load from file
-        enfa_deserialize(&mut lexer_dfa, "enfa.txt");
+        enfa_deserialize(&mut lexer_dfa, "temp_toolchain/enfa.txt");
     }
 
     if debug {
@@ -547,10 +547,10 @@ fn main() {
     if generate_preprocessor_lexer {
         preprocessor_dfa = produce_preprocessor_lexer();
         // store into file
-        enfa_serialize(&mut preprocessor_dfa, "preprocessor_enfa.txt");
+        enfa_serialize(&mut preprocessor_dfa, "temp_toolchain/preprocessor_enfa.txt");
     } else {
         // load from file
-        enfa_deserialize(&mut preprocessor_dfa, "preprocessor_enfa.txt");
+        enfa_deserialize(&mut preprocessor_dfa, "temp_toolchain/preprocessor_enfa.txt");
     }
 
     if debug {
@@ -713,7 +713,7 @@ fn main() {
         }
 
         // 1. Create or overwrite the file
-        let preprocessed_file = File::create("preprocessed.c").expect("Create file failed!");
+        let preprocessed_file = File::create("build/preprocessed.c").expect("Create file failed!");
 
         // 2. Wrap the file in a BufWriter
         let mut writer = BufWriter::new(preprocessed_file);
@@ -795,7 +795,7 @@ fn main() {
     // ( str, filename )
     // let input_tuple = provide_sourcode_input();
     //let filename = "res/preprocessor/scratchpad_0.pp";
-    let filename = "preprocessed.c";
+    let filename = "build/preprocessed.c";
     let str: String = fs::read_to_string(filename).expect("file cannot be read!");
     let input_tuple = ( str.to_string(), filename.to_string() );
 
@@ -1369,7 +1369,7 @@ fn main() {
                 print_tacky_program(&tacky_visitor.program, &mut string_buffer, indent);
 
                 // 1. Create or overwrite the file
-                let file = File::create("tacky.tky").expect("Create file failed!");
+                let file = File::create("build/tacky.tky").expect("Create file failed!");
 
                 // 2. Wrap the file in a BufWriter
                 let mut writer = BufWriter::new(file);
@@ -1423,7 +1423,7 @@ fn main() {
 
                 // 1. Create or overwrite the file
                 // extension intasm == intermediate assembler code
-                let file = File::create("asm_ast.intasm").expect("Create file failed!");
+                let file = File::create("build/asm_ast.intasm").expect("Create file failed!");
 
                 // 2. Wrap the file in a BufWriter
                 let mut writer = BufWriter::new(file);

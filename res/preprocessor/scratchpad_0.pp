@@ -1,21 +1,27 @@
 struct listnode
 {
     int a;
+    int b;
+    int c;
 };
 
 int main() {
 
-    int b;
+    //int a;
+    //a = 1;
 
-    struct listnode struct_0;
-    struct_0.a = 8;
+    int *b;
 
-    struct listnode *struct_ptr;
-    struct_ptr = &struct_0;
-    //struct_ptr = 0;
+    struct listnode struct_1;
+    struct_1.b = 8;
 
-    b = struct_ptr->a;
+    b = &struct_1.b;
 
-    return b;
-    //return struct_ptr;
+    if (*b == 8) {
+        return 0;
+    }
+
+    //return b;
+
+    return 500;
 }

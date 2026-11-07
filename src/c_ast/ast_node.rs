@@ -138,8 +138,10 @@ impl fmt::Display for AstNodeOperatorType {
             AstNodeOperatorType::GreaterThanOrEqual => write!(f, "GE"),
 
             // pointers / memory
+            AstNodeOperatorType::AddrOf => write!(f, "AddrOf"),
             AstNodeOperatorType::Dereference => write!(f, "Deref *"),
 
+            //_ => todo!("{}", format!("operator '{:?}' not covered!", *self).to_string()),
             _ => todo!(),
         }
     }

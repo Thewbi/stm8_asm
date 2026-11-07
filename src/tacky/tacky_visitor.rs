@@ -18,6 +18,7 @@ use crate::AstNodeType::FunctionDeclaration as ASTFunction;
 
 use crate::Instruction;
 
+use crate::common::struct_decl::StructDeclMember;
 use crate::common::symbol_table::SymbolTable;
 use crate::common::symbol_table::SymbolTableEntry;
 use crate::common::symbol_table::SymbolTableEntryType;
@@ -695,6 +696,94 @@ impl TackyVisitor {
         // append instruction to latest top-level element of the program
         let last = self.program.top_level.len() - 1;
         self.program.top_level[last].body.push(Box::new(final_end_label_instruction));
+    }
+
+    fn retrieve_offset(&mut self,
+        base_variable_name: &String,
+        field_ast_node_id: usize,
+        node_map: &mut Box<HashMap<usize, AstNode>>) -> i32
+    {
+
+        let mut field_name = String::new();
+        let field_ast_node = node_map.get(&field_ast_node_id).unwrap();
+        match field_ast_node.node_type {
+            AstNodeType::Identifier => {
+                field_name = field_ast_node.string_val.clone();
+            }
+            _ => {
+
+                todo!();
+            }
+        }
+
+        // println!("field_name: {}", field_name);
+
+        let base_symbol_table_entry: SymbolTableEntry = self.symbol_table.borrow_mut().retrieve(&base_variable_name);
+
+        // println!("base_symbol_table_entry: {:?}", &base_symbol_table_entry);
+        // println!("base_symbol_table_entry.data_type: {:?}", &base_symbol_table_entry.data_type);
+
+        let mut struct_decl_member = StructDeclMember::new();
+        match base_symbol_table_entry.data_type {
+            DataType::DataTypeStruct(struct_decl_val) => {
+                struct_decl_member = struct_decl_val.members.iter().find(|f| f.member_name == field_name).unwrap().clone();
+            }
+            _ => {
+                panic!();
+            }
+        }
+
+        // println!("struct_decl_member: {:?}", struct_decl_member);
+
+        match struct_decl_member.data_type {
+            DataType::DataTypeChar |
+                DataType::DataTypeUnsignedChar |
+                DataType::DataTypeInt |
+                DataType::DataTypeSignedInt |
+                DataType::DataTypeUnsignedInt |
+                DataType::DataTypeShort |
+                DataType::DataTypeSignedShort |
+                DataType::DataTypeUnsignedShort |
+                DataType::DataTypeLong |
+                DataType::DataTypeUnsignedLong |
+                DataType::DataTypeFloat |
+                DataType::DataTypeDouble => {
+                return struct_decl_member.offset as i32;
+            }
+            DataType::DataTypeStruct(struct_decl_val_2) => {
+                // recurse here and add offset to field offset
+                //return struct_decl_member.offset + self.retrieve_offset(field_name, field_ast_node.rhs)
+                todo!();
+            }
+            _ => {
+                panic!();
+            }
+        }
+
+        // let ts = self.type_system.borrow_mut();
+        // let base_data_type = ts.get(&symbol_table_entry.data_type);
+
+        //println!("base_data_type: {:?}", base_data_type);
+
+        // //
+        // let mut struct_decl: StructDecl = StructDecl::new();
+        // match lhs_data_type {
+        //     DataType::DataTypePointer(dest_data_type) => {
+        //         // println!("dest_data_type: {}", &dest_data_type);
+        //         match *dest_data_type {
+        //             DataType::DataTypeStruct(struct_decl_val) => {
+        //                 // println!("struct_decl: {:?}", struct_decl_val);
+        //                 struct_decl = struct_decl_val;
+        //                 let struct_decl_member = struct_decl.members.iter().find(|f| f.member_name == field_name);
+        //                 return struct_decl_member.unwrap().data_type.clone();
+        //             }
+        //             _ => {
+        //                 panic!("Unhandled ptr destination data type: {:?}", dest_data_type);
+        //             }
+        //         }
+        //     }
+
+        // return 4;
     }
 
     pub fn visit(&mut self,
@@ -1384,9 +1473,11 @@ impl TackyVisitor {
 
             AstNodeType::Unary => {
 
+                // LHS - the unary operator
                 if let Some(operator_id) = ast_node.lhs {
-                    let operator = node_map.get(&operator_id).unwrap();
-                    match operator.operator_type {
+
+                    let operator_ast_node = node_map.get(&operator_id).unwrap();
+                    match operator_ast_node.operator_type {
 
                         AstNodeOperatorType::AddrOf => {
                             // DEBUG
@@ -1398,9 +1489,49 @@ impl TackyVisitor {
 
                             let mut get_address_instruction: Instruction = Instruction::new();
                             get_address_instruction.instruction_type = InstructionType::GetAddress;
+
+                            // examples:
+                            // int *b = &a;
+                            // int *b = &struct_var.a;
+                            // int *b = &struct_var.a.b.c.d.e.f;
+
+                            // RHS - variable to get the address of
                             if let Some(rhs_node_id) = ast_node.rhs {
-                                let rhs_node = node_map.get(&rhs_node_id).unwrap();
-                                get_address_instruction.src = ValueElement::Variable(rhs_node.string_val.clone());
+
+                                let rhs_ast_node = node_map.get(&rhs_node_id).unwrap();
+                                match rhs_ast_node.node_type {
+                                    AstNodeType::Dot | AstNodeType::Arrow => {
+
+                                        let mut base_variable_name = String::new();
+                                        if let Some(name_ast_node_id) = rhs_ast_node.lhs {
+                                            let name_ast_node = node_map.get(&name_ast_node_id).unwrap();
+                                            let name = name_ast_node.string_val.clone();
+                                            // println!("name: '{}'", name);
+
+                                            // write the name of the base variable into the src variable
+                                            get_address_instruction.src = ValueElement::Variable(name.clone());
+
+                                            base_variable_name = name.clone();
+                                        }
+
+                                        if let Some(field_ast_node_id) = rhs_ast_node.rhs {
+                                            //let name_ast_node = node_map.get(&name_ast_node_id).unwrap();
+
+                                            get_address_instruction.offset
+                                                = self.retrieve_offset(&base_variable_name, field_ast_node_id, node_map);
+                                        }
+
+                                        //let offset_value = self.retrieve_offset(name.clone(), );
+
+                                        // add an offset which will become part of the LEA instruction as an offset
+                                        //get_address_instruction.offset = 123;
+                                        // todo!();
+                                    }
+                                    _ => {
+                                        get_address_instruction.src = ValueElement::Variable(rhs_ast_node.string_val.clone());
+                                    }
+                                }
+
                             }
                             get_address_instruction.dst = ValueElement::Variable(dst_name.to_string());
 

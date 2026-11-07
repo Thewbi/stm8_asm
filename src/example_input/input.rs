@@ -559,7 +559,7 @@ pub fn provide_sourcode_input() -> ( String, String ) {
     //
 
     // 1. Create or overwrite the file
-    let preprocessed_file = File::create("preprocessed.c").expect("Create file failed!");
+    let preprocessed_file = File::create("build/preprocessed.c").expect("Create file failed!");
 
     // 2. Wrap the file in a BufWriter
     let mut writer = BufWriter::new(preprocessed_file);
@@ -607,7 +607,7 @@ pub fn provide_sourcode_input() -> ( String, String ) {
 
     // output C-application translation unit into a fixed file called "preprocessed.c".
     // The C-compiler will read input from "preprocessed.c"
-    let str: String = fs::read_to_string("preprocessed.c").expect("file cannot be read!");
+    let str: String = fs::read_to_string("build/preprocessed.c").expect("file cannot be read!");
  */
     let str: String = fs::read_to_string(filename).expect("file cannot be read!");
 

@@ -74,7 +74,8 @@ impl AstAstAssemblyType {
     }
 }
 
-//static mut INSTRUCTION_ID: i32 = 0;
+// TODO: REMOVE
+static mut INSTRUCTION_ID: i32 = 0;
 
 // Type for a intermediate ASM instruction.
 // Intermediate means that this is not final MASM, TASM, FASM, GAS, ...
@@ -97,11 +98,20 @@ pub struct AsmAstInstruction {
 
 impl AsmAstInstruction {
     pub fn new() -> AsmAstInstruction {
-        // unsafe { INSTRUCTION_ID = INSTRUCTION_ID + 1 };
+        // TODO: REMOVE
+        unsafe { INSTRUCTION_ID = INSTRUCTION_ID + 1 };
+
+        // unsafe {
+        //     // DEBUG
+        //     if INSTRUCTION_ID == 6 {
+        //         println!("temp!");
+        //     }
+        // }
 
         AsmAstInstruction {
-            // id: unsafe { INSTRUCTION_ID },
-            id: 0,
+            // TODO: REMOVE
+            id: unsafe { INSTRUCTION_ID },
+            //id: 0,
 
             instruction_type: AsmAstInstructionType::Ret,
             unary_operator: AsmAstUnaryOperator::Not,
@@ -375,12 +385,45 @@ pub enum AsmAstReg {
     RBP, // stack frame base pointer register
 }
 
-impl AsmAstReg {
-    pub(crate) fn output_register_matching_datatype(&self,
-        data_type: &AstAstAssemblyType
-    ) -> String
-    {
+impl From<&str> for AsmAstReg {
+    fn from(string_val: &str) -> Self {
+        match string_val.to_lowercase().as_str() {
+            "ax" => {
+                return AsmAstReg::AX;
+            }
+            _ => {
+                todo!();
+            }
+        }
+    }
+}
 
+impl From<&String> for AsmAstReg {
+    fn from(string_val: &String) -> Self {
+        // DEBUG
+        // println!("val '{}'", string_val);
+        match string_val.to_lowercase().as_str() {
+            "ax" => {
+                return AsmAstReg::AX;
+            }
+            "eax" => {
+                return AsmAstReg::EAX;
+            }
+            "rax" => {
+                return AsmAstReg::RAX;
+            }
+            _ => {
+                todo!();
+            }
+        }
+    }
+}
+
+impl AsmAstReg {
+
+    pub(crate) fn output_register_matching_datatype(&self,
+        data_type: &AstAstAssemblyType) -> String
+    {
         let mut string_buffer = String::from("");
 
         match self {

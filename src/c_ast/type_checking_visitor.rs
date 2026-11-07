@@ -462,7 +462,7 @@ impl TypeCheckingVisitor {
         // DEBUG
         // println!("[TCV][AstNodeType::Expression] lhs_data_type: \n\n{:?}", lhs_data_type);
 
-        // RHS - variable name or const/literal value
+        // RHS - variable name or const/literal value or ADDR_OF() operator &
         let mut rhs_data_type = DataType::DataTypeUnknown;
         let mut rhs_variable_name = String::new();
         let mut right_node = AstNode::new(0);
@@ -486,6 +486,10 @@ impl TypeCheckingVisitor {
                 DataType::DataTypeFloat |
                 DataType::DataTypeDouble |
                 DataType::DataTypeVoid => {
+                    // early out for simple data types - WHY?? this prevents casts!!!!
+                    return rhs_data_type;
+                }
+                DataType::DataTypePointer(_) => {
                     // early out for simple data types - WHY?? this prevents casts!!!!
                     return rhs_data_type;
                 }
@@ -1452,7 +1456,7 @@ impl TypeCheckingVisitor {
             AstNodeType::Unary => {
                 // DEBUG
                 if self.debug {
-                    println!("------------------------------------------------");
+                    println!("[TCV] ------------------------------------------------");
                     println!("{} {:?}", ast_node.id, ast_node);
                 }
 
@@ -1460,7 +1464,9 @@ impl TypeCheckingVisitor {
 
                 let left_node_id_option = ast_node.lhs;
 
-                // RHS
+                let nnnn = ast_node.clone();
+
+                // RHS - Parameter of the unary operator
                 if let Some(right_node_id) = ast_node.rhs {
 
                     self.visit(right_node_id, node_map, expected_return_data_type);
@@ -1471,49 +1477,75 @@ impl TypeCheckingVisitor {
                     match ast_node.operator_type {
 
                         AstNodeOperatorType::Not => {
-                            ast_node.set_analyzed_data_type(DataType::from_str("int").unwrap());
+                            let analyzed_data_type = DataType::from_str("int").unwrap();
+                            ast_node.set_analyzed_data_type(analyzed_data_type.clone());
+                            data_type = analyzed_data_type.clone();
+
+                            // the cloned node has been changed. It now has a type
+                            // Replace the original node in the node_map to preserve the change
+                            node_map.insert(ast_node.id, ast_node);
+                        }
+
+                        AstNodeOperatorType::Dot | AstNodeOperatorType::Arrow => {
+                            let analyzed_data_type = self.retrieve_data_type_from_node_type(&ast_node, node_map);
+                            ast_node.set_analyzed_data_type(analyzed_data_type.clone());
+                            data_type = analyzed_data_type.clone();
+
+                            // the cloned node has been changed. It now has a type
+                            // Replace the original node in the node_map to preserve the change
+                            node_map.insert(ast_node.id, ast_node);
+                        }
+
+                        AstNodeOperatorType::AddrOf => {
+                            // the result of the AddrOf() operation is an address.
+                            // An address/pointer is 64-bit in size on x64 systems
+                            ast_node.set_analyzed_data_type(DataType::DataTypeUnsignedLong);
+                            data_type = DataType::DataTypeUnsignedLong;
+
+                            // the cloned node has been changed. It now has a type
+                            // Replace the original node in the node_map to preserve the change
+                            node_map.insert(ast_node.id, ast_node);
                         }
 
                         _ => {
                             if !self.symbol_table.borrow_mut().contains(&right_node.string_val) {
-                                panic!("Variable '{}' not contained!", &right_node.string_val);
+                                panic!("ast_node.operator_type: {}, right-node-id: {}, Variable '{}' not contained!",
+                                    ast_node.operator_type, right_node.id, &right_node.string_val);
                             }
                             let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&right_node.string_val);
                             ast_node.set_analyzed_data_type(symbol_table_entry.data_type.clone());
 
                             data_type = symbol_table_entry.data_type.clone();
 
-                            // the cloned node has been changed. Replace the original node in the node_map to preserve the change
+                            // the cloned node has been changed. It now has a type
+                            // Replace the original node in the node_map to preserve the change
                             node_map.insert(ast_node.id, ast_node);
                         }
                     }
-                    // println!("Unary: {:?}", ast_node);
                 }
 
-                // LHS
+                // LHS - the operator of the unary operation
                 if let Some(left_node_id) = left_node_id_option {
 
                     let left_node = node_map.get(&left_node_id).unwrap();
-
                     match left_node.node_type {
 
                         AstNodeType::Operator => {
-
                             match left_node.operator_type {
-
                                 AstNodeOperatorType::AddrOf => {
-                                    let data_type_pointer = DataType::DataTypePointer(Box::new(data_type));
-                                    return data_type_pointer;
+                                    return DataType::DataTypePointer(Box::new(data_type));
                                 }
-
                                 AstNodeOperatorType::Increment => {
                                     return left_node.get_analyzed_data_type();
                                 }
-
                                 AstNodeOperatorType::Decrement => {
                                     return left_node.get_analyzed_data_type();
                                 }
-
+                                AstNodeOperatorType::Dereference => {
+                                    // println!("{} {:?}", nnnn.id, nnnn);
+                                    return DataType::DataTypePointer(Box::new(data_type));
+                                    // todo!();
+                                }
                                 _ => {
                                     todo!("Not implemented: '{:?}'", left_node.operator_type);
                                 }

@@ -47,6 +47,8 @@ pub struct AsmAstMasmEmitterVisitor {
     pub string_buffer: String,
     pub stack_offset_map: HashMap::<String, i32>,
     pub print_to_console: bool,
+
+    debug: bool,
 }
 
 impl AsmAstMasmEmitterVisitor {
@@ -57,6 +59,8 @@ impl AsmAstMasmEmitterVisitor {
             string_buffer: String::from(""),
             stack_offset_map: HashMap::<String, i32>::new(),
             print_to_console: false,
+
+            debug: false,
         }
     }
 
@@ -690,11 +694,19 @@ impl AsmAstMasmEmitterVisitor {
         //     println!("test");
         // }
 
+        // DEBUG
+        if self.debug {
+            println!("\n");
+            println!("asm_ast_instruction id: {}, {:?}", asm_ast_instruction.id, asm_ast_instruction);
+        }
+
         match asm_ast_instruction.instruction_type {
 
             AsmAstInstructionType::Mov => {
 
-                assert_ne!(asm_ast_instruction.assembly_type, AstAstAssemblyType::Unknown,
+                // need data types for generating instructions
+                assert_ne!(asm_ast_instruction.assembly_type,
+                    AstAstAssemblyType::Unknown,
                     "\n\n[ERROR] asm_ast_instruction.id: {}, {:?} has data type unknown", asm_ast_instruction.id, asm_ast_instruction);
 
                 self.string_buffer.push_str("    mov ");

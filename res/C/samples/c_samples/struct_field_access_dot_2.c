@@ -1,4 +1,5 @@
-struct point {
+struct point
+{
     int x;
     long y;
 };

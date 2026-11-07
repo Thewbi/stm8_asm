@@ -13,10 +13,10 @@ let generate_lexer = false;
 if generate_lexer {
     dfa = produce_c_lexer();
     // store into file
-    enfa_serialize(&mut dfa, "enfa.txt");
+    enfa_serialize(&mut dfa, "temp_toolchain/enfa.txt");
 } else {
     // load from file
-    enfa_deserialize(&mut dfa, "enfa.txt");
+    enfa_deserialize(&mut dfa, "temp_toolchain/enfa.txt");
 }
 ```
 

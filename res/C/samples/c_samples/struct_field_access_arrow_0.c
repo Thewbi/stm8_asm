@@ -15,5 +15,9 @@ int main() {
 
     b = struct_ptr->a;
 
+    if (b == 8) {
+        return 0;
+    }
+
     return b;
 }

@@ -722,7 +722,7 @@ mod tests {
         print_tacky_program(&program, &mut string_buffer, indent);
 
         // 1. Create or overwrite the file
-        let file = File::create("tacky.tky").expect("Create file failed!");
+        let file = File::create("build/tacky.tky").expect("Create file failed!");
 
         // 2. Wrap the file in a BufWriter
         let mut writer = BufWriter::new(file);

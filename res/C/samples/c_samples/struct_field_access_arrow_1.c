@@ -14,7 +14,13 @@ int main() {
     struct listnode *struct_ptr;
     struct_ptr = &struct_1;
 
+    struct_ptr->b = 8;
+
     b = struct_ptr->b;
 
-    return 0;
+    if (b == 8) {
+        return 0;
+    }
+
+    return b;
 }

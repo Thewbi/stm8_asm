@@ -128,7 +128,6 @@ impl SymbolTable {
             return Some(mapped_value.clone());
         } else {
             panic!("IdentifierMap does not contain an entry for '{}'", varname);
-            // None
         }
     }
 

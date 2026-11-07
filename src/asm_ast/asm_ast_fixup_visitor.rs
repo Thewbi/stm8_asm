@@ -453,11 +453,8 @@ impl AsmAstFixupVisitor {
                         mov_1.instruction_type = AsmAstInstructionType::Mov;
                         mov_1.comment.push_str(" ; - clone 1");
                         mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
-
                         // println!("{:?}", &mov_1);
-
                         new_body.push(Box::new(mov_1));
-
                         asm_ast_instruction.src = AsmAstOperand {
                             operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
                         new_body.push(Box::new(asm_ast_instruction));

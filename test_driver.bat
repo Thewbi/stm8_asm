@@ -3,6 +3,8 @@
 REM https://stackoverflow.com/questions/3942265/errorlevel-in-a-for-loop-windows-batch
 setlocal EnableDelayedExpansion
 
+
+
 call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
 
 cls
@@ -66,7 +68,20 @@ for %%L in (
     res\C\samples\c_samples\struct_10.c
     res\C\samples\c_samples\struct_11.c
 
-
+    res\C\samples\c_samples\struct_field_access_arrow_0.c
+    res\C\samples\c_samples\struct_field_access_arrow_1.c
+    res\C\samples\c_samples\struct_field_access_dot_0.c
+    res\C\samples\c_samples\struct_field_access_dot_1.c
+    res\C\samples\c_samples\struct_field_access_dot_2.c
+    res\C\samples\c_samples\struct_field_assignment_dot_0.c
+    res\C\samples\c_samples\struct_field_assignment_dot_1.c
+    res\C\samples\c_samples\struct_field_assignment_ptr_0.c
+    res\C\samples\c_samples\struct_field_assignment_ptr_1.c
+    res\C\samples\c_samples\struct_field_getAddress_0.c
+    res\C\samples\c_samples\struct_initializer_0.c
+    res\C\samples\c_samples\struct_initializer_1.c
+    res\C\samples\c_samples\struct_pointer_0.c
+    res\C\samples\c_samples\struct_recursive_0.c
 
 
     res\C\samples\c_samples\sub_0.c
@@ -86,12 +101,18 @@ for %%L in (
     res\C\samples\c_samples\while_loop_2.c
     res\C\samples\c_samples\while_loop_3.c
 ) do (
-    del main.asm main.obj main.exe
+    if exist build\main.asm del build\main.asm
+    if exist build\main.obj del build\main.obj
+    if exist build\main.exe del build\main.exe
     call "target/debug/rust_pest_asm.exe" -i %%L
-    call ml64.exe /c main.asm >NUL 2>&1
-    call link.exe /SUBSYSTEM:console /LARGEADDRESSAWARE:NO /ENTRY:main main.obj >NUL 2>&1
-    call main.exe
-    IF "!errorlevel!" == "0" ( echo [SUCCESS] %%L ) ELSE ( echo [FAILURE] %%L & EXIT /b )
+    REM https://learn.microsoft.com/en-us/cpp/assembler/masm/ml-and-ml64-command-line-reference?view=msvc-170
+    REM /c only assemble, no linking
+    REM /Fl build\main.lst
+    call ml64.exe /Fo build\main.obj /c build\main.asm >NUL 2>&1
+    call link.exe /SUBSYSTEM:console /LARGEADDRESSAWARE:NO /ENTRY:main /OUT:build\main.exe build\main.obj >NUL 2>&1
+    call build\main.exe
+    REM IF "!errorlevel!" == "0" ( echo [SUCCESS] %%L ) ELSE ( echo [FAILURE] %%L & EXIT /b )
+    IF "!errorlevel!" == "0" ( echo [SUCCESS] %%L ) ELSE ( echo [FAILURE] %%L )
 )
 del main.asm main.obj main.exe
 echo [DONE]
