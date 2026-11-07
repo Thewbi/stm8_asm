@@ -120,7 +120,11 @@ impl SymbolTable {
     }
 
     pub fn retrieve(&mut self, varname: &String) -> SymbolTableEntry {
-        self.identifier_type_map.get(varname).unwrap().clone()
+        let symbol_table_entry_option = self.identifier_type_map.get(varname);
+        if symbol_table_entry_option.is_none() {
+            panic!();
+        }
+        symbol_table_entry_option.unwrap().clone()
     }
 
     pub fn get(&mut self, varname: &String) -> Option<SymbolTableEntry> {

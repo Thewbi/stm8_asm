@@ -690,8 +690,9 @@ impl AsmAstMasmEmitterVisitor {
         // DEBUG
         // println!("[AsmAstMasmEmitterVisitor::visit_asm_ast_instruction()] instruction={:?}", asm_ast_instruction);
 
-        // if asm_ast_instruction.id == 4 {
-        //     println!("test");
+        // // DEBUG
+        // if asm_ast_instruction.id == 5 {
+        //     println!("asm_ast_instruction: {:?}", asm_ast_instruction);
         // }
 
         // DEBUG
@@ -850,8 +851,9 @@ impl AsmAstMasmEmitterVisitor {
                 self.string_buffer.push_str("    mov rsp, rbp\n");
                 self.string_buffer.push_str("    pop rbp\n");
 
-                // from the main function (where self.stack_size is 0), do not execute a ret instruction
-                // so that the generated line "INVOKE ExitProcess, eax" will execute for save process termination
+                // from the main function (where self.stack_size is 0),
+                // do not execute a ret instruction so that the generated line
+                // "INVOKE ExitProcess, eax" will execute for save process termination
                 if self.stack_size != 0 {
                     self.string_buffer.push_str("\n    ; pops the return address from the top of the stack into the instruction pointer (EIP/RIP)\n");
                     self.string_buffer.push_str("    ret\n");
@@ -989,10 +991,11 @@ impl AsmAstMasmEmitterVisitor {
             }
 
             AsmAstInstructionType::Lea => {
-                self.string_buffer.push_str("    lea ");
-
                 // println!("{:?}", asm_ast_instruction);
 
+
+
+                self.string_buffer.push_str("    lea ");
                 self.emit_asm_ast_operand(&asm_ast_instruction.dst,
                     &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
                     //&asm_ast_instruction.dst,
@@ -1002,6 +1005,10 @@ impl AsmAstMasmEmitterVisitor {
                     &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
                     //&asm_ast_instruction.src,
                     &asm_ast_instruction.assembly_type);
+                // self.string_buffer.push_str("\n");
+
+                self.string_buffer.push_str("; ");
+                self.string_buffer.push_str(asm_ast_instruction.comment.clone().as_str());
                 self.string_buffer.push_str("\n");
             }
 

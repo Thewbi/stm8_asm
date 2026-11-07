@@ -5,6 +5,7 @@ use std::rc::Rc;
 use crate::asm_ast::asm_ast::AstAstAssemblyType;
 use crate::common::data_type::DataType;
 use crate::common::symbol_table::SymbolTable;
+use crate::common::symbol_table::SymbolTableEntry;
 use crate::tacky::tacky::ValueElement;
 
 use crate::AsmAstProgram;
@@ -42,6 +43,7 @@ pub struct AsmAstFixupVisitor {
     pub replace_pseudo: bool,
     stack_offset: i32,
     pub stack_offset_map: HashMap::<String, i32>,
+    pub stack_offset_to_symbol_map: HashMap::<String, SymbolTableEntry>,
     // chapter 15 - talks about a new backend symbol table that is create from the symbol table after TACKY generation
     pub backend_symbol_table: Rc<RefCell<SymbolTable>>, // https://www.youtube.com/watch?v=8O0Nt9qY_vo
     pub type_system: Rc<RefCell<HashMap::<String, DataType>>>,
@@ -58,6 +60,7 @@ impl AsmAstFixupVisitor {
             replace_pseudo: false,
             stack_offset: 0,
             stack_offset_map: HashMap::<String, i32>::new(),
+            stack_offset_to_symbol_map: HashMap::<String, SymbolTableEntry>::new(),
             backend_symbol_table: backend_symbol_table_param,
             type_system: type_system_param,
             debug: false,
@@ -86,8 +89,6 @@ impl AsmAstFixupVisitor {
         // long - 8 Byte
         // pointer to anyhting - 8 Byte
 
-
-
         match &asm_ast_operand.operand_type {
 
             AsmAstOperandType::Memory(register, stack_offset) => {
@@ -101,12 +102,13 @@ impl AsmAstFixupVisitor {
 
             AsmAstOperandType::Pseudo(pseudo_name) => {
 
-                if pseudo_name == "x" {
-                    panic!();
-                }
-                if pseudo_name == "y" {
-                    panic!();
-                }
+                // // DEBUG
+                // if pseudo_name == "x" {
+                //     panic!();
+                // }
+                // if pseudo_name == "y" {
+                //     panic!();
+                // }
 
                 // DEBUG
                 if self.debug {
@@ -150,7 +152,7 @@ impl AsmAstFixupVisitor {
                                 // if the type is a normal data type, use the data types size
                                 // to store it on the stack
 
-                                let data_type = symbol_table_entry.data_type;
+                                let data_type = symbol_table_entry.data_type.clone();
 
                                 // convert the data type into the offset in bytes
                                 self.stack_offset = self.stack_offset - data_type.get_size(&self.type_system.borrow()) as i32;
@@ -158,6 +160,7 @@ impl AsmAstFixupVisitor {
                             }
 
                             self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
+                            self.stack_offset_to_symbol_map.insert(pseudo_name.to_string(), symbol_table_entry.clone());
 
                             // update stack offset_value
                             stack_offset_value = self.stack_offset;
@@ -167,7 +170,6 @@ impl AsmAstFixupVisitor {
                             self.backend_symbol_table.borrow_mut().print_symbol_table();
 
                             panic!("Cannot find symbol '{}' in backend_symbol_table", &pseudo_name);
-
                         }
                     }
                 }
@@ -235,19 +237,21 @@ impl AsmAstFixupVisitor {
 
                             assert_ne!(array_element_count, 0);
 
-                            let data_type = symbol_table_entry.data_type;
+                            let data_type = symbol_table_entry.data_type.clone();
 
                             // convert the data type into the offset in bytes
                             let data_type_size = data_type.get_size(&self.type_system.borrow()) as i32;
 
                             // DEBUG
                             if self.debug {
-                                println!("[ASM_AST_FIXUP_VISITOR::replace_pseudo_operand] DataType: {:?}, DataTypeSize: {}", data_type, data_type_size);
+                                println!("[ASM_AST_FIXUP_VISITOR::replace_pseudo_operand] pseudo_name: '{}', DataType: {:?}, DataTypeSize: {}",
+                                    pseudo_name.to_string(), data_type, data_type_size);
                             }
 
                             // update stack offset (for normal variables and for arrays)
                             self.stack_offset = self.stack_offset - data_type_size * array_element_count;
                             self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
+                            self.stack_offset_to_symbol_map.insert(pseudo_name.to_string(), symbol_table_entry.clone());
 
                             // remember new stack offset
                             // stack_offset_value = self.stack_offset;
@@ -329,6 +333,9 @@ impl AsmAstFixupVisitor {
         // reset stack offset to get rid of the stale value from the last function definition
         self.stack_offset = 0;
 
+        // self.stack_offset_map.clear();
+        // self.stack_offset_to_symbol_map.clear();
+
         // iterate over all instructions in the body and visit each.
         //
         // Each visited element will potentially insert more statements to the statements in the body.
@@ -385,6 +392,23 @@ impl AsmAstFixupVisitor {
                 }
                 println!("-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-");
             }
+        }
+
+        // DEBUG - output the stack layout
+        if self.debug {
+            println!("stack_offset_map for function: '{}' --------------------------------------------", &asm_ast_function.name);
+            let mut index = 0;
+            for (key, value) in self.stack_offset_map.clone().into_iter() {
+                //println!("{}) {} / {:?} ", index, key, value);
+                // println!("{} / {:?}", key, value.data_type);
+
+                let symbol_table_entry: &SymbolTableEntry = self.stack_offset_to_symbol_map.get(&key).unwrap();
+
+                println!("{}) name:'{}', offset: {:?}, size: {}", index, symbol_table_entry.initial_name, value, symbol_table_entry.data_type.get_size(&self.type_system.borrow_mut()));
+
+                index = index + 1;
+            }
+            println!("---------------------------------------------------------------------------------");
         }
 
         asm_ast_function.body = new_body;

@@ -105,9 +105,9 @@ This file contains all rules along with their id and their components.
 
 ## Where is a stack frame layout constructed?
 
-The stack frame layout is constructed in the emitter visitor, which converts
-TACKY to the intermediate ASM.
-This visitor is ```src\asm_ast\tacky_to_intermediate_asm_conversion_visitor.rs```.
+The stack frame layout is constructed in the TACKY-to-intermediate-ASM visitor
+ ```src\asm_ast\tacky_to_intermediate_asm_conversion_visitor.rs```,
+which converts TACKY to the intermediate ASM.
 
 The first step is to move the stack pointer to the end of the stack frame.
 This is done, using a sub command on the rsp register such as
@@ -123,12 +123,20 @@ AsmAstInstruction is inserted.
 The stack frame size is computed in ???
 
 The placeholder is updated inside the call to ```AsmAstFixupVisitor::visit_asm_ast_function()```.
+The ```AsmAstFixupVisitor``` inserts entries into the ```self.stack_offset_map``` for each
+local variable it finds.
+
+The stack_offset_map of the ```AsmAstFixupVisitor``` is then cloned in main and passed to the :
+
+```
+let stack_offset_map = asm_ast_fixup_visitor.stack_offset_map.clone();
+```
 
 The stack frame layout is output in the emitter visitor.
 For different targets, there are different emitter visitors.
-The emitter visitor for MSVC on x64 is src\asm_ast\asm_ast_masm_emitter_visitor.rs
+The emitter visitor for MSVC on x64 is ```src\asm_ast\asm_ast_masm_emitter_visitor.rs```.
 
-Inside src\asm_ast\asm_ast_masm_emitter_visitor.rs,
+Inside ```src\asm_ast\asm_ast_masm_emitter_visitor.rs```,
 
 # The Preprocessor
 

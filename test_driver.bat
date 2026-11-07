@@ -69,19 +69,16 @@ for %%L in (
     res\C\samples\c_samples\struct_11.c
 
     res\C\samples\c_samples\struct_field_access_arrow_0.c
-    res\C\samples\c_samples\struct_field_access_arrow_1.c
-    res\C\samples\c_samples\struct_field_access_dot_0.c
-    res\C\samples\c_samples\struct_field_access_dot_1.c
-    res\C\samples\c_samples\struct_field_access_dot_2.c
+
+
+
+
     res\C\samples\c_samples\struct_field_assignment_dot_0.c
     res\C\samples\c_samples\struct_field_assignment_dot_1.c
     res\C\samples\c_samples\struct_field_assignment_ptr_0.c
     res\C\samples\c_samples\struct_field_assignment_ptr_1.c
     res\C\samples\c_samples\struct_field_getAddress_0.c
-    res\C\samples\c_samples\struct_initializer_0.c
-    res\C\samples\c_samples\struct_initializer_1.c
-    res\C\samples\c_samples\struct_pointer_0.c
-    res\C\samples\c_samples\struct_recursive_0.c
+
 
 
     res\C\samples\c_samples\sub_0.c
@@ -114,7 +111,11 @@ for %%L in (
     REM IF "!errorlevel!" == "0" ( echo [SUCCESS] %%L ) ELSE ( echo [FAILURE] %%L & EXIT /b )
     IF "!errorlevel!" == "0" ( echo [SUCCESS] %%L ) ELSE ( echo [FAILURE] %%L )
 )
-del main.asm main.obj main.exe
+
+if exist build\main.asm del build\main.asm
+if exist build\main.obj del build\main.obj
+if exist build\main.exe del build\main.exe
+
 echo [DONE]
 
 

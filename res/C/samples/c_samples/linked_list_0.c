@@ -18,5 +18,9 @@ int main() {
     struct_1.next = &struct_2;
     struct_2.next = NULL;
 
-    return 0;
+    if (struct_2.val == 2) {
+        return 0;
+    }
+
+    return struct_2.val;
 }

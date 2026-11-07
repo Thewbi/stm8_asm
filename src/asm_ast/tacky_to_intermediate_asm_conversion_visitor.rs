@@ -1290,7 +1290,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         let mut mov_1: AsmAstInstruction = AsmAstInstruction::new();
         mov_1.instruction_type = AsmAstInstructionType::Mov;
         mov_1.comment = String::from(format!("    ; mov 1 generated for TACKY Load()").to_string());
-        // Honolulu
+        // onolulu
         // mov_1.assembly_type = AstAstAssemblyType::Doubleword;
         mov_1.assembly_type = AstAstAssemblyType::Quadword;
         // src of move command
@@ -1343,7 +1343,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         let mut mov_2: AsmAstInstruction = AsmAstInstruction::new();
         mov_2.instruction_type = AsmAstInstructionType::Mov;
         mov_2.comment = String::from(format!("    ; mov 2 generated for TACKY Load()").to_string());
-        // Honolulu
+        // onolulu
         // mov_2.assembly_type = AstAstAssemblyType::Doubleword;
         mov_2.assembly_type = AstAstAssemblyType::Quadword;
         // changed to dst for array_4.c
@@ -1448,16 +1448,23 @@ impl TackyToIntermediateAsmConversionVisitor {
         //
 
         //
-        // 2. Mov = Mov(<dst_type>, Memory(AX, 0), dst)
+        // 2. Mov = Mov(<dst_type>, Memory(BX, 0), dst)
         //
 
         let mut mov_2: AsmAstInstruction = AsmAstInstruction::new();
+        // println!("AsmAstInstruction: id: {}", mov_2.id);
         mov_2.instruction_type = AsmAstInstructionType::Mov;
+        mov_2.comment = String::from("; lea cannot load into mem, so it loads into reg. This move loads reg into dest mem");
         mov_2.assembly_type = AstAstAssemblyType::Quadword;
         mov_2.src = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(AsmAstReg::BX) };
         match &tacky_node_get_address.dst {
             ValueElement::Variable(var_name) => {
-                mov_2.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+
+                //println!("[T2InterASM] var_name: '{}'", var_name);
+
+                mov_2.dst = AsmAstOperand {
+                    operand_type: AsmAstOperandType::Pseudo(var_name.clone())
+                };
             }
             _ => {
                 panic!("Need variable or Constant! Got {:?}", &tacky_node_get_address.dst);

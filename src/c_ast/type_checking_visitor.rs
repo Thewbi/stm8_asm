@@ -813,34 +813,41 @@ impl TypeCheckingVisitor {
             println!("{} {:?}", ast_node.id, ast_node);
         }
 
-        let node = node_map.get(&ast_node.id).unwrap();
+        // let node = node_map.get(&ast_node.id).unwrap();
 
         // LHS - base object (ptr or struct)
-        let lhs_node_id = node.lhs.unwrap();
+        let lhs_node_id = ast_node.lhs.unwrap();
         // DEBUG
         // println!("[TCV] lhs_node_id: {}", &lhs_node_id);
         let lhs_node = node_map.get(&lhs_node_id).unwrap();
         let base_object_name = lhs_node.string_val.clone();
+        // DEBUG
         // println!("{:?}", lhs_node);
 
         // RHS - retrieve the accessed field that is contained inside the base object
-        let rhs_node_id = node.rhs.unwrap();
+        let rhs_node_id = ast_node.rhs.unwrap();
         // DEBUG
         // println!("[TCV] rhs_node_id: {}", &rhs_node_id);
         let rhs_node = node_map.get(&rhs_node_id).unwrap();
         let field_name = rhs_node.string_val.clone();
         // DEBUG
         // println!("[TCV] rhs_node_id: {}, field_name: '{}'", &rhs_node_id, field_name);
+        // DEBUG
+        // println!("lhs_node: {:?}", lhs_node);
 
+        //
         // resolve base variable name to symbol
-        let lhs_symbol = self.symbol_table.borrow_mut().retrieve(&lhs_node.string_val);
-        // DEBUG
-        // println!("[TCV] lhs_symbol: \n\n{:?}", lhs_symbol);
+        //
 
-        // retrieve data type of base variable / lhs_symbol
-        let lhs_data_type = lhs_symbol.data_type;
-        // DEBUG
-        // println!("[TCV] lhs_data_type: \n\n {}", &lhs_data_type);
+        // let lhs_symbol = self.symbol_table.borrow_mut().retrieve(&lhs_node.string_val);
+        // // DEBUG
+        // // println!("[TCV] lhs_symbol: \n\n{:?}", lhs_symbol);
+        // // retrieve data type of base variable / lhs_symbol
+        // let lhs_data_type = lhs_symbol.data_type;
+        // // DEBUG
+        // // println!("[TCV] lhs_data_type: \n\n {}", &lhs_data_type);
+
+        let lhs_data_type = self.visit(lhs_node_id, node_map, expected_return_data_type);
 
         //
         // this final step determines the type which is ultimately returned as the
@@ -849,14 +856,15 @@ impl TypeCheckingVisitor {
 
         // return data type of the field which is accessed within base object
 
-        let mut struct_decl: StructDecl = StructDecl::new();
         match lhs_data_type {
             DataType::DataTypePointer(dest_data_type) => {
+                // DEBUG
                 // println!("dest_data_type: {}", &dest_data_type);
                 match *dest_data_type {
                     DataType::DataTypeStruct(struct_decl_val) => {
+                        // DEBUG
                         // println!("struct_decl: {:?}", struct_decl_val);
-                        struct_decl = struct_decl_val;
+                        let struct_decl = struct_decl_val;
                         let struct_decl_member = struct_decl.members.iter().find(|f| f.member_name == field_name);
                         return struct_decl_member.unwrap().data_type.clone();
                     }
@@ -866,15 +874,14 @@ impl TypeCheckingVisitor {
                 }
             }
             DataType::DataTypeStruct(struct_decl_val) => {
+                // DEBUG
                 // println!("struct_decl: {:?}", struct_decl_val);
-                struct_decl = struct_decl_val;
+                let struct_decl = struct_decl_val;
                 let struct_decl_member = struct_decl.members.iter().find(|f| f.member_name == field_name);
                 let return_data_type = struct_decl_member.unwrap().data_type.clone();
-
                 // DEBUG
                 // println!("[TCV] For base-object: '{}', field-Name: '{}' returning data type: \n\n{:?}",
                 //     base_object_name, field_name, return_data_type);
-
                 return return_data_type;
             }
             _ => {

@@ -64,6 +64,9 @@ impl AstAstAssemblyType {
             DataType::DataTypeLong => {
                 AstAstAssemblyType::Quadword // qword, 64 bit
             }
+            DataType::DataTypeUnsignedLong => {
+                AstAstAssemblyType::Quadword // qword, 64 bit
+            }
             DataType::DataTypeStruct(struct_decl) => {
                 AstAstAssemblyType::Unknown
             }

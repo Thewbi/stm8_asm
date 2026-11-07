@@ -111,12 +111,16 @@ impl TackyVisitor {
         temp_var_name: &String,
         data_type: DataType)
     {
+        // // DEBUG
+        // if temp_var_name == "tmp.4" {
+        //     println!("[TackyVisitor::declare_temporary_variable()]test");
+        // }
+
         // create symbol table entry for temporary variable
         let mut symbol_table_entry = SymbolTableEntry::new();
         symbol_table_entry.name = temp_var_name.clone();
         symbol_table_entry.initial_name = temp_var_name.clone();
         symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
-        // symbol_table_entry.data_type = DataType::DataTypeInt;
         symbol_table_entry.data_type = data_type.clone();
         symbol_table_entry.is_array = false;
         symbol_table_entry.array_element_count = 0;
@@ -126,7 +130,6 @@ impl TackyVisitor {
         // create temporary variable to cast into
         let mut dest_var_declaration: Instruction = Instruction::new();
         dest_var_declaration.instruction_type = InstructionType::VariableDeclaration;
-        // dest_var_declaration.data_type = DataType::DataTypeInt;
         dest_var_declaration.data_type = data_type.clone();
         dest_var_declaration.label = temp_var_name.clone();
 
@@ -1129,7 +1132,10 @@ impl TackyVisitor {
                                                 // need a name
                                                 if dst_name.len() == 0 {
                                                     dst_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                                                    self.declare_temporary_variable(&dst_name, DataType::DataTypeInt);
+
+                                                    // Honolulu
+                                                    //self.declare_temporary_variable(&dst_name, DataType::DataTypeInt);
+                                                    self.declare_temporary_variable(&dst_name, DataType::DataTypeUnsignedLong);
                                                 }
 
                                                 // need a name

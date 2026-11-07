@@ -1479,7 +1479,11 @@ fn main() {
 
                     let stack_offset_map = asm_ast_fixup_visitor.stack_offset_map.clone();
 
-                    // DEBUG
+                    // TODO: does this make any sense?
+                    // How can there be a single stack layout for several functions in the
+                    // compilation unit?
+
+                    // DEBUG - output the stack layout
                     if debug {
                         println!("stack_offset_map ----------------------------------------------------------------");
                         let mut index = 0;
