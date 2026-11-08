@@ -43,9 +43,13 @@ for %%L in (
 
     res\C\samples\c_samples\linked_list_0.c
     res\C\samples\c_samples\linked_list_1.c
+    res\C\samples\c_samples\linked_list_2.c
+    res\C\samples\c_samples\linked_list_3.c
+    res\C\samples\c_samples\linked_list_4.c
 
 
     res\C\samples\c_samples\main_0.c
+    res\C\samples\c_samples\mul_assign_0.c
     res\C\samples\c_samples\multiplication_0.c
     res\C\samples\c_samples\parameter_pointer_0.c
     res\C\samples\c_samples\pointer_0.c

@@ -1,3 +1,5 @@
+// mul_assign_0.c
+
 int main() {
     int a = 2;
     a *= 3;

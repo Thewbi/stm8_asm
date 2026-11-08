@@ -1,3 +1,5 @@
+// linked_list_3.c
+
 #include <stddef.h>
 
 // https://nothingleaves.com/tools/memory-layout-visualizer/
@@ -29,5 +31,10 @@ int main() {
     //return 300;
 
     //return struct_1.val;
+    //return struct_2.val;
+
+    if (struct_2.val == 2) {
+        return 0;
+    }
     return struct_2.val;
 }

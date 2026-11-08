@@ -1,3 +1,5 @@
+// linked_list_4.c
+
 #include <stddef.h>
 
 // https://nothingleaves.com/tools/memory-layout-visualizer/
@@ -29,6 +31,9 @@ int main() {
     //struct_2.next = &struct_3;
     //struct_3.next = NULL;
 
+    if (struct_1.next->val == 2) {
+        return 0;
+    }
     return struct_1.next->val;
     //return struct_1.next->next->val;
     //return 300;

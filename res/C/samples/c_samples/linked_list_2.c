@@ -1,3 +1,5 @@
+// linked_list_2.c
+
 #include <stddef.h>
 
 struct node {
@@ -18,5 +20,8 @@ int main() {
     struct_1.next = &struct_2;
     struct_2.next = NULL;
 
+    if (struct_1.next->val == 2) {
+        return 0;
+    }
     return struct_1.next->val;
 }

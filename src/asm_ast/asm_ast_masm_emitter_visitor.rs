@@ -785,11 +785,35 @@ impl AsmAstMasmEmitterVisitor {
                         self.emit_asm_ast_operand(&asm_ast_instruction.src, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
                     }
                     AsmAstUnaryOperator::MulAssignment => {
-                        mnemonic = "mul".to_string();
-                        self.string_buffer.push_str(format!("    {} ", mnemonic).as_str());
-                        self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
-                        self.string_buffer.push_str(", ");
-                        self.emit_asm_ast_operand(&asm_ast_instruction.src, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+
+                        // println!("asm_ast_instruction: {:?}", asm_ast_instruction);
+
+                        match asm_ast_instruction.src_2.operand_type {
+
+                            AsmAstOperandType::Imm(immediate_value) => {
+                                // mnemonic = "mul".to_string();
+                                mnemonic = "imul".to_string();
+                                self.string_buffer.push_str(format!("    {} ", mnemonic).as_str());
+
+                                // destination (register)
+
+                                // self.string_buffer.push_str(", ");
+                                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                                self.string_buffer.push_str(", ");
+                                self.emit_asm_ast_operand(&asm_ast_instruction.src, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                                self.string_buffer.push_str(", ");
+                                self.emit_asm_ast_operand(&asm_ast_instruction.src_2, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                            }
+
+                            _ => {
+                                mnemonic = "mul".to_string();
+                                // mnemonic = "imul".to_string();
+                                self.string_buffer.push_str(format!("    {} ", mnemonic).as_str());
+                                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                                self.string_buffer.push_str(", ");
+                                self.emit_asm_ast_operand(&asm_ast_instruction.src, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                            }
+                        }
                     }
                     _ => {
                         panic!("{}", format!("Unhandled AsmAstInstructionType {:?}!\n", asm_ast_instruction.unary_operator).as_str());

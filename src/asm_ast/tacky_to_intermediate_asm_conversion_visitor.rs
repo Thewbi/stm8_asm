@@ -352,13 +352,11 @@ impl TackyToIntermediateAsmConversionVisitor {
                 }
 
                 InstructionType::AddAssignment => {
-                    self.visit_tacky_operator_assignment(&mut asm_ast_function,
-                        &AsmAstUnaryOperator::AddAssignment, tacky_instruction);
+                    self.visit_tacky_add_assignment(&mut asm_ast_function, tacky_instruction);
                 }
 
                 InstructionType::MulAssignment => {
-                    self.visit_tacky_operator_assignment(&mut asm_ast_function,
-                        &AsmAstUnaryOperator::MulAssignment, tacky_instruction);
+                    self.visit_tacky_mul_assignment(&mut asm_ast_function, tacky_instruction);
                 }
 
                 InstructionType::SubscriptSrc => {
@@ -726,9 +724,8 @@ impl TackyToIntermediateAsmConversionVisitor {
         asm_ast_function.body.push(Box::new(mov_1));
     }
 
-    pub fn visit_tacky_operator_assignment(&mut self,
+    pub fn visit_tacky_add_assignment(&mut self,
         asm_ast_function: &mut AsmAstFunction,
-        asm_ast_operator: &AsmAstUnaryOperator,
         instruction: &Instruction)
     {
         //
@@ -745,11 +742,10 @@ impl TackyToIntermediateAsmConversionVisitor {
         // add DWORD PTR [rbp-4], 123
         //
 
-        let mut add: AsmAstInstruction = AsmAstInstruction::new();
-        add.instruction_type = AsmAstInstructionType::Unary;
-        //add.unary_operator = AsmAstUnaryOperator::AddAssignment;
-        add.unary_operator = asm_ast_operator.clone();
-        add.comment = String::from(format!("    ; add for AddAssignment (e.g. a += 123;)").to_string());
+        let mut assignment_instruction: AsmAstInstruction = AsmAstInstruction::new();
+        assignment_instruction.instruction_type = AsmAstInstructionType::Unary;
+        assignment_instruction.unary_operator = AsmAstUnaryOperator::AddAssignment;
+        assignment_instruction.comment = String::from(format!("    ; add for AddAssignment (e.g. a += 123;)").to_string());
 
         // source
         // set data type and also set the object that is used as source
@@ -757,36 +753,160 @@ impl TackyToIntermediateAsmConversionVisitor {
         match &instruction.src {
             ValueElement::Variable(var_name) => {
                 let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name);
-                // src_data_type = symbol_table_entry.data_type;
                 src_data_type = symbol_table_entry_option.expect(format!("No symbol for '{}' found in symbol table!\n", var_name).as_str()).data_type;
-                add.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
-                add.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+                assignment_instruction.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+                assignment_instruction.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
             }
             ValueElement::Constant(constant_value) => {
                 src_data_type = DataType::DataTypeInt; // TODO: how to determine the type of the constant?
-                add.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
-                add.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+                assignment_instruction.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+                assignment_instruction.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
             }
             _ => {
                 unimplemented!()
             }
         }
-        add.assembly_type = AstAstAssemblyType::from_data_type(&src_data_type);
+        assignment_instruction.assembly_type = AstAstAssemblyType::from_data_type(&src_data_type);
 
         // destination
         match &instruction.dst {
             ValueElement::Variable(var_name) => {
-                // add.dst = AsmAstOperand { operand_type: AsmAstOperandType::PseudoMem(var_name.clone(), offset) };
-                add.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+                assignment_instruction.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
             }
             _ => {
                 unimplemented!()
             }
         }
 
-        assert_ne!(add.assembly_type, AstAstAssemblyType::Unknown);
+        assert_ne!(assignment_instruction.assembly_type, AstAstAssemblyType::Unknown);
 
-        asm_ast_function.body.push(Box::new(add));
+        asm_ast_function.body.push(Box::new(assignment_instruction));
+    }
+
+    pub fn visit_tacky_mul_assignment(&mut self,
+        asm_ast_function: &mut AsmAstFunction,
+        instruction: &Instruction)
+    {
+        // println!("instruction: {:?}", instruction);
+        // println!("");
+
+        // imul <temp_register>, <src-memory/var>, <imm>
+        // mov <dst-memory/var>, <temp_register>
+
+        let mut src_data_type: DataType = DataType::DataTypeUnknown;
+
+        //
+        // mul
+        //
+
+        let mut mul_instruction: AsmAstInstruction = AsmAstInstruction::new();
+        mul_instruction.instruction_type = AsmAstInstructionType::Unary;
+        mul_instruction.comment = String::from(" ; for imul. imul <temp_register>, <src-memory/var>, <imm>");
+        mul_instruction.unary_operator = AsmAstUnaryOperator::MulAssignment;
+        match &instruction.dst {
+            ValueElement::Variable(var_name) => {
+                let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name);
+                let symbol_table_entry = symbol_table_entry_option.expect(format!("No symbol for '{}' found in symbol table!\n", var_name).as_str());
+                src_data_type = symbol_table_entry.data_type;
+                mul_instruction.src = AsmAstOperand {
+                    operand_type: AsmAstOperandType::PseudoMem(var_name.clone(), 0)
+                };
+            }
+            // ValueElement::Constant(constant_value) => {
+            //     let src_data_type = DataType::DataTypeInt;
+            //     let value:i32 = i32::from_str_radix(&constant_value, 10).expect("REASON");
+            //     mul_instruction.src_2 = AsmAstOperand {
+            //         operand_type: AsmAstOperandType::Imm(value)
+            //     };
+            // }
+            _ => {
+                unimplemented!()
+            }
+        }
+        match &instruction.src {
+            // ValueElement::Variable(var_name) => {
+            //     let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name);
+            //     src_data_type = symbol_table_entry_option.expect(format!("No symbol for '{}' found in symbol table!\n", var_name).as_str()).data_type;
+            //     mov_1.src = AsmAstOperand {
+            //         operand_type: AsmAstOperandType::PseudoMem(var_name.clone(), tacky_node_copy_from_offset.offset)
+            //     };
+            // }
+            ValueElement::Constant(constant_value) => {
+                // let src_data_type = DataType::DataTypeInt;
+                let value: i32 = i32::from_str_radix(&constant_value, 10).expect("REASON");
+                mul_instruction.src_2 = AsmAstOperand {
+                    operand_type: AsmAstOperandType::Imm(value)
+                };
+            }
+            _ => {
+                unimplemented!()
+            }
+        }
+        mul_instruction.dst = AsmAstOperand {
+            operand_type: AsmAstOperandType::Reg(AsmAstReg::R10)
+        };
+        mul_instruction.assembly_type = AstAstAssemblyType::from_data_type(&src_data_type);
+
+        assert_ne!(mul_instruction.assembly_type, AstAstAssemblyType::Unknown);
+
+        // println!("mul_instruction: {:?}", mul_instruction);
+
+        asm_ast_function.body.push(Box::new(mul_instruction));
+
+        //
+        // mov
+        //
+
+        let mut mov_instruction: AsmAstInstruction = AsmAstInstruction::new();
+        mov_instruction.instruction_type = AsmAstInstructionType::Mov;
+        mov_instruction.comment = String::from(format!("    ; mov <dst-memory/var>, <temp_register>").to_string());
+        // let mut src_data_type: DataType = DataType::DataTypeUnknown;
+        mov_instruction.src = AsmAstOperand {
+            operand_type: AsmAstOperandType::Reg(AsmAstReg::R10)
+        };
+        // match &tacky_node_copy_to_offset.src {
+
+        //     ValueElement::Variable(var_name) => {
+        //         let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name);
+        //         // src_data_type = symbol_table_entry.data_type;
+        //         src_data_type = symbol_table_entry_option.expect(format!("No symbol for '{}' found in symbol table!\n", var_name).as_str()).data_type;
+        //         mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+        //     }
+
+        //     ValueElement::Constant(constant_value) => {
+        //         // TODO: how to determine the type of the constant?
+        //         // Currently use hardcoded Int
+        //         src_data_type = DataType::DataTypeInt;
+        //         let value:i32 = i32::from_str_radix(&constant_value, 10).expect("REASON");
+        //         mov.src = AsmAstOperand {
+        //             operand_type: AsmAstOperandType::Imm(value)
+        //         };
+        //     }
+
+        //     _ => {
+        //         unimplemented!()
+        //     }
+        // }
+        mov_instruction.assembly_type = AstAstAssemblyType::from_data_type(&src_data_type);
+        match &instruction.dst {
+            ValueElement::Variable(var_name) => {
+                mov_instruction.dst = AsmAstOperand {
+                    operand_type: AsmAstOperandType::PseudoMem(var_name.clone(), 0)
+                };
+            }
+            // ValueElement::Constant(constant_value) => {
+            //     mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+            // }
+            _ => {
+                unimplemented!()
+            }
+        }
+
+        assert_ne!(mov_instruction.assembly_type, AstAstAssemblyType::Unknown);
+
+        // println!("mov_instruction: {:?}", mov_instruction);
+
+        asm_ast_function.body.push(Box::new(mov_instruction));
     }
 
     pub fn visit_tacky_copy_to_offset(&mut self,
