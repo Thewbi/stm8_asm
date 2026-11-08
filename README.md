@@ -75,6 +75,39 @@ which type the point to!
 
 # Source Code Structure
 
+## How to regenerate the parser
+
+In main.rs look for the if-statement:
+
+```
+if generate_lalr_1 {
+    ...
+}
+```
+
+Make sure the if statement is entered by changing the variable ```generate_lalr_1``` to true.
+
+If you also want to regenerate the lexer, look for the if-statement:
+
+```
+let generate_lexer = REGENERATE_LEXER_PARSER;
+if generate_lexer {
+    lexer_dfa = produce_c_lexer();
+    // store into file
+    enfa_serialize(&mut lexer_dfa, "temp_toolchain/enfa.txt");
+} else {
+    // load from file
+    enfa_deserialize(&mut lexer_dfa, "temp_toolchain/enfa.txt");
+}
+```
+
+Make sure the function ```produce_c_lexer()```
+
+After the parser and lexer have been generated, turn of the if-statements so
+that the parse table and the lexer are loaded from the files written to disk
+during generation. That way, you save massive amounts of time because loading
+from file is way faster than running the algorithms.
+
 ## Where and how is the parse tree printed?
 
 The Parsers (parser.rs) has a function for each rule which is called when a rule is reduced. In each of these functions, the .dot graphviz is printed into a String called string_buffer. Also AST nodes are created in these functions. This means the parser outputs the parse tree and prepares AST nodes at the same time.
