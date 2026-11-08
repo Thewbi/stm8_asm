@@ -1,11 +1,14 @@
-// mul_assign_0.c
+// res\C\samples\c_samples\return_typedeffed_type_0.c
+
+#include <stdint.h>
+
+int32_t digit_by_digit_sqrt(int32_t val) {
+    return 0;
+}
 
 int main() {
-    int a = 2;
-    a *= 3;
-    //a = a * 3;
-    if (a == 7) {
-        return 0;
-    }
-    return a;
+    int32_t target = 144;
+    int result = digit_by_digit_sqrt(target);
+
+    return 0;
 }
