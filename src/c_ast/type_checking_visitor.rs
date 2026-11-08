@@ -864,9 +864,21 @@ impl TypeCheckingVisitor {
                     DataType::DataTypeStruct(struct_decl_val) => {
                         // DEBUG
                         // println!("struct_decl: {:?}", struct_decl_val);
-                        let struct_decl = struct_decl_val;
-                        let struct_decl_member = struct_decl.members.iter().find(|f| f.member_name == field_name);
-                        return struct_decl_member.unwrap().data_type.clone();
+                        // println!("struct_decl_val.tag: '{:?}'", struct_decl_val.tag);
+                        // println!("field_name: '{:?}'", field_name);
+                        let temp_ts = self.type_system.borrow_mut();
+                        let entry = temp_ts.get(&struct_decl_val.tag).unwrap();
+                        // println!("entry: '{:?}'", entry);
+                        match entry {
+                            DataType::DataTypeStruct(struct_decl) => {
+                                // let struct_decl = struct_decl_val;
+                                let struct_decl_member = struct_decl.members.iter().find(|f| f.member_name == field_name);
+                                return struct_decl_member.unwrap().data_type.clone();
+                            }
+                            _ => {
+                                panic!();
+                            }
+                        }
                     }
                     _ => {
                         panic!("Unhandled ptr destination data type: {:?}", dest_data_type);

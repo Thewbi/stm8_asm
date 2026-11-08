@@ -105,6 +105,25 @@ This file contains all rules along with their id and their components.
 
 ## Where is a stack frame layout constructed?
 
+TIPP: to output the stack frame layout, edit ```src\asm_ast\asm_ast_fixup_visitor.rs```
+and enable the code:
+
+```
+// DEBUG - output the stack frame layout
+if self.debug {
+    println!("stack_offset_map for function: '{}' --------------------------------------------", &asm_ast_function.name);
+    let mut index = 0;
+    for (key, value) in self.stack_offset_map.clone().into_iter() {
+        //println!("{}) {} / {:?} ", index, key, value);
+        // println!("{} / {:?}", key, value.data_type);
+        let symbol_table_entry: &SymbolTableEntry = self.stack_offset_to_symbol_map.get(&key).unwrap();
+        println!("{}) name:'{}', offset: {:?}, size: {}", index, symbol_table_entry.initial_name, value, symbol_table_entry.data_type.get_size(&self.type_system.borrow_mut()));
+        index = index + 1;
+    }
+    println!("---------------------------------------------------------------------------------");
+}
+```
+
 The stack frame layout is constructed in the TACKY-to-intermediate-ASM visitor
  ```src\asm_ast\tacky_to_intermediate_asm_conversion_visitor.rs```,
 which converts TACKY to the intermediate ASM.

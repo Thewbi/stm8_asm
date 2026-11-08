@@ -394,18 +394,15 @@ impl AsmAstFixupVisitor {
             }
         }
 
-        // DEBUG - output the stack layout
+        // DEBUG - output the stack frame layout
         if self.debug {
             println!("stack_offset_map for function: '{}' --------------------------------------------", &asm_ast_function.name);
             let mut index = 0;
             for (key, value) in self.stack_offset_map.clone().into_iter() {
                 //println!("{}) {} / {:?} ", index, key, value);
                 // println!("{} / {:?}", key, value.data_type);
-
                 let symbol_table_entry: &SymbolTableEntry = self.stack_offset_to_symbol_map.get(&key).unwrap();
-
                 println!("{}) name:'{}', offset: {:?}, size: {}", index, symbol_table_entry.initial_name, value, symbol_table_entry.data_type.get_size(&self.type_system.borrow_mut()));
-
                 index = index + 1;
             }
             println!("---------------------------------------------------------------------------------");

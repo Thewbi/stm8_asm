@@ -41,7 +41,7 @@ use crate::common::data_type::DataType;
 // 1. src\c_ast\IdentifierResolutionVisitor - checks for duplicate or undeclared variable names
 // 2. src\c_ast\type_checking_visitor.rs - type checking
 // 3. tacky/TackyVisitor - Generate TACKY (from AST)
-// 4. asm_ast/TackyToIntermediateAsmConversionVisitor - (This struct) Converts TACKY into a ASM AST for assembly with a precursory form of mnenomics
+// 4. src\asm_ast\tacky_to_intermediate_asm_conversion_visitor.rs - (This struct) Converts TACKY into a ASM AST for assembly with a precursory form of mnenomics
 // 5. asm_ast/AsmAstFixupVisitor - replacing pseudo operands/variables with stack addresses
 // 6. asm_ast/AsmAstMasmEmitterVisitor / asm_ast/AsmAstGASEmitterVisitor / ...
 //
@@ -959,7 +959,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         let mut mov_3: AsmAstInstruction = AsmAstInstruction::new();
         mov_3.id = 1111;
         mov_3.instruction_type = AsmAstInstructionType::Mov;
-        mov_3.comment = String::from(format!("    ; 3. mov_3 for CopyFromOffset(src, dst, offset)").to_string());
+        mov_3.comment = String::from(format!("    ; 3. mov_3 for visit_tacky_copy_from_offset_ptr_deref(src, dst, offset)").to_string());
         mov_3.assembly_type = AstAstAssemblyType::Doubleword;
         mov_3.src = AsmAstOperand {
             operand_type: AsmAstOperandType::Reg(AsmAstReg::R10)
@@ -1081,13 +1081,11 @@ impl TackyToIntermediateAsmConversionVisitor {
         mov_3.id = 1111;
         mov_3.instruction_type = AsmAstInstructionType::Mov;
         mov_3.comment = String::from(format!("    ; 3. mov_3 for CopyFromOffset(src, dst, offset)").to_string());
-        mov_3.assembly_type = AstAstAssemblyType::Doubleword;
+        // mov_3.assembly_type = AstAstAssemblyType::Doubleword;
+        mov_3.assembly_type = AstAstAssemblyType::Quadword; // for pointers and addresses
         mov_3.src = AsmAstOperand {
             operand_type: AsmAstOperandType::Reg(AsmAstReg::R10)
         };
-        // mov_3.dst = AsmAstOperand {
-        //     operand_type: AsmAstOperandType::PseudoMem(var_name.clone(), tacky_node_copy_from_offset.offset)
-        // };
         match &tacky_node_copy_from_offset.dst {
             ValueElement::Variable(var_name) => {
                 mov_3.dst = AsmAstOperand {

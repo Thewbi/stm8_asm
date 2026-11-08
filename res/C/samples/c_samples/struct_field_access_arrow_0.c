@@ -1,3 +1,5 @@
+// struct_field_access_arrow_0.c
+
 struct listnode
 {
     int a;

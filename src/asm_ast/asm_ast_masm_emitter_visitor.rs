@@ -28,7 +28,7 @@ use crate::asm_ast::asm_ast_masm_emitter_visitor::AsmAstOperandType::ComparisonT
 // 1. src\c_ast\IdentifierResolutionVisitor - checks for duplicate or undeclared variable names
 // 2. src\c_ast\type_checking_visitor.rs - performs type checking. The rules that are checked are documented in the file itself
 // 3. src\tacky\tacky_visitor.rs - Generate TACKY (from AST)
-// 4. asm_ast/AsmAstConversionVisitor - Converts the AST into a ASM AST for assembly with a precursory form of mnenomics
+// 4. src\asm_ast\tacky_to_intermediate_asm_conversion_visitor.rs - Converts the AST into a ASM AST for assembly with a precursory form of mnenomics
 // 5. src\asm_ast\asm_ast_fixup_visitor.rs - replacing pseudo operands/variables with stack addresses
 // 6. asm_ast/AsmAstMasmEmitterVisitor / asm_ast/AsmAstASEmitterVisitor / ...
 //
