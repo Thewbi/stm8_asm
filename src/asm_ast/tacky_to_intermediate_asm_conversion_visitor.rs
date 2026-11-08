@@ -1986,8 +1986,20 @@ impl TackyToIntermediateAsmConversionVisitor {
 
     pub fn visit_tacky_return(&mut self,
         asm_ast_function: &mut AsmAstFunction,
-        tacky_node_return: &Instruction) {
-        // println!("[AsmAstConversionVisitor::visit_tacky_return() tacky_node_return: {:?}]", tacky_node_return);
+        tacky_node_return: &Instruction)
+    {
+        // // DEBUG
+        // println!("[AsmAstConversionVisitor::visit_tacky_return() tacky_node_return: {:?}]",
+        //     tacky_node_return);
+
+        // // DEBUG
+        // println!("\n\n\n");
+        // println!("asm_ast_function: {:?}", asm_ast_function);
+
+        // ASSERT - need return type!
+        if asm_ast_function.return_type.is_none() {
+            panic!("Function '{}' needs to have a return type!", asm_ast_function.name);
+        }
 
         // This move will move the returned value into the ABI register EAX
         // which is defined to contain the return value.

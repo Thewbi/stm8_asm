@@ -373,14 +373,14 @@ pub fn produce_grammar_c_full_if_else_4(grammar_rules: &mut Vec::<Rule<String>>)
     create_rule(grammar_rules, String::from("declarator -> direct_declarator"), treat_nonterminal_lowercase);
 
     // direct_declarator
-	// : IDENTIFIER
-	// | '(' declarator ')'
-	// | direct_declarator '[' constant_expression ']'
-	// | direct_declarator '[' ']'
-	// | direct_declarator '(' parameter_type_list ')'
-	// | direct_declarator '(' identifier_list ')'
-	// | direct_declarator '(' ')'
-	// ;
+	//      : IDENTIFIER
+	//      | '(' declarator ')'
+	//      | direct_declarator '[' constant_expression ']'
+	//      | direct_declarator '[' ']'
+	//      | direct_declarator '(' parameter_type_list ')'
+	//      | direct_declarator '(' identifier_list ')'
+	//      | direct_declarator '(' ')'
+	//      ;
     create_rule(grammar_rules, String::from("direct_declarator -> IDENTIFIER"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("direct_declarator -> OPENING_BRACKET declarator CLOSING_BRACKET"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("direct_declarator -> direct_declarator OPENING_ANGULAR_BRACKET constant_expression CLOSING_ANGULAR_BRACKET"), treat_nonterminal_lowercase);

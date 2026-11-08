@@ -18,20 +18,27 @@ for %%L in (
     res\C\samples\c_samples\array_6.c
     res\C\samples\c_samples\array_declaration_with_size.c
     res\C\samples\c_samples\array_declaration_without_size.c
+
     res\C\samples\c_samples\binary_0.c
+
     res\C\samples\c_samples\bubblesort_1.c
     res\C\samples\c_samples\bubblesort_2.c
     res\C\samples\c_samples\bubblesort_3.c
     res\C\samples\c_samples\bubblesort_broken.c
+
     res\C\samples\c_samples\do_loop_0.c
     res\C\samples\c_samples\do_loop_1.c
+
     res\C\samples\c_samples\expression_0.c
     res\C\samples\c_samples\expression_1.c
     res\C\samples\c_samples\expression_2.c
+
     res\C\samples\c_samples\for_loop_0.c
     res\C\samples\c_samples\for_loop_1.c
     res\C\samples\c_samples\for_loop_2.c
 
+    res\C\samples\c_samples\function_call_0.c
+    res\C\samples\c_samples\function_call_1.c
 
     res\C\samples\c_samples\hex_array_0.c
     res\C\samples\c_samples\hex_numeric_0.c

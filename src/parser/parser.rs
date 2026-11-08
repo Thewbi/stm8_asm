@@ -3852,6 +3852,7 @@ impl Parser<String> {
 
                                         // declaration -> declaration_specifiers init_declarator_list SEMICOLON
                                         77 => {
+
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -3949,6 +3950,9 @@ impl Parser<String> {
                                                         let typedef_ast_node_id = self.ast_stack_pop().unwrap();
                                                         let typedef_ast_node = node_map.get(&typedef_ast_node_id).unwrap().clone();
                                                         // println!("'{}'", &typedef_ast_node.string_val);
+
+                                                        // DEBUG
+                                                        // self.print_ast_stack(node_map);
                                                     }
 
                                                     //
@@ -3985,9 +3989,11 @@ impl Parser<String> {
                                                     typedef_ast_node.rhs = Some(new_type_ast_node.id.clone());
                                                     typedef_ast_node.file = file.clone();
                                                     typedef_ast_node.line = line;
-                                                    self.ast_stack.push(typedef_ast_node.id);
-                                                    node_map.insert(typedef_ast_node.id, typedef_ast_node);
 
+                                                    // Why push the typedef back to the AST stack???????????
+                                                    // self.ast_stack.push(typedef_ast_node.id);
+
+                                                    node_map.insert(typedef_ast_node.id, typedef_ast_node);
                                                     node_map.insert(new_type_ast_node.id, new_type_ast_node);
                                                     node_map.insert(old_type_ast_node.id, old_type_ast_node);
                                                 }
@@ -8658,9 +8664,12 @@ impl Parser<String> {
                                                 let mut done = false;
                                                 while !done {
 
+                                                    // DEBUG
+                                                    // self.print_ast_stack(node_map);
+
                                                     let sub_ast_node_id = self.ast_stack_pop().unwrap();
                                                     let sub_ast_node = node_map.get(&sub_ast_node_id).unwrap();
-                                                    match sub_ast_node.node_type {
+                                                    match sub_ast_node.node_type.clone() {
 
                                                         // AstNodeType::Identifier => {
                                                         //     function_name = sub_ast_node.string_val;
@@ -8686,16 +8695,45 @@ impl Parser<String> {
                                                             // nop
                                                         }
 
+                                                        AstNodeType::TypeSpecifier(type_name) => {
+                                                            //
+                                                            // Return Value
+                                                            //
+
+                                                            // println!("type_name: '{}'", type_name);
+
+                                                            let ts = self.type_system.borrow_mut();
+                                                            let data_type = ts.get(&type_name).unwrap();
+
+                                                            function_definition_ast_node.set_analyzed_data_type(data_type.clone());
+
+                                                            // Assumption: return-value data-type of function
+                                                            // return-value data-type of function
+                                                            function_definition_ast_node.rhs = Some(sub_ast_node.id);
+
+                                                            // abort the loop here, since the function declaration is complete
+                                                            done = true;
+                                                        }
+
                                                         AstNodeType::DataType => {
                                                             //
                                                             // Return Value
                                                             //
 
-                                                            function_definition_ast_node.set_analyzed_data_type(sub_ast_node.get_analyzed_data_type());
+                                                            let analyzed_data_type = sub_ast_node.get_analyzed_data_type();
+
+                                                            // DEBUG
+                                                            // println!("analyzed_data_type: {}", analyzed_data_type);
+
+                                                            // ASSERT: need a type
+                                                            assert_ne!(analyzed_data_type, DataType::DataTypeUnknown);
+                                                            function_definition_ast_node.set_analyzed_data_type(analyzed_data_type);
 
                                                             // Assumption: return-value data-type of function
                                                             // return-value data-type of function
                                                             function_definition_ast_node.rhs = Some(sub_ast_node.id);
+
+                                                            // abort the loop here, since the function declaration is complete
                                                             done = true;
                                                         }
 

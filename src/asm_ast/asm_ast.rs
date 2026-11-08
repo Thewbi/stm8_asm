@@ -78,7 +78,7 @@ impl AstAstAssemblyType {
 }
 
 // TODO: REMOVE
-static mut INSTRUCTION_ID: i32 = 0;
+// static mut INSTRUCTION_ID: i32 = 0;
 
 // Type for a intermediate ASM instruction.
 // Intermediate means that this is not final MASM, TASM, FASM, GAS, ...
@@ -102,7 +102,7 @@ pub struct AsmAstInstruction {
 impl AsmAstInstruction {
     pub fn new() -> AsmAstInstruction {
         // TODO: REMOVE
-        unsafe { INSTRUCTION_ID = INSTRUCTION_ID + 1 };
+        // unsafe { INSTRUCTION_ID = INSTRUCTION_ID + 1 };
 
         // unsafe {
         //     // DEBUG
@@ -113,8 +113,8 @@ impl AsmAstInstruction {
 
         AsmAstInstruction {
             // TODO: REMOVE
-            id: unsafe { INSTRUCTION_ID },
-            //id: 0,
+            // id: unsafe { INSTRUCTION_ID },
+            id: 0,
 
             instruction_type: AsmAstInstructionType::Ret,
             unary_operator: AsmAstUnaryOperator::Not,

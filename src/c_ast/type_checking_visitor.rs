@@ -984,14 +984,33 @@ impl TypeCheckingVisitor {
                 println!("{:?}", right_node);
             }
 
-            assert!(right_node.node_type == AstNodeType::DataType);
+            // assert!((right_node.node_type == AstNodeType::DataType) ||
+            // (right_node.node_type == AstNodeType::TypeSpecifier));
+            match right_node.node_type {
+                AstNodeType::DataType => {
+                    // OK
+                }
+                AstNodeType::TypeSpecifier(_) => {
+                    // OK
+                }
+                _ => {
+                    panic!("Need a type!");
+                }
+            }
+
             temp_data_type_as_string = right_node.string_val.clone();
 
             // determine the data type that is assigned to this AST node
-            data_type_as_enum = match DataType::from_str(&temp_data_type_as_string) {
-                Ok(data_type_result) => data_type_result,
-                Err(e) => panic!("should be valid DataType: {e}"),
-            };
+            // data_type_as_enum = match DataType::from_str(&temp_data_type_as_string) {
+            //     Ok(data_type_result) => data_type_result,
+            //     Err(e) => panic!("should be valid DataType: {e}"),
+            // };
+            {
+                let ts = self.type_system.borrow_mut();
+                data_type_as_enum = ts.get(&temp_data_type_as_string).unwrap().clone();
+            }
+
+            // println!("data_type_as_enum: '{}'", data_type_as_enum);
 
             return_type = self.visit(right_node_id, node_map, &data_type_as_enum);
         }
@@ -2088,6 +2107,11 @@ impl TypeCheckingVisitor {
                 //let (type_name, rest) = lhs_node.string_val.split_once(char::is_whitespace).unwrap();
 
                 // return DataType::DataTypeUnknown;
+            }
+
+            AstNodeType::TypeSpecifier(type_name) => {
+                let ts = self.type_system.borrow_mut();
+                ts.get(&type_name).unwrap().clone()
             }
 
             _ => {

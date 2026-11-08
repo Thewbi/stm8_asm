@@ -967,7 +967,10 @@ fn main() {
         line_number,
     );
 
-    // print the parse tree to a dot file for online debugging (https://dreampuf.github.io/GraphvizOnline)
+    //
+    // print the parse tree to a dot file for online debugging
+    // (https://dreampuf.github.io/GraphvizOnline)
+    //
 
     // let output_parse_tree_as_dot_to_console: bool = true;
     let output_parse_tree_as_dot_to_console: bool = false;
@@ -1000,6 +1003,11 @@ fn main() {
         writer.flush().expect("flush failed!");
     }
 
+    // DEBUG
+    // parser.print_ast_stack(&node_map);
+    // ASSERT: ast_stack needs to be empty. All nodes are processed
+    // assert_eq!(parser.ast_stack.len(), 0);
+
     //
     // Finalize AST
     //
@@ -1011,7 +1019,7 @@ fn main() {
         program_ast_node.file = input_tuple.1.clone();
 
         // insert all nodes into program node
-        let mut done = false;
+        let mut done = parser.ast_stack.len() == 0;
         while !done {
 
             let body_ast_node_id = &parser.ast_stack.pop().unwrap();

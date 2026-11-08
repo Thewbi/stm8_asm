@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\function_call_1.c
+
 int add_func(int x, int y);
 
 int main() {

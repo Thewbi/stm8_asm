@@ -1154,12 +1154,24 @@ impl TackyVisitor {
 
                     // DataTypeUnknown,
 
-                    match data_type.node_type {
+                    match data_type.node_type.clone() {
                         AstNodeType::DataType => {
                             top_level_function.return_type = Some(DataType::from_str(&data_type.string_val).expect("REASON"));
                         },
-                        _ => {
+                        AstNodeType::TypeSpecifier(type_name) => {
+                            let ts = self.type_system.borrow_mut();
+                            let data_type = ts.get(&type_name).unwrap();
 
+                            top_level_function.return_type = Some(data_type.clone());
+
+                            // function_definition_ast_node.set_analyzed_data_type(data_type.clone());
+
+                            // // Assumption: return-value data-type of function
+                            // // return-value data-type of function
+                            // function_definition_ast_node.rhs = Some(sub_ast_node.id);
+                        }
+                        _ => {
+                            panic!();
                         }
                     }
                 }

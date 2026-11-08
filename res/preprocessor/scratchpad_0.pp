@@ -1,14 +1,15 @@
-// res\C\samples\c_samples\return_typedeffed_type_0.c
+// res\C\samples\c_samples\function_call_0.c
 
-#include <stdint.h>
-
-int32_t digit_by_digit_sqrt(int32_t val) {
-    return 0;
+int add_func(int x, int y) {
+    return x + y;
 }
 
 int main() {
-    int32_t target = 144;
-    int result = digit_by_digit_sqrt(target);
+    int i = 0;
+    i = add_func(2, 2);
 
-    return 0;
+    if (i == 3) {
+        return 0;
+    }
+    return i;
 }
