@@ -39,6 +39,7 @@ for %%L in (
     res\C\samples\c_samples\do_loop_1.c
 
     res\C\samples\c_samples\enum_0.c
+    res\C\samples\c_samples\enum_1.c
 
     res\C\samples\c_samples\expression_0.c
     res\C\samples\c_samples\expression_1.c

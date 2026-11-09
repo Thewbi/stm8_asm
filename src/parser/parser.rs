@@ -6418,7 +6418,6 @@ impl Parser<String> {
 
                                         // 124;enum_specifier;ENUM;OPENING_CURLY_BRACKET;enumerator_list;CLOSING_CURLY_BRACKET
                                         124 => {
-
                                             // enum_specifier
                                             let enum_specifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let enum_specifier_node = DebugNode::new(enum_specifier_node_id, String::from("enum_specifier"));
@@ -6442,7 +6441,89 @@ impl Parser<String> {
                                         }
 
                                         // 125;enum_specifier;ENUM;IDENTIFIER;OPENING_CURLY_BRACKET;enumerator_list;CLOSING_CURLY_BRACKET
+                                        125 => {
+
+                                            // IDENTIFIER
+                                            let mut enum_identifier = String::from("");
+                                            let mut index = 0;
+                                            for terminal_rev in rule_reverse.iter().rev() {
+                                                enum_identifier = terminal_rev.clone().unwrap().data;
+
+                                                // DEBUG
+                                                //println!("[Rule:125] value: '{}'", value);
+
+                                                if index == 1 {
+                                                    break;
+                                                }
+
+                                                index = index + 1;
+                                            }
+
+                                            // DEBUG
+                                            println!("[Rule:125] enum_identifier: '{}'", enum_identifier);
+
+                                            // enum_specifier
+                                            let enum_specifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let enum_specifier_node = DebugNode::new(enum_specifier_node_id, String::from("enum_specifier"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n",
+                                                enum_specifier_node_id, enum_specifier_node_id, found_rule.original_id, String::from("enum_specifier")).as_str());
+
+                                            let enumerator_list_debug_node = debug_node_stack.pop().unwrap();
+
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", enum_specifier_node_id, enumerator_list_debug_node.id).as_str());
+
+                                            // place new node onto the stack
+                                            debug_node_stack.push(enum_specifier_node);
+
+                                            //
+                                            // AST
+                                            //
+
+                                            if self.construct_ast {
+                                                // enum parsing, places or leaves no AST nodes on the stack
+                                            }
+                                        }
+
                                         // 126;enum_specifier;ENUM;IDENTIFIER
+                                        126 => {
+
+                                            // IDENTIFIER
+                                            let mut value = String::from("");
+                                            for terminal_rev in rule_reverse.iter().rev() {
+                                                value = terminal_rev.clone().unwrap().data;
+
+                                                // DEBUG
+                                                // println!("value: '{}'", value);
+                                                break;
+                                            }
+
+                                            // enum_specifier
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("enum_specifier"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n",
+                                                debug_node_id, debug_node_id, found_rule.original_id, String::from("enum_specifier")).as_str());
+
+                                            // IDENTIFIER
+                                            // println!("IDENTIFIER: '{}'", value);
+                                            // IDENTIFIER
+                                            let identifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let identifier_node = DebugNode::new(identifier_node_id, String::from(value.clone()));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}| {}\"]\n", identifier_node_id, identifier_node_id, String::from(value.clone())).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?} [label=\"LHS enum-option-name\"]\n", debug_node_id, identifier_node_id).as_str());
+
+                                            // place new node onto the stack
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST
+                                            //
+
+                                            if self.construct_ast {
+                                                // The literal numbers are parsed and placed on the AST stack
+                                                // For parsing enums, erase the ASTnodes for literals
+                                                self.ast_stack_pop();
+                                            }
+                                        }
 
                                         // 127;enumerator_list;enumerator
                                         127 => {
@@ -6530,6 +6611,44 @@ impl Parser<String> {
                                         }
 
                                         // 129;enumerator;IDENTIFIER
+                                        129 => {
+
+                                            let mut value = String::from("");
+                                            for terminal_rev in rule_reverse.iter().rev() {
+                                                value = terminal_rev.clone().unwrap().data;
+
+                                                // DEBUG
+                                                // println!("value: '{}'", value);
+                                                break;
+                                            }
+
+                                            // enumerator
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("enumerator"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("enumerator")).as_str());
+
+                                            // IDENTIFIER
+                                            // println!("IDENTIFIER: '{}'", value);
+                                            // IDENTIFIER
+                                            let identifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let identifier_node = DebugNode::new(identifier_node_id, String::from(value.clone()));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}| {}\"]\n", identifier_node_id, identifier_node_id, String::from(value.clone())).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?} [label=\"LHS enum-option-name\"]\n", debug_node_id, identifier_node_id).as_str());
+
+                                            // place new node onto the stack
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST
+                                            //
+
+                                            if self.construct_ast {
+                                                // The literal numbers are parsed and placed on the AST stack
+                                                // For parsing enums, erase the ASTnodes for literals
+                                                self.ast_stack_pop();
+                                            }
+
+                                        }
 
                                         // 130;enumerator;IDENTIFIER;EQUALS_SIGN;constant_expression
                                         130 => {
@@ -8831,7 +8950,6 @@ impl Parser<String> {
 
                                                 let mut function_definition_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 function_definition_ast_node.node_type = AstNodeType::FunctionDeclaration;
-                                                // function_definition_ast_node.analyzed_data_type = a<.analyzed_data_type.clone();
                                                 function_definition_ast_node.file = file.clone();
                                                 function_definition_ast_node.line = line;
 

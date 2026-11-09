@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\enum_1.c
+
 //#include <stdio.h>
 
 enum Level {
@@ -17,10 +19,10 @@ int main() {
     // or strict type enforcement; instead, it is a tool for readability,
     // maintainability, and code organization.
 
-	level_var = (enum Level) 40;
+	//level_var = (enum Level) 40;
     level_var = 40;
 
-    int dog = HIGH;
+    //int dog = HIGH;
 
 	// Print the enum variable
 	//printf("%d", level_var);

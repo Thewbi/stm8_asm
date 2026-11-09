@@ -16,6 +16,7 @@ use crate::example_lexers::common::add_token_definition;
 
 pub const WHITESPACE_TOKEN_ID: usize = 46;
 pub const NEWLINE_TOKEN_ID: usize = 47;
+pub const TABULATOR_TOKEN_ID: usize = 48;
 
 pub const ELLIPSIS_TOKEN_ID: usize = 400;
 
@@ -140,7 +141,7 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // "\n" | "\r\n" | "\r"
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\n'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\r'));
-    //alphabet.insert(RegexBuildingBlock::CharacterLiteral('\t'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('\t'));
 
     //
     // Phase 1 - build all regexes
@@ -263,7 +264,6 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // enfa_to_dot_directed_graph(&mut combined_fragment.enfa, "dot\\enfa_automaton.dot");
 
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, ">>=", "RIGHT_ASSIGN", 1);
-/**/
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "<<=", "LEFT_ASSIGN", 2);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\+=", "ADD_ASSIGN", 3); // used in Regex as Repeat(1, std::usize::MAX)
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\-=", "SUB_ASSIGN", 4); // used in Regex to build character classes
@@ -310,6 +310,7 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\\?", "QUESTION_MARK", 45); // used in Regex as Repeat(0, 1)
 
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, " ", "WHITESPACE", WHITESPACE_TOKEN_ID);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\t", "TABULATOR", TABULATOR_TOKEN_ID);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "\n|\r\n|\r", "NEWLINE", NEWLINE_TOKEN_ID);
 
     // //

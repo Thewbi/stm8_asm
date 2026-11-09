@@ -9,6 +9,7 @@ use crate::EpsilonNfa;
 use crate::c_ast::ast_node::AstNode;
 use crate::example_lexers::c_lexer::IDENTIFIER_TOKEN_ID;
 use crate::example_lexers::c_lexer::NEWLINE_TOKEN_ID;
+use crate::example_lexers::c_lexer::TABULATOR_TOKEN_ID;
 use crate::example_lexers::c_lexer::WHITESPACE_TOKEN_ID;
 use crate::parser::parser::ParserTrait;
 use crate::regex::enfa::transition_dfa;
@@ -220,7 +221,16 @@ impl<'a> Lexer<'a> {
                 match self.dfa.states[&self.current_state_id].token_id {
 
                     WHITESPACE_TOKEN_ID => {
-                        // ignore NEWLINE and WHITESPACE - ignoring means, do not forward to the parser
+                        // ignore NEWLINE, TABULATOR and WHITESPACE - ignoring means, do not forward to the parser
+
+                        // DEBUG
+                        if self.lexer_debug {
+                            println!("[LEXER.TRAP_STATE] NOT Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
+                        }
+                    }
+
+                    TABULATOR_TOKEN_ID => {
+                        // ignore NEWLINE, TABULATOR and WHITESPACE - ignoring means, do not forward to the parser
 
                         // DEBUG
                         if self.lexer_debug {
@@ -229,7 +239,7 @@ impl<'a> Lexer<'a> {
                     }
 
                     NEWLINE_TOKEN_ID => {
-                        // ignore NEWLINE and WHITESPACE - ignoring means, do not forward to the parser
+                        // ignore NEWLINE, TABULATOR and WHITESPACE - ignoring means, do not forward to the parser
 
                         // DEBUG
                         if self.lexer_debug {

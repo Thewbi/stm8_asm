@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\enum_1.c
+
 //#include <stdio.h>
 
 enum Level {
