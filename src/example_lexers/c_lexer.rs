@@ -140,6 +140,7 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // "\n" | "\r\n" | "\r"
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\n'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\r'));
+    //alphabet.insert(RegexBuildingBlock::CharacterLiteral('\t'));
 
     //
     // Phase 1 - build all regexes
