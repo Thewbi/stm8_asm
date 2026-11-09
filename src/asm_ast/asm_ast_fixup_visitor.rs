@@ -361,7 +361,18 @@ impl AsmAstFixupVisitor {
             }
 
             let instruction = asm_ast_function.body[i].as_ref().clone();
+
+            // // DEBUG
+            // let i_id = instruction.id;
+            // if i_id == 4 {
+            //     println!("[FixVisitor] {:?}", &instruction);
+            // }
+
             self.visit_asm_ast_instruction(&mut new_body, instruction);
+
+            // if i_id == 4 {
+            //     println!("[FixVisitor] {:?}", instruction);
+            // }
         }
 
         if self.replace_pseudo {
@@ -496,19 +507,78 @@ impl AsmAstFixupVisitor {
 
             AsmAstInstructionType::Unary => {
                 // DEBUG
-                if self.debug {
-                    println!("Unary {:?} {:?}", asm_ast_instruction.unary_operator, asm_ast_instruction.dst);
+                // if self.debug {
+                //    println!("Unary: {:?} {:?}", asm_ast_instruction.unary_operator, asm_ast_instruction.dst);
+                // }
+
+                // println!("[FixupVisitor] {:?}", asm_ast_instruction);
+
+                let mut fix = false;
+                if matches!(asm_ast_instruction.src.operand_type, AsmAstOperandType::Memory(_, _)) {
+                    if matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::Memory(_, _)) {
+                        fix = true;
+                    }
+                }
+                if matches!(asm_ast_instruction.src.operand_type, AsmAstOperandType::Pseudo(_)) {
+                    if matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::Pseudo(_)) {
+                        fix = true;
+                    }
                 }
 
-                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                // fix = false;
+                if fix {
 
-                new_body.push(Box::new(asm_ast_instruction));
+                    // mov dword ptr [ebp-8], R10
+                    let mut mov_1 = asm_ast_instruction.clone();
+                    mov_1.comment.push_str(" ; FIXUP Visitor");
+                    mov_1.instruction_type = AsmAstInstructionType::Mov;
+                    mov_1.src = asm_ast_instruction.src.clone();
+                    mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
+
+
+                    //mov_1.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                    mov_1.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
+
+                    // println!("{:?}", &mov_1);
+
+                    new_body.push(Box::new(mov_1));
+
+                    // add
+                    // https://www.felixcloutier.com/x86/add
+                    // Adds the destination operand (first operand) and the source operand (second operand)
+                    // and then stores the result in the destination operand.
+                    asm_ast_instruction.src = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
+                    asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+
+                    // DEBUG
+                    if self.debug {
+                        println!("{}", asm_ast_instruction.clone());
+                    }
+
+                    // println!("{:?}", &asm_ast_instruction);
+
+                    new_body.push(Box::new(asm_ast_instruction));
+
+                } else {
+
+                    // TODO: Honolulu
+                    asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+
+                    if asm_ast_instruction.src.operand_type != AsmAstOperandType::Unknown {
+                        asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
+                    }
+
+                    // println!("{:?}", &asm_ast_instruction);
+
+                    new_body.push(Box::new(asm_ast_instruction));
+                }
             }
 
             AsmAstInstructionType::Binary => {
                 // DEBUG
                 if self.debug {
-                    println!("Binary {:?} {:?} {:?}", asm_ast_instruction.binary_operator, asm_ast_instruction.src_2, asm_ast_instruction.dst);
+                    println!("[FixupVisitor] Binary {:?} {:?} {:?}",
+                        asm_ast_instruction.binary_operator, asm_ast_instruction.src_2, asm_ast_instruction.dst);
                 }
 
                 asm_ast_instruction.src_2 = self.replace_pseudo_operand(&mut asm_ast_instruction.src_2);
@@ -565,8 +635,18 @@ impl AsmAstFixupVisitor {
                         panic!();
                     }
 
+                    AsmAstBinaryOperator::LeftShift => {
+                        // just forward, do not make any changes
+                        new_body.push(Box::new(asm_ast_instruction));
+                    }
+
+                    AsmAstBinaryOperator::RightShift => {
+                        // just forward, do not make any changes
+                        new_body.push(Box::new(asm_ast_instruction));
+                    }
+
                     _ => {
-                        panic!("Unhandled: {}", asm_ast_instruction.binary_operator);
+                        panic!("Unhandled Instruction: {:?}", asm_ast_instruction);
                     }
                 }
             }
@@ -755,6 +835,17 @@ impl AsmAstFixupVisitor {
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
+
+            AsmAstInstructionType::ShiftRightArithmetic => {
+                // // DEBUG
+                // if self.debug {
+                //     println!("ShiftRightArithmetic {:?}", asm_ast_instruction.dst);
+                //     println!("{:?}", asm_ast_instruction);
+                // }
+
+                new_body.push(Box::new(asm_ast_instruction));
+            }
+
         }
     }
 }

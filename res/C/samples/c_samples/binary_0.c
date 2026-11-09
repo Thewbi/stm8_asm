@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\binary_0.c
+
 int main() {
     int temp;
 

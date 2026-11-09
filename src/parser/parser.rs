@@ -994,8 +994,6 @@ impl Parser<String> {
 
                                                 let mut literal_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 literal_ast_node.node_type = AstNodeType::ConstString;
-                                                //literal_ast_node.operator_type = AstNodeOperatorType::FunctionCall;
-                                                //literal_ast_node.lhs = Some(function_call_ast_node.id);
                                                 literal_ast_node.string_val = original_value;
 
                                                 self.ast_stack.push(literal_ast_node.id);
@@ -1108,6 +1106,7 @@ impl Parser<String> {
                                                 exp_ast_node.node_type = AstNodeType::Expression;
                                                 exp_ast_node.operator_type = AstNodeOperatorType::FunctionCall;
                                                 exp_ast_node.lhs = Some(function_call_ast_node.id);
+                                                // exp_ast_node.rhs = Some(function_call_ast_node.id);
                                                 exp_ast_node.file = file.clone();
                                                 exp_ast_node.line = line;
 
@@ -1181,6 +1180,7 @@ impl Parser<String> {
                                                 exp_ast_node.node_type = AstNodeType::Expression;
                                                 exp_ast_node.operator_type = AstNodeOperatorType::FunctionCall;
                                                 exp_ast_node.lhs = Some(function_call_ast_node.id);
+                                                // exp_ast_node.rhs = Some(function_call_ast_node.id);
                                                 exp_ast_node.file = file.clone();
                                                 exp_ast_node.line = line;
 
@@ -2490,8 +2490,11 @@ impl Parser<String> {
                                                 let mut operator_ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 operator_ast_node.node_type = AstNodeType::Operator;
                                                 operator_ast_node.operator_type = AstNodeOperatorType::LeftShift;
+                                                operator_ast_node.string_val = String::from("<<");
                                                 operator_ast_node.file = file.clone();
                                                 operator_ast_node.line = line;
+
+                                                // println!("operator_ast_node: {:?}", operator_ast_node);
 
                                                 let mut ast_node: AstNode = AstNode::new(AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst));
                                                 ast_node.node_type = AstNodeType::Binary;
@@ -2499,6 +2502,7 @@ impl Parser<String> {
                                                 ast_node.rhs = Some(rhs_ast_node);
                                                 ast_node.operator = Some(operator_ast_node.id);
                                                 ast_node.operator_type = AstNodeOperatorType::LeftShift;
+                                                ast_node.string_val = String::from("<<");
                                                 ast_node.file = file.clone();
                                                 ast_node.line = line;
 

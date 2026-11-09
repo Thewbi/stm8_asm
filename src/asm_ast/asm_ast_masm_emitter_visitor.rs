@@ -646,8 +646,14 @@ impl AsmAstMasmEmitterVisitor {
 
         let instruction_count = asm_ast_function.body.len();
         for i in 0..instruction_count {
-            let instruction = asm_ast_function.body[i].as_ref();
-            self.visit_asm_ast_instruction(instruction,
+            let asm_ast_instruction = asm_ast_function.body[i].as_ref();
+
+            // DEBUG
+            if self.debug {
+                println!("instr: {:?}", asm_ast_instruction);
+            }
+
+            self.visit_asm_ast_instruction(asm_ast_instruction,
                 asm_ast_function.stack_frame_size);
         }
 
@@ -780,6 +786,17 @@ impl AsmAstMasmEmitterVisitor {
                     AsmAstUnaryOperator::AddAssignment => {
                         mnemonic = "add".to_string();
                         self.string_buffer.push_str(format!("    {} ", mnemonic).as_str());
+                        self.emit_asm_ast_operand(&asm_ast_instruction.dst,
+                            &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                            &asm_ast_instruction.assembly_type);
+                        self.string_buffer.push_str(", ");
+                        self.emit_asm_ast_operand(&asm_ast_instruction.src,
+                            &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                            &asm_ast_instruction.assembly_type);
+                    }
+                    AsmAstUnaryOperator::SubAssignment => {
+                        mnemonic = "sub".to_string();
+                        self.string_buffer.push_str(format!("    {} ", mnemonic).as_str());
                         self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
                         self.string_buffer.push_str(", ");
                         self.emit_asm_ast_operand(&asm_ast_instruction.src, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
@@ -824,10 +841,32 @@ impl AsmAstMasmEmitterVisitor {
             }
 
             AsmAstInstructionType::Binary => {
+
+                let mut instruction: String = String::new();
+
+                match asm_ast_instruction.binary_operator {
+                    AsmAstBinaryOperator::Add => {
+                        instruction = String::from("add");
+                    }
+                    AsmAstBinaryOperator::Subtract => {
+                        instruction = String::from("sub");
+                    }
+                    AsmAstBinaryOperator::LeftShift => {
+                        instruction = String::from("shl");
+                    }
+                    AsmAstBinaryOperator::RightShift => {
+                        instruction = String::from("shr");
+                    }
+                    _ => {
+                        //todo!("Handle: '{}'", asm_ast_instruction.binary_operator);
+                        todo!("Handle: '{:?}'", asm_ast_instruction);
+                    }
+                }
+
                 // https://www.felixcloutier.com/x86/mul
                 //
                 // This binary was generated inside: asm_ast_conversion_visitor
-                self.string_buffer.push_str(format!("    {} ", asm_ast_instruction.binary_operator.to_string()).as_str());
+                self.string_buffer.push_str(format!("    {} ", instruction).as_str());
                 self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(", ");
                 self.emit_asm_ast_operand(&asm_ast_instruction.src_2, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
@@ -989,8 +1028,9 @@ impl AsmAstMasmEmitterVisitor {
                 }
             }
 
-            // Nora Sandler, page 202
             AsmAstInstructionType::DeallocateStack => {
+                // Nora Sandler, page 202
+
                 match asm_ast_instruction.src.operand_type {
                     AsmAstOperandType::Imm(imm_value) => {
                         // remove stack frame
@@ -1017,21 +1057,31 @@ impl AsmAstMasmEmitterVisitor {
             AsmAstInstructionType::Lea => {
                 // println!("{:?}", asm_ast_instruction);
 
-
-
                 self.string_buffer.push_str("    lea ");
                 self.emit_asm_ast_operand(&asm_ast_instruction.dst,
                     &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
-                    //&asm_ast_instruction.dst,
                     &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(", ");
                 self.emit_asm_ast_operand(&asm_ast_instruction.src,
                     &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
-                    //&asm_ast_instruction.src,
                     &asm_ast_instruction.assembly_type);
-                // self.string_buffer.push_str("\n");
 
                 self.string_buffer.push_str("; ");
+                self.string_buffer.push_str(asm_ast_instruction.comment.clone().as_str());
+                self.string_buffer.push_str("\n");
+            }
+
+            AsmAstInstructionType::ShiftRightArithmetic => {
+                self.string_buffer.push_str("    sar ");
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst,
+                    &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                    &asm_ast_instruction.assembly_type);
+                self.string_buffer.push_str(", ");
+                self.emit_asm_ast_operand(&asm_ast_instruction.src,
+                    &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                    &asm_ast_instruction.assembly_type);
+
+                self.string_buffer.push_str("    ; ");
                 self.string_buffer.push_str(asm_ast_instruction.comment.clone().as_str());
                 self.string_buffer.push_str("\n");
             }

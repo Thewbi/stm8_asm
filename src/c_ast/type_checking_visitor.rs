@@ -448,7 +448,12 @@ impl TypeCheckingVisitor {
             println!("{} {:?}", ast_node.id, ast_node);
         }
 
-        assert!(ast_node.lhs.is_some());
+        // // DEBUG
+        // if ast_node.id == 49 {
+        //     println!("");
+        // }
+
+        // assert!(ast_node.lhs.is_some());
 
         // LHS - data type
         let mut lhs_data_type = DataType::DataTypeUnknown;
@@ -528,7 +533,6 @@ impl TypeCheckingVisitor {
             DataType::DataTypeVoid => {
                 return rhs_data_type;
             }
-
             _ => {
 
                 // DEBUG
@@ -586,63 +590,78 @@ impl TypeCheckingVisitor {
                     node_map.insert(ast_node_clone.id, ast_node_clone);
                 }
 
-                let symbol_table_entry_lhs_option = self.symbol_table.borrow_mut().get(&rhs_variable_name);
-                let symbol_table_entry_lhs = symbol_table_entry_lhs_option.expect(format!("No symbol for '{}' found in symbol table!\n", rhs_variable_name).as_str());
-
-                // DEBUG
-                if self.debug {
-                    println!("symbol_table_entry_lhs: {:?}", symbol_table_entry_lhs);
-                }
-
-                // Nora Sandler, page 399
                 //
-                // if the RHS of the assignment is an Array, then the type checker has to insert
-                // a new AddrOf node into the AST!
-                //
-                // The AddrOf node has to have the type "Pointer to Array-Element-Type"
-                // and the purpose of this node is to implicitly convert an array to a pointer to the first
-                // element of said array, when the array is used in a pointer assignment like so:
-                //
-                // array_4.c
-                // "int *my_pointer = my_array;"
-
-                //
-                // insert ADDR OF operator
+                // if there is a right-hand side (RHS), then process it
                 //
 
-                if symbol_table_entry_lhs.is_array {
+                // for variable declarations including initializers where
+                // the value for initialization is a function-call, the
+                // RHS node is empty! So check if the RHS node is present.
+                //
+                // e.g. int i = add_func(1, 2);
+                if let Some(right_node_id) = ast_node.rhs {
 
-                    let insert_node: bool = false;
-                    if insert_node {
+                    let symbol_table_entry_lhs_option
+                        = self.symbol_table.borrow_mut().get(&rhs_variable_name);
+                    let symbol_table_entry_lhs
+                        = symbol_table_entry_lhs_option.expect(
+                            format!("No symbol for '{}' found in symbol table!\n", rhs_variable_name).as_str());
 
-                        // insert a AddrOf node into the AST!
-                        let addrof_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-                        let mut addrof_ast_node = AstNode::new(addrof_ast_node_id);
-                        addrof_ast_node.node_type = AstNodeType::Expression;
-                        addrof_ast_node.operator_type = AstNodeOperatorType::AddrOf;
-                        addrof_ast_node.lhs = Some(ast_node.lhs.unwrap()); // LHS is the variable or literal (value element) which needs casting
-                        addrof_ast_node.set_analyzed_data_type(DataType::DataTypePointer(Box::new(symbol_table_entry_lhs.data_type))); // analyzed_data_type is the type to cast into
-                        addrof_ast_node.parent_id = Some(ast_node.id);
-                        node_map.insert(addrof_ast_node_id, addrof_ast_node);
+                    // DEBUG
+                    if self.debug {
+                        println!("symbol_table_entry_lhs: {:?}", symbol_table_entry_lhs);
+                    }
 
-                        // the left node becomes child of the new middle node
-                        left_node.parent_id = Some(addrof_ast_node_id);
-                        node_map.insert(left_node.id, left_node);
+                    // Nora Sandler, page 399
+                    //
+                    // if the RHS of the assignment is an Array, then the type checker has to insert
+                    // a new AddrOf node into the AST!
+                    //
+                    // The AddrOf node has to have the type "Pointer to Array-Element-Type"
+                    // and the purpose of this node is to implicitly convert an array to a pointer to the first
+                    // element of said array, when the array is used in a pointer assignment like so:
+                    //
+                    // array_4.c
+                    // "int *my_pointer = my_array;"
 
-                        // clone parent, insert new LHS, replace parent in hashmap
-                        let mut ast_node_clone = ast_node.clone();
-                        ast_node_clone.lhs = Some(addrof_ast_node_id);
+                    //
+                    // insert ADDR OF operator
+                    //
 
-                        // update changed, cloned node in node_map
-                        node_map.insert(ast_node_clone.id, ast_node_clone);
+                    if symbol_table_entry_lhs.is_array {
 
-                    } else {
+                        let insert_node: bool = false;
+                        if insert_node {
 
-                        ast_node.operator_type = AstNodeOperatorType::AddrOf;
-                        ast_node.set_analyzed_data_type(DataType::DataTypePointer(Box::new(symbol_table_entry_lhs.data_type)));
+                            // insert a AddrOf node into the AST!
+                            let addrof_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                            let mut addrof_ast_node = AstNode::new(addrof_ast_node_id);
+                            addrof_ast_node.node_type = AstNodeType::Expression;
+                            addrof_ast_node.operator_type = AstNodeOperatorType::AddrOf;
+                            addrof_ast_node.lhs = Some(ast_node.lhs.unwrap()); // LHS is the variable or literal (value element) which needs casting
+                            addrof_ast_node.set_analyzed_data_type(DataType::DataTypePointer(Box::new(symbol_table_entry_lhs.data_type))); // analyzed_data_type is the type to cast into
+                            addrof_ast_node.parent_id = Some(ast_node.id);
+                            node_map.insert(addrof_ast_node_id, addrof_ast_node);
 
-                        // update changed, cloned node in node_map
-                        node_map.insert(ast_node.id, ast_node);
+                            // the left node becomes child of the new middle node
+                            left_node.parent_id = Some(addrof_ast_node_id);
+                            node_map.insert(left_node.id, left_node);
+
+                            // clone parent, insert new LHS, replace parent in hashmap
+                            let mut ast_node_clone = ast_node.clone();
+                            ast_node_clone.lhs = Some(addrof_ast_node_id);
+
+                            // update changed, cloned node in node_map
+                            node_map.insert(ast_node_clone.id, ast_node_clone);
+
+                        } else {
+
+                            ast_node.operator_type = AstNodeOperatorType::AddrOf;
+                            ast_node.set_analyzed_data_type(DataType::DataTypePointer(Box::new(symbol_table_entry_lhs.data_type)));
+
+                            // update changed, cloned node in node_map
+                            node_map.insert(ast_node.id, ast_node);
+                        }
                     }
                 }
             }

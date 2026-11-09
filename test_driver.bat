@@ -19,7 +19,16 @@ for %%L in (
     res\C\samples\c_samples\array_declaration_with_size.c
     res\C\samples\c_samples\array_declaration_without_size.c
 
+    res\C\samples\c_samples\assign_add_assign_0.c
+    res\C\samples\c_samples\assign_add_assign_1.c
+    res\C\samples\c_samples\assign_mul_assign_0.c
+    res\C\samples\c_samples\assign_sub_assign_0.c
+    res\C\samples\c_samples\assign_sub_assign_1.c
+
     res\C\samples\c_samples\binary_0.c
+    res\C\samples\c_samples\binary_1.c
+    res\C\samples\c_samples\binary_left_shift_0.c
+    res\C\samples\c_samples\binary_right_shift_0.c
 
     res\C\samples\c_samples\bubblesort_1.c
     res\C\samples\c_samples\bubblesort_2.c
@@ -56,7 +65,6 @@ for %%L in (
 
 
     res\C\samples\c_samples\main_0.c
-    res\C\samples\c_samples\mul_assign_0.c
     res\C\samples\c_samples\multiplication_0.c
     res\C\samples\c_samples\parameter_pointer_0.c
     res\C\samples\c_samples\pointer_0.c
@@ -65,7 +73,7 @@ for %%L in (
     res\C\samples\c_samples\return_0.c
     res\C\samples\c_samples\return_1.c
 
-
+    res\C\samples\c_samples\sqrt_0.c
 
     res\C\samples\c_samples\struct_0.c
     res\C\samples\c_samples\struct_1.c

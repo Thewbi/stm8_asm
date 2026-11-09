@@ -66,7 +66,6 @@ use std::fmt::Display;
 
 use std::option::Option::None;
 
-use crate::asm_ast::asm_ast::AsmAstBinaryOperator::AddAssignment;
 use crate::c_ast::ast_node::AstNodeOperatorType;
 use crate::common::data_type::DataType;
 
@@ -238,7 +237,9 @@ pub enum InstructionType {
     DoubleToUInt,
     VariableDeclaration,
     AddAssignment,
+    SubAssignment,
     MulAssignment,
+    RightShiftAssignment,
     SubscriptSrc,
     SubscriptDst,
 
@@ -249,7 +250,9 @@ impl InstructionType {
     pub fn from_operator_type(operator_type: &AstNodeOperatorType) -> InstructionType {
         match operator_type {
             AstNodeOperatorType::AddAssignment => { return InstructionType::AddAssignment; }
+            AstNodeOperatorType::SubAssignment => { return InstructionType::SubAssignment; }
             AstNodeOperatorType::MulAssignment => { return InstructionType::MulAssignment; }
+            AstNodeOperatorType::RightShiftAssignment => { return InstructionType::RightShiftAssignment; }
             _ => { todo!(); }
         }
     }
@@ -508,8 +511,16 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
             string_buffer.push_str(format!("AddAssignment(src:{:?}, dst:{:?})\n", instruction.src, instruction.dst).as_str());
         }
 
+        InstructionType::SubAssignment => {
+            string_buffer.push_str(format!("SubAssignment(src:{:?}, dst:{:?})\n", instruction.src, instruction.dst).as_str());
+        }
+
         InstructionType::MulAssignment => {
             string_buffer.push_str(format!("MulAssignment(src:{:?}, dst:{:?})\n", instruction.src, instruction.dst).as_str());
+        }
+
+        InstructionType::RightShiftAssignment => {
+            string_buffer.push_str(format!("RightShiftAssignment(src:{:?}, dst:{:?})\n", instruction.src, instruction.dst).as_str());
         }
 
         InstructionType::SubscriptSrc => {

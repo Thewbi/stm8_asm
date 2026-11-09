@@ -78,7 +78,7 @@ impl AstAstAssemblyType {
 }
 
 // TODO: REMOVE
-// static mut INSTRUCTION_ID: i32 = 0;
+static mut INSTRUCTION_ID: i32 = 0;
 
 // Type for a intermediate ASM instruction.
 // Intermediate means that this is not final MASM, TASM, FASM, GAS, ...
@@ -102,7 +102,7 @@ pub struct AsmAstInstruction {
 impl AsmAstInstruction {
     pub fn new() -> AsmAstInstruction {
         // TODO: REMOVE
-        // unsafe { INSTRUCTION_ID = INSTRUCTION_ID + 1 };
+        unsafe { INSTRUCTION_ID = INSTRUCTION_ID + 1 };
 
         // unsafe {
         //     // DEBUG
@@ -113,8 +113,8 @@ impl AsmAstInstruction {
 
         AsmAstInstruction {
             // TODO: REMOVE
-            // id: unsafe { INSTRUCTION_ID },
-            id: 0,
+            id: unsafe { INSTRUCTION_ID },
+            //id: 0,
 
             instruction_type: AsmAstInstructionType::Ret,
             unary_operator: AsmAstUnaryOperator::Not,
@@ -281,6 +281,10 @@ impl fmt::Display for AsmAstInstruction {
             AsmAstInstructionType::Push => {
                 write!(f, "{}", format!("Push(operand:{:?})", self.dst).as_str()).expect("Write failed!");
             }
+
+            AsmAstInstructionType::ShiftRightArithmetic => {
+                write!(f, "{}", format!("ShiftRightArithmetic(dst:{:?}, imm:{:?})", self.dst, self.src).as_str()).expect("Write failed!");
+            }
         }
 
         Ok(())
@@ -325,6 +329,7 @@ pub enum AsmAstInstructionType {
     // UIntToDouble,
     // DoubleToUInt,
     // VariableDeclaration,
+    ShiftRightArithmetic,
 }
 
 #[derive(Clone, Debug)]
@@ -346,12 +351,15 @@ pub enum AsmAstOperandType {
     Reg(AsmAstReg),
     DerefReg(AsmAstReg),
     Pseudo(String),
-    PseudoMem(String, i32), // destination/register name, offset
+    // destination/register name, offset
     // Stack(i32), // implicitly uses the RBP register as a base plus an i32 offset
-    Memory(AsmAstReg, i32), // on page 375, the Stack Operand is replaced by a more
+    PseudoMem(String, i32),
+    // on page 375, the Stack Operand is replaced by a more
     // general Memory Operand that uses an explicit register instead of implicit RBP like Stack(i32) did.
     // The format is now BaseRegister (AsmAstReg) + offset (i32)
-    ComparisonType(String), // (E)qual, (N)ot (E)qual, (L)essThan, (L)essThan or (E)qual, (G)reaterThan, (G)reaterThan or (E)qual
+    Memory(AsmAstReg, i32),
+    // (E)qual, (N)ot (E)qual, (L)essThan, (L)essThan or (E)qual, (G)reaterThan, (G)reaterThan or (E)qual
+    ComparisonType(String),
     Label(String),
     Unknown,
 }
@@ -639,6 +647,7 @@ pub enum AsmAstUnaryOperator {
     Increment,
     Decrement,
     AddAssignment,
+    SubAssignment,
     MulAssignment,
 }
 
@@ -663,6 +672,9 @@ impl fmt::Display for AsmAstUnaryOperator {
             }
             AsmAstUnaryOperator::AddAssignment => {
                 write!(f, "add_assignment").expect("Write failed!");
+            }
+            AsmAstUnaryOperator::SubAssignment => {
+                write!(f, "sub_assignment").expect("Write failed!");
             }
             AsmAstUnaryOperator::MulAssignment => {
                 write!(f, "mul_assignment").expect("Write failed!");
@@ -697,6 +709,7 @@ pub enum AsmAstBinaryOperator {
     LogicalOr,
 
     AddAssignment,
+    SubAssignment,
 }
 
 #[allow(unreachable_code)] // still under development, so enums will be extended and the match should catch unhandled options so the catch-all case needs to stay even if it throws warnings
@@ -781,6 +794,10 @@ impl fmt::Display for AsmAstBinaryOperator {
 
             AsmAstBinaryOperator::AddAssignment => {
                 write!(f, "AddAssignment").expect("Write failed!");
+            }
+
+            AsmAstBinaryOperator::SubAssignment => {
+                write!(f, "SubAssignment").expect("Write failed!");
             }
         }
 
@@ -958,6 +975,13 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction, string
         AsmAstInstructionType::FunctionCall => {
             string_buffer.push_str(format!("FunctionCall(function_identifier:{:?})\n",
                 asm_ast_instruction.identifier
+            ).as_str());
+        }
+
+        AsmAstInstructionType::ShiftRightArithmetic => {
+            string_buffer.push_str(format!("ShiftRightArithmetic(reg:{:?}, imm:{:?})\n",
+                asm_ast_instruction.dst,
+                asm_ast_instruction.src
             ).as_str());
         }
 

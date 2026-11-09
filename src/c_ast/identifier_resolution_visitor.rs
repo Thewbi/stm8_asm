@@ -15,8 +15,6 @@ use crate::common::data_type::DataType::DataTypeStruct;
 use crate::common::struct_decl::StructDecl;
 use crate::common::struct_decl::StructDeclMember;
 
-// use crate::common::symbol_table;
-// use crate::common::symbol_table::SymbolTable;
 use crate::tacky::tacky::BinaryOperator;
 
 use crate::common::variable_naming_source::VariableNamingSource;
@@ -42,7 +40,6 @@ pub struct IdentifierResolutionVisitor {
     // https://www.youtube.com/watch?v=8O0Nt9qY_vo
     variable_naming_source: Rc<RefCell<VariableNamingSource>>,
     structure_naming_source: Rc<RefCell<VariableNamingSource>>,
-    // symbol_table: Rc<RefCell<SymbolTable>>,
     is_in_dot_or_arrow: bool,
     debug: bool,
 }
@@ -50,14 +47,11 @@ pub struct IdentifierResolutionVisitor {
 impl IdentifierResolutionVisitor {
 
     pub fn new(variable_naming_source_param: Rc<RefCell<VariableNamingSource>>,
-        structure_naming_source_param: Rc<RefCell<VariableNamingSource>>,
-        // symbol_table_param: Rc<RefCell<SymbolTable>>
-    ) -> IdentifierResolutionVisitor
+        structure_naming_source_param: Rc<RefCell<VariableNamingSource>>) -> IdentifierResolutionVisitor
     {
         IdentifierResolutionVisitor {
             variable_naming_source: variable_naming_source_param,
             structure_naming_source: structure_naming_source_param,
-            // symbol_table: symbol_table_param,
             is_in_dot_or_arrow: false,
             debug: false,
         }
@@ -199,7 +193,7 @@ impl IdentifierResolutionVisitor {
                     println!("[Expression] AstNodeId: {}, AstNodeType: {:?}", ast_node.id, ast_node.node_type);
                 }
 
-                assert!(ast_node.lhs.is_some());
+                // assert!(ast_node.lhs.is_some());
 
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
@@ -604,11 +598,10 @@ impl IdentifierResolutionVisitor {
                 // function name
                 //
 
+                // DEBUG
                 // if self.debug {
                 //     println!("AstNodeType: {:?}", ast_node.string_val);
                 // }
-
-                // &ast_node.function_name_ast_node.unwrap().string_val
 
                 if let Some(function_name_id) = ast_node.function_name_ast_node {
                     let function_name = node_map.get(&function_name_id).unwrap();
@@ -1097,6 +1090,15 @@ impl IdentifierResolutionVisitor {
                 // DEBUG
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
+                }
+
+                // replace identifiers inside parameters
+                let parameter_ast_node_id = 0;
+                for i in 0..ast_node.parameters.len() {
+                    // create an ast node for the parameter and retrieve the id of this ast node
+                    if let Some(parameter_ast_node) = node_map.get(&ast_node.parameters[ast_node.parameters.len()-1-i]) {
+                        self.visit(parameter_ast_node.id, node_map);
+                    }
                 }
 
                 let mut node = IdentifierResolutionNode::new();

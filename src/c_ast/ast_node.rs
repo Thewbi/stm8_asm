@@ -883,7 +883,7 @@ impl AstNode {
         let mut rhs_ast_node_id = 0;
         if let Some(right_node) = self.rhs.as_ref() {
             rhs_ast_node_id = node_map.get(&right_node).unwrap().pretty_print_ast_dot(string_buffer, node_map);
-            string_buffer.push_str(format!("{} -> {} [label=\"RHS\"];\n", ast_node_id, rhs_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"RHS/Return-Type\"];\n", ast_node_id, rhs_ast_node_id).as_str());
         }
 
         // create node for the function name

@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\for_loop_0.c
+
 int main() {
 
     int result = 0;

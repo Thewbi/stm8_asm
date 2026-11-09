@@ -1200,7 +1200,10 @@ impl TackyVisitor {
                         if self.debug {
                             print!("{:?}", right_node);
                         }
-                        argument.data_type = DataType::from_str(&right_node.string_val).expect(format!("Type is not known: {}\n", &right_node.string_val).as_str());
+                        let ts = self.type_system.borrow_mut();
+                        let ts_data_type = ts.get(&right_node.string_val).unwrap().clone();
+                        //argument.data_type = DataType::from_str(&right_node.string_val).expect(format!("Type is not known: {}\n", &right_node.string_val).as_str());
+                        argument.data_type = ts_data_type;
                     }
                     top_level_function.arguments.push(Box::new(argument));
                 }
@@ -1533,7 +1536,6 @@ impl TackyVisitor {
                                 }
 
                                 match parameter_ast_node.node_type {
-
                                     AstNodeType::ConstInt |
                                     AstNodeType::ConstLong |
                                     AstNodeType::ConstUInt => {
@@ -1541,11 +1543,16 @@ impl TackyVisitor {
                                             Box::new(ValueElement::Constant(
                                                 String::from(parameter_ast_node.string_val.clone()))));
                                     }
-
-                                    _ => {
-                                        panic!("Please add node_type for {:?}!", parameter_ast_node.node_type);
+                                    AstNodeType::Identifier => {
+                                        function_call_instruction.parameters.push(
+                                            Box::new(ValueElement::Variable(
+                                                String::from(parameter_ast_node.string_val.clone()))));
                                     }
-
+                                    _ => {
+                                        panic!("Please add node_type for: '{:?}'! ast_node: {:?}",
+                                            parameter_ast_node.node_type,
+                                            parameter_ast_node);
+                                    }
                                 }
                             }
                         }
@@ -1619,7 +1626,10 @@ impl TackyVisitor {
                         return ( dest_variable_element, DataType::DataTypeUnknown );
                     }
 
-                    AstNodeOperatorType::MulAssignment | AstNodeOperatorType::AddAssignment => {
+                    AstNodeOperatorType::MulAssignment |
+                    AstNodeOperatorType::AddAssignment |
+                    AstNodeOperatorType::SubAssignment |
+                    AstNodeOperatorType::RightShiftAssignment => {
 
                         let mut add_assignment_instruction: Instruction = Instruction::new();
                         add_assignment_instruction.instruction_type = InstructionType::from_operator_type(&ast_node.operator_type);
