@@ -1,12 +1,10 @@
-// sieve_of_eratosthenes.c
+// res\C\samples\c_sample_2\sieve_of_eratosthenes.c
 
 #include <math.h>
 
 int main() {
     return 0;
 }
-
-
 
 /*
 #include <stdio.h>

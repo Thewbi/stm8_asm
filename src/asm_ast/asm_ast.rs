@@ -380,6 +380,8 @@ pub enum AsmAstReg {
     RCX,
 
     DX, // -> EDX
+    EDX,
+    RDX,
 
     DI,
     EDI,
@@ -521,6 +523,26 @@ impl AsmAstReg {
                 string_buffer.push_str("rcx");
             }
 
+            AsmAstReg::DX => {
+                match data_type {
+                    AstAstAssemblyType::Doubleword => {
+                        string_buffer.push_str("edx");
+                    }
+                    AstAstAssemblyType::Quadword => {
+                        string_buffer.push_str("rdx");
+                    }
+                    _ => {
+                        panic!("");
+                    }
+                }
+            }
+            AsmAstReg::EDX => {
+                string_buffer.push_str("edx");
+            }
+            AsmAstReg::RDX => {
+                string_buffer.push_str("rdx");
+            }
+
             AsmAstReg::DI => {
                 // string_buffer.push_str("di");
                 // append suffix for data type
@@ -616,7 +638,9 @@ impl fmt::Display for AsmAstReg {
             AsmAstReg::ECX => write!(f, "ecx"),
             AsmAstReg::RCX => write!(f, "rcx"),
 
-            AsmAstReg::DX => write!(f, "rdx"),
+            AsmAstReg::DX => write!(f, "dx"),
+            AsmAstReg::EDX => write!(f, "edx"),
+            AsmAstReg::RDX => write!(f, "rdx"),
 
             AsmAstReg::DI => write!(f, "di"),
             AsmAstReg::EDI => write!(f, "edi"),

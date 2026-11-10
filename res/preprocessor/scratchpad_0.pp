@@ -1,32 +1,31 @@
-// res\C\samples\c_samples\enum_6.c
+// res\C\samples\c_sample_2\vector_len.c
 
-enum speed {
-    LOW_SPEED,
-    MID_SPEED,
-    MAX_SPEED
-};
+#include <math.h>
 
-enum second_enum {
-    FIRST,
-    SECOND,
-    THIRD,
-    FOURTH
-};
+// Funktion zur Berechnung der Vektorlaenge
+double calculate_vector_length(int x, int y, int z) {
+
+    int temp_x = x * x;
+    int temp_y = y * y;
+    int temp_z = z * z;
+
+    //int temp = x * x + y * y + z * z;
+
+    int temp = temp_x + temp_y; // expected: 13, is: 25 !!!!!
+    //temp = temp + temp_z;
+
+    //return sqrt(temp);
+
+    return temp;
+}
 
 int main() {
 
-    enum speed var_1 = MID_SPEED;
+    int x = 2;
+    int y = 3;
+    int z = 4;
 
-    switch (var_1) {
-        case LOW_SPEED:
-            return 1;
+    int result = calculate_vector_length(x, y, z);
 
-        case MID_SPEED:
-            return 2;
-
-        case MAX_SPEED:
-            return 3;
-    }
-
-    return 0;
+    return result;
 }

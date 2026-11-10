@@ -4516,7 +4516,7 @@ impl Parser<String> {
 
 
                                                 let type_qualifier_ast_node_id = self.ast_stack_pop().unwrap();
-                                                let mut type_qualifier_ast_node = node_map.get(&type_qualifier_ast_node_id).unwrap().clone();
+                                                let type_qualifier_ast_node = node_map.get(&type_qualifier_ast_node_id).unwrap().clone();
 
                                                 // // DEBUG
                                                 // println!("[Rule 83] type_qualifier_ast_node: {:?}", type_qualifier_ast_node);

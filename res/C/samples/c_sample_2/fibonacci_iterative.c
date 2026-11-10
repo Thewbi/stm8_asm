@@ -1,4 +1,4 @@
-// fibonacci_iterative.c
+// res\C\samples\c_sample_2\fibonacci_iterative.c
 
 int main() {
 

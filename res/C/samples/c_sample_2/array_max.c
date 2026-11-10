@@ -1,3 +1,5 @@
+// res\C\samples\c_sample_2\array_max.c
+
 int main() {
 
     int nums[] = { 4, 2, 7, 1, 9 };

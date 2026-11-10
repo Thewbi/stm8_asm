@@ -1,4 +1,4 @@
-// digi_by_digit_sqrt.c
+// res\C\samples\c_sample_2\digit_by_digit_sqrt.c
 
 //#include <stdio.h>
 #include <stdint.h>

@@ -1,3 +1,5 @@
+// res\C\samples\c_sample_2\factorial_iterative.c
+
 int main() {
 
     int result = 1;
