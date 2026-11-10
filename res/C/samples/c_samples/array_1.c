@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\array_1.c
+
 int main() {
     //int arr[3]; // FIX: here, the compiler does not reserve space on the stack for the three elements!
     int arr[3] = { 10, 20, 30 };

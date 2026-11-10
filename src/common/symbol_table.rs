@@ -22,6 +22,8 @@ pub struct SymbolTableEntry {
     pub array_element_count: i32,
     pub is_pointer: bool,
     pub is_struct: bool,
+    pub is_const: bool,
+    pub initial_value: i32,
 
     // TODO: add custom typedeffed types here somehow!
 }
@@ -40,6 +42,8 @@ impl SymbolTableEntry {
             array_element_count: 0i32,
             is_pointer: false,
             is_struct: false,
+            is_const: false,
+            initial_value: 0i32,
         };
         instance
     }
@@ -62,6 +66,8 @@ impl fmt::Debug for SymbolTableEntry {
             write!(f, "  array_element_count: {}\n", &self.array_element_count).expect("Write failed!");
             write!(f, "  is_pointer: {}\n", &self.is_pointer).expect("Write failed!");
             write!(f, "  is_struct: {}\n", &self.is_struct).expect("Write failed!");
+            write!(f, "  is_const: {}\n", &self.is_const).expect("Write failed!");
+            write!(f, "  initial_value: {}\n", &self.initial_value).expect("Write failed!");
             write!(f, "}}\n").expect("Write failed!");
         } else {
             write!(f, "SymbolTableEntry {{ ").expect("Write failed!");
@@ -75,6 +81,8 @@ impl fmt::Debug for SymbolTableEntry {
             write!(f, "  array_element_count: {} ", &self.array_element_count).expect("Write failed!");
             write!(f, "  is_pointer: {} ", &self.is_pointer).expect("Write failed!");
             write!(f, "  is_struct: {} ", &self.is_struct).expect("Write failed!");
+            write!(f, "  is_const: {}\n", &self.is_const).expect("Write failed!");
+            write!(f, "  initial_value: {}\n", &self.initial_value).expect("Write failed!");
             write!(f, "}}").expect("Write failed!");
         }
 
@@ -131,7 +139,8 @@ impl SymbolTable {
         if let Some(mapped_value) = self.identifier_type_map.get(varname) {
             return Some(mapped_value.clone());
         } else {
-            panic!("IdentifierMap does not contain an entry for '{}'", varname);
+            //panic!("IdentifierMap does not contain an entry for '{}'", varname);
+            return None;
         }
     }
 
@@ -140,7 +149,6 @@ impl SymbolTable {
         let mut index = 0;
         for (key, value) in self.identifier_type_map.clone().into_iter() {
             println!("{}) {} / {:?}", index, key, value);
-            // println!("{} / {:?}", key, value.data_type);
             println!("");
             index = index + 1;
         }

@@ -32,6 +32,7 @@ use crate::common::symbol_table::SymbolTableEntryType;
 // usages have compatible types!
 //
 
+// 0. parser - creates parse tree and abstract syntax tree
 // 1. src\c_ast\identifier_resolution_visitor.rs - checks for duplicate or undeclared variable names
 // 2. src\c_ast\type_checking_visitor.rs - performs type checking. The rules that are checked are documented in the file itself
 // 3. src\tacky\tacky_visitor.rs - Generate TACKY (from AST)
@@ -449,7 +450,7 @@ impl TypeCheckingVisitor {
         }
 
         // // DEBUG
-        // if ast_node.id == 49 {
+        // if ast_node.id == 21 {
         //     println!("");
         // }
 
@@ -1686,7 +1687,8 @@ impl TypeCheckingVisitor {
 
                     // DEBUG
                     if self.debug {
-                        println!("LEFT-NODE: {}: {:?} node_type:{:?}", left_node.id, left_node, left_node.node_type);
+                        println!("[TCV] data-type: LEFT-NODE: {}: {:?} node_type:{:?}",
+                            left_node.id, left_node, left_node.node_type);
                     }
 
                     let mut data_type_as_string = String::from("");
@@ -1695,7 +1697,6 @@ impl TypeCheckingVisitor {
                     match left_node.node_type {
 
                         AstNodeType::Structure => {
-
                             symbol_table_entry.is_struct = true;
 
                             // if the variable is a struct-type, the type is part of the right subnode
@@ -1713,17 +1714,24 @@ impl TypeCheckingVisitor {
                             }
                         }
 
+                        AstNodeType::Enum => {
+                            panic!();
+                        }
+
                         _ => {
                             data_type_as_string = left_node.string_val.clone();
 
-                            // println!("data_type: '{}'", data_type_as_string);
+                            // DEBUG
+                            if self.debug {
+                                println!("[TCV] data_type: '{}'", data_type_as_string);
+                            }
 
                             let ts = self.type_system.borrow();
-                            if let Some(data_type_ts) = ts.get(&data_type_as_string) {
+                            if let Some(data_type_ts) = ts.get(&data_type_as_string.to_lowercase()) {
                                 symbol_table_entry.data_type = data_type_ts.clone();
                                 data_type = data_type_ts.clone();
                             } else {
-                                panic!("should be valid DataType: {}. ast_node.id:{}, File: {}, Line: {}", data_type_as_string, ast_node.id, ast_node.file, ast_node.line);
+                                panic!("[TCV::AstNodeType::VariableDeclaration] Should be valid DataType: {}. ast_node.id:{}, File: {}, Line: {}", data_type_as_string, ast_node.id, ast_node.file, ast_node.line);
                             }
 
                             // let data_type_as_enum = match DataType::from_str(&data_type_as_string) {
@@ -1812,6 +1820,16 @@ impl TypeCheckingVisitor {
                     println!("{} {:?}", ast_node.id, ast_node);
                 }
                 return self.type_system.borrow_mut().get(&ast_node.string_val).unwrap().clone();
+            }
+
+            AstNodeType::EnumDeclaration => {
+                // DEBUG
+                if self.debug {
+                    println!("{} {:?}", ast_node.id, ast_node);
+                    println!("ast_node.string_val: '{}'", ast_node.string_val);
+                }
+                //return self.type_system.borrow_mut().get(&ast_node.string_val).unwrap().clone();
+                return DataType::DataTypeInt;
             }
 
             AstNodeType::ParameterDeclaration => {

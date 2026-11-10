@@ -1,31 +1,13 @@
-// res\C\samples\c_samples\enum_1.c
-
-//#include <stdio.h>
-
-enum Level {
-	LOW,
-	MEDIUM,
-	HIGH
-};
+// res\C\samples\c_samples\array_1.c
 
 int main() {
+    int arr[3] = { 10, 20, 30 };
 
-	// Create an enum variable and assign a value to it
-	enum Level level_var = MEDIUM;
+    int result;
+    result = arr[2];
 
-    // In C, an enum (enumeration) is fundamentally just an integer
-    // under the hood, and the compiler will let you assign arbitrary
-    // integer values to it. However, an enum is not meant for data security
-    // or strict type enforcement; instead, it is a tool for readability,
-    // maintainability, and code organization.
-
-	//level_var = (enum Level) 40;
-    level_var = 40;
-
-    //int dog = HIGH;
-
-	// Print the enum variable
-	//printf("%d", level_var);
-
-	return 0;
+    if (result == 30) {
+        return 0;
+    }
+    return 1;
 }

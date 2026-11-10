@@ -1,12 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::asm_ast::asm_ast::AstAstAssemblyType;
-use crate::asm_ast::asm_ast::AstAstAssemblyType::Quadword;
-use crate::common::symbol_table;
-use crate::common::symbol_table::SymbolTable;
-use crate::common::symbol_table::SymbolTableEntry;
-use crate::common::symbol_table::SymbolTableEntryType;
 use crate::tacky::tacky::Program;
 use crate::tacky::tacky::TopLevel;
 use crate::tacky::tacky::TopLevelType;
@@ -25,11 +19,16 @@ use crate::asm_ast::asm_ast::AsmAstOperand;
 use crate::asm_ast::asm_ast::AsmAstOperandType;
 use crate::asm_ast::asm_ast::AsmAstUnaryOperator;
 use crate::asm_ast::asm_ast::AsmAstBinaryOperator;
+use crate::asm_ast::asm_ast::AstAstAssemblyType;
 
 use crate::c_ast::ast_node::AstNodeOperatorType;
 
 use crate::common::variable_naming_source::VariableNamingSource;
 use crate::common::data_type::DataType;
+use crate::common::symbol_table;
+use crate::common::symbol_table::SymbolTable;
+use crate::common::symbol_table::SymbolTableEntry;
+use crate::common::symbol_table::SymbolTableEntryType;
 
 //
 // Converts or lowers a TACKY application into an target-agnostic, intermediary, pseudo

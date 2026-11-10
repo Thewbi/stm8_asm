@@ -1,7 +1,8 @@
 use std::collections::HashMap;
-use std::fmt;
 use std::rc::Rc;
 use std::cell::RefCell;
+
+use std::fmt;
 use std::fmt::Debug;
 
 use crate::AstNode;
@@ -11,13 +12,12 @@ use crate::c_ast::ast_node::AstNodeOperatorType;
 use crate::c_ast::identifier_resolution_node::IdentifierResolutionNode;
 
 use crate::common::data_type::DataType;
-use crate::common::data_type::DataType::DataTypeStruct;
 use crate::common::struct_decl::StructDecl;
 use crate::common::struct_decl::StructDeclMember;
+use crate::common::symbol_table::SymbolTable;
+use crate::common::variable_naming_source::VariableNamingSource;
 
 use crate::tacky::tacky::BinaryOperator;
-
-use crate::common::variable_naming_source::VariableNamingSource;
 
 //
 // Nora Sandler, page 104, maps user-defined variable names to unique variable names
@@ -28,7 +28,8 @@ use crate::common::variable_naming_source::VariableNamingSource;
 // * ??? replaces parameter names by "pseudo_{}" which is then later used to move arguments to
 //   function calls from ABI registers onto the stack in the AsmAstConversionVisitor
 //
-// 1. src\c_ast\identifier_resolution_visitor.rs - checks for duplicate or undeclared variable names
+// 0. parser - process parse tree and abstract syntax tree - NO symbol table!
+// 1. src\c_ast\identifier_resolution_visitor.rs - NO symbol table! checks for duplicate or undeclared variable names
 // 2. src\c_ast\type_checking_visitor.rs - performs type checking. The rules that are checked are documented in the file itself
 // 3. src\tacky\tacky_visitor.rs - Generate TACKY (from AST)
 // 4. asm_ast/AsmAstConversionVisitor - Converts the AST into a ASM AST for assembly with a precursory form of mnenomics
@@ -36,10 +37,12 @@ use crate::common::variable_naming_source::VariableNamingSource;
 // 6. src\asm_ast\asm_ast_masm_emitter_visitor.rs / asm_ast/AsmAstASEmitterVisitor / ...
 //
 
+// Documentation of RefCell - // https://www.youtube.com/watch?v=8O0Nt9qY_vo
+
 pub struct IdentifierResolutionVisitor {
-    // https://www.youtube.com/watch?v=8O0Nt9qY_vo
     variable_naming_source: Rc<RefCell<VariableNamingSource>>,
     structure_naming_source: Rc<RefCell<VariableNamingSource>>,
+    symbol_table: Rc<RefCell<SymbolTable>>,
     is_in_dot_or_arrow: bool,
     debug: bool,
 }
@@ -47,11 +50,13 @@ pub struct IdentifierResolutionVisitor {
 impl IdentifierResolutionVisitor {
 
     pub fn new(variable_naming_source_param: Rc<RefCell<VariableNamingSource>>,
-        structure_naming_source_param: Rc<RefCell<VariableNamingSource>>) -> IdentifierResolutionVisitor
+        structure_naming_source_param: Rc<RefCell<VariableNamingSource>>,
+        symbol_table_param: Rc<RefCell<SymbolTable>>) -> IdentifierResolutionVisitor
     {
         IdentifierResolutionVisitor {
             variable_naming_source: variable_naming_source_param,
             structure_naming_source: structure_naming_source_param,
+            symbol_table: symbol_table_param,
             is_in_dot_or_arrow: false,
             debug: false,
         }
@@ -193,35 +198,106 @@ impl IdentifierResolutionVisitor {
                     println!("[Expression] AstNodeId: {}, AstNodeType: {:?}", ast_node.id, ast_node.node_type);
                 }
 
+                // // DEBUG
+                // if ast_node.id == 21 {
+                //     println!("");
+                // }
+
                 // assert!(ast_node.lhs.is_some());
 
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
 
-                    // replace user-choosen variable name by unique variable name
-                    let replaced_var_name_node: IdentifierResolutionNode =
-                        self.visit(left_node_id, node_map);
-
-                    let initial_var_name = replaced_var_name_node.initial_string_val.clone();
-                    let replaced_var_name = replaced_var_name_node.string_val.clone();
-
                     let mut left_node = node_map.get(&left_node_id).unwrap().clone();
-                    left_node.string_val = replaced_var_name;
-                    left_node.initial_string_val = initial_var_name;
 
-                    // DEBUG
-                    if self.debug {
-                        println!("[IdentifierResolutionVisitor] NodeId: {}, Initial:{:?}, Replaced:{:?}",
-                            &left_node.id, &replaced_var_name_node.initial_string_val, &replaced_var_name_node.string_val);
+                    let mut replace = true;
+
+                    // check if this is a constant or a maybe a enum option!
+                    // Replace the identifier by the constant value or enum option!
+
+                    // if the LHS node of the expression is an identifier,
+                    // it might be a constant (const int MAX_SPEED = 120;)
+                    // or a enum option
+                    //
+                    // enum speed {
+                    //      LOW_SPEED = 0,
+                    //      MID_SPEED = 1,
+                    //      MAX_SPEED = 2
+                    // };
+                    //
+                    match left_node.node_type {
+                        AstNodeType::Identifier => {
+                            let initial_var_name = left_node.string_val;
+                            let symbol_table_entry_option = self.symbol_table.borrow_mut().get(&initial_var_name);
+                            if let Some(symbol_table_entry) = symbol_table_entry_option {
+
+                                // DEBUG
+                                if self.debug {
+                                    println!("[IRV] symbol_table_entry: {:?}", symbol_table_entry);
+                                }
+
+                                left_node.node_type = AstNodeType::ConstUInt;
+                                left_node.string_val = i32::to_string(&symbol_table_entry.initial_value);
+                                left_node.set_analyzed_data_type(DataType::DataTypeUnsignedInt);
+
+                                node_map.insert(left_node.id, left_node);
+
+                                // constant or enum option found, do not
+                                replace = false;
+                            }
+                        }
+                        _ => {
+                            // nothing has changed
+                        }
                     }
 
-                    node_map.insert(left_node.id, left_node);
+                    // if the string has not been identified as an enum option
+                    if replace {
+
+                        let mut left_node = node_map.get(&left_node_id).unwrap().clone();
+
+                        // replace user-choosen variable name by unique variable name
+                        let replaced_var_name_node: IdentifierResolutionNode =
+                            self.visit(left_node_id, node_map);
+
+                        // remember old and new variable name
+                        let initial_var_name = replaced_var_name_node.initial_string_val.clone();
+                        let replaced_var_name = replaced_var_name_node.string_val.clone();
+
+                        // DEBUG
+                        if self.debug {
+                            println!("{:?}", replaced_var_name);
+                        }
+
+                        // update the node
+                        left_node.string_val = replaced_var_name;
+                        left_node.initial_string_val = initial_var_name;
+
+                        // DEBUG
+                        if self.debug {
+                            println!("[IdentifierResolutionVisitor] NodeId: {}, Initial:{:?}, Replaced:{:?}",
+                                &left_node.id,
+                                &replaced_var_name_node.initial_string_val,
+                                &replaced_var_name_node.string_val);
+                        }
+
+                        // node has changed, replace it in the node map
+                        node_map.insert(left_node.id, left_node);
+
+                    }
                 }
 
                 // RHS
                 if let Some(right_node_id) = ast_node.rhs {
-                    let replaced_var_name_node: IdentifierResolutionNode = self.visit(right_node_id, node_map);
-                    let replaced_var_name = replaced_var_name_node.string_val;
+
+                    // replace user-choosen variable name by unique variable name
+                    let replaced_var_name_node: IdentifierResolutionNode
+                        = self.visit(right_node_id, node_map);
+
+                    // remember old and new variable name
+                    let initial_var_name = replaced_var_name_node.initial_string_val.clone();
+                    let replaced_var_name = replaced_var_name_node.string_val.clone();
+
                     // DEBUG
                     if self.debug {
                         println!("{:?}", replaced_var_name);
@@ -230,6 +306,15 @@ impl IdentifierResolutionVisitor {
                     // update the node
                     let mut right_node = node_map.get(&right_node_id).unwrap().clone();
                     right_node.string_val = replaced_var_name;
+                    right_node.initial_string_val = initial_var_name;
+
+                    // DEBUG
+                    if self.debug {
+                        println!("[IdentifierResolutionVisitor] NodeId: {}, Initial:{:?}, Replaced:{:?}",
+                            &right_node.id,
+                            &replaced_var_name_node.initial_string_val,
+                            &replaced_var_name_node.string_val);
+                    }
 
                     // node has changed, replace it in the node map
                     node_map.insert(right_node.id, right_node);
@@ -237,9 +322,22 @@ impl IdentifierResolutionVisitor {
             }
 
             AstNodeType::Identifier => {
+
+                // // DEBUG
+                // if ast_node.id == 20 {
+                //     println!("");
+                // }
+
+                //
+                // Every identifier is assumed to be a variable.
+                // The task here is to replace the identifier as
+                // user-choosen variable into the replaced variable name.
+                //
+
                 // DEBUG
                 if self.debug {
-                    println!("[Identifier] AstNodeId: {}, AstNodeType: {:?}", ast_node.id, ast_node.node_type);
+                    println!("[Identifier] AstNodeId: {}, AstNodeType: {:?}",
+                        ast_node.id, ast_node.node_type);
                 }
 
                 let mut indentifier_resolution_node = IdentifierResolutionNode::new();
@@ -249,7 +347,8 @@ impl IdentifierResolutionVisitor {
 
                 // DEBUG
                 if self.debug {
-                    println!("[Identifier] user_choosen_variable_name: '{}'", &user_choosen_variable_name);
+                    println!("[Identifier] user_choosen_variable_name: '{}'",
+                        &user_choosen_variable_name);
                 }
 
                 if self.is_in_dot_or_arrow {
@@ -257,19 +356,31 @@ impl IdentifierResolutionVisitor {
                     self.is_in_dot_or_arrow = false;
 
                     // remember original name for convenient debugging
-                    indentifier_resolution_node.initial_string_val = user_choosen_variable_name.clone();
+                    indentifier_resolution_node.initial_string_val
+                        = user_choosen_variable_name.clone();
 
-                    // store new varible name
-                    indentifier_resolution_node.string_val = user_choosen_variable_name.clone();
+                    // store new variable name
+                    indentifier_resolution_node.string_val
+                        = user_choosen_variable_name.clone();
 
                 } else {
+
+                    // check if this is a constant or a maybe a enum option!
+                    // Replace the identifier by the constant value or enum option!
+
+                    // if user_choosen_variable_name == "MAX_SPEED" {
+                    //     println!("MAX_SPEED");
+                    // }
 
                     // replace original variable name with new variable name
                     let replaced_variable_name = match self.variable_naming_source.borrow_mut()
                         .get_replaced_variable_name(&user_choosen_variable_name)
                     {
-                        Ok(var_name) => var_name,
+                        Ok(replaced_var_name) => replaced_var_name,
                         Err(e) => {
+                            // if the variable name is not found as a variable
+                            // in the variable naming source,
+                            // retry using the struct variable naming source
                             let res = self.structure_naming_source.borrow_mut()
                                 .get_replaced_variable_name(&user_choosen_variable_name);
                             match res {
@@ -740,24 +851,19 @@ impl IdentifierResolutionVisitor {
                     let mut right_node = node_map.get(&right_node_id).unwrap().clone();
                     user_defined_varname = right_node.string_val.clone();
 
-                    // why does borrow_mut() work but borrow() does not work?
-                    //let symbol_table_entry_option = self.symbol_table.borrow_mut().get(&varname);
-                    //if let Some(symbol_table_entry) = symbol_table_entry_option {
-                        // if symbol_table_entry.is_struct {
-                        if is_struct {
-                            // the naming source checks if the name is used already (which is not allowed)
-                            // throws panic if the variable name is already used.
-                            // To remember if a variable is used, it maintains a data structure of variables
-                            replaced_varname = self.structure_naming_source.borrow_mut().
-                                new_user_defined_var(&user_defined_varname);
-                        } else {
-                            // the naming source checks if the name is used already (which is not allowed)
-                            // throws panic if the variable name is already used.
-                            // To remember if a variable is used, it maintains a data structure of variables
-                            replaced_varname = self.variable_naming_source.borrow_mut().
-                                new_user_defined_var(&user_defined_varname);
-                        }
-                    //}
+                    if is_struct {
+                        // the naming source checks if the name is used already (which is not allowed)
+                        // throws panic if the variable name is already used.
+                        // To remember if a variable is used, it maintains a data structure of variables
+                        replaced_varname = self.structure_naming_source.borrow_mut().
+                            new_user_defined_var(&user_defined_varname);
+                    } else {
+                        // the naming source checks if the name is used already (which is not allowed)
+                        // throws panic if the variable name is already used.
+                        // To remember if a variable is used, it maintains a data structure of variables
+                        replaced_varname = self.variable_naming_source.borrow_mut().
+                            new_user_defined_var(&user_defined_varname);
+                    }
 
                     // DEBUG
                     if self.debug {
@@ -866,6 +972,13 @@ impl IdentifierResolutionVisitor {
                 // The updat is required since the node's name was changed
                 node_map.insert(ast_node.id, ast_node);
  */
+            }
+
+            AstNodeType::EnumDeclaration => {
+                // DEBUG
+                if self.debug {
+                    println!("[EnumDeclaration] AstNodeId: {}, AstNodeType: {:?}", ast_node.id, ast_node.node_type);
+                }
             }
 
             AstNodeType::ParameterDeclaration => {
@@ -1364,7 +1477,7 @@ impl IdentifierResolutionVisitor {
             }
 
             _ => {
-                todo!();
+                todo!("Unhandled AstNodeType: {:?}", ast_node.node_type);
             }
         }
 

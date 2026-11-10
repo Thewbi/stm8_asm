@@ -2956,6 +2956,10 @@ impl TackyVisitor {
                 // println!("{:?}", ast_node);
             }
 
+            AstNodeType::EnumDeclaration => {
+                // println!("{:?}", ast_node);
+            }
+
             AstNodeType::Cast => {
                 return ( self.cast_handler(&ast_node, node_map), DataType::DataTypeUnknown );
             }

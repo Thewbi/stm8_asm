@@ -26,6 +26,7 @@ pub enum DataType {
     DataTypeStruct(StructDecl),
     DataTypeArray(Box<DataType>, Option<usize>),
     DataTypeTypedeffed(String),
+    DataTypeEnum(String),
     DataTypeUnknown,
 }
 
@@ -50,6 +51,7 @@ impl fmt::Display for DataType {
             DataType::DataTypeStruct(data_type) => write!(f, "StructDecl: [{:?}]", data_type),
             DataType::DataTypeArray(data_type, size) => write!(f, "Array-Of-[{}]-Size-[{:?}]", data_type, size),
             DataType::DataTypeTypedeffed(data_type) => write!(f, "Typedeffed-[{}]", data_type),
+            DataType::DataTypeEnum(enum_identifier) => write!(f, "Enum-[{}]", enum_identifier),
         }
     }
 }
@@ -83,6 +85,8 @@ impl FromStr for DataType {
             Ok(DataType::DataTypeVoid)
         } else if s == "struct" {
             Ok(DataType::DataTypeStruct(StructDecl::new()))
+        } else if s == "enum" {
+            Ok(DataType::DataTypeEnum(String::from("unknown")))
         } else {
             Err(format!("[DataType::FromStr] Can not parse '{}' into type", s).into())
         }
@@ -131,10 +135,16 @@ impl PartialEq for DataType {
                 todo!()
             },
 
+            (DataType::DataTypeEnum(lhs_enum_identifier), DataType::DataTypeEnum(rhs_enum_identifier)) => {
+                todo!()
+            },
+
             _ => false,
         }
     }
 }
+
+const SIZEOF_INT: usize = 4;
 
 impl DataType {
 
@@ -146,7 +156,11 @@ impl DataType {
             DataType::DataTypeShort => 2,
             DataType::DataTypeSignedShort => 2,
             DataType::DataTypeUnsignedShort => 2,
-            DataType::DataTypeInt => 4,
+            DataType::DataTypeInt => SIZEOF_INT,
+            DataType::DataTypeEnum(enum_identifier) => {
+                // an enum is an int internally
+                return SIZEOF_INT;
+            }
             DataType::DataTypeUnsignedInt => 4,
             DataType::DataTypeLong => 8,
             DataType::DataTypeUnsignedLong => 8,

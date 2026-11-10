@@ -28,6 +28,7 @@ pub enum AstNodeType {
     ConstDouble,
     ConstString,
     Structure,
+    Enum,
     Array,
     Expression,
     Identifier,
@@ -42,6 +43,7 @@ pub enum AstNodeType {
     FunctionDeclaration,
     VariableDeclaration,
     StructureDeclaration,
+    EnumDeclaration,
     ParameterDeclaration,
     VariadicParameterDeclaration,
     Statement,
@@ -167,6 +169,7 @@ pub struct AstNode {
     pub storage_class: Option<usize>,
     pub is_extern: bool,
     pub is_static: bool,
+    pub is_const: bool,
     pub indent: usize,
 
     pub function_name_ast_node: Option<usize>,
@@ -266,19 +269,22 @@ impl fmt::Debug for AstNode {
 
             AstNodeType::VariableDeclaration => {
                 println!("VariableDeclaration");
-                // println!("{:?}", self.string_val);
+
+                if self.is_const {
+                    println!(" CONST");
+                }
 
                 // data type
                 if let Some(left_node) = self.lhs.as_ref() {
-                    print!("{:?}", left_node);
+                    println!("LHS (DataType): {:?}", left_node);
                 }
                 // identifier
                 if let Some(right_node) = self.rhs.as_ref() {
-                    print!("{:?}", right_node);
+                    println!("RHS (Identifier): {:?}", right_node);
                 }
                 // initialization expression
                 if let Some(expression_node) = self.expression.as_ref() {
-                    print!("{:?}", expression_node);
+                    println!("Init Expression: {:?}", expression_node);
                 }
             }
 
@@ -453,6 +459,16 @@ impl fmt::Debug for AstNode {
                 }
             }
 
+            AstNodeType::EnumDeclaration => {
+                println!("EnumDeclaration: {}", self.string_val);
+                if let Some(left_node) = self.lhs.as_ref() {
+                    print!("LHS: {:?}", left_node);
+                }
+                if let Some(right_node) = self.rhs.as_ref() {
+                    print!(" RHS: {:?}", right_node);
+                }
+            }
+
             AstNodeType::MemberDeclaration => {
                 println!("MemberDeclaration");
                 if let Some(left_node) = self.lhs.as_ref() {
@@ -606,6 +622,7 @@ impl AstNode {
             storage_class: None,
             is_extern: false,
             is_static: false,
+            is_const: false,
             indent: 0,
 
             function_name_ast_node: None,
@@ -808,6 +825,9 @@ impl AstNode {
             }
             AstNodeType::StructureDeclaration => {
                 self.pretty_print_ast_structure_declaration_dot(string_buffer, node_map)
+            }
+            AstNodeType::EnumDeclaration => {
+                self.pretty_print_ast_enum_declaration_dot(string_buffer, node_map)
             }
             AstNodeType::MemberDeclaration => {
                 self.pretty_print_ast_member_declaration_dot(string_buffer, node_map)
@@ -1324,6 +1344,11 @@ impl AstNode {
             storage_class_ast_node_id = node_map.get(&storage_class_node).unwrap().pretty_print_ast_dot(string_buffer, node_map);
         }
 
+        let mut const_string = "";
+        if self.is_const {
+            const_string = "[CONST]";
+        }
+
         // create node for this AstNode
         let ast_node_id = self.id;
         let ast_node = node_map.get(&ast_node_id).unwrap();
@@ -1331,19 +1356,19 @@ impl AstNode {
         // either print parameter or variable to the dot output
         if is_parameter {
             if self.print_file_line {
-                string_buffer.push_str(format!("{} [label=\"{} ParameterDeclaration [{}] [File:{}, Line:{}]\"]\n",
-                    ast_node_id, ast_node_id, self.analyzed_data_type, self.file, self.line).as_str());
+                string_buffer.push_str(format!("{} [label=\"{} {} ParameterDeclaration [{}] [File:{}, Line:{}]\"]\n",
+                    ast_node_id, ast_node_id, const_string, self.analyzed_data_type, self.file, self.line).as_str());
             } else {
-                string_buffer.push_str(format!("{} [label=\"{} ParameterDeclaration [{}]\"]\n",
-                    ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+                string_buffer.push_str(format!("{} [label=\"{} {} ParameterDeclaration [{}]\"]\n",
+                    ast_node_id, ast_node_id, const_string, self.analyzed_data_type).as_str());
             }
         } else {
             if self.print_file_line {
-                string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration [{}] [File:{}, Line:{}]\"]\n",
-                    ast_node_id, ast_node_id, self.analyzed_data_type, self.file, self.line).as_str());
+                string_buffer.push_str(format!("{} [label=\"{} {} VariableDeclaration [{}] [File:{}, Line:{}]\"]\n",
+                    ast_node_id, ast_node_id, const_string, self.analyzed_data_type, self.file, self.line).as_str());
             } else {
-                string_buffer.push_str(format!("{} [label=\"{} VariableDeclaration [{}]\"]\n",
-                    ast_node_id, ast_node_id, self.analyzed_data_type).as_str());
+                string_buffer.push_str(format!("{} [label=\"{} {} VariableDeclaration [{}]\"]\n",
+                    ast_node_id, ast_node_id, const_string, self.analyzed_data_type).as_str());
             }
         }
 
@@ -2020,6 +2045,28 @@ impl AstNode {
             // println!("{} -> {}", ast_node_id, block_item_ast_node_id);
             string_buffer.push_str(format!("{} -> {}\n", ast_node_id, block_item_ast_node_id).as_str());
         }
+
+        ast_node_id
+    }
+
+    fn pretty_print_ast_enum_declaration_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
+
+        // create node for this AstNode
+        let ast_node_id = self.id;
+
+        // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} StructDecl: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} StructDecl: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
+
+        // for i in 0..self.block_items.len() {
+        //     let block_item_ast_node_id = node_map.get(&self.block_items[i]).unwrap().pretty_print_ast_dot(string_buffer, node_map);
+        //     // connect parent and child
+        //     // println!("{} -> {}", ast_node_id, block_item_ast_node_id);
+        //     string_buffer.push_str(format!("{} -> {}\n", ast_node_id, block_item_ast_node_id).as_str());
+        // }
 
         ast_node_id
     }

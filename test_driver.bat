@@ -35,11 +35,17 @@ for %%L in (
     res\C\samples\c_samples\bubblesort_3.c
     res\C\samples\c_samples\bubblesort_broken.c
 
+    res\C\samples\c_samples\constant_0.c
+
     res\C\samples\c_samples\do_loop_0.c
     res\C\samples\c_samples\do_loop_1.c
 
     res\C\samples\c_samples\enum_0.c
     res\C\samples\c_samples\enum_1.c
+    res\C\samples\c_samples\enum_2.c
+    res\C\samples\c_samples\enum_3.c
+    res\C\samples\c_samples\enum_4.c
+    res\C\samples\c_samples\enum_5.c
 
     res\C\samples\c_samples\expression_0.c
     res\C\samples\c_samples\expression_1.c

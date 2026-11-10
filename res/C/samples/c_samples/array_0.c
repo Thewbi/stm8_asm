@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\array_0.c
+
 int main() {
     int arr[3];
 

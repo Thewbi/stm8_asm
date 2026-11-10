@@ -890,6 +890,10 @@ fn main() {
 
     type_system.insert("void".to_string(), DataType::DataTypeVoid);
 
+    //
+    // Type System
+    //
+
     let type_system_rc_1 = Rc::new(RefCell::new(type_system)); // parser
     let type_system_rc_22 = type_system_rc_1.clone(); // type checking visitor
     let type_system_rc_2 = type_system_rc_1.clone(); // tacky visitor
@@ -897,9 +901,22 @@ fn main() {
     let type_system_rc_4 = type_system_rc_1.clone(); // computing layouts of structs
     let type_system_rc_99 = type_system_rc_1.clone(); // debug output
 
+    //
+    // Convert symbol table into cell ref
+    //
+
+    let symbol_table = SymbolTable::new();
+    let symbol_table_rc_1 = Rc::new(RefCell::new(symbol_table)); // TypeCheckingVisitor
+    let symbol_table_rc_22 = symbol_table_rc_1.clone(); // IdentifierResolutionVisitor
+    let symbol_table_rc_2 = symbol_table_rc_1.clone(); // TackyVisitor
+    let symbol_table_rc_3 = symbol_table_rc_1.clone(); // AsmAstFixupVisitor
+    let symbol_table_rc_4 = symbol_table_rc_1.clone(); // TackyToIntermediateAsmConversionVisitor
+    let symbol_table_rc_5 = symbol_table_rc_1.clone(); // used for printing
+    let symbol_table_rc_6 = symbol_table_rc_1.clone();
+
     // init
-    let mut parser: Parser<String> = Parser::<String>::new(parse_table, type_system_rc_1);
-    //let mut parser: Parser<String> = Parser::<String>::new(parse_table, &mut type_system);
+    let mut parser: Parser<String>
+        = Parser::<String>::new(parse_table, type_system_rc_1, symbol_table_rc_6);
 
     let lexer_debug: bool = false;
     let lexer_token_debug: bool = false;
@@ -983,6 +1000,29 @@ fn main() {
         println!("}}");
         println!("");
     }
+
+    //
+    // Lexing and parsing is done.
+    // Parse tree is created.
+    // Abstract syntax tree is created.
+    // Enum options are inserted into the symbol table as constant integers
+    //
+
+    //
+    // DEBUG output symbol table after parsing
+    //
+
+    // DEBUG
+    if debug {
+        println!("\n\n");
+        println!("[main] Symbol table after lexing / parsing:");
+        symbol_table_rc_5.borrow().print_symbol_table();
+        println!("\n\n");
+    }
+
+    //
+    // DEBUG output parse tree
+    //
 
     let output_parse_tree_as_dot_to_file: bool = true;
     // let output_parse_tree_as_dot_to_file: bool = false;
@@ -1159,17 +1199,7 @@ fn main() {
                 variable_naming_source_rc_3.borrow_mut().enter_scope();
                 struct_naming_source_rc_1.borrow_mut().enter_scope();
 
-                //
-                // Convert symbol table into cell ref
-                //
 
-                let symbol_table = SymbolTable::new();
-                let symbol_table_rc_1 = Rc::new(RefCell::new(symbol_table)); // TypeCheckingVisitor
-                let symbol_table_rc_22 = symbol_table_rc_1.clone(); // IdentifierResolutionVisitor
-                let symbol_table_rc_2 = symbol_table_rc_1.clone(); // TackyVisitor
-                let symbol_table_rc_3 = symbol_table_rc_1.clone(); // AsmAstFixupVisitor
-                let symbol_table_rc_4 = symbol_table_rc_1.clone(); // TackyToIntermediateAsmConversionVisitor
-                let symbol_table_rc_5 = symbol_table_rc_1.clone(); // used for printing
 
 
 
@@ -1206,6 +1236,7 @@ fn main() {
                     IdentifierResolutionVisitor::new(
                         variable_naming_source_rc_1,
                         struct_naming_source_rc_1,
+                        symbol_table_rc_22
                     );
                 identifier_resolution_visitor.visit(program_ast_node_id, &mut node_map);
 
@@ -1531,7 +1562,9 @@ fn main() {
         }
 
     } else {
-        println!("AST is empty!");
+
+        // DEBUG
+        // println!("AST is empty!");
     }
 
     //
