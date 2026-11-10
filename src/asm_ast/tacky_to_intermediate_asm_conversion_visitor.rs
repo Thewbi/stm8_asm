@@ -2546,8 +2546,16 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         match &tacky_node_binary.src_2 {
             ValueElement::Constant(constant_value) => {
+
+                // println!("constant_value: '{}'", constant_value);
+
                 // cmp.dst = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
-                cmp.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+
+                let rest = match i32::from_str_radix(&constant_value, 10) {
+                    Ok(result) => result,
+                    Err(test) => panic!("Cannot parse with radix 10: '{}'", constant_value)
+                };
+                cmp.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Imm(rest) };
             }
             ValueElement::Variable(variable_name) => {
                 // cmp.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };

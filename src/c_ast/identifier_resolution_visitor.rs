@@ -90,6 +90,11 @@ impl IdentifierResolutionVisitor {
         //     println!("[visit_ex()] {:?}", ast_node.node_type);
         // }
 
+        // // DEBUG
+        // if ast_node_id == 21 {
+        //     println!("[IRV] node 21");
+        // }
+
         match ast_node.node_type {
 
             AstNodeType::Program => {
@@ -208,7 +213,7 @@ impl IdentifierResolutionVisitor {
                 // LHS
                 if let Some(left_node_id) = ast_node.lhs {
 
-                    let mut left_node = node_map.get(&left_node_id).unwrap().clone();
+                    let left_node = node_map.get(&left_node_id).unwrap().clone();
 
                     let mut replace = true;
 
@@ -227,24 +232,7 @@ impl IdentifierResolutionVisitor {
                     //
                     match left_node.node_type {
                         AstNodeType::Identifier => {
-                            let initial_var_name = left_node.string_val;
-                            let symbol_table_entry_option = self.symbol_table.borrow_mut().get(&initial_var_name);
-                            if let Some(symbol_table_entry) = symbol_table_entry_option {
-
-                                // DEBUG
-                                if self.debug {
-                                    println!("[IRV] symbol_table_entry: {:?}", symbol_table_entry);
-                                }
-
-                                left_node.node_type = AstNodeType::ConstUInt;
-                                left_node.string_val = i32::to_string(&symbol_table_entry.initial_value);
-                                left_node.set_analyzed_data_type(DataType::DataTypeUnsignedInt);
-
-                                node_map.insert(left_node.id, left_node);
-
-                                // constant or enum option found, do not
-                                replace = false;
-                            }
+                            replace = !self.process_enum_option(&left_node, node_map);
                         }
                         _ => {
                             // nothing has changed
@@ -324,8 +312,8 @@ impl IdentifierResolutionVisitor {
             AstNodeType::Identifier => {
 
                 // // DEBUG
-                // if ast_node.id == 20 {
-                //     println!("");
+                // if ast_node.id == 16 {
+                //     println!("[IRV] node 16");
                 // }
 
                 //
@@ -336,8 +324,8 @@ impl IdentifierResolutionVisitor {
 
                 // DEBUG
                 if self.debug {
-                    println!("[Identifier] AstNodeId: {}, AstNodeType: {:?}",
-                        ast_node.id, ast_node.node_type);
+                    println!("[Identifier] AstNodeId: {}, AstNode: {:?}",
+                        ast_node.id, ast_node);
                 }
 
                 let mut indentifier_resolution_node = IdentifierResolutionNode::new();
@@ -368,46 +356,53 @@ impl IdentifierResolutionVisitor {
                     // check if this is a constant or a maybe a enum option!
                     // Replace the identifier by the constant value or enum option!
 
-                    // if user_choosen_variable_name == "MAX_SPEED" {
-                    //     println!("MAX_SPEED");
+                    // // DEBUG
+                    // if user_choosen_variable_name == "LOW_SPEED" {
+                    //     println!("LOW_SPEED");
                     // }
 
-                    // replace original variable name with new variable name
-                    let replaced_variable_name = match self.variable_naming_source.borrow_mut()
-                        .get_replaced_variable_name(&user_choosen_variable_name)
-                    {
-                        Ok(replaced_var_name) => replaced_var_name,
-                        Err(e) => {
-                            // if the variable name is not found as a variable
-                            // in the variable naming source,
-                            // retry using the struct variable naming source
-                            let res = self.structure_naming_source.borrow_mut()
-                                .get_replaced_variable_name(&user_choosen_variable_name);
-                            match res {
-                                Ok(var_name) => var_name,
-                                Err(e) => {
-                                    panic!("{}", e);
+                    let is_enum_replaced = self.process_enum_option(&ast_node, node_map);
+                    if is_enum_replaced {
+                        // do not process further
+                    } else {
+
+                        // replace original variable name with new variable name
+                        let replaced_variable_name = match self.variable_naming_source.borrow_mut()
+                            .get_replaced_variable_name(&user_choosen_variable_name)
+                        {
+                            Ok(replaced_var_name) => replaced_var_name,
+                            Err(e) => {
+                                // if the variable name is not found as a variable
+                                // in the variable naming source,
+                                // retry using the struct variable naming source
+                                let res = self.structure_naming_source.borrow_mut()
+                                    .get_replaced_variable_name(&user_choosen_variable_name);
+                                match res {
+                                    Ok(var_name) => var_name,
+                                    Err(e) => {
+                                        panic!("{}", e);
+                                    }
                                 }
                             }
+                        };
+
+                        // DEBUG
+                        if self.debug {
+                            println!("[Identifier] replaced_variable_name: '{}'", &replaced_variable_name);
+                            println!("[Identifier] [NAMING-1] Name lookup: old: '{}', new: '{}'",
+                                &user_choosen_variable_name, replaced_variable_name);
                         }
-                    };
 
-                    // DEBUG
-                    if self.debug {
-                        println!("[Identifier] replaced_variable_name: '{}'", &replaced_variable_name);
-                        println!("[Identifier] [NAMING-1] Name lookup: old: '{}', new: '{}'",
-                            &user_choosen_variable_name, replaced_variable_name);
+                        // remember original name for convenient debugging
+                        indentifier_resolution_node.initial_string_val = user_choosen_variable_name;
+
+                        // store new varible name
+                        indentifier_resolution_node.string_val = replaced_variable_name.clone();
+
+                        // replace name and update node inside node map
+                        ast_node.string_val = replaced_variable_name.clone();
+                        node_map.insert(ast_node.id, ast_node);
                     }
-
-                    // remember original name for convenient debugging
-                    indentifier_resolution_node.initial_string_val = user_choosen_variable_name;
-
-                    // store new varible name
-                    indentifier_resolution_node.string_val = replaced_variable_name.clone();
-
-                    // replace name and update node inside node map
-                    ast_node.string_val = replaced_variable_name.clone();
-                    node_map.insert(ast_node.id, ast_node);
                 }
 
                 // DEBUG
@@ -1255,6 +1250,7 @@ impl IdentifierResolutionVisitor {
 
                 // BLOCK_ITEMS - instructions and declarations
                 for i in 0..ast_node.block_items.len() {
+
                     let idx = ast_node.block_items.len()-1-i;
                     let block_item_id = ast_node.block_items[idx];
                     self.visit(block_item_id, node_map);
@@ -1273,9 +1269,18 @@ impl IdentifierResolutionVisitor {
 
                 // BLOCK_ITEMS - instructions and declarations
                 for i in 0..ast_node.block_items.len() {
+
                     let idx = ast_node.block_items.len()-1-i;
                     let block_item_id = ast_node.block_items[idx];
+
+                    // println!("[IRV] block_item_id: {}", block_item_id);
+
                     self.visit(block_item_id, node_map);
+                }
+
+                // Expression
+                if let Some(expression_ast_node_id) = ast_node.expression {
+                    self.visit(expression_ast_node_id, node_map);
                 }
             }
 
@@ -1482,5 +1487,28 @@ impl IdentifierResolutionVisitor {
         }
 
         return IdentifierResolutionNode::new();
+    }
+
+    fn process_enum_option(&self, left_node: &AstNode, node_map: &mut Box<HashMap<usize, AstNode>>) -> bool {
+
+        let mut local_node = left_node.clone();
+
+        // if the identifier is an enum option, replace the enum option
+        // by an int-value resembling the enum-options value
+        let initial_var_name = local_node.string_val;
+        let symbol_table_entry_option = self.symbol_table.borrow_mut().get(&initial_var_name);
+        if let Some(symbol_table_entry) = symbol_table_entry_option {
+            // DEBUG
+            if self.debug {
+                println!("[IRV] symbol_table_entry: {:?}", symbol_table_entry);
+            }
+            local_node.node_type = AstNodeType::ConstUInt;
+            local_node.string_val = i32::to_string(&symbol_table_entry.initial_value);
+            local_node.set_analyzed_data_type(DataType::DataTypeUnsignedInt);
+            node_map.insert(local_node.id, local_node);
+            // constant or enum option found, do not process further
+            return true;
+        }
+        return false;
     }
 }

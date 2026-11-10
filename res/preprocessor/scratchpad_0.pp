@@ -1,13 +1,32 @@
-// res\C\samples\c_samples\array_1.c
+// res\C\samples\c_samples\enum_6.c
+
+enum speed {
+    LOW_SPEED,
+    MID_SPEED,
+    MAX_SPEED
+};
+
+enum second_enum {
+    FIRST,
+    SECOND,
+    THIRD,
+    FOURTH
+};
 
 int main() {
-    int arr[3] = { 10, 20, 30 };
 
-    int result;
-    result = arr[2];
+    enum speed var_1 = MID_SPEED;
 
-    if (result == 30) {
-        return 0;
+    switch (var_1) {
+        case LOW_SPEED:
+            return 1;
+
+        case MID_SPEED:
+            return 2;
+
+        case MAX_SPEED:
+            return 3;
     }
-    return 1;
+
+    return 0;
 }
