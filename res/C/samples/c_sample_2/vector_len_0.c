@@ -1,4 +1,4 @@
-// res\C\samples\c_sample_2\vector_len.c
+// res\C\samples\c_sample_2\vector_len_0.c
 
 #include <math.h>
 

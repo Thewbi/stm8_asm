@@ -7368,16 +7368,28 @@ impl Parser<String> {
                                                 function_declaration_ast_node.line = line;
 
                                                 //
-                                                // Parameter List
+                                                // Parameter List - arrives in reverse order because of the order in
+                                                // which the AST is processed
                                                 //
 
-                                                while self.parameter_counter > 0 {
+                                                if self.parameter_counter > 0 {
+                                                    let mut ps = Vec::new();
+                                                    while self.parameter_counter > 0 {
 
-                                                    // one parameter is processed
-                                                    self.parameter_counter = self.parameter_counter - 1;
+                                                        let parameter_ast_node = self.ast_stack_pop().unwrap();
+                                                        //function_declaration_ast_node.parameters.push(parameter_ast_node);
+                                                        ps.push(parameter_ast_node);
 
-                                                    let parameter_ast_node = self.ast_stack_pop().unwrap();
-                                                    function_declaration_ast_node.parameters.push(parameter_ast_node);
+                                                        // one parameter is processed
+                                                        self.parameter_counter = self.parameter_counter - 1;
+                                                    }
+
+                                                    // revert because parameters are captured in reverse order
+                                                    let mut ps_reverse = Vec::new();
+                                                    for i in 0..ps.len() {
+                                                        ps_reverse.push(ps[ps.len()-i-1]);
+                                                    }
+                                                    function_declaration_ast_node.parameters = ps_reverse;
                                                 }
 
                                                 //

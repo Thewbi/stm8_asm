@@ -11,5 +11,8 @@ int main() {
         result = result * i;
     }
 
+    if (result == 3628800) {
+        return 0;
+    }
     return result;
 }

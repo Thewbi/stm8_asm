@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\enum_2.c
+
 typedef enum {
     GB_SQUARE_1,
     GB_SQUARE_2,

@@ -369,6 +369,9 @@ pub fn print_tacky_function(function: &TopLevel, string_buffer: &mut String, ind
 
     // add function name and function global
     let mut function_string_buffer = String::new();
+    function_string_buffer.push_str("\n\n\n\n");
+    function_string_buffer.push_str(format!("// Function: {} --------------------------------------------------------\n", function.name).as_str());
+    function_string_buffer.push_str("// -----------------------------------------------------------------------------------\n");
     function_string_buffer.push_str(format!("Function(\"{}\", {}", function.name, function.global).as_str());
 
     // add all format arguments (name and data type)
@@ -395,7 +398,7 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
     match &instruction.instruction_type {
 
         InstructionType::Comment => {
-            string_buffer.push_str(format!("\n// {}\n", instruction.label).as_str());
+            string_buffer.push_str(format!("\n    // {}\n", instruction.label).as_str());
         }
 
         InstructionType::Return => {

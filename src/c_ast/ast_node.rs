@@ -887,7 +887,8 @@ impl AstNode {
     }
 
     fn pretty_print_ast_function_declaration_dot(&self,
-        string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize {
+        string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>) -> usize
+    {
 
         // create node for this AstNode and also output the name into the label
         let ast_node_id = self.id;
@@ -922,19 +923,29 @@ impl AstNode {
         // // println!("{} -> {}", ast_node_id, parameters_ast_node_id);
         // string_buffer.push_str(format!("{} -> {}\n", ast_node_id, parameters_ast_node_id).as_str());
 
+        // DEBUG
+        if self.debug {
+            println!("self.parameters: {:?}", self.parameters);
+        }
+
         // parameters - add parameters into parameters block
         for i in 0..self.parameters.len() {
 
-            let parameter_ast_node_id =
-                node_map.get(&self.parameters[self.parameters.len()-1-i]).unwrap()
-                    .pretty_print_ast_dot(string_buffer, node_map);
+            // let param_index = self.parameters.len()-1-i;
+            let param_index = i;
+            let param_ast_node = node_map.get(&self.parameters[param_index]).unwrap();
+            let parameter_ast_node_id = param_ast_node.pretty_print_ast_dot(string_buffer, node_map);
+
+            if self.debug {
+                println!("[AST_NODE] i: {}, param_index: {}, ast_node: {:?}", i, param_index, param_ast_node);
+            }
 
             // connect parent and child
             // println!("{} -> {}", parameters_ast_node_id, parameter_ast_node_id);
             //string_buffer.push_str(format!("{} -> {}\n", parameters_ast_node_id, parameter_ast_node_id).as_str());
 
-            string_buffer.push_str(format!("{} -> {} [label=\"parameter\"];\n",
-                ast_node_id, parameter_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"Parameter {}\"];\n",
+                ast_node_id, param_ast_node.id, i).as_str());
         }
 
         // LHS blocks
@@ -1775,7 +1786,7 @@ impl AstNode {
             }
 
             // connect parent and child
-            string_buffer.push_str(format!("{} -> {} [label=\"parameter\"]\n", ast_node_id, parameter_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"parameter {}\"]\n", ast_node_id, parameter_ast_node_id, i).as_str());
         }
 
         ast_node_id

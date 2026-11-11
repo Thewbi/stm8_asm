@@ -13,5 +13,8 @@ int main() {
         }
     }
 
+    if (max == 9) {
+        return 0;
+    }
     return max;
 }

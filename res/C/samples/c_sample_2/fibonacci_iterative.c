@@ -21,13 +21,16 @@ int main() {
         if (i >= 3) {
             next = first + second;
             if (i == n) {
-                return next;
+                //return next;
+                break;
             }
-
             first = second;
             second = next;
         }
     }
 
-    return 0;
+    if (next == 5) {
+        return 0;
+    }
+    return next;
 }

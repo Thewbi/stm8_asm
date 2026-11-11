@@ -9,6 +9,14 @@ call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliar
 
 cls
 for %%L in (
+
+    res\C\samples\c_sample_2\array_max.c
+    res\C\samples\c_sample_2\digit_by_digit_sqrt_1.c
+    res\C\samples\c_sample_2\factorial_iterative.c
+    res\C\samples\c_sample_2\fibonacci_iterative.c
+    res\C\samples\c_sample_2\vector_len_1.c
+
+
     res\C\samples\c_samples\array_0.c
     res\C\samples\c_samples\array_1.c
     res\C\samples\c_samples\array_2.c

@@ -115,7 +115,8 @@ impl AsmAstFixupVisitor {
                     println!("[ASM Fixup Visitor::replace_pseudo_operand] Pseudo: Pseudo-Name: '{}'", pseudo_name);
                 }
 
-                assert!(pseudo_name.len() != 0, "[ERR] [asm_ast_fixup_visitor] PseudoVariable has no name! Need a name to replace!");
+                assert!(pseudo_name.len() != 0,
+                    "[ERR] [asm_ast_fixup_visitor] PseudoVariable has no name! Need a name to replace!");
 
                 let mut stack_offset_value = 0i32;
 

@@ -155,13 +155,16 @@ impl TackyToIntermediateAsmConversionVisitor {
         let function_name = tacky_node_top_level_function.name.clone();
 
         // DEBUG
-        // println!("[TackyToIntermediateAsmConversionVisitor::visit_tacky_function()] {}", &function_name);
+        if self.debug {
+            println!("[TackyToIntermediateAsmConversionVisitor::visit_tacky_function()] '{}'",
+                &function_name);
+        }
 
         let mut asm_ast_function: AsmAstFunction = AsmAstFunction::new();
         asm_ast_function.name = function_name.clone();
-
         if tacky_node_top_level_function.return_type.is_some() {
-            asm_ast_function.return_type = Some(tacky_node_top_level_function.return_type.clone().expect("REASON"));
+            asm_ast_function.return_type =
+                Some(tacky_node_top_level_function.return_type.clone().expect("REASON"));
         }
 
         // ALLOCATE_STACK
@@ -187,7 +190,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         // (System-V ABI, the first six registers ("DI", "SI", "DX", "CX", "R8", "R9")
         // and Win64 FastCall, the first 4 registers (RCX, RDX, R8 and R9))
         //
-        // To achieve this, the amount of parameters has to be known and move instructions
+        // To achieve this, the amount of parameters has to be known and move-instructions
         // to stack addresses need to be emitted.
         //
         // How to formulate the stack addresses?
@@ -196,6 +199,11 @@ impl TackyToIntermediateAsmConversionVisitor {
         // // DEBUG
         // println!("Function {:?} has {} formal arguments!", &function_name, tacky_node_top_level_function.arguments.len());
         // println!("SYSTEM_V_ABI_REGISTER_ORDER: {:?}", SYSTEM_V_ABI_REGISTER_ORDER);
+
+        // DEBUG
+        if self.debug {
+            println!("[T2IASM] {:?}", tacky_node_top_level_function.arguments);
+        }
 
         for (i, param) in tacky_node_top_level_function.arguments.iter().enumerate() {
 
@@ -211,13 +219,19 @@ impl TackyToIntermediateAsmConversionVisitor {
             }
 
             // DEBUG
-            // println!("Parameter {:?}) {:?} is located in register {:?}", i, param, SYSTEM_V_ABI_REGISTER_ORDER[i]);
+            if self.debug {
+                println!("Parameter {:?}) {:?} is located in register {:?}",
+                    i, param, SYSTEM_V_ABI_REGISTER_ORDER[i]);
+            }
 
-            //todo: generate move commands for each of the first n ABI registers into a stack address!
-            //where and how are the stack addresses computed?
+            // TODO: generate move commands for each of the first n ABI
+            // registers into a stack address!
 
-            // This function is part of the AsmAstConversionVisitor (this struct) which is followed by the
-            // AsmAstFixupVisitor. The AsmAstFixupVisitor has the purpose of generating addresses for
+            // TODO: where and how are the stack addresses computed?
+
+            // this function is part of the AsmAstConversionVisitor (this struct)
+            // which is followed by the AsmAstFixupVisitor.
+            // The AsmAstFixupVisitor has the purpose of generating addresses for
             // AsmAstOperandType::Pseudo defined in asm_ast.rs
 
             let symbol_table_entry = self.symbol_table.borrow_mut().get(&param.name.clone());
@@ -227,15 +241,13 @@ impl TackyToIntermediateAsmConversionVisitor {
                 println!("test {:?}", symbol_table_entry);
             }
 
-            // let replaced_variable_name = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&param.name.clone()).expect("need replaced identifier!");
-
             //
-            // Mov
+            // Mov - move from register (where the parameter lives) to the stack
             //
 
             let mut mov: AsmAstInstruction = AsmAstInstruction::new();
             mov.instruction_type = AsmAstInstructionType::Mov;
-            mov.comment = String::from(format!("    ; Parameter {:?}) {:?} is located in register {:?}", i, param, SYSTEM_V_ABI_REGISTER_ORDER[i]).to_string());
+            mov.comment = String::from(format!("    ; INSIDE_FUNCTION. Moving Reg-To-MEM: Parameter {:?}) {:?} is located in register {:?}", i, param, SYSTEM_V_ABI_REGISTER_ORDER[i]).to_string());
             mov.src = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(SYSTEM_V_ABI_REGISTER_ORDER[i].clone()) };
             mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(param.name.clone()) };
             mov.assembly_type = AstAstAssemblyType::from_data_type(&param.data_type);
@@ -388,7 +400,12 @@ impl TackyToIntermediateAsmConversionVisitor {
             }
         }
 
-        // // deallocate stack
+        //
+        // deallocate stack - deallocating the stack is done after
+        // the function call instruction is emitted inside
+        // visit_tacky_fun_call_system_v_abi()
+        //
+
         // let mut deallocate_stack: AsmAstInstruction = AsmAstInstruction::new();
         // deallocate_stack.instruction_type = AsmAstInstructionType::DeallocateStack;
         // deallocate_stack.src.operand_type = AsmAstOperandType::Imm(120 as i32);
@@ -1856,16 +1873,19 @@ impl TackyToIntermediateAsmConversionVisitor {
         // allocate stack
         //
 
-        let total_param_count:usize = tacky_node_fun_call.parameters.len();
+        let total_param_count: usize = tacky_node_fun_call.parameters.len();
 
-        // in System-V abi the first 6 arguments go into registers and the rest goes onto the stack.
+        // in System-V ABI the first 6 arguments go into registers and the
+        // rest goes onto the stack.
+        //
         // Only if there are register on the stack can the stack be misaligned.
         //
-        // For some reason stack addresses can only ever by multiple of 16 bit!
-        // The address needs to be aligned correctly by moving it to a address divisible by 16 bit
+        // For some reason, stack addresses can only ever by multiple of 16 bit!
+        // The address needs to be aligned correctly by moving it to an address
+        // divisible by 16 bit
 
         // System-V
-        let mut stack_padding:usize = 0usize;
+        let mut stack_padding: usize = 0usize;
         if total_param_count > 6 {
             if total_param_count % 2 != 0 {
                 stack_padding = 8;
@@ -1884,7 +1904,8 @@ impl TackyToIntermediateAsmConversionVisitor {
         asm_ast_function.body.push(Box::new(allocate_stack));
 
         //
-        // Move first six (System-V ABI) or first 4 (Win64 Fastcall) parameters into registers - pass args in register - page 198
+        // Move first six (System-V ABI) or first 4 (Win64 Fastcall)
+        // parameters into registers - pass args in register - page 198
         //
 
         // System-V ABI
@@ -1955,6 +1976,7 @@ impl TackyToIntermediateAsmConversionVisitor {
 
             asm_ast_function.body.push(Box::new(push));
         }
+
         // println!("test");
 
         //
@@ -1971,15 +1993,19 @@ impl TackyToIntermediateAsmConversionVisitor {
         asm_ast_function.body.push(Box::new(fun_call));
 
         //
-        // adjust stack pointer - needs to be adjusted if there are more than 6 parameters because they go to the stack
-        //
         // deallocate stack
+        //
+
+        //
+        // adjust stack pointer - needs to be adjusted if there are more
+        // than 6 parameters because they go to the stack
         //
 
         // System-V ABI
         if total_param_count > 6 {
 
-            // more than 6 parameters go onto the stack and potentially cause stack_padding (when odd-numbered)
+            // more than 6 parameters go onto the stack and potentially cause
+            // stack_padding (when odd-numbered)
             let bytes_to_remove: usize = 8 * (total_param_count - 6) + stack_padding;
             if bytes_to_remove > 0 {
 
@@ -1992,7 +2018,8 @@ impl TackyToIntermediateAsmConversionVisitor {
         }
 
         //
-        // TODO retrieve return value - move return value into EAX register which contains the return value in System-V ABI
+        // TODO retrieve return value - move return value into EAX register which contains
+        // the return value in System-V ABI
         //
 
         //
@@ -2066,7 +2093,6 @@ impl TackyToIntermediateAsmConversionVisitor {
         assert_ne!(mov.assembly_type, AstAstAssemblyType::Unknown);
 
         asm_ast_function.body.push(Box::new(mov));
-
     }
 
     pub fn visit_tacky_jump(&mut self, asm_ast_function: &mut AsmAstFunction, tacky_node_jump: &Instruction) {

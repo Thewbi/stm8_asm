@@ -1,4 +1,4 @@
-// res\C\samples\c_sample_2\digit_by_digit_sqrt.c
+// res\C\samples\c_sample_2\digit_by_digit_sqrt_0.c
 
 //#include <stdio.h>
 #include <stdint.h>
@@ -74,11 +74,16 @@ int32_t digit_by_digit_sqrt(int32_t val) {
 }
 
 int main() {
-    int32_t target = 144;
+    //int32_t target = 144; // int-sqrt(144) == 12
+    int32_t target = 29; // int-sqrt(29) == 5
     //printf("Integer Sqrt of %d is %d\n", target, cordic_int_sqrt(target));
     //printf("Integer Sqrt of %d is %d\n", target, digit_by_digit_sqrt(target));
 
     int result = digit_by_digit_sqrt(target);
+
+    if (result == 5) {
+        return 0;
+    }
     return result;
 }
 

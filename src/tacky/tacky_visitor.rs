@@ -1680,14 +1680,14 @@ impl TackyVisitor {
 
                 // DEBUG
                 if self.debug {
-                    println!("------------------------------------------------------------");
-                    println!("[AstNodeType::Return] id: {} ast_node: {:?}", ast_node.id, ast_node);
-                    println!("ast_node.get_analyzed_data_type(): {}", ast_node.get_analyzed_data_type());
+                    println!("[TV][AstNodeType::Return]------------------------------------------------------------");
+                    println!("[TV][AstNodeType::Return] id: {} ast_node: {:?}", ast_node.id, ast_node);
+                    println!("[TV][AstNodeType::Return] ast_node.get_analyzed_data_type(): {}", ast_node.get_analyzed_data_type());
                 }
 
                 // a data type that is NOT unknown is required!
                 assert_ne!(ast_node.get_analyzed_data_type(), DataType::DataTypeUnknown,
-                    "[ERR] A type is required!");
+                    "[TV][ERR] A type is required!");
 
                 //
                 // add a comment
@@ -1711,21 +1711,23 @@ impl TackyVisitor {
                     // Case: return with value
                     //
 
-                    let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
-                    self.declare_temporary_variable(&temp_var_name, ast_node.get_analyzed_data_type());
+                    // // This is later needed in array subscripts as direct return values
+                    // let create_temporary_variable = true;
+                    // if create_temporary_variable {
 
-                    // create symbol table entry for temporary variable
-                    let mut symbol_table_entry = SymbolTableEntry::new();
-                    symbol_table_entry.name = temp_var_name.clone();
-                    symbol_table_entry.initial_name = temp_var_name.clone();
-                    symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
-                    // symbol_table_entry.data_type = DataType::DataTypeInt;
-                    // symbol_table_entry.data_type = DataType::DataTypeUnknown;
-                    symbol_table_entry.data_type = ast_node.get_analyzed_data_type();
-                    symbol_table_entry.is_array = false;
-                    symbol_table_entry.array_element_count = 0;
+                        let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+                        self.declare_temporary_variable(&temp_var_name, ast_node.get_analyzed_data_type());
 
-                    // self.symbol_table.borrow_mut().insert(temp_var_name.clone(), symbol_table_entry);
+                        // // create symbol table entry for temporary variable
+                        // let mut symbol_table_entry = SymbolTableEntry::new();
+                        // symbol_table_entry.name = temp_var_name.clone();
+                        // symbol_table_entry.initial_name = temp_var_name.clone();
+                        // symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
+                        // symbol_table_entry.data_type = ast_node.get_analyzed_data_type();
+                        // symbol_table_entry.is_array = false;
+                        // symbol_table_entry.array_element_count = 0;
+                        // self.symbol_table.borrow_mut().insert(temp_var_name.clone(), symbol_table_entry);
+                    // }
 
                     // // create temporary variable to cast into
                     // let mut dest_var_declaration: Instruction = Instruction::new();
@@ -1739,18 +1741,22 @@ impl TackyVisitor {
 
                     // DEBUG
                     if self.debug {
-                        println!("[AstNodeType::Return] dst_name: '{}'", dst_name);
+                        println!("[TV][AstNodeType::Return] dst_name: '{}'", dst_name);
                     }
 
-                    let mut br_cnt = 0;
+                    // // DEBUG
+                    // if expression_id == 130 {
+                    //     println!("test");
+                    // }
 
+                    let mut br_cnt = 0;
                     let ( value_element, data_type ) = self.visit(expression_id, node_map, &temp_var_name, &mut br_cnt);
-                    let return_value: ValueElement
-                        = value_element;
+
+                    let return_value: ValueElement = value_element;
 
                     // DEBUG
                     if self.debug {
-                        println!("[AstNodeType::Return]  return_value: {:?}", return_value);
+                        println!("[TV][AstNodeType::Return] return_value: {:?}", return_value);
                     }
 
                     // OPTIMIZATION: potential for optimization
@@ -2549,9 +2555,14 @@ impl TackyVisitor {
                 // return ValueElement::Variable(ast_node.string_val.clone());
                 // let variable_identifier = self.variable_naming_source.borrow_mut().get_replaced_variable_name(&ast_node.string_val);
                 // return ValueElement::Variable(variable_identifier.expect("REASON"));
-                // // DEBUG
-                // println!("{:?}", variable_identifier);
+
                 let variable_identifier = ast_node.string_val.clone();
+
+                // DEBUG
+                if self.debug {
+                    println!("[TV][AstNodeType::Identifier] variable_identifier: '{:?}'", variable_identifier);
+                }
+
                 return ( ValueElement::Variable(variable_identifier), DataType::DataTypeUnknown );
             }
 
