@@ -341,6 +341,7 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     // unsigned    void        volatile    while
 
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "auto", "AUTO", 100);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "_Bool", "BOOL", 132);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "break", "BREAK", 101);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "case", "CASE", 102);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "char", "CHAR", 103);

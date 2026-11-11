@@ -160,7 +160,6 @@ const BASE_PATH: &'static str = "build/";
 static RULE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static STATE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-// static REGENERATE_LEXER_PARSER: bool = true;
 static REGENERATE_LEXER_PARSER: bool = false;
 
 pub fn print_ast(program_ast_node_id: &usize, node_map: &Box<HashMap::<usize, AstNode>>, filename: &str) {
@@ -764,13 +763,13 @@ fn main() {
         // DEBUG output all preprocessor symbols
         //
 
-        // if debug {
+        if debug {
             println!("pp pp pp pp pp pp pp pp pp   preprocessor symbols  pp pp pp pp pp pp pp pp pp pp");
             for (key, value) in defined_symbol_map.into_iter() {
                 println!("{} / {}", key, value);
             }
             println!("pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp");
-        // }
+        }
 
         // DEBUG
         // expression_parser.print_dot();
@@ -889,6 +888,9 @@ fn main() {
     type_system.insert("double".to_string(), DataType::DataTypeDouble);
 
     type_system.insert("void".to_string(), DataType::DataTypeVoid);
+
+    // should be _Bool, but everything is converted to lowercase during type system lookup
+    type_system.insert("_bool".to_string(), DataType::DataTypeBool);
 
     //
     // Type System
@@ -1292,8 +1294,7 @@ fn main() {
                     symbol_table_rc_1,
                     type_system_rc_22);
 
-                let depth: usize = 1;
-                type_checking_visitor.visit(program_ast_node_id, &mut node_map, &DataType::DataTypeVoid/* , depth*/);
+                type_checking_visitor.visit(program_ast_node_id, &mut node_map, &DataType::DataTypeVoid);
 
                 //
                 // Print AST to dot after TypeChecking

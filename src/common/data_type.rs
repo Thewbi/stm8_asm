@@ -27,6 +27,7 @@ pub enum DataType {
     DataTypeArray(Box<DataType>, Option<usize>),
     DataTypeTypedeffed(String),
     DataTypeEnum(String),
+    DataTypeBool,
     DataTypeUnknown,
 }
 
@@ -52,6 +53,7 @@ impl fmt::Display for DataType {
             DataType::DataTypeArray(data_type, size) => write!(f, "Array-Of-[{}]-Size-[{:?}]", data_type, size),
             DataType::DataTypeTypedeffed(data_type) => write!(f, "Typedeffed-[{}]", data_type),
             DataType::DataTypeEnum(enum_identifier) => write!(f, "Enum-[{}]", enum_identifier),
+            DataType::DataTypeBool => write!(f, "_Bool"),
         }
     }
 }
@@ -87,7 +89,10 @@ impl FromStr for DataType {
             Ok(DataType::DataTypeStruct(StructDecl::new()))
         } else if s == "enum" {
             Ok(DataType::DataTypeEnum(String::from("unknown")))
-        } else {
+        } else if s == "_Bool" {
+            Ok(DataType::DataTypeBool)
+        }
+         else {
             Err(format!("[DataType::FromStr] Can not parse '{}' into type", s).into())
         }
     }
@@ -117,6 +122,7 @@ impl PartialEq for DataType {
             (&DataType::DataTypeDouble,         &DataType::DataTypeDouble) => true,
             (&DataType::DataTypeVoid,           &DataType::DataTypeVoid) => true,
             (&DataType::DataTypeUnknown,        &DataType::DataTypeUnknown) => true,
+            (&DataType::DataTypeBool,           &DataType::DataTypeBool) => true,
 
             (DataType::DataTypePointer(lhs_data_type), DataType::DataTypePointer(rhs_data_type)) => {
                 return lhs_data_type == rhs_data_type;
@@ -161,6 +167,7 @@ impl DataType {
                 // an enum is an int internally
                 return SIZEOF_INT;
             }
+            DataType::DataTypeBool => SIZEOF_INT,
             DataType::DataTypeUnsignedInt => 4,
             DataType::DataTypeLong => 8,
             DataType::DataTypeUnsignedLong => 8,

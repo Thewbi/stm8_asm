@@ -4850,13 +4850,47 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // type_specifier -> CHAR
+                                        // type_specifier -> BOOL
                                         95 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (95)"));
                                             // print node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (95)")).as_str());
+
+                                            let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let type_node = DebugNode::new(type_node_id, String::from("_Bool"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n", type_node_id, type_node_id, rule_id, String::from("_Bool")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
+
+                                            debug_node_stack.push(debug_node);
+
+                                            //
+                                            // AST - type_specifier -> BOOL
+                                            //
+
+                                            if self.construct_ast {
+
+                                                let mut ast_node: AstNode = AstNode::new(self.get_ast_node_id());
+                                                ast_node.node_type = AstNodeType::DataType;
+                                                ast_node.string_val = String::from("_Bool");
+                                                ast_node.set_analyzed_data_type(DataType::from_str("_Bool").unwrap());
+                                                ast_node.file = file.clone();
+                                                ast_node.line = line;
+
+                                                self.ast_stack.push(ast_node.id);
+
+                                                node_map.insert(ast_node.id, ast_node);
+                                            }
+                                        }
+
+                                        // type_specifier -> CHAR
+                                        96 => {
+                                            // push node onto stack
+                                            let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (96)"));
+                                            // print node into string buffer. e.g.    0 [label="test"]
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (96)")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("CHAR"));
@@ -4927,12 +4961,12 @@ impl Parser<String> {
                                         }
 
                                         // type_specifier -> SHORT
-                                        96 => {
+                                        97 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (96)"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (97)"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (96)")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (97)")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("SHORT"));
@@ -4998,13 +5032,13 @@ impl Parser<String> {
                                         }
 
                                         // type_specifier -> INT
-                                        97 => {
+                                        98 => {
 
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (97)"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (98)"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (97)")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (98)")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("INT"));
@@ -5071,11 +5105,11 @@ impl Parser<String> {
                                         }
 
                                         // type_specifier -> LONG
-                                        98 => {
+                                        99 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (98)"));
-                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (98)")).as_str());
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (99)"));
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (99)")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("LONG"));
@@ -5144,13 +5178,13 @@ impl Parser<String> {
                                         }
 
                                         // type_specifier -> FLOAT
-                                        99 => {
+                                        100 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (99)"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (100)"));
                                             debug_node_stack.push(debug_node);
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (99)")).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (100)")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("FLOAT"));
@@ -5222,12 +5256,12 @@ impl Parser<String> {
                                         }
 
                                         // type_specifier -> DOUBLE
-                                        100 => {
+                                        101 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (100)"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (101)"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("type_specifier (100)")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("type_specifier (101)")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("DOUBLE"));
@@ -5298,7 +5332,7 @@ impl Parser<String> {
                                         }
 
                                         // type_specifier -> SIGNED
-                                        101 => {
+                                        102 => {
                                             // retrieve terminal of SIGNED
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
@@ -5308,9 +5342,9 @@ impl Parser<String> {
 
                                             // create new node
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (101)"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (102)"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("type_specifier (101)")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", debug_node_id, debug_node_id, String::from("type_specifier (102)")).as_str());
 
                                             // signed
                                             let identifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -5340,7 +5374,7 @@ impl Parser<String> {
                                         }
 
                                         // type_specifier -> UNSIGNED
-                                        102 => {
+                                        103 => {
                                             // retrieve terminal of UNSIGNED
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
@@ -5350,9 +5384,9 @@ impl Parser<String> {
 
                                             // create new node
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (102)"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (103)"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (102)")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (103)")).as_str());
 
                                             // unsigned
                                             let identifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -5384,13 +5418,13 @@ impl Parser<String> {
                                         }
 
                                         // type_specifier -> struct_or_union_specifier
-                                        103 => {
-                                            self.node_to_node("type_specifier (Rule: 103)", found_rule.original_id, string_buffer, debug_node_stack);
+                                        104 => {
+                                            self.node_to_node("type_specifier (Rule: 104)", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // type_specifier -> enum_specifier
-                                        104 => {
-                                            self.node_to_node("type_specifier (Rule: 104)", found_rule.original_id, string_buffer, debug_node_stack);
+                                        105 => {
+                                            self.node_to_node("type_specifier (Rule: 105)", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // type_specifier -> TYPE_NAME
@@ -5403,7 +5437,7 @@ impl Parser<String> {
                                         // typedef char int8_t
                                         //
                                         // it is also reduced for typedeffed types
-                                        105 => {
+                                        106 => {
                                             // retrieve terminal TYPE_NAME
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
@@ -5413,9 +5447,9 @@ impl Parser<String> {
 
                                             // create new node
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (Rule: 105)"));
+                                            let debug_node = DebugNode::new(debug_node_id, String::from("type_specifier (Rule: 106)"));
                                             // print node into string buffer. e.g.    0 [label="test"]
-                                            string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (Rule: 105)")).as_str());
+                                            string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("type_specifier (Rule: 106)")).as_str());
 
                                             // IDENTIFIER
                                             let identifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -5495,7 +5529,7 @@ impl Parser<String> {
                                         }
 
                                         // struct_or_union_specifier -> struct_or_union IDENTIFIER OPENING_CURLY_BRACKET struct_declaration_list CLOSING_CURLY_BRACKET
-                                        106 => {
+                                        107 => {
 
                                             // retrieve struct name
                                             // the first value is a whitespace character
@@ -5779,7 +5813,7 @@ impl Parser<String> {
                                         }
 
                                         // struct_or_union_specifier -> struct_or_union IDENTIFIER
-                                        108 => {
+                                        109 => {
 
                                             // DEBUG
                                             // self.print_ast_stack(node_map);
@@ -5874,7 +5908,7 @@ impl Parser<String> {
                                         }
 
                                         // 109;struct_or_union_specifier;struct_or_union;TYPE_NAME
-                                        109 => {
+                                        110 => {
 
                                             // DEBUG
                                             // self.print_ast_stack(node_map);
@@ -5971,7 +6005,7 @@ impl Parser<String> {
                                         }
 
                                         // struct_or_union -> STRUCT
-                                        110 => {
+                                        111 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("struct_or_union"));
@@ -6004,12 +6038,12 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // 111;struct_or_union;UNION
+                                        // 112;struct_or_union;UNION
                                         // 111 => {
                                         // }
 
                                         // struct_declaration_list -> struct_declaration_list struct_declaration
-                                        112 => {
+                                        113 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -6034,7 +6068,7 @@ impl Parser<String> {
                                         }
 
                                         // struct_declaration_list -> struct_declaration
-                                        113 => {
+                                        114 => {
                                             self.node_to_node("struct_declaration_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
@@ -6047,7 +6081,7 @@ impl Parser<String> {
                                         // e.g. int z;
                                         // e.g. const char x;
                                         // e.g. struct node *next; // pointer to struct node
-                                        114 => {
+                                        115 => {
 
                                             //
                                             // LHS
@@ -6312,9 +6346,9 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // 115;specifier_qualifier_list;type_specifier;specifier_qualifier_list
+                                        // 116;specifier_qualifier_list;type_specifier;specifier_qualifier_list
                                         // specifier_qualifier_list -> type_specifier specifier_qualifier_list
-                                        115 => {
+                                        116 => {
 
                                             // create new node id
                                             // create new node with node id and label
@@ -6374,12 +6408,12 @@ impl Parser<String> {
                                         }
 
                                         // specifier_qualifier_list -> type_specifier
-                                        116 => {
+                                        117 => {
                                             self.node_to_node("specifier_qualifier_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
-                                        // 117;specifier_qualifier_list;type_qualifier;specifier_qualifier_list
-                                        117 => {
+                                        // 118;specifier_qualifier_list;type_qualifier;specifier_qualifier_list
+                                        118 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -6444,23 +6478,26 @@ impl Parser<String> {
                                             }
                                         }
 
+                                        // 119;specifier_qualifier_list;type_qualifier
+
+                                        // 120;struct_declarator_list;struct_declarator
                                         // struct_declarator_list -> struct_declarator
-                                        119 => {
+                                        120 => {
                                             self.node_to_node("struct_declarator_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
+                                        // 121;struct_declarator_list;struct_declarator_list;COMMA;struct_declarator
+
                                         // struct_declarator -> declarator
-                                        121 => {
+                                        122 => {
                                             self.node_to_node("struct_declarator", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
-                                        // 120;struct_declarator_list;struct_declarator_list;COMMA;struct_declarator
-                                        // 121;struct_declarator;declarator
-                                        // 122;struct_declarator;COLON;constant_expression
-                                        // 123;struct_declarator;declarator;COLON;constant_expression
+                                        // 123;struct_declarator;COLON;constant_expression
+                                        // 124;struct_declarator;declarator;COLON;constant_expression
 
-                                        // 124;enum_specifier;ENUM;OPENING_CURLY_BRACKET;enumerator_list;CLOSING_CURLY_BRACKET
-                                        124 => {
+                                        // 125;enum_specifier;ENUM;OPENING_CURLY_BRACKET;enumerator_list;CLOSING_CURLY_BRACKET
+                                        125 => {
 
                                             // definition of anonymous enum (options can only be used as constants)
 
@@ -6488,8 +6525,8 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // 125;enum_specifier;ENUM;IDENTIFIER;OPENING_CURLY_BRACKET;enumerator_list;CLOSING_CURLY_BRACKET
-                                        125 => {
+                                        // 126;enum_specifier;ENUM;IDENTIFIER;OPENING_CURLY_BRACKET;enumerator_list;CLOSING_CURLY_BRACKET
+                                        126 => {
 
                                             // declaration of named enum. Variables of this type can be declared.
                                             // Internally converted to int (4 byte on x64)
@@ -6562,9 +6599,9 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // 126;enum_specifier;ENUM;IDENTIFIER
+                                        // 127;enum_specifier;ENUM;IDENTIFIER
                                         // enum_specifier -> <ENUM> <IDENTIFIER>
-                                        126 => {
+                                        127 => {
 
                                             // a variable of type enum <enum-name> is created
 
@@ -6645,8 +6682,8 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // 127;enumerator_list;enumerator
-                                        127 => {
+                                        // 128;enumerator_list;enumerator
+                                        128 => {
 
                                             self.node_to_node("enumerator_list", found_rule.original_id, string_buffer, debug_node_stack);
 
@@ -6703,8 +6740,8 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // 128;enumerator_list;enumerator_list;COMMA;enumerator
-                                        128 => {
+                                        // 129;enumerator_list;enumerator_list;COMMA;enumerator
+                                        129 => {
 
                                             // enumerator_list
                                             let enumerator_list_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -6730,8 +6767,8 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // 129;enumerator;IDENTIFIER
-                                        129 => {
+                                        // 130;enumerator;IDENTIFIER
+                                        130 => {
 
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
@@ -6790,8 +6827,8 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // 130;enumerator;IDENTIFIER;EQUALS_SIGN;constant_expression
-                                        130 => {
+                                        // 131;enumerator;IDENTIFIER;EQUALS_SIGN;constant_expression
+                                        131 => {
 
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
@@ -6877,8 +6914,8 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // 131;type_qualifier -> CONST
-                                        131 => {
+                                        // 132;type_qualifier -> CONST
+                                        132 => {
                                             //self.node_to_node("type_qualifier", found_rule.original_id, string_buffer, debug_node_stack);
 
                                             // let old_debug_node = debug_node_stack.pop().unwrap();
@@ -6916,8 +6953,8 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // 132;type_qualifier -> VOLATILE
-                                        132 => {
+                                        // 133;type_qualifier -> VOLATILE
+                                        133 => {
                                             //self.node_to_node("type_qualifier", found_rule.original_id, string_buffer, debug_node_stack);
 
                                             // push node onto stack
@@ -6935,7 +6972,7 @@ impl Parser<String> {
                                         }
 
                                         // declarator -> pointer direct_declarator
-                                        133 => {
+                                        134 => {
 
                                             // create new node id
                                             // create new node with node id and label
@@ -6992,12 +7029,12 @@ impl Parser<String> {
                                         }
 
                                         // declarator -> direct_declarator
-                                        134 => {
+                                        135 => {
                                             self.node_to_node("declarator", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // direct_declarator -> IDENTIFIER
-                                        135 => {
+                                        136 => {
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
                                                 value = terminal_rev.clone().unwrap().data;
@@ -7120,8 +7157,11 @@ impl Parser<String> {
                                             }
                                         }
 
+                                        // 137;direct_declarator;OPENING_BRACKET;declarator;CLOSING_BRACKET
+
+                                        // 138;direct_declarator;direct_declarator;OPENING_ANGULAR_BRACKET;constant_expression;CLOSING_ANGULAR_BRACKET
                                         // direct_declarator -> direct_declarator OPENING_ANGULAR_BRACKET constant_expression CLOSING_ANGULAR_BRACKET
-                                        137 => {
+                                        138 => {
 
                                             // direct_declarator
                                             //
@@ -7202,7 +7242,7 @@ impl Parser<String> {
                                         }
 
                                         // direct_declarator -> direct_declarator OPENING_ANGULAR_BRACKET CLOSING_ANGULAR_BRACKET
-                                        138 => {
+                                        139 => {
 
                                             // direct_declarator - create new node with node id and label
                                             let direct_declarator_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -7300,7 +7340,7 @@ impl Parser<String> {
                                         }
 
                                         // direct_declarator -> direct_declarator OPENING_BRACKET parameter_type_list CLOSING_BRACKET
-                                        139 => {
+                                        140 => {
 
                                             // direct_declarator
                                             //
@@ -7419,8 +7459,11 @@ impl Parser<String> {
                                             }
                                         }
 
+                                        // 141;direct_declarator;direct_declarator;OPENING_BRACKET;identifier_list;CLOSING_BRACKET
+
+                                        // 142;direct_declarator;direct_declarator;OPENING_BRACKET;CLOSING_BRACKET
                                         // direct_declarator -> direct_declarator OPENING_BRACKET CLOSING_BRACKET
-                                        141 => {
+                                        142 => {
                                             // create new node
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("direct_declarator"));
@@ -7482,7 +7525,7 @@ impl Parser<String> {
                                         }
 
                                         // pointer -> ASTERISK
-                                        142 => {
+                                        143 => {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("pointer"));
@@ -7497,14 +7540,21 @@ impl Parser<String> {
                                             debug_node_stack.push(debug_node);
                                         }
 
+                                        // 144;pointer;ASTERISK;type_qualifier_list
+                                        // 145;pointer;ASTERISK;pointer
+                                        // 146;pointer;ASTERISK;type_qualifier_list;pointer
+                                        // 147;type_qualifier_list;type_qualifier
+
+                                        // 148;type_qualifier_list;type_qualifier_list;type_qualifier
+
                                         // parameter_type_list -> parameter_list
-                                        148 => {
+                                        149 => {
                                             self.node_to_node("parameter_type_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
-                                        // 149;parameter_type_list;parameter_list;COMMA;ELLIPSIS
+                                        // 150;parameter_type_list;parameter_list;COMMA;ELLIPSIS
                                         // parameter_type_list -> parameter_list COMMA ELLIPSIS
-                                        149 => {
+                                        150 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -7582,12 +7632,12 @@ impl Parser<String> {
                                         }
 
                                         // parameter_list -> parameter_declaration
-                                        150 => {
+                                        151 => {
                                             self.node_to_node("parameter_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // parameter_list -> parameter_list COMMA parameter_declaration
-                                        151 => {
+                                        152 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -7617,8 +7667,9 @@ impl Parser<String> {
                                             debug_node_stack.push(debug_node);
                                         }
 
+                                        // 153;parameter_declaration;declaration_specifiers;declarator
                                         // parameter_declaration -> declaration_specifiers declarator
-                                        152 => {
+                                        153 => {
                                             // parameter_declaration
                                             //
                                             // create new node id
@@ -7682,8 +7733,11 @@ impl Parser<String> {
                                             }
                                         }
 
+                                        // 154;parameter_declaration;declaration_specifiers;abstract_declarator
+
+                                        // 155;parameter_declaration;declaration_specifiers
                                         // parameter_declaration -> declaration_specifiers
-                                        154 => {
+                                        155 => {
                                             self.node_to_node("parameter_declaration", found_rule.original_id, string_buffer, debug_node_stack);
 
                                             //
@@ -7715,13 +7769,17 @@ impl Parser<String> {
                                             }
                                         }
 
+                                        // 156;identifier_list;IDENTIFIER
+                                        // 157;identifier_list;identifier_list;COMMA;IDENTIFIER
+
+                                        // 158;type_name;specifier_qualifier_list
                                         // type_name -> specifier_qualifier_list
-                                        157 => {
+                                        158 => {
                                             self.node_to_node("parameter_declaration", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // initializer -> assignment_expression
-                                        171 => {
+                                        172 => {
                                             self.node_to_node("initializer", found_rule.original_id, string_buffer, debug_node_stack);
 
                                             //
@@ -7731,8 +7789,9 @@ impl Parser<String> {
                                             self.direct_declarator_counter = self.direct_declarator_counter + 1;
                                         }
 
+                                        // 173;initializer;OPENING_CURLY_BRACKET;initializer_list;CLOSING_CURLY_BRACKET
                                         // initializer -> OPENING_CURLY_BRACKET initializer_list CLOSING_CURLY_BRACKET
-                                        172 => {
+                                        173 => {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("initializer"));
@@ -7762,13 +7821,15 @@ impl Parser<String> {
                                             debug_node_stack.push(debug_node);
                                         }
 
+                                        // 174;initializer;OPENING_CURLY_BRACKET;initializer_list;COMMA;CLOSING_CURLY_BRACKET
+
                                         // initializer_list -> initializer
-                                        174 => {
+                                        175 => {
                                             self.node_to_node("initializer_list", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // initializer_list -> initializer COMMA initializer_list
-                                        175 => {
+                                        176 => {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("initializer_list"));
@@ -7797,12 +7858,12 @@ impl Parser<String> {
                                         }
 
                                         // statement -> labeled_statement
-                                        176 => {
+                                        177 => {
                                             self.node_to_node("statement", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // statement -> compound_statement
-                                        177 => {
+                                        178 => {
                                             self.node_to_node("statement", found_rule.original_id, string_buffer, debug_node_stack);
 
                                             //
@@ -7826,7 +7887,7 @@ impl Parser<String> {
                                         }
 
                                         // statement -> expression_statement
-                                        178 => {
+                                        179 => {
                                             let debug_node_id = self.node_to_node("statement", found_rule.original_id, string_buffer, debug_node_stack);
 
                                             // println!("debug_node_id: {}", debug_node_id);
@@ -7870,7 +7931,7 @@ impl Parser<String> {
                                         }
 
                                         // statement -> selection_statement
-                                        179 => {
+                                        180 => {
                                             self.node_to_node("statement", found_rule.original_id, string_buffer, debug_node_stack);
 
                                             //
@@ -7895,12 +7956,12 @@ impl Parser<String> {
                                         }
 
                                         // statement -> iteration_statement
-                                        180 => {
+                                        181 => {
                                             self.node_to_node("statement", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // statement -> jump_statement
-                                        181 => {
+                                        182 => {
                                             let debug_node_id = self.node_to_node("statement", found_rule.original_id, string_buffer, debug_node_stack);
 
                                             // println!("debug_node_id: {}", debug_node_id);
@@ -7926,8 +7987,11 @@ impl Parser<String> {
                                             }
                                         }
 
+                                        // 183;labeled_statement;IDENTIFIER;COLON;statement
+
+                                        // 184;labeled_statement;CASE;constant_expression;COLON;statement
                                         // labeled_statement -> CASE constant_expression COLON statement
-                                        183 => {
+                                        184 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -7993,7 +8057,7 @@ impl Parser<String> {
                                         }
 
                                         // labeled_statement -> DEFAULT COLON statement
-                                        184 => {
+                                        185 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -8058,7 +8122,7 @@ impl Parser<String> {
 
                                         // compound_statement -> declaration_or_statement_list
                                         // compound_statement -> OPENING_CURLY_BRACKET declaration_or_statement_list CLOSING_CURLY_BRACKET
-                                        185 => {
+                                        186 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -8147,7 +8211,7 @@ impl Parser<String> {
                                         }
 
                                         // compound_statement -> OPENING_CURLY_BRACKET CLOSING_CURLY_BRACKET
-                                        186 => {
+                                        187 => {
                                             //debug_node_stack.pop();
 
                                             // push a dummy compound statement otherwise the stack is empty and the other rule code crashes
@@ -8191,7 +8255,7 @@ impl Parser<String> {
                                         }
 
                                         // declaration_or_statement_list -> declaration declaration_or_statement_list
-                                        187 => {
+                                        188 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -8247,7 +8311,7 @@ impl Parser<String> {
                                         }
 
                                         // declaration_or_statement_list -> declaration
-                                        188 => {
+                                        189 => {
                                             self.node_to_node("declaration_or_statement_list", found_rule.original_id, string_buffer, debug_node_stack);
 
                                             //
@@ -8262,7 +8326,7 @@ impl Parser<String> {
                                         }
 
                                         // declaration_or_statement_list -> statement declaration_or_statement_list
-                                        189 => {
+                                        190 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -8308,7 +8372,7 @@ impl Parser<String> {
                                         }
 
                                         // declaration_or_statement_list -> statement
-                                        190 => {
+                                        191 => {
                                             self.node_to_node("declaration_or_statement_list", found_rule.original_id, string_buffer, debug_node_stack);
 
                                             //
@@ -8323,7 +8387,7 @@ impl Parser<String> {
                                         }
 
                                         // expression_statement -> expression SEMICOLON
-                                        191 => {
+                                        192 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -8349,7 +8413,7 @@ impl Parser<String> {
                                         }
 
                                         // expression_statement -> SEMICOLON
-                                        192 => {
+                                        193 => {
                                             // this affects switch-case and for loops. For loops expect at least a single body statement
                                             let output_empty_statement = true;
                                             if output_empty_statement {
@@ -8392,7 +8456,7 @@ impl Parser<String> {
                                         }
 
                                         // selection_statement -> IF OPENING_BRACKET expression CLOSING_BRACKET statement
-                                        193 => {
+                                        194 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -8502,7 +8566,7 @@ impl Parser<String> {
                                         }
 
                                         // selection_statement -> IF OPENING_BRACKET expression CLOSING_BRACKET statement ELSE statement
-                                        194 => {
+                                        195 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -8601,7 +8665,7 @@ impl Parser<String> {
                                         }
 
                                         // selection_statement -> SWITCH OPENING_BRACKET expression CLOSING_BRACKET statement
-                                        195 => {
+                                        196 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -8745,7 +8809,7 @@ impl Parser<String> {
                                         }
 
                                         // iteration_statement -> WHILE OPENING_BRACKET expression CLOSING_BRACKET statement
-                                        196 => {
+                                        197 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -8797,7 +8861,7 @@ impl Parser<String> {
                                         }
 
                                         // iteration_statement -> DO statement WHILE OPENING_BRACKET expression CLOSING_BRACKET SEMICOLON
-                                        197 => {
+                                        198 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -8892,7 +8956,7 @@ impl Parser<String> {
                                         }
 
                                         // iteration_statement -> FOR OPENING_BRACKET expression_statement expression_statement expression CLOSING_BRACKET statement
-                                        199 => {
+                                        200 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -8961,7 +9025,7 @@ impl Parser<String> {
                                         }
 
                                         // jump_statement -> BREAK
-                                        202 => {
+                                        203 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -8998,7 +9062,7 @@ impl Parser<String> {
                                         }
 
                                         // jump_statement -> RETURN expression SEMICOLON
-                                        203 => {
+                                        204 => {
 
                                             // create new node id
                                             // create new node with node id and label
@@ -9036,7 +9100,7 @@ impl Parser<String> {
                                         }
 
                                         // jump_statement -> RETURN SEMICOLON
-                                        204 => {
+                                        205 => {
 
                                             // create new node id
                                             // create new node with node id and label
@@ -9067,7 +9131,7 @@ impl Parser<String> {
                                         }
 
                                         // translation_unit -> translation_unit external_declaration
-                                        205 => {
+                                        206 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -9088,22 +9152,22 @@ impl Parser<String> {
                                         }
 
                                         // translation_unit -> external_declaration
-                                        206 => {
+                                        207 => {
                                             self.node_to_node("translation_unit", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
                                         // external_declaration -> function_definition
-                                        207 => {
-                                            self.node_to_node("external_declaration", found_rule.original_id, string_buffer, debug_node_stack);
-                                        }
-
-                                        // external_declaration -> declaration
                                         208 => {
                                             self.node_to_node("external_declaration", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
 
-                                        // function_definition -> declaration_specifiers declarator compound_statement
+                                        // external_declaration -> declaration
                                         209 => {
+                                            self.node_to_node("external_declaration", found_rule.original_id, string_buffer, debug_node_stack);
+                                        }
+
+                                        // function_definition -> declaration_specifiers declarator compound_statement
+                                        210 => {
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);

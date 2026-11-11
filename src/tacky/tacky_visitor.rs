@@ -2736,7 +2736,7 @@ impl TackyVisitor {
                 // create TACKY variable declaration
                 let mut var_declaration: Instruction = Instruction::new();
                 var_declaration.instruction_type = InstructionType::VariableDeclaration;
-                let data_type: DataType = self.type_system.borrow().get(&data_type_as_string).unwrap().clone();
+                let data_type: DataType = self.type_system.borrow().get(&data_type_as_string.to_lowercase()).unwrap().clone();
                 var_declaration.data_type = data_type.clone();
                 var_declaration.label = variable_identifier.clone();
 

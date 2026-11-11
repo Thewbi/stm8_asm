@@ -275,6 +275,7 @@ pub fn produce_grammar_c_full_if_else_4(grammar_rules: &mut Vec::<Rule<String>>)
     //     | TYPE_NAME
     //     ;
     create_rule(grammar_rules, String::from("type_specifier -> VOID"), treat_nonterminal_lowercase);
+    create_rule(grammar_rules, String::from("type_specifier -> BOOL"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("type_specifier -> CHAR"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("type_specifier -> SHORT"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("type_specifier -> INT"), treat_nonterminal_lowercase);
