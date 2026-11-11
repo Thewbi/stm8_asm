@@ -146,10 +146,6 @@ an extra integer as a parameter which is the amount of variable arguments that t
 It is not possible to have a function that takes only variable arguments without knowing how many
 variable arguments are provided anywhere in the function!
 
-
-
-
-
 ```
 void printf(char* format, ...)
 {
@@ -216,7 +212,6 @@ void printf(char* format, ...)
 }
 ```
 
-
 ```
 ERROR: This function returns a pointer to a char array which is a local variable!!!!!!!!!
 No, it does not! the buffer is declared static!
@@ -245,11 +240,6 @@ char *convert(unsigned int num, int base)
 }
 ```
 
-
-
-
-
-
 https://stackoverflow.com/questions/15784729/an-example-of-use-of-varargs-in-c
 
 
@@ -277,6 +267,98 @@ double average(int count, ...)
 }
 ```
 
+# &lt;stdbool.h&gt;
+
+https://git.musl-libc.org/cgit/musl/tree/include/stdbool.h
+
+```
+#ifndef _STDBOOL_H
+#define _STDBOOL_H
+
+#ifndef __cplusplus
+
+#define true 1
+#define false 0
+#define bool _Bool
+
+#endif
+
+#define __bool_true_false_are_defined 1
+
+#endif
+```
+
+_Bool is a datatype which resolves to int
+
+_Bool is NOT typedeffed! It is a standard internal data type which must be part of the compilers type system!
+But maybe the compiler can just replace all occurences of _Bool to int as they are parsed like enums are also immediately replaced by int.
+
+bool is a preprocessor define for _Bool
+
+```
+#define bool    _Bool
+#define true    1
+#define false   0
+```
+
+
+## Boolean - Sample 1
+
+https://godbolt.org/ - x86-64 gcc (trunk)
+
+The constants true and 456 are emitted as $1 which is the value 1 for true.
+This means the compiler casts??? or converts the int value 456 from int type
+into _Bool type, which means the value is converted to $1.
+
+```
+#include <stdbool.h>
+
+int main() {
+
+    bool bool_var = true;
+    bool bool_var_2 = 456;
+
+    return bool_var;
+}
+```
+
+```
+main:
+pushq   %rbp
+movq    %rsp, %rbp
+movb    $1, -1(%rbp)
+movb    $1, -2(%rbp)
+movzbl  -1(%rbp), %eax
+popq    %rbp
+ret
+```
+
+## Boolean - Sample 2
+
+https://godbolt.org/ - x86-64 gcc (trunk)
+
+```
+#include <stdbool.h>
+
+int main() {
+
+    _Bool bool_var = true;
+    _Bool bool_var_2 = 456;
+
+    return 0;
+}
+```
+
+```
+"main":
+    push    rbp
+    mov     rbp, rsp
+    mov     BYTE PTR [rbp-1], 1
+    mov     BYTE PTR [rbp-2], 1
+    mov     eax, 0
+    pop     rbp
+    ret
+```
 
 # &lt;stdarg.h&gt;
 

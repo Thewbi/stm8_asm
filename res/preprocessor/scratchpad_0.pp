@@ -1,13 +1,10 @@
-// res\C\samples\c_samples\enum_2.c
+// res\C\samples\c_samples\bool_0.c
 
-typedef enum {
-    GB_SQUARE_1,
-    GB_SQUARE_2,
-    GB_WAVE,
-    GB_NOISE,
-    GB_N_CHANNELS
-} GB_channel_t;
+#include <stdbool.h>
 
 int main() {
+
+    _Bool bool_var_2 = 456;
+
     return 0;
 }

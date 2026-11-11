@@ -764,13 +764,13 @@ fn main() {
         // DEBUG output all preprocessor symbols
         //
 
-        if debug {
+        // if debug {
             println!("pp pp pp pp pp pp pp pp pp   preprocessor symbols  pp pp pp pp pp pp pp pp pp pp");
             for (key, value) in defined_symbol_map.into_iter() {
                 println!("{} / {}", key, value);
             }
             println!("pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp pp");
-        }
+        // }
 
         // DEBUG
         // expression_parser.print_dot();

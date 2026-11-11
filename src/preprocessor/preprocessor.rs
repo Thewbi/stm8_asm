@@ -504,10 +504,11 @@ impl<'a> Preprocessor<'a> {
                                                     // advance lexer doing so
                                                     let actual_parameter_map = self.scrape_parameters(&mut preprocessor_lexer);
 
-                                                    println!("actual_parameter_map: {:?}", &actual_parameter_map);
-                                                    println!("formal_parameter_map_index_to_param: {:?}", &defined_symbol.formal_parameter_map_index_to_param);
-                                                    println!("formal_parameter_map_param_to_index: {:?}", &defined_symbol.formal_parameter_map_param_to_index);
-
+                                                    if self.debug {
+                                                        println!("actual_parameter_map: {:?}", &actual_parameter_map);
+                                                        println!("formal_parameter_map_index_to_param: {:?}", &defined_symbol.formal_parameter_map_index_to_param);
+                                                        println!("formal_parameter_map_param_to_index: {:?}", &defined_symbol.formal_parameter_map_param_to_index);
+                                                    }
                                                     // // clone DefineSymbol.definition into new_string
                                                     // let mut new_string = defined_symbol.definition.clone();
 
