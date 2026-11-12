@@ -257,20 +257,6 @@ impl Parser<String> {
             struct_decl: StructDecl::new(),
 
             // Symbols
-            // let symbol_table_entry = self.symbol_table.borrow_mut().get(&param.name.clone());
-            // // insert param into the symbol table
-            // let mut symbol_table_entry: SymbolTableEntry = SymbolTableEntry::new();
-            // //symbol_table_entry.name = String::from("abcdefghijk");
-            // //symbol_table_entry.initial_name = String::from("abcdefghijk");
-            // symbol_table_entry.name = String::from("abcdefghijk");
-            // symbol_table_entry.initial_name = param.name.clone();
-            // symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
-            // symbol_table_entry.data_type = param.data_type.clone();
-            // symbol_table_entry.parameter_count = 0usize;
-            // symbol_table_entry.has_body = false;
-            // symbol_table_entry.is_array = false;
-            // symbol_table_entry.is_pointer = false;
-            // self.symbol_table.borrow_mut().insert(param.name.clone(), symbol_table_entry);
             symbol_table: symbol_table_param,
 
             // enum

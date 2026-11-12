@@ -701,8 +701,6 @@ impl IdentifierResolutionVisitor {
                     println!("AstNodeType: {:?}", ast_node.rhs);
                 }
 
-
-
                 //
                 // SCOPE - Enter Scope
                 //
@@ -800,9 +798,6 @@ impl IdentifierResolutionVisitor {
                     println!("[identifier_resolution_visitor::FunctionDeclaration()] [AstNodeType::FunctionDeclaration EXIT_SCOPE]");
                 }
                 self.variable_naming_source.borrow_mut().exit_scope();
-
-
-
 
                 //
                 // FUNCTION NAME - check if function name is used already
@@ -1145,6 +1140,21 @@ impl IdentifierResolutionVisitor {
                 // DEBUG
                 if self.debug {
                     println!("AstNodeType: {:?}", ast_node.node_type);
+                }
+
+                // LHS
+                if let Some(left_node_id) = ast_node.lhs {
+                    self.visit(left_node_id, node_map);
+                }
+
+                // RHS
+                if let Some(right_node_id) = ast_node.rhs {
+                    self.visit(right_node_id, node_map);
+                }
+
+                // Expression
+                if let Some(expression_node_id) = ast_node.expression {
+                    self.visit(expression_node_id, node_map);
                 }
             }
 

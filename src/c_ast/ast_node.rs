@@ -1720,31 +1720,10 @@ impl AstNode {
         // create node for this AstNode
         let ast_node_id = self.id;
 
-        // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         if self.print_file_line {
             string_buffer.push_str(format!("{} [label=\"{} Conditional: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
         } else {
             string_buffer.push_str(format!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
-        }
-
-        // lhs - true-statement
-        let mut lhs_ast_node_id = 0;
-        if let Some(left_node) = self.lhs.as_ref() {
-            lhs_ast_node_id = node_map.get(&left_node).unwrap().pretty_print_ast_dot_ex(string_buffer, node_map, "TRUE-Statement:");
-
-            // connect parent and child
-            // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
-        }
-
-        // rhs - false-statement
-        let mut rhs_ast_node_id = 0;
-        if let Some(right_node) = self.rhs.as_ref() {
-            rhs_ast_node_id = node_map.get(&right_node).unwrap().pretty_print_ast_dot_ex(string_buffer, node_map, "FALSE-Statement:");
-
-            // connect parent and child
-            // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
         }
 
         // expression
@@ -1753,8 +1732,25 @@ impl AstNode {
             expression_ast_node_id = node_map.get(&expression_node).unwrap().pretty_print_ast_dot_ex(string_buffer, node_map, "Expression:");
 
             // connect parent and child
-            // println!("{} -> {}", ast_node_id, expression_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, expression_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"Expression\"]\n", ast_node_id, expression_ast_node_id).as_str());
+        }
+
+        // lhs - true-statement
+        let mut lhs_ast_node_id = 0;
+        if let Some(left_node) = self.lhs.as_ref() {
+            lhs_ast_node_id = node_map.get(&left_node).unwrap().pretty_print_ast_dot_ex(string_buffer, node_map, "TRUE-Statement:");
+
+            // connect parent and child
+            string_buffer.push_str(format!("{} -> {} [label=\"LHS (TRUE-stmt)\"]\n", ast_node_id, lhs_ast_node_id).as_str());
+        }
+
+        // rhs - false-statement
+        let mut rhs_ast_node_id = 0;
+        if let Some(right_node) = self.rhs.as_ref() {
+            rhs_ast_node_id = node_map.get(&right_node).unwrap().pretty_print_ast_dot_ex(string_buffer, node_map, "FALSE-Statement:");
+
+            // connect parent and child
+            string_buffer.push_str(format!("{} -> {} [label=\"RHS (FALSE-stmt)\"]\n", ast_node_id, rhs_ast_node_id).as_str());
         }
 
         ast_node_id

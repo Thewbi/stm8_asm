@@ -1072,6 +1072,178 @@ impl TackyVisitor {
         }
     }
 
+    fn function_declaration_handler(&mut self,
+        ast_node: &AstNode,
+        node_map: &mut Box<HashMap<usize, AstNode>>) -> ( ValueElement, DataType )
+    {
+        //
+        // LHS - body of function delaration
+        //
+        // The LHS node is optional. If it is missing, this FunctionDeclaration
+        // is a prototype and the TACKY visitor should not export any TACKY instruction
+        if let Some(lhs_ast_node_id) = ast_node.lhs {
+            // keep processing
+        } else {
+            let return_value: ValueElement = ValueElement::Constant(String::from("0"));
+            return ( return_value, DataType::DataTypeUnknown );
+        }
+
+        let mut function_name = String::new();
+        if let Some(function_name_ast_node_id) = ast_node.function_name_ast_node {
+            let function_name_ast_node = node_map.get(&function_name_ast_node_id).unwrap();
+            function_name = function_name_ast_node.string_val.clone();
+        }
+
+        // there should be a non-empty name for the function to call
+        assert!(function_name.len() > 0);
+
+        // TACKY top level unit (StaticVariable, StaticConstant or Function)
+        let mut top_level_function: TopLevel = TopLevel::new();
+        top_level_function.name = String::from(function_name.clone());
+        top_level_function.top_level_type = TopLevelType::Function;
+        top_level_function.global = true;
+
+        // return type
+        if let Some(data_type_id) = ast_node.rhs {
+
+            let data_type = node_map.get(&data_type_id).unwrap();
+
+            // DEBUG
+            if self.debug {
+                println!("{:?}", data_type);
+            }
+
+            // DataType {
+            // DataTypeByte,
+            // DataTypeChar,
+            // DataTypeInt,
+            // DataTypeShort,
+            // DataTypeLong,
+            // DataTypeFloat,
+            // DataTypeDouble,
+
+            // DataTypeVoid, // is it beneficial to treat void as a data type? (void-pointer?)
+
+            // DataTypeUnknown,
+
+            match data_type.node_type.clone() {
+                AstNodeType::DataType => {
+                    top_level_function.return_type = Some(DataType::from_str(&data_type.string_val).expect("REASON"));
+                },
+                AstNodeType::TypeSpecifier(type_name) => {
+                    let ts = self.type_system.borrow_mut();
+                    let data_type = ts.get(&type_name).unwrap();
+
+                    top_level_function.return_type = Some(data_type.clone());
+
+                    // function_definition_ast_node.set_analyzed_data_type(data_type.clone());
+
+                    // // Assumption: return-value data-type of function
+                    // // return-value data-type of function
+                    // function_definition_ast_node.rhs = Some(sub_ast_node.id);
+                }
+                _ => {
+                    panic!();
+                }
+            }
+        }
+
+        // arguments
+        for param_id in &ast_node.parameters {
+            // DEBUG
+            if self.debug {
+                println!("{:?}", param_id);
+            }
+            let param = node_map.get(&param_id).unwrap();
+            let mut argument = Argument::new();
+            // name
+            if let Some(left_node_id) = param.lhs {
+                // DEBUG
+                if self.debug {
+                    print!("{:?}", left_node_id);
+                }
+                let left_node = node_map.get(&left_node_id).unwrap();
+                argument.name = left_node.string_val.clone();
+            }
+            // data type
+            if let Some(right_node_id) = param.rhs {
+                let right_node = node_map.get(&right_node_id).unwrap();
+                // DEBUG
+                if self.debug {
+                    print!("{:?}", right_node);
+                }
+                let ts = self.type_system.borrow_mut();
+                let ts_data_type = ts.get(&right_node.string_val).unwrap().clone();
+                //argument.data_type = DataType::from_str(&right_node.string_val).expect(format!("Type is not known: {}\n", &right_node.string_val).as_str());
+                argument.data_type = ts_data_type;
+            }
+            top_level_function.arguments.push(Box::new(argument));
+        }
+
+        // insert function into program
+        self.program.top_level.push(Box::new(top_level_function));
+
+        // add instructions and declarations into body/block
+        if let Some(block_id) = ast_node.lhs {
+
+            // resolve node_id to ASTNode
+            let block = node_map.get(&block_id).unwrap().clone();
+
+            // only if the body contains elements. Only if it is not an empty body
+            if block.block_items.len() > 0 {
+
+                // visit each statement in the body
+                for i in 0..block.block_items.len() {
+
+                    // prepare parameters to visit()
+                    let destination_var_name = String::from("");
+                    let mut br_cnt = 0;
+                    let last_block_item_id = block.block_items[block.block_items.len()-1-i];
+
+                    // call visit()
+                    self.visit(last_block_item_id, node_map, &destination_var_name, &mut br_cnt);
+                }
+
+                let last_block_item_id = &block.block_items[0];
+                let last_block_item = node_map.get(&last_block_item_id).unwrap();
+
+                // DEBUG
+                if self.debug {
+                    println!("block.block_items.len(): {}, last_block_item: {:?}", block.block_items.len(), last_block_item);
+                }
+
+                if let Some(block_item_id) = last_block_item.lhs {
+
+                    let block_item = node_map.get(&block_item_id).unwrap();
+                    if let Some(statement_id) = block_item.lhs {
+
+                        let statement = node_map.get(&statement_id).unwrap();
+
+                        // DEBUG
+                        if self.debug {
+                            println!("test: {:?}", statement.node_type);
+                        }
+
+                        if statement.node_type != AstNodeType::Return {
+
+                            let return_value: ValueElement = ValueElement::Constant(String::from("0"));
+
+                            let mut return_instruction: Instruction = Instruction::new();
+                            return_instruction.instruction_type = InstructionType::Return;
+                            return_instruction.src = return_value;
+
+                            // append instruction to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(return_instruction));
+                        }
+                    }
+                }
+            }
+        }
+
+        ( ValueElement::None, DataType::DataTypeUnknown )
+    }
+
     pub fn visit(&mut self,
         ast_node_id: usize,
         node_map: &mut Box<HashMap<usize, AstNode>>,
@@ -1115,170 +1287,7 @@ impl TackyVisitor {
                     println!("{:?}", ast_node);
                 }
 
-                //
-                // LHS - body of function delaration
-                //
-                // The LHS node is optional. If it is missing, this FunctionDeclaration
-                // is a prototype and the TACKY visitor should not export any TACKY instruction
-                if let Some(lhs_ast_node_id) = ast_node.lhs {
-                    // keep processing
-                } else {
-                    let return_value: ValueElement = ValueElement::Constant(String::from("0"));
-                    return ( return_value, DataType::DataTypeUnknown );
-                }
-
-                let mut function_name = String::new();
-                if let Some(function_name_ast_node_id) = ast_node.function_name_ast_node {
-                    let function_name_ast_node = node_map.get(&function_name_ast_node_id).unwrap();
-                    function_name = function_name_ast_node.string_val.clone();
-                }
-
-                // there should be a non-empty name for the function to call
-                assert!(function_name.len() > 0);
-
-                // TACKY top level unit (StaticVariable, StaticConstant or Function)
-                let mut top_level_function: TopLevel = TopLevel::new();
-                top_level_function.name = String::from(function_name.clone());
-                top_level_function.top_level_type = TopLevelType::Function;
-                top_level_function.global = true;
-
-                // return type
-                if let Some(data_type_id) = ast_node.rhs {
-
-                    let data_type = node_map.get(&data_type_id).unwrap();
-
-                    // DEBUG
-                    if self.debug {
-                        println!("{:?}", data_type);
-                    }
-
-                    // DataType {
-                    // DataTypeByte,
-                    // DataTypeChar,
-                    // DataTypeInt,
-                    // DataTypeShort,
-                    // DataTypeLong,
-                    // DataTypeFloat,
-                    // DataTypeDouble,
-
-                    // DataTypeVoid, // is it beneficial to treat void as a data type? (void-pointer?)
-
-                    // DataTypeUnknown,
-
-                    match data_type.node_type.clone() {
-                        AstNodeType::DataType => {
-                            top_level_function.return_type = Some(DataType::from_str(&data_type.string_val).expect("REASON"));
-                        },
-                        AstNodeType::TypeSpecifier(type_name) => {
-                            let ts = self.type_system.borrow_mut();
-                            let data_type = ts.get(&type_name).unwrap();
-
-                            top_level_function.return_type = Some(data_type.clone());
-
-                            // function_definition_ast_node.set_analyzed_data_type(data_type.clone());
-
-                            // // Assumption: return-value data-type of function
-                            // // return-value data-type of function
-                            // function_definition_ast_node.rhs = Some(sub_ast_node.id);
-                        }
-                        _ => {
-                            panic!();
-                        }
-                    }
-                }
-
-                // arguments
-                for param_id in &ast_node.parameters {
-                    // DEBUG
-                    if self.debug {
-                        println!("{:?}", param_id);
-                    }
-                    let param = node_map.get(&param_id).unwrap();
-                    let mut argument = Argument::new();
-                    // name
-                    if let Some(left_node_id) = param.lhs {
-                        // DEBUG
-                        if self.debug {
-                            print!("{:?}", left_node_id);
-                        }
-                        let left_node = node_map.get(&left_node_id).unwrap();
-                        argument.name = left_node.string_val.clone();
-                    }
-                    // data type
-                    if let Some(right_node_id) = param.rhs {
-                        let right_node = node_map.get(&right_node_id).unwrap();
-                        // DEBUG
-                        if self.debug {
-                            print!("{:?}", right_node);
-                        }
-                        let ts = self.type_system.borrow_mut();
-                        let ts_data_type = ts.get(&right_node.string_val).unwrap().clone();
-                        //argument.data_type = DataType::from_str(&right_node.string_val).expect(format!("Type is not known: {}\n", &right_node.string_val).as_str());
-                        argument.data_type = ts_data_type;
-                    }
-                    top_level_function.arguments.push(Box::new(argument));
-                }
-
-                // insert function into program
-                self.program.top_level.push(Box::new(top_level_function));
-
-                // add instructions and declarations into body/block
-                if let Some(block_id) = ast_node.lhs {
-
-                    // resolve node_id to ASTNode
-                    let block = node_map.get(&block_id).unwrap().clone();
-
-                    // only if the body contains elements. Only if it is not an empty body
-                    if block.block_items.len() > 0 {
-
-                        // visit each statement in the body
-                        for i in 0..block.block_items.len() {
-
-                            // prepare parameters to visit()
-                            let destination_var_name = String::from("");
-                            let mut br_cnt = 0;
-                            let last_block_item_id = block.block_items[block.block_items.len()-1-i];
-
-                            // call visit()
-                            self.visit(last_block_item_id, node_map, &destination_var_name, &mut br_cnt);
-                        }
-
-                        let last_block_item_id = &block.block_items[0];
-                        let last_block_item = node_map.get(&last_block_item_id).unwrap();
-
-                        // DEBUG
-                        if self.debug {
-                            println!("block.block_items.len(): {}, last_block_item: {:?}", block.block_items.len(), last_block_item);
-                        }
-
-                        if let Some(block_item_id) = last_block_item.lhs {
-
-                            let block_item = node_map.get(&block_item_id).unwrap();
-                            if let Some(statement_id) = block_item.lhs {
-
-                                let statement = node_map.get(&statement_id).unwrap();
-
-                                // DEBUG
-                                if self.debug {
-                                    println!("test: {:?}", statement.node_type);
-                                }
-
-                                if statement.node_type != AstNodeType::Return {
-
-                                    let return_value: ValueElement = ValueElement::Constant(String::from("0"));
-
-                                    let mut return_instruction: Instruction = Instruction::new();
-                                    return_instruction.instruction_type = InstructionType::Return;
-                                    return_instruction.src = return_value;
-
-                                    // append instruction to latest top-level element of the program
-                                    let last = self.program.top_level.len() - 1;
-                                    self.program.top_level[last].body.push(Box::new(return_instruction));
-                                }
-                            }
-                        }
-                    }
-                }
+                self.function_declaration_handler(&ast_node, node_map);
             }
 
             AstNodeType::Block => {
@@ -2162,7 +2171,7 @@ impl TackyVisitor {
                 return ( ValueElement::Constant(ast_node.string_val.clone()), DataType::DataTypeUnknown );
             }
 
-            AstNodeType::If => {
+            AstNodeType::Conditional | AstNodeType::If => {
 
                 //
                 // Case 1 - if without else or else-if
@@ -2195,7 +2204,7 @@ impl TackyVisitor {
                 // Label<if-end-label> -- create the if-end-label
 
                 //
-                // Case 3 - if with else (no else-if)
+                // Case 3 - if (several branches) with else (no else-if)
                 //
 
                 // -- condition 0
@@ -2214,7 +2223,6 @@ impl TackyVisitor {
                 //     -- body
                 //     <instructions for body 1>
                 //     Jump(if-end-label) -- branch taken, jump to the final end label
-                //
                 // ...
                 //
                 // Label<if-(n-1)-label>
@@ -2232,9 +2240,10 @@ impl TackyVisitor {
                 //     Jump(if-end-label) -- branch taken, jump to the final end label
                 // Label<if-end-label> -- create the if-end-label
 
-
-
+                //
                 // expression
+                //
+
                 let exp_result_var_name
                     = self.expression_to_varname(&ast_node, node_map, branch_counter);
 
@@ -2243,6 +2252,7 @@ impl TackyVisitor {
                 jump_if_zero_instruction.instruction_type = InstructionType::JumpIfZero;
                 jump_if_zero_instruction.src = ValueElement::Variable(exp_result_var_name);
 
+                // handle jump next label from within the if-branch
                 if ast_node.rhs.is_none() {
                     // jump to the final end label, if there are no else or if-else branches
                     jump_if_zero_instruction.label = self.final_end_label(&ast_node, "if_");
@@ -2262,7 +2272,39 @@ impl TackyVisitor {
                     stmt_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
                     self.declare_temporary_variable(&stmt_result_var_name, DataType::DataTypeInt);
 
-                    let lhs_value_element = self.visit(lhs_id, node_map, &stmt_result_var_name, branch_counter);
+                    // build TACKY for the statements in the IF-Branch (LHS)
+                    match ast_node.node_type {
+                        AstNodeType::Conditional => {
+                            //panic!();
+
+                            // move/copy value into the destination
+
+                            // dest node of the conditional / elvis opereator
+                            let destination_ast_node_id = ast_node.expression.unwrap();
+                            let destination_ast_node = node_map.get(&destination_ast_node_id).unwrap();
+
+                            let mut copy_instruction: Instruction = Instruction::new();
+                            copy_instruction.instruction_type = InstructionType::Copy;
+                            copy_instruction.dst = ValueElement::Variable(dst_name.clone());
+
+                            // copy_instruction.src = ValueElement::Constant(String::from("111"));
+
+                            let lhs_value_element_data_type
+                                = self.visit(lhs_id, node_map, &stmt_result_var_name, branch_counter);
+                            copy_instruction.src = lhs_value_element_data_type.0;
+
+                            // append instruction to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(copy_instruction));
+                        }
+                        AstNodeType::If => {
+                            let _lhs_value_element
+                                = self.visit(lhs_id, node_map, &stmt_result_var_name, branch_counter);
+                        }
+                        _ => {
+                            panic!();
+                        }
+                    }
 
                     if !ast_node.rhs.is_none() {
 
@@ -2296,8 +2338,37 @@ impl TackyVisitor {
                     stmt_result_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
                     self.declare_temporary_variable(&stmt_result_var_name, DataType::DataTypeInt);
 
-                    let rhs_value_element
-                        = self.visit(rhs_id, node_map, &stmt_result_var_name, branch_counter);
+                    // build TACKY for the statements in the ELSE-Branch (RHS)
+                    match ast_node.node_type {
+                        AstNodeType::Conditional => {
+                            // move/copy value into the destination
+
+                            // dest node of the conditional / elvis opereator
+                            let destination_ast_node_id = ast_node.expression.unwrap();
+                            let destination_ast_node = node_map.get(&destination_ast_node_id).unwrap();
+
+                            let mut copy_instruction: Instruction = Instruction::new();
+                            copy_instruction.instruction_type = InstructionType::Copy;
+                            copy_instruction.dst = ValueElement::Variable(dst_name.clone());
+
+                            // copy_instruction.src = ValueElement::Constant(String::from("999"));
+
+                            let rhs_value_element_data_type
+                                = self.visit(rhs_id, node_map, &stmt_result_var_name, branch_counter);
+                            copy_instruction.src = rhs_value_element_data_type.0;
+
+                            // append instruction to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(copy_instruction));
+                        }
+                        AstNodeType::If => {
+                            let _rhs_value_element
+                                = self.visit(rhs_id, node_map, &stmt_result_var_name, branch_counter);
+                        }
+                        _ => {
+                            panic!();
+                        }
+                    }
                 }
 
                 // Label - final end label
@@ -2309,8 +2380,30 @@ impl TackyVisitor {
                 let last = self.program.top_level.len() - 1;
                 self.program.top_level[last].body.push(Box::new(label_instruction));
 
-                return ( ValueElement::Constant(ast_node.string_val.clone()), DataType::DataTypeUnknown );
+                //return ( ValueElement::Constant(ast_node.string_val.clone()), DataType::DataTypeUnknown );
+                return ( ValueElement::Variable(dst_name.clone()), DataType::DataTypeUnknown );
             }
+
+            // AstNodeType::Conditional => {
+
+            //     //
+            //     // Case - if with else (no else-if)
+            //     //
+
+            //     // -- condition
+            //     // <instructions for condition>
+            //     // v = <result of condition>
+            //     // JumpIfZero(v, if-0-label) -- if the condition is false, jump to the if-0-label
+            //     //     -- body
+            //     //     <instructions for body>
+            //     //     Jump(if-end-label) -- branch taken, jump to the final end label
+            //     // Label<if-0-label>
+            //     //     -- body
+            //     //     <instructions for body>
+            //     //     Jump(if-end-label) -- branch taken, jump to the final end label
+            //     // Label<if-end-label> -- create the if-end-label
+
+            // }
 
             AstNodeType::Switch => {
                 self.switch_handler(&ast_node, node_map, branch_counter);
@@ -2846,8 +2939,14 @@ impl TackyVisitor {
                                 println!("SingleInit");
                             }
 
+                            //
+                            // LHS - is where the expression to assign to the destination lives
+                            //
+
                             if let Some(left_node_id) = expression_node.lhs {
+
                                 let left_node = node_map.get(&left_node_id).unwrap();
+
                                 // DEBUG
                                 if self.debug {
                                     print!("{:?}", left_node);
@@ -2856,16 +2955,19 @@ impl TackyVisitor {
                                 // Copy
                                 let mut copy_instruction: Instruction = Instruction::new();
                                 copy_instruction.instruction_type = InstructionType::Copy;
+
                                 match &left_node.node_type {
 
                                     AstNodeType::Expression => {
                                         let mut br_cnt = 0;
-                                        let ( value_element, data_type ) = self.visit(left_node_id, node_map, &variable_identifier, &mut br_cnt);
+                                        let ( value_element, data_type )
+                                            = self.visit(left_node_id, node_map, &variable_identifier, &mut br_cnt);
 
                                         // DEBUG
                                         if self.debug {
-                                            println!("data_type: {}, value_element: {:?}", data_type, value_element);
+                                            println!("[TV] AstNodeType::VariableDeclaration - data_type: {}, value_element: {:?}", data_type, value_element);
                                         }
+
                                         copy_instruction.src = value_element;
 
                                         // if the target is of type _Bool, convert non-null values
@@ -2890,9 +2992,13 @@ impl TackyVisitor {
                                         panic!("Unhandled type: {:?}", left_node.node_type);
                                     }
                                 }
+
+                                // DEBUG
                                 // println!("{:?}", copy_instruction.src);
+
                                 // need a source
                                 assert_ne!(copy_instruction.src, ValueElement::None);
+
                                 copy_instruction.dst = ValueElement::Variable(variable_identifier);
                                 if copy_instruction.src != copy_instruction.dst {
                                     // append instruction to latest top-level element of the program
@@ -3110,7 +3216,11 @@ impl TackyVisitor {
                 }
 
                 let current_data_type = copy_instruction.data_type.clone();
-                // println!("{:?}", self.current_data_type);
+
+                // DEBUG
+                if self.debug {
+                    println!("{:?}", current_data_type);
+                }
 
                 // append instruction to latest top-level element of the program
                 let last = self.program.top_level.len() - 1;

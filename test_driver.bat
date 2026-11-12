@@ -48,6 +48,9 @@ for %%L in (
     res\C\samples\c_samples\do_loop_0.c
     res\C\samples\c_samples\do_loop_1.c
 
+    res\C\samples\c_samples\elvis_operator_0.c
+    res\C\samples\c_samples\elvis_operator_1.c
+
     res\C\samples\c_samples\enum_0.c
     res\C\samples\c_samples\enum_1.c
     res\C\samples\c_samples\enum_2.c

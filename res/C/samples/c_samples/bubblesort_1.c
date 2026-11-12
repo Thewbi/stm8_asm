@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\bubblesort_1.c
+
 // #include <stdio.h>
 
 // Funktion zum Sortieren eines Arrays mittels Bubble Sort

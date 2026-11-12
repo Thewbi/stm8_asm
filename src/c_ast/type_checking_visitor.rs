@@ -19,6 +19,9 @@ use crate::common::symbol_table::SymbolTableEntryType;
 //
 // Nora Sandler, page 178
 //
+// The purpose of type checking is that all declarations of identifiers and all
+// usages have compatible types!
+//
 // Every variable identifier has a type (int, long, double, float, char, byte, ...)
 // A variable can also be an array or a struct, union.
 //
@@ -27,9 +30,6 @@ use crate::common::symbol_table::SymbolTableEntryType;
 // A function cannot be declared with a function body more than once!
 //
 // It is not possible to call a variable like a function (function pointers???)
-//
-// The purpose of type checking is that all declarations of identifiers and all
-// usages have compatible types!
 //
 
 // Documentation for RefCell: https://www.youtube.com/watch?v=8O0Nt9qY_vo
@@ -1146,6 +1146,28 @@ impl TypeCheckingVisitor {
         todo!();
     }
 
+    fn conditional_handler(&mut self,
+        ast_node_id: usize,
+        node_map: &mut Box<HashMap<usize, AstNode>>,
+        expected_return_data_type: &DataType) -> DataType
+    {
+        // expression - the expression
+        // LHS - TRUE statement
+        // RHS - FALSE statement
+
+        let ast_node = node_map.get(&ast_node_id).unwrap().clone();
+
+        let lhs_ast_node_id = ast_node.lhs.unwrap();
+        let lhs_data_type: DataType = self.visit(lhs_ast_node_id, node_map, expected_return_data_type);
+
+        let rhs_ast_node_id = ast_node.rhs.unwrap();
+        let rhs_data_type: DataType = self.visit(rhs_ast_node_id, node_map, expected_return_data_type);
+
+        let common_data_type = self.get_common_type(&lhs_data_type, &rhs_data_type);
+
+        return common_data_type;
+    }
+
     fn binary_handler(&mut self,
         ast_node_id: usize,
         node_map: &mut Box<HashMap<usize, AstNode>>,
@@ -1992,7 +2014,7 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Conditional => {
-                todo!();
+                return self.conditional_handler(ast_node.id, node_map, expected_return_data_type);
             }
 
             AstNodeType::Compound => {

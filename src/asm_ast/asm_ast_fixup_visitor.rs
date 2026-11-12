@@ -167,9 +167,12 @@ impl AsmAstFixupVisitor {
                             stack_offset_value = self.stack_offset;
 
                         } else {
-
-                            self.backend_symbol_table.borrow_mut().print_symbol_table();
-
+                            println!("[AsmAstFixupVisitor][ERR] Cannot find symbol '{}' in backend_symbol_table", &pseudo_name);
+                            println!("[AsmAstFixupVisitor][ERR] Printing symbol table for debugging ...");
+                            // DEBUG
+                            //if self.debug {
+                                self.backend_symbol_table.borrow_mut().print_symbol_table();
+                            //}
                             panic!("Cannot find symbol '{}' in backend_symbol_table", &pseudo_name);
                         }
                     }
