@@ -4,6 +4,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+enum FETCH_SOURCE {
+    BACKGROUND,
+    WINDOW,
+    OBJECT
+};
+
 enum PALETTE {
      OBJ_P0,
      OBJ_P1,

@@ -2787,7 +2787,7 @@ impl TackyVisitor {
                             //     Err(e) => panic!("should be valid DataType: {e}"),
                             // };
                             let ts = self.type_system.borrow_mut();
-                            let lhs_data_type = ts.get(data_type_as_string.as_str()).unwrap().clone();
+                            let lhs_data_type = ts.get(data_type_as_string.to_lowercase().as_str()).unwrap().clone();
                         }
                     }
                 }

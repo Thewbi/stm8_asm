@@ -1802,6 +1802,16 @@ impl TypeCheckingVisitor {
                             }
 
                             let ts = self.type_system.borrow();
+
+                            // DEBUG
+                            if self.debug {
+                                println!("[TCV] Type-System ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+                                for (key, value) in ts.clone().into_iter() {
+                                    println!("key: {}, \t\tvalue: {}", key, value);
+                                }
+                                println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+                            }
+
                             if let Some(data_type_ts) = ts.get(&data_type_as_string.to_lowercase()) {
 
                                 // check if the data type is boolean
@@ -1910,7 +1920,7 @@ impl TypeCheckingVisitor {
                 if self.debug {
                     println!("{} {:?}", ast_node.id, ast_node);
                 }
-                return self.type_system.borrow_mut().get(&ast_node.string_val).unwrap().clone();
+                return self.type_system.borrow_mut().get(&ast_node.string_val.to_lowercase()).unwrap().clone();
             }
 
             AstNodeType::EnumDeclaration => {
@@ -2225,7 +2235,7 @@ impl TypeCheckingVisitor {
                 } else {
 
                     let ts = self.type_system.borrow_mut();
-                    let data_type = ts.get(&lhs_node.string_val);
+                    let data_type = ts.get(&lhs_node.string_val.to_lowercase());
 
                     return data_type.unwrap().clone();
                 }

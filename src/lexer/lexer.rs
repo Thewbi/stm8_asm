@@ -260,7 +260,7 @@ impl<'a> Lexer<'a> {
                         // matches a user-defined type
 
                         //if parser.defined_types.contains(&self.token_string_buffer) {
-                        let token_is_type = parser.type_system.borrow().contains_key(&self.token_string_buffer);
+                        let token_is_type = parser.type_system.borrow().contains_key(&self.token_string_buffer.to_lowercase());
 
                         if self.lexer_debug {
                             if token_is_type {

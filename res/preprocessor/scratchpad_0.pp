@@ -4,6 +4,12 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+enum FETCH_SOURCE {
+    BACKGROUND,
+    WINDOW,
+    OBJECT
+};
+
 enum PALETTE {
      OBJ_P0,
      OBJ_P1,
@@ -20,7 +26,6 @@ struct PIXEL_DATA {
 };
 
 typedef struct PIXEL_DATA PIXEL_DATA_t;
-
 
 int main() {
     return 0;

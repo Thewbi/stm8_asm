@@ -1085,16 +1085,16 @@ fn main() {
             print_ast(program_ast_node_id, &node_map, "dot\\abstract_syntax_tree.dot");
         }
 
-        // //
-        // // DEBUG - Print the TYPE-SYSTEM
-        // //
-        // if debug {
-        //     println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-        //     for (key, value) in type_system_rc_99.borrow().clone().into_iter() {
-        //         println!("key: {}, \t\tvalue: {}", key, value);
-        //     }
-        //     println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-        // }
+        //
+        // DEBUG - Print the TYPE-SYSTEM
+        //
+        if debug {
+            println!("[Main] Type-System ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+            for (key, value) in type_system_rc_99.borrow().clone().into_iter() {
+                println!("key: {}, \t\tvalue: {}", key, value);
+            }
+            println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+        }
 
         // PostProcessing after Parsing
         // - compute memory layouts of structs

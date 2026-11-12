@@ -517,13 +517,13 @@ impl Parser<String> {
 
                             // print the type system for debugging
                             let ts = self.type_system.borrow_mut();
-                            // if debug {
-                                println!("TYPE SYSTEM ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+                            if debug {
+                                println!("[Parser] TYPE SYSTEM ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
                                 for (key, value) in ts.clone().into_iter() {
                                     println!("key: {}, \t\tvalue: {}", key, value);
                                 }
                                 println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
-                            // }
+                            }
 
                             // if a StateId is encountered and this match branch is entered,
                             // the input does not comply with the grammar!
@@ -3987,7 +3987,7 @@ impl Parser<String> {
 
                                                     // DEBUG
                                                     if debug {
-                                                        println!("[TYPE-SYSTEM-1] Typedeffing: '{}' -> '{}'", old_type_name, new_type_name );
+                                                        println!("[TYPE-SYSTEM-1] Typedeffing: '{}' -> '{}'", old_type_name.to_lowercase(), new_type_name );
                                                     }
 
                                                     // TODO: handle type system here
@@ -3995,8 +3995,8 @@ impl Parser<String> {
 
                                                     {
                                                         let mut ts = self.type_system.borrow_mut();
-                                                        let old_data_type: DataType = ts.get(&old_type_name).unwrap().clone();
-                                                        ts.insert(new_type_name.clone(), old_data_type);
+                                                        let old_data_type: DataType = ts.get(&old_type_name.to_lowercase()).unwrap().clone();
+                                                        ts.insert(new_type_name.clone().to_lowercase(), old_data_type);
                                                     }
 
                                                     // insert the typedef back into the AST
@@ -4290,7 +4290,7 @@ impl Parser<String> {
                                                     // DEBUG
                                                     if debug {
                                                         println!("[TYPE-SYSTEM-2] Typedeffing: '{}' -> '{}'",
-                                                            old_type_name, new_type_name
+                                                            old_type_name.to_lowercase(), new_type_name
                                                         );
                                                         println!("struct: {:?}", self.struct_decl);
                                                     }
@@ -4299,7 +4299,7 @@ impl Parser<String> {
 
                                                     // handle type system here
                                                     self.type_system.borrow_mut().insert(
-                                                        new_type_name.clone(),
+                                                        new_type_name.clone().to_lowercase(),
                                                         DataType::DataTypeStruct(self.struct_decl.clone()));
 
                                                     // insert the typedef back into the AST
@@ -5862,7 +5862,7 @@ impl Parser<String> {
 
                                                 // DEBUG
                                                 if debug {
-                                                    println!("[TYPE-SYSTEM-3] Inserting Struct Type: '{}'", &struct_tag);
+                                                    println!("[TYPE-SYSTEM-3] Inserting Struct Type: '{}'", &struct_tag.to_lowercase());
                                                 }
 
                                                 let struct_declaration_ast_node = self.ast_stack_pop().unwrap();
@@ -5871,7 +5871,7 @@ impl Parser<String> {
                                                 let temp_data_type = DataType::DataTypeStruct(struct_decl_clone);
                                                 // insert the struct into the type-system
                                                 let mut ts = self.type_system.borrow_mut();
-                                                ts.insert(struct_tag_clone, temp_data_type);
+                                                ts.insert(struct_tag_clone.to_lowercase(), temp_data_type);
 
                                                 // reset
                                                 self.struct_field_counter = 0;
@@ -6655,7 +6655,7 @@ impl Parser<String> {
 
                                             // Honolulu
                                             // let mut ts = self.type_system.borrow_mut();
-                                            // ts.insert(enum_identifier.clone(), DataType::DataTypeInt);
+                                            // ts.insert(enum_identifier.clone().to_lowercase(), DataType::DataTypeInt);
 
                                             //
                                             // AST
@@ -9466,11 +9466,11 @@ impl Parser<String> {
         let new_type_name = new_type_ast_node.string_val.clone();
 
         // DEBUG
-        if debug {
+        // if debug {
             println!("[Parser][Rule-136] [TYPE-SYSTEM-3] Typedeffing: '{}' -> '{}'",
-                old_type_name, new_type_name
+                old_type_name.to_lowercase(), new_type_name
             );
-        }
+        // }
 
         let mut type_type: DataType = DataType::DataTypeUnknown;
         let mut ts = self.type_system.borrow_mut();
@@ -9482,7 +9482,7 @@ impl Parser<String> {
         // This will change how the lexer works. Instead of IDENTIFIERS
         // it will now return a TYPE_NAME token if the input matches a type
         // defined in the type system.
-        ts.insert(new_type_name.clone(), type_type.clone());
+        ts.insert(new_type_name.clone().to_lowercase(), type_type.clone());
     }
 
     fn get_ast_node_id(&mut self) -> usize
