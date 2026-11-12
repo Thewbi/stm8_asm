@@ -21,6 +21,7 @@ use crate::common::data_type::DataType;
 #[derive(Clone, Debug, PartialEq)]
 pub enum AstNodeType {
     Program,
+    ConstChar,
     ConstInt,
     ConstLong,
     ConstUInt,
@@ -76,6 +77,26 @@ pub enum AstNodeType {
     Typedef,
     TypeSpecifier(String),
     Unknown,
+}
+
+pub fn from_data_type(data_type: &DataType) -> AstNodeType {
+    match data_type {
+        DataType::DataTypeChar |
+        DataType::DataTypeUnsignedChar |
+        DataType::DataTypeInt |
+        DataType::DataTypeSignedInt |
+        DataType::DataTypeUnsignedInt |
+        DataType::DataTypeShort |
+        DataType::DataTypeSignedShort |
+        DataType::DataTypeUnsignedShort |
+        DataType::DataTypeLong |
+        DataType::DataTypeUnsignedLong |
+        DataType::DataTypeFloat |
+        DataType::DataTypeDouble |
+        DataType::DataTypeVoid |
+        DataType::DataTypeBool => AstNodeType::DataType,
+        _ => panic!("Unhandled DataType: '{}'", data_type)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -232,13 +253,14 @@ impl fmt::Debug for AstNode {
                 }
             }
 
+            AstNodeType::ConstChar |
             AstNodeType::ConstInt |
             AstNodeType::ConstLong |
             AstNodeType::ConstUInt |
             AstNodeType::ConstULong |
             AstNodeType::ConstDouble => {
                 if self.debug {
-                    println!("AstNodeType::Constant Int/Long/UInt/ULong/Double");
+                    println!("AstNodeType::Constant Char/Int/Long/UInt/ULong/Double");
                     println!(" string_val:'{:?}'", self.string_val);
                     println!(" analyzed_data_type: ['{:?}']", self.analyzed_data_type);
                 }

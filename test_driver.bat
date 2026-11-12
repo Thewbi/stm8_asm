@@ -129,11 +129,15 @@ for %%L in (
 
     res\C\samples\c_samples\switch_0.c
     res\C\samples\c_samples\switch_1.c
+
     res\C\samples\c_samples\test_0.c
     res\C\samples\c_samples\test_1.c
+
     res\C\samples\c_samples\typedef_0.c
     res\C\samples\c_samples\typedef_1.c
     res\C\samples\c_samples\typedef_2.c
+    res\C\samples\c_samples\typedef_3.c
+    res\C\samples\c_samples\typedef_4.c
 
     res\C\samples\c_samples\while_loop_0.c
     res\C\samples\c_samples\while_loop_1.c

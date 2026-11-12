@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\linked_list_1.c
+
 #include <stddef.h>
 
 struct node {

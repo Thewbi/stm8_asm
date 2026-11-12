@@ -38,6 +38,7 @@ use crate::parser::grammar_state::GrammarState;
 use crate::c_ast::ast_node::AstNode;
 use crate::c_ast::ast_node::AstNodeType;
 use crate::c_ast::ast_node::AstNodeOperatorType;
+use crate::c_ast::ast_node::from_data_type;
 
 pub struct Transition<T>(pub usize, pub RuleElement<T>);
 
@@ -513,6 +514,17 @@ impl Parser<String> {
                     match &stack_top_element.element_type {
 
                         ParseStackElementType::StateId(current_state_id) => {
+
+                            // print the type system for debugging
+                            let ts = self.type_system.borrow_mut();
+                            // if debug {
+                                println!("TYPE SYSTEM ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+                                for (key, value) in ts.clone().into_iter() {
+                                    println!("key: {}, \t\tvalue: {}", key, value);
+                                }
+                                println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+                            // }
+
                             // if a StateId is encountered and this match branch is entered,
                             // the input does not comply with the grammar!
                             // The grammar used is: https://www.lysator.liu.se/c/ANSI-C-grammar-y.html
@@ -3974,7 +3986,9 @@ impl Parser<String> {
                                                     let new_type_name = new_type_ast_node.string_val.clone();
 
                                                     // DEBUG
-                                                    // println!("[TYPE-SYSTEM] Typedeffing: '{}' -> '{}'", old_type_name, new_type_name );
+                                                    if debug {
+                                                        println!("[TYPE-SYSTEM-1] Typedeffing: '{}' -> '{}'", old_type_name, new_type_name );
+                                                    }
 
                                                     // TODO: handle type system here
                                                     //let old_data_type = DataType::from_str(&old_type_name).expect("Need DataType");
@@ -3984,7 +3998,6 @@ impl Parser<String> {
                                                         let old_data_type: DataType = ts.get(&old_type_name).unwrap().clone();
                                                         ts.insert(new_type_name.clone(), old_data_type);
                                                     }
-
 
                                                     // insert the typedef back into the AST
 
@@ -4276,7 +4289,7 @@ impl Parser<String> {
 
                                                     // DEBUG
                                                     if debug {
-                                                        println!("[TYPE-SYSTEM-1] Typedeffing: '{}' -> '{}'",
+                                                        println!("[TYPE-SYSTEM-2] Typedeffing: '{}' -> '{}'",
                                                             old_type_name, new_type_name
                                                         );
                                                         println!("struct: {:?}", self.struct_decl);
@@ -5449,22 +5462,29 @@ impl Parser<String> {
                                         }
 
                                         // type_specifier -> TYPE_NAME
-                                        //
-                                        // This rule is reduced for struct typedefs
-                                        // typedef struct point point_t;
-                                        //
-                                        // It is not reduced for simple typedefs
-                                        // typedef unsigned char uint8_t
-                                        // typedef char int8_t
-                                        //
-                                        // it is also reduced for typedeffed types
                                         106 => {
+
+                                            //
+                                            // This rule is reduced for struct typedefs
+                                            // typedef struct point point_t;
+                                            //
+                                            // It is not reduced for simple typedefs
+                                            // typedef unsigned char uint8_t
+                                            // typedef char int8_t
+                                            //
+                                            // it is also reduced for typedeffed types
+
                                             // retrieve terminal TYPE_NAME
                                             let mut value = String::from("");
                                             for terminal_rev in rule_reverse.iter().rev() {
                                                 value = terminal_rev.clone().unwrap().data;
-                                                // println!("[Parser::consume()] [108] TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
+
+                                                // DEBUG
+                                                // println!("[Parser::consume()] [106] TerminalValue: '{}'", terminal_rev.clone().unwrap().data);
                                             }
+
+                                            // DEBUG
+                                            // println!("[Parser::consume()] [106] value: '{}'", value);
 
                                             // create new node
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -5475,7 +5495,6 @@ impl Parser<String> {
                                             // IDENTIFIER
                                             let identifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let identifier_node = DebugNode::new(identifier_node_id, value.clone());
-                                            // debug_node_stack.push(debug_node);
                                             string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", identifier_node_id, identifier_node_id, value.clone()).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, identifier_node.id).as_str());
 
@@ -5516,11 +5535,30 @@ impl Parser<String> {
                                                     // };
                                                     // typedef struct point point_t;
 
-                                                    let mut type_ast_node: AstNode = AstNode::new(self.get_ast_node_id());
-                                                    type_ast_node.node_type = AstNodeType::StructureDeclaration;
+                                                    let ast_node_id = self.get_ast_node_id();
+                                                    let mut type_ast_node: AstNode = AstNode::new(ast_node_id);
+
+                                                    // println!("value: '{}'", value);
+
+                                                    let ts = self.type_system.borrow_mut();
+                                                    if ts.contains_key(&value) {
+                                                        let data_type = ts.get(&value).unwrap();
+                                                        type_ast_node.node_type = from_data_type(&data_type);
+                                                    } else {
+                                                        // TODO: rebuild the entire typedef system!
+                                                        // This is so convoluted! I do not know why it works!
+                                                        // The entire typedef detection system needs to be recreated!
+                                                        // It is a mess
+                                                        type_ast_node.node_type = AstNodeType::StructureDeclaration;
+                                                    }
                                                     type_ast_node.string_val = value.clone();
                                                     type_ast_node.file = file.clone();
                                                     type_ast_node.line = line;
+
+                                                    // DEBUG
+                                                    if debug {
+                                                        println!("type_ast_node: {:?}", type_ast_node);
+                                                    }
 
                                                     self.ast_stack.push(type_ast_node.id);
 
@@ -5643,8 +5681,6 @@ impl Parser<String> {
                                                 self.struct_decl = StructDecl::new();
                                                 self.struct_decl.tag = struct_tag.clone();
 
-
-
                                                 // the stack contains the struct members in inverse order
                                                 // The order matters for memory layout
                                                 // invert the order
@@ -5723,7 +5759,10 @@ impl Parser<String> {
 
                                                                 //struct_member.data_type = DataType::DataTypeUnknown;
 
-                                                                let data_type = DataType::from_str(&type_as_string).expect("[Parser][Rule: 107] REASON");
+                                                                let ts = self.type_system.borrow();
+                                                                let data_type: DataType = ts.get(&type_as_string.to_lowercase()).unwrap().clone();
+
+                                                                // let data_type = DataType::from_str(&type_as_string).expect("[Parser][Rule: 107] REASON");
                                                                 struct_member.data_type = data_type;
                                                             }
 
@@ -6148,7 +6187,7 @@ impl Parser<String> {
                                             debug_node_stack.push(debug_node);
 
                                             //
-                                            // AST - struct_declaration -> specifier_qualifier_list struct_declarator_list SEMICOLON
+                                            // AST - Rule: 115 - struct_declaration -> specifier_qualifier_list struct_declarator_list SEMICOLON
                                             //
                                             // This is a member declaration within a struct.
                                             //
@@ -6322,25 +6361,35 @@ impl Parser<String> {
                                                         _ => {
 
                                                             // DEBUG
-                                                            // self.print_ast_stack(node_map);
+                                                            if debug {
+                                                                self.print_ast_stack(node_map);
+                                                            }
 
                                                             // name of new member
                                                             let identifier_ast_node_id = ast_node_id;
                                                             let identifier_ast_node = ast_node;
+
+                                                            // DEBUG
                                                             if debug {
                                                                 println!("identifier_ast_node: '{:?}'", identifier_ast_node);
-                                                                println!("identifier_ast_node: '{}'", &identifier_ast_node.string_val);
+                                                                println!("identifier_ast_node.string_val: '{}'", &identifier_ast_node.string_val);
                                                             }
+
                                                             member_declaration_ast_node.rhs = Some(identifier_ast_node_id);
 
-                                                            // // DEBUG
-                                                            // self.print_ast_stack(node_map);
+                                                            // DEBUG
+                                                            if debug {
+                                                                self.print_ast_stack(node_map);
+                                                            }
 
                                                             // type of new member
                                                             let type_ast_node_id = self.ast_stack_pop().unwrap();
                                                             let type_ast_node = node_map.get(&type_ast_node_id).unwrap();
+
+                                                            // DEBUG
                                                             if debug {
-                                                                println!("type_ast_node: '{}'", &type_ast_node.string_val);
+                                                                println!("type_ast_node: '{:?}'", &type_ast_node);
+                                                                println!("type_ast_node.string_val: '{}'", &type_ast_node.string_val);
                                                                 println!("type_ast_node.node_type: '{:?}'", &type_ast_node.node_type);
                                                             }
 
@@ -6361,7 +6410,8 @@ impl Parser<String> {
                                                                     member_declaration_ast_node.lhs = Some(type_ast_node_id);
                                                                 }
                                                                 _ => {
-                                                                    panic!("Unexpected: {:?}", type_ast_node.node_type);
+                                                                    panic!("Unexpected: AstNodeType: '{:?}' in AstNode: {:?}",
+                                                                        type_ast_node.node_type, type_ast_node);
                                                                 }
                                                             }
                                                         }
@@ -9417,7 +9467,7 @@ impl Parser<String> {
 
         // DEBUG
         if debug {
-            println!("[Parser][Rule-136] [TYPE-SYSTEM-2] Typedeffing: '{}' -> '{}'",
+            println!("[Parser][Rule-136] [TYPE-SYSTEM-3] Typedeffing: '{}' -> '{}'",
                 old_type_name, new_type_name
             );
         }

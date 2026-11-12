@@ -1,18 +1,27 @@
-// res\C\samples\c_samples\struct_12.c
+// res\C\samples\c_samples\struct_13.c
 
-//struct options {
-//    const char *filename;       /* filename of the input file             */
-//    const char *output_file;    /* where to store the output              */
-//} opt;
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
-struct options {
-    const char *filename;       /* filename of the input file             */
-    const char *output_file;    /* where to store the output              */
+enum PALETTE {
+     OBJ_P0,
+     OBJ_P1,
+     NOT_OBJ
+ };
+
+struct PIXEL_DATA {
+    uint8_t binary_data;
+    enum FETCH_SOURCE source;
+    bool palette;
+    bool priority;
+    uint16_t address;
+    uint8_t x_pos;
 };
 
+typedef struct PIXEL_DATA PIXEL_DATA_t;
+
+
 int main() {
-
-    struct options opt;
-
     return 0;
 }

@@ -19,8 +19,7 @@ struct PIXEL_DATA {
     uint8_t x_pos;
 };
 
-//typedef struct PIXEL_DATA PIXEL_DATA_t;
-
+typedef struct PIXEL_DATA PIXEL_DATA_t;
 
 int main() {
     return 0;

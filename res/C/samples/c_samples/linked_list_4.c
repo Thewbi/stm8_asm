@@ -1,4 +1,4 @@
-// linked_list_4.c
+// res\C\samples\c_samples\linked_list_4.c
 
 #include <stddef.h>
 
