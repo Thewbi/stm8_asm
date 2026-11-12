@@ -3972,12 +3972,19 @@ impl Parser<String> {
 
                                                     let old_type_name = old_type.clone();
                                                     let new_type_name = new_type_ast_node.string_val.clone();
-                                                    // println!("[TYPE-SYSTEM] Typedeffing: '{}' -> '{}'",
-                                                    //     old_type_name, new_type_name
-                                                    // );
+
+                                                    // DEBUG
+                                                    // println!("[TYPE-SYSTEM] Typedeffing: '{}' -> '{}'", old_type_name, new_type_name );
 
                                                     // TODO: handle type system here
-                                                    //self.type_ system.borrow_mut().insert(new_type_name.clone(), DataType::DataTypeUnknown);
+                                                    //let old_data_type = DataType::from_str(&old_type_name).expect("Need DataType");
+
+                                                    {
+                                                        let mut ts = self.type_system.borrow_mut();
+                                                        let old_data_type: DataType = ts.get(&old_type_name).unwrap().clone();
+                                                        ts.insert(new_type_name.clone(), old_data_type);
+                                                    }
+
 
                                                     // insert the typedef back into the AST
 
@@ -4312,10 +4319,14 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // declaration_specifiers -> storage_class_specifier declaration_specifiers
+                                        // Rule 79: declaration_specifiers -> storage_class_specifier declaration_specifiers
                                         // e.g. declaration_specifiers -> TYPEDEF + [unsigned CHAR]
                                         // e.g. declaration_specifiers -> TYPEDEF + [CHAR]
                                         79 => {
+
+                                            // DEBUG
+                                            // println!("debug_node_stack: {:?}", debug_node_stack);
+
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -4323,22 +4334,41 @@ impl Parser<String> {
                                             // print new node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("declaration_specifiers")).as_str());
 
-                                            // take old node from stack - storage_class_specifier
-                                            let old_debug_node = debug_node_stack.pop().unwrap();
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+                                            // DEBUG
+                                            // print the debug_node stack
+                                            // println!("debug_node_stack: {:?}", debug_node_stack);
 
                                             // take old node from stack - declaration_specifiers
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
 
+                                            // DEBUG
+                                            // print the debug_node stack
+                                            // println!("debug_node_stack: {:?}", debug_node_stack);
+
+                                            // take old node from stack - storage_class_specifier
+                                            let old_debug_node = debug_node_stack.pop().unwrap();
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
+
+                                            // DEBUG
+                                            // print the debug_node stack
+                                            // println!("debug_node_stack: {:?}", debug_node_stack);
+
+
+
+
+
                                             // push new node to stack
                                             debug_node_stack.push(debug_node);
 
                                             //
-                                            // AST - declaration_specifiers -> storage_class_specifier declaration_specifiers
+                                            // AST - Rule 79: declaration_specifiers -> storage_class_specifier declaration_specifiers
                                             //
 
                                             if self.construct_ast {
+
+                                                // DEBUG
+                                                //self.print_ast_stack(node_map);
 
                                                 // let ast_node_id = self.ast_stack_pop().unwrap();
                                                 // let mut ast_node = node_map.get(&ast_node_id).unwrap().clone();
@@ -4358,6 +4388,7 @@ impl Parser<String> {
                                                     //typedef byte uint8_t;
                                                     //typedef struct point point_t;
 
+                                                    // DEBUG
                                                     // self.print_ast_stack(node_map);
 
                                                     let insert_typedef_ast_node = false;
@@ -4696,17 +4727,23 @@ impl Parser<String> {
 
                                         // storage_class_specifier -> TYPEDEF
                                         89 => {
-                                            // push node onto stack
+
+                                            // DEBUG
+                                            // println!("debug_node_stack: {:?}", debug_node_stack);
+
+                                            // create new node
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("storage_class_specifier"));
                                             // print node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("storage_class_specifier")).as_str());
 
+                                            // create another new node for the TYPEDEF keyword
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("TYPEDEF"));
                                             string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, String::from("TYPEDEF")).as_str());
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
 
+                                            // push new node to stack
                                             debug_node_stack.push(debug_node);
 
                                             //
@@ -5512,8 +5549,11 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // struct_or_union_specifier -> struct_or_union IDENTIFIER OPENING_CURLY_BRACKET struct_declaration_list CLOSING_CURLY_BRACKET
+                                        // 107; struct_or_union_specifier -> struct_or_union IDENTIFIER OPENING_CURLY_BRACKET struct_declaration_list CLOSING_CURLY_BRACKET
                                         107 => {
+
+                                            // DEBUG
+                                            // println!("debug_node_stack: {:?}", debug_node_stack);
 
                                             // retrieve struct name
                                             // the first value is a whitespace character
@@ -5549,18 +5589,18 @@ impl Parser<String> {
                                             identifier_label.push_str("'");
                                             let identifier_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let identifier_node = DebugNode::new(identifier_node_id, identifier_label.clone());
-                                            string_buffer.push_str(format!("{} [label=\"{} BelongsToRule:{} {}\"]\n",
-                                                identifier_node_id, identifier_node_id, found_rule.original_id, identifier_label.clone()).as_str());
-                                            // string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, identifier_node_id).as_str());
+                                            string_buffer.push_str(format!("{} [label=\"{} {}\"]\n",
+                                                identifier_node_id, identifier_node_id, identifier_label.clone()).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, identifier_node_id).as_str());
 
                                             // push new node to stack
-                                            debug_node_stack.push(identifier_node);
+                                            // debug_node_stack.push(identifier_node);
 
                                             //
-                                            // LHS - struct_or_union
+                                            // LHS - struct_declaration_list
                                             //
 
-                                            // take old node from stack - struct_or_union
+                                            // take old node from stack - struct_declaration_list
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
@@ -5571,7 +5611,7 @@ impl Parser<String> {
 
                                             // OPENING_CURLY_BRACKET
 
-                                            // take old node from stack - struct_declaration_list
+                                            // take old node from stack - struct_or_union
                                             let old_debug_node = debug_node_stack.pop().unwrap();
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
@@ -5587,21 +5627,23 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
+                                                // DEBUG
+                                                if debug {
+                                                    self.print_ast_stack(node_map);
+                                                }
+
                                                 let mut struct_ast_node: AstNode = AstNode::new(self.get_ast_node_id());
                                                 struct_ast_node.node_type = AstNodeType::StructureDeclaration;
                                                 struct_ast_node.string_val = value.clone();
                                                 struct_ast_node.file = file.clone();
                                                 struct_ast_node.line = line;
 
-                                                let struct_tag = value.clone().clone();
+                                                let struct_tag = value.clone();
 
                                                 self.struct_decl = StructDecl::new();
                                                 self.struct_decl.tag = struct_tag.clone();
 
-                                                // DEBUG
-                                                if debug {
-                                                    self.print_ast_stack(node_map);
-                                                }
+
 
                                                 // the stack contains the struct members in inverse order
                                                 // The order matters for memory layout
@@ -5610,9 +5652,13 @@ impl Parser<String> {
 
                                                 // this iterates over all members of the struct
                                                 let counter = self.struct_field_counter;
+                                                // println!("struct_field_counter: {}", counter);
                                                 for i in 0..counter {
                                                     reverse.push(self.ast_stack_pop().unwrap());
                                                 }
+
+                                                // DEBUG
+                                                // self.print_ast_stack(node_map);
 
                                                 for i in 0..reverse.len() {
 
@@ -5672,7 +5718,12 @@ impl Parser<String> {
                                                                 let type_as_string = member_type_node.string_val;
                                                                 struct_member.member_type = type_as_string.clone();
 
-                                                                let data_type = DataType::from_str(&type_as_string).expect("REASON");
+                                                                // DEBUG
+                                                                // println!("[PARSER][Rule: 107] type_as_string: '{}'", type_as_string);
+
+                                                                //struct_member.data_type = DataType::DataTypeUnknown;
+
+                                                                let data_type = DataType::from_str(&type_as_string).expect("[Parser][Rule: 107] REASON");
                                                                 struct_member.data_type = data_type;
                                                             }
 
@@ -5796,7 +5847,9 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // struct_or_union_specifier -> struct_or_union IDENTIFIER
+                                        // 108; struct_or_union_specifier;struct_or_union;OPENING_CURLY_BRACKET;struct_declaration_list;CLOSING_CURLY_BRACKET
+
+                                        // 109; struct_or_union_specifier -> struct_or_union IDENTIFIER
                                         109 => {
 
                                             // DEBUG
@@ -5835,10 +5888,8 @@ impl Parser<String> {
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, declarator_node.id).as_str());
 
-                                            // DEBUG
-                                            if debug {
-                                                debug_node_stack.push(debug_node);
-                                            }
+                                            // add node to stack
+                                            debug_node_stack.push(debug_node);
 
                                             //
                                             // TYPEDEF HANDLING
@@ -5852,9 +5903,6 @@ impl Parser<String> {
                                                 // to satisfy the grammar rule which explicitly contains
                                                 // a TYPE_NAME token!
                                                 self.lexer_produce_type_name = true;
-
-                                                // self.is_typedef_active = false;
-                                                // self.set_typedef_active(false);
                                             }
 
                                             self.last_source_type = value.clone();
@@ -5891,7 +5939,8 @@ impl Parser<String> {
                                             }
                                         }
 
-                                        // 109;struct_or_union_specifier;struct_or_union;TYPE_NAME
+                                        // struct_or_union_specifier -> struct_or_union TYPE_NAME
+                                        // 110;struct_or_union_specifier;struct_or_union;TYPE_NAME
                                         110 => {
 
                                             // DEBUG
@@ -5922,7 +5971,7 @@ impl Parser<String> {
                                             // print node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("struct_or_union_specifier")).as_str());
 
-                                            // IDENTIFIER
+                                            // TYPE_NAME
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, value.clone());
                                             string_buffer.push_str(format!("{:?} [label=\"{} {}\"]\n", type_node_id, type_node_id, value.clone()).as_str());
@@ -5934,6 +5983,7 @@ impl Parser<String> {
                                             // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, declarator_node.id).as_str());
 
+                                            // push new node onto the stack
                                             debug_node_stack.push(debug_node);
 
                                             //
@@ -5993,16 +6043,16 @@ impl Parser<String> {
                                             // push node onto stack
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let debug_node = DebugNode::new(debug_node_id, String::from("struct_or_union"));
-                                            debug_node_stack.push(debug_node);
                                             // print node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("struct_or_union")).as_str());
 
                                             let type_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let type_node = DebugNode::new(type_node_id, String::from("STRUCT"));
-                                            // debug_node_stack.push(debug_node);
                                             string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", type_node_id, type_node_id, found_rule.original_id, String::from("STRUCT")).as_str());
-
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
+
+                                            // push new node to stack
+                                            debug_node_stack.push(debug_node);
 
                                             //
                                             // AST - struct_or_union -> STRUCT
@@ -7004,7 +7054,7 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_node.id).as_str());
 
                                             //
-                                            // AST - direct_declarator -> IDENTIFIER
+                                            // AST - Rule:136 direct_declarator -> IDENTIFIER
                                             //
 
                                             if self.construct_ast {
@@ -7019,7 +7069,7 @@ impl Parser<String> {
                                                 ast_node.line = line;
 
                                                 // // DEBUG
-                                                // println!("[Rule 135] {:?}", &ast_node);
+                                                // println!("[Parser][Rule 135] {:?}", &ast_node);
 
                                                 self.ast_stack.push(ast_node.id);
 
@@ -7031,79 +7081,11 @@ impl Parser<String> {
                                                 //
                                                 // TYPE-SYSTEM
                                                 //
-
+                                                /**/
                                                 if self.typedef_found {
-
-                                                    // DEBUG
-                                                    //self.print_ast_stack(node_map);
-
-                                                    // // reset
-                                                    // self.set_typedef_active(false);
-                                                    // self.typedef_found = false;
-                                                    // self.last_type_specifier = String::new();
-                                                    // self.last_source_type = String::new();
-
-                                                    // take the new-type identifier from the ast stack
-                                                    let new_type_ast_node_id = self.ast_stack_pop().unwrap();
-                                                    let new_type_ast_node = node_map.get(&new_type_ast_node_id).unwrap().clone();
-                                                    //println!("new-type: '{}'", &new_type_ast_node.string_val);
-
-                                                    // take the type node from the ast stack
-                                                    let old_type_ast_node_id = self.ast_stack_pop().unwrap();
-                                                    let old_type_ast_node = node_map.get(&old_type_ast_node_id).unwrap().clone();
-                                                    //println!("old_type: '{}'", &old_type_ast_node.string_val);
-
-                                                    // take the qualifier (signed / unsigned) node from the ast stack
-                                                    let temp_ast_node_id = self.ast_stack_pop().unwrap();
-                                                    let temp_ast_node = node_map.get(&temp_ast_node_id).unwrap().clone();
-                                                    //println!("qualifier: '{}'", &temp_ast_node.string_val);
-
-                                                    // Put the nodes back because another rule will build the AST from it
-                                                    self.ast_stack.push(temp_ast_node_id);
-                                                    self.ast_stack.push(old_type_ast_node_id);
-                                                    self.ast_stack.push(new_type_ast_node_id);
-
-                                                    // DEBUG
-                                                    //self.print_ast_stack(node_map);
-
-                                                    let mut old_type = String::new();
-                                                    if temp_ast_node.string_val == "TYPEDEF" {
-                                                        old_type = old_type_ast_node.string_val.clone();
-                                                    } else {
-                                                        old_type.push_str(temp_ast_node.string_val.clone().as_str());
-                                                        old_type.push_str(" ");
-                                                        old_type.push_str(old_type_ast_node.string_val.clone().as_str());
-
-                                                        // // why do we need to do this? it breaks the parser!
-                                                        // // take the TYPEDEF node from the AST stack
-                                                        // let typedef_ast_node_id = self.ast_stack_pop().unwrap();
-                                                        // let typedef_ast_node = node_map.get(&typedef_ast_node_id).unwrap().clone();
-                                                        // // println!("'{}'", &typedef_ast_node.string_val);
-                                                    }
-
-                                                    //
-                                                    // TYPE-SYSTEM
-                                                    //
-
-                                                    let old_type_name = old_type.clone();
-                                                    let new_type_name = new_type_ast_node.string_val.clone();
-
-                                                    // DEBUG
-                                                    if debug {
-                                                        println!("[TYPE-SYSTEM-2] Typedeffing: '{}' -> '{}'",
-                                                            old_type_name, new_type_name
-                                                        );
-                                                    }
-
-                                                    let mut type_type: DataType = DataType::DataTypeUnknown;
-                                                    let mut ts = self.type_system.borrow_mut();
-                                                    if let Some(data_type) = ts.get(old_type_name.as_str()) {
-                                                        type_type = data_type.clone();
-                                                    } else {
-                                                        panic!("TypeSystem has no type: '{:?}'", old_type_name);
-                                                    }
-                                                    ts.insert(new_type_name.clone(), type_type.clone());
+                                                    //self.process_typedef(node_map);
                                                 }
+                                                /**/
                                             }
                                         }
 
@@ -9355,6 +9337,102 @@ impl Parser<String> {
                 }
             }
         }
+    }
+
+    fn process_typedef(&mut self, node_map: &mut Box<HashMap<usize, AstNode>>,) {
+
+        let debug = false;
+
+        // DEBUG
+        //self.print_ast_stack(node_map);
+
+        // // reset
+        // self.set_typedef_active(false);
+        // self.typedef_found = false;
+        // self.last_type_specifier = String::new();
+        // self.last_source_type = String::new();
+
+        // take the new-type identifier from the ast stack
+        let new_type_ast_node_id = self.ast_stack_pop().unwrap();
+        let new_type_ast_node = node_map.get(&new_type_ast_node_id).unwrap().clone();
+
+        // DEBUG
+        //println!("[Parser][Rule-136] new-type: '{}'", &new_type_ast_node.string_val);
+
+        // take the type node from the ast stack
+        let old_type_ast_node_id = self.ast_stack_pop().unwrap();
+        let old_type_ast_node = node_map.get(&old_type_ast_node_id).unwrap().clone();
+        // DEBUG
+        //println!("[Parser][Rule-136] old_type: '{}'", &old_type_ast_node.string_val);
+
+        // take the qualifier (signed / unsigned) or struct node from the ast stack
+        let temp_ast_node_id = self.ast_stack_pop().unwrap();
+        let temp_ast_node = node_map.get(&temp_ast_node_id).unwrap().clone();
+        // DEBUG
+        //println!("[Parser][Rule-136] qualifier: '{}'", &temp_ast_node.string_val);
+
+        // Put the nodes back because another rule will build the AST from it
+        self.ast_stack.push(temp_ast_node_id);
+        self.ast_stack.push(old_type_ast_node_id);
+        self.ast_stack.push(new_type_ast_node_id);
+
+        // DEBUG
+        //self.print_ast_stack(node_map);
+
+        let mut old_type = String::new();
+        if temp_ast_node.string_val == "TYPEDEF" {
+            old_type = old_type_ast_node.string_val.clone();
+        } else if temp_ast_node.string_val == "STRUCT" {
+            // println!("old_type_ast_node: {:?}", old_type_ast_node);
+            old_type = old_type_ast_node.string_val.clone();
+
+            // DEBUG
+            // self.print_ast_stack(node_map);
+
+            // the node which describes the struct
+            let temp_ast_node_id = self.ast_stack_pop().unwrap();
+            let temp_ast_node = node_map.get(&temp_ast_node_id).unwrap().clone();
+        } else {
+            old_type.push_str(temp_ast_node.string_val.clone().as_str());
+            old_type.push_str(" ");
+            old_type.push_str(old_type_ast_node.string_val.clone().as_str());
+
+            // // why do we need to do this? it breaks the parser!
+            // // take the TYPEDEF node from the AST stack
+            // let typedef_ast_node_id = self.ast_stack_pop().unwrap();
+            // let typedef_ast_node = node_map.get(&typedef_ast_node_id).unwrap().clone();
+            // // println!("[Parser] '{}'", &typedef_ast_node.string_val);
+        }
+
+        // println!("[Parser][Rule-136] old_type: '{}'", &old_type);
+
+        //
+        // TYPE-SYSTEM
+        //
+
+        let mut old_type_name = old_type.clone();
+        old_type_name = String::from(old_type_name.trim());
+        // println!("old_type_name: '{}'", old_type_name);
+        let new_type_name = new_type_ast_node.string_val.clone();
+
+        // DEBUG
+        if debug {
+            println!("[Parser][Rule-136] [TYPE-SYSTEM-2] Typedeffing: '{}' -> '{}'",
+                old_type_name, new_type_name
+            );
+        }
+
+        let mut type_type: DataType = DataType::DataTypeUnknown;
+        let mut ts = self.type_system.borrow_mut();
+        if let Some(data_type) = ts.get(old_type_name.as_str()) {
+            type_type = data_type.clone();
+        } else {
+            panic!("[Parser][Rule-136] TypeSystem has no type: '{:?}'", old_type_name);
+        }
+        // This will change how the lexer works. Instead of IDENTIFIERS
+        // it will now return a TYPE_NAME token if the input matches a type
+        // defined in the type system.
+        ts.insert(new_type_name.clone(), type_type.clone());
     }
 
     fn get_ast_node_id(&mut self) -> usize

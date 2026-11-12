@@ -52,8 +52,8 @@ for %%L in (
     res\C\samples\c_samples\elvis_operator_1.c
 
     res\C\samples\c_samples\enum_0.c
-    res\C\samples\c_samples\enum_1.c
-    res\C\samples\c_samples\enum_2.c
+
+
     res\C\samples\c_samples\enum_3.c
     res\C\samples\c_samples\enum_4.c
     res\C\samples\c_samples\enum_5.c

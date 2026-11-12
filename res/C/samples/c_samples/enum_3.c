@@ -1,6 +1,6 @@
 // res\C\samples\c_samples\enum_3.c
 
-const int MAX_SPEED = 120;
+// const int MAX_SPEED = 120;
 
 enum speed {
     LOW_SPEED = 0,
@@ -9,6 +9,8 @@ enum speed {
 };
 
 int main() {
+
+    const int MAX_SPEED = 120;
 
     enum speed var_1 = MAX_SPEED;
 
