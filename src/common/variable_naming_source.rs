@@ -244,18 +244,22 @@ impl VariableNamingSource {
         new_unique_varname
     }
 
-    // if the function declaration has external linkage, then do not change the name but
-    // keep the user-choosen name so that the linker can correlate the name in other libraries and object files
-    pub fn new_function_declaration(&mut self, func_name: &String) -> String {
+    pub fn new_function_declaration(&mut self, func_name: &String) -> String
+    {
+        // if the function declaration has external linkage, then do not change the name but
+        // keep the user-choosen name so that the linker can correlate the name in other
+        // libraries and object files
 
-        // TODO: if there is a variable name that matches the function name and the variable has no linkage,
-        // then it is not allowed to reuse that name, since it refers to a different object and a single name
+        // TODO: if there is a variable name that matches the function name
+        // and the variable has no linkage, then it is not allowed to reuse
+        // that name, since it refers to a different object and a single name
         // is not enough to make the objects unique!
 
-        let in_use = self.is_variable_name_defined(&func_name);
-        if in_use {
-            panic!("Variable Name \"{}\" is used already!", func_name);
-        }
+        // let in_use = self.is_variable_name_defined(&func_name);
+        // if in_use {
+        //     //panic!("[VNS][ERR] Function name \"{}\" is used already!", func_name);
+        //     println!("[VNS][WARN] Function name \"{}\" is used already!", func_name);
+        // }
 
         // map var name to new temp name
         if let Some(varname_map) = self.varname_map_stack.last() {

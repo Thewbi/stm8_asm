@@ -157,7 +157,6 @@ pub struct Parser<T> {
     struct_decl: StructDecl,
 
     // enum
-    // enum_option_counter: usize,
     automatic_enum_index: i32,
 
     // AST
@@ -275,7 +274,6 @@ impl Parser<String> {
             symbol_table: symbol_table_param,
 
             // enum
-            // enum_option_counter: 0,
             automatic_enum_index: 0,
 
             // AST
@@ -6687,40 +6685,6 @@ impl Parser<String> {
 
                                             self.node_to_node("enumerator_list", found_rule.original_id, string_buffer, debug_node_stack);
 
-                                            /*
-                                            // enumerator_list
-                                            let enumerator_list_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let enumerator_list_node = DebugNode::new(enumerator_list_node_id, String::from("enumerator_list"));
-                                            string_buffer.push_str(format!("{:?} [label=\"{} Rule:{} {}\"]\n",
-                                                enumerator_list_node_id, enumerator_list_node_id, found_rule.original_id, String::from("enumerator_list")).as_str());
-
-                                            // // the stack contains the struct members in inverse order
-                                            // // The order matters for memory layout invert the order
-                                            // let mut reverse = Vec::<usize>::new();
-
-                                            // // this iterates over all members of the struct
-                                            // let counter = self.enum_option_counter;
-                                            // for i in 0..counter {
-                                            //     reverse.push(self.ast_stack_pop().unwrap());
-                                            // }
-
-                                            // for i in 0..reverse.len() {
-                                            //     let enum_list_option_ast_node_id = reverse.get(counter-i-1).unwrap();
-                                            //     string_buffer.push_str(format!("  {:?} -> {:?}\n", enumerator_list_node_id, enum_list_option_ast_node_id).as_str());
-                                            //     // enumerator_list_node.block_items.push(member_declaration_ast_node_id.clone());
-                                            // }
-
-                                            let enum_list_option_debug_node_id = debug_node_stack.pop().unwrap();
-
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", enumerator_list_node_id, enum_list_option_debug_node_id).as_str());
-
-                                            // place new node onto the stack
-                                            debug_node_stack.push(enumerator_list_node);
-
-                                            // reset
-                                            // self.enum_option_counter = 0;
-                                            */
-
                                             //
                                             // AST
                                             //
@@ -6866,8 +6830,6 @@ impl Parser<String> {
 
                                             // place new node onto the stack
                                             debug_node_stack.push(debug_node);
-
-                                            // self.enum_option_counter = self.enum_option_counter + 1;
 
                                             //println!("old_debug_node.label: '{}'", old_debug_node.label);
 
@@ -7080,7 +7042,9 @@ impl Parser<String> {
                                                 // DEBUG
                                                 // self.print_ast_stack(node_map);
 
+                                                //
                                                 // TYPE-SYSTEM
+                                                //
 
                                                 if self.typedef_found {
 

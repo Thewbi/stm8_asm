@@ -2322,12 +2322,51 @@ reg = AX | CX | DX | DI | SI | R8 | R9 | R10 | R11 | SP | SB | XMM0 | XMM1 | XMM
 
 Objects without linkage (such as local variables) get a new, unique name assigned. Objects with external linkage however, such as functions, are inserted into the identifier map using their original name because the linker will refer to objects with external linkage with that name so they can be correlated accross compilation units, libraries and object files.
 
-Variables are inserted into the Naming Source (Identifier Map) by the IdentifierResolutionVisitor in main.rs. The IdentifierResolutionVisitor visits all nodes in the AST. When it encounters a AstNodeType::VariableDeclaration it will turn the user-choosen variable name into a unique variable name as it expects that variable have no linkage (No external linkage).
+### Variables
 
-When a function declaration is encountered, the IdentifierResolutionVisitor will process a AstNodeType::FunctionDeclaration node.
+Variables are inserted into the Naming Source (Identifier Map) by the ```IdentifierResolutionVisitor``` in main.rs. The ```IdentifierResolutionVisitor``` visits all nodes in the AST. When it encounters a ```AstNodeType::VariableDeclaration``` it will turn the user-choosen variable name into a unique variable name as it expects that variable have no linkage (No external linkage).
+
+### Functions
+
+A function prototype consists of
+* return type
+* function name
+* parameter list
+* but no body
+
+A function definition consist of
+* a function prototype
+* a real body implementation
+
+A compilation unit is allowed to contain *more than one* similar named prototypes if their return type and parameter lists match by type and number exactly. In other words, if they are the same prototype.
+
+For example the following is allowed:
+
+```
+int add_func(int x, int y);
+int add_func(int x, int y);
+```
+
+The following is not allowed because there are different prototypes used for the same function name!
+
+```
+int add_func(int x, int y);
+void add_func(int x, int y);
+float add_func(int x, int y);
+int add_func(float x, int y);
+int add_func(int x);
+```
+
+A compilation unit is only allowed to contain *a single* function definition!
+
+When a function declaration rule is reduced by the ```Parser```, the ```Parser``` will insert a node of type ```AstNodeType::FunctionDeclaration``` into the AST. The ```IdentifierResolutionVisitor``` will process a ```AstNodeType::FunctionDeclaration``` that node and handle parameter names. The name of the function itself is not replaced as it has global linkage and hence needs to be identifiable by other modules based on it's user-defined name used accross all modules. The ```TypeCheckingVisitor``` in it's ```fn function_declaration_handler()``` function will test if a function name is reused for a new function using another prototype. If the function is valid, the ```TypeCheckingVisitor``` adds an entry into the symbol_table.
+
+During processing a function-call AstNode, *nobody* checks if the called function has been defined by looking up the function's name in the symbol table! If no entry exists in the symbol table, then the function is not defined! The compiler (and also the assembler) will allow this as the compiler (assembler) assumes that the function is defined in another compilation unit or library which is later added by the linker! The component in the toolchain which will throw an error on calling undefined functions is the linker! The linker needs the address of the implementation to jump to! If there is no implementation to jump to, there will be an error thrown by the linker.
+
+### Structs
 
 Structs do not share the same namespace as variables and functions! struct have their own namespace.
-There is a separate Naming Source for structs.
+There is a separate Naming Source for structs. This means you can have a variable and a struct variable sharing the same identifier and the compiler has to be able to tell both of them apart!
 
 ## Type Checking Pass (see page 174, 178ff)
 

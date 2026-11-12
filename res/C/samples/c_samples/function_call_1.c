@@ -1,6 +1,10 @@
 // res\C\samples\c_samples\function_call_1.c
 
 int add_func(int x, int y);
+//void add_func(int x, int y);
+//float add_func(int x, int y);
+//int add_func(float x, int y);
+//int add_func(int x);
 
 int main() {
     int i = 0;
@@ -15,3 +19,7 @@ int main() {
 int add_func(int x, int y) {
     return x + y;
 }
+
+//int add_func(int x, int y) {
+//    return x + y;
+//}

@@ -301,6 +301,13 @@ bool is a preprocessor define for _Bool
 #define false   0
 ```
 
+## Implementation
+
+Currently, in the tacky visitor, in the ```AstNodeType::VariableDeclaration``` handler,
+the LHS node holds the type of the delared variable. If that variable type is of type
+_Bool, then later when the expression is evaluated, any value which is non-zero is
+turned into a 1. It is turned into a 1 because this value matches the defined true
+value. GCC also turns any non-zero values into true.
 
 ## Boolean - Sample 1
 

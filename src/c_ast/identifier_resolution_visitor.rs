@@ -687,7 +687,8 @@ impl IdentifierResolutionVisitor {
 
                 // DEBUG
                 if self.debug {
-                    println!("[FunctionDeclaration] AstNodeId: {}, AstNodeType: {:?}", ast_node.id, ast_node.node_type);
+                    println!("[FunctionDeclaration] AstNodeId: {}, AstNodeType: {:?}",
+                        ast_node.id, ast_node.node_type);
                 }
 
                 // ast_node.rhs = Some(Box::new(data_type_ast_node));
@@ -700,28 +701,10 @@ impl IdentifierResolutionVisitor {
                     println!("AstNodeType: {:?}", ast_node.rhs);
                 }
 
-                //
-                // function name
-                //
 
-                // DEBUG
-                // if self.debug {
-                //     println!("AstNodeType: {:?}", ast_node.string_val);
-                // }
-
-                if let Some(function_name_id) = ast_node.function_name_ast_node {
-                    let function_name = node_map.get(&function_name_id).unwrap();
-                    let user_define_function_name
-                        = self.variable_naming_source.borrow_mut().new_function_declaration(&function_name.string_val);
-
-                    // // DEBUG
-                    // println!("user_define_function_name: {:?}", user_define_function_name);
-
-                    // TODO continue here with function declarations
-                }
 
                 //
-                // Function Body
+                // SCOPE - Enter Scope
                 //
 
                 // DEBUG
@@ -729,6 +712,10 @@ impl IdentifierResolutionVisitor {
                     println!("[identifier_resolution_visitor::FunctionDeclaration()] [AstNodeType::FunctionDeclaration ENTER_SCOPE]");
                 }
                 self.variable_naming_source.borrow_mut().enter_scope();
+
+                //
+                // PARAMETERS
+                //
 
                 // parameters - are visited in the same context
                 // (= same varname_map on the stack) as the function declaration itself
@@ -770,6 +757,10 @@ impl IdentifierResolutionVisitor {
                 }
 
                 //
+                // Function Body
+                //
+
+                //
                 // body of function == block with statements as block_items
                 // is visited in the same context (= same varname_map on the stack) as the function declaration and it's parameters
                 //
@@ -800,11 +791,56 @@ impl IdentifierResolutionVisitor {
                     // self.variable_naming_source.borrow_mut().exit_scope();
                 }
 
+                //
+                // SCOPE - Exit Scope
+                //
+
                 // DEBUG
                 if self.debug {
                     println!("[identifier_resolution_visitor::FunctionDeclaration()] [AstNodeType::FunctionDeclaration EXIT_SCOPE]");
                 }
                 self.variable_naming_source.borrow_mut().exit_scope();
+
+
+
+
+                //
+                // FUNCTION NAME - check if function name is used already
+                //
+                // RULES:
+                // A function prototype consists of
+                // - return type
+                // - function name
+                // - parameter list
+                // - but no body
+                //
+                // A function definition consist of
+                // - a function prototype
+                // - a real body implementation
+                //
+                //
+                // It is allowed to have a multitude of similar named prototypes
+                // if their return type and parameter lists match.
+                //
+                // It is only allowed to have a single function definition!
+                //
+
+                // DEBUG
+                // if self.debug {
+                //     println!("AstNodeType: {:?}", ast_node.string_val);
+                // }
+
+                if let Some(function_name_id) = ast_node.function_name_ast_node {
+                    let function_name = node_map.get(&function_name_id).unwrap();
+                    let user_define_function_name
+                        = self.variable_naming_source.borrow_mut()
+                            .new_function_declaration(&function_name.string_val);
+
+                    // // DEBUG
+                    // println!("user_define_function_name: {:?}", user_define_function_name);
+
+                    // TODO continue here with function declarations
+                }
             }
 
             AstNodeType::VariableDeclaration => {

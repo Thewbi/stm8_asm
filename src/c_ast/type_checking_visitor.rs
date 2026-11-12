@@ -32,6 +32,8 @@ use crate::common::symbol_table::SymbolTableEntryType;
 // usages have compatible types!
 //
 
+// Documentation for RefCell: https://www.youtube.com/watch?v=8O0Nt9qY_vo
+
 // 0. parser - creates parse tree and abstract syntax tree
 // 1. src\c_ast\identifier_resolution_visitor.rs - checks for duplicate or undeclared variable names
 // 2. src\c_ast\type_checking_visitor.rs - performs type checking. The rules that are checked are documented in the file itself
@@ -40,7 +42,6 @@ use crate::common::symbol_table::SymbolTableEntryType;
 // 5. asm_ast/AsmAstFixupVisitor - replacing pseudo operands/variables with stack addresses
 // 6. src\asm_ast\asm_ast_masm_emitter_visitor.rs / asm_ast/AsmAstASEmitterVisitor / ...
 pub struct TypeCheckingVisitor {
-    // https://www.youtube.com/watch?v=8O0Nt9qY_vo
     symbol_table: Rc<RefCell<SymbolTable>>,
     type_system: Rc<RefCell<HashMap::<String, DataType>>>,
     debug: bool,
@@ -450,18 +451,20 @@ impl TypeCheckingVisitor {
         }
 
         // // DEBUG
-        // if ast_node.id == 21 {
+        // if ast_node.id == 9 {
         //     println!("");
         // }
 
-        // assert!(ast_node.lhs.is_some());
+        assert!(ast_node.lhs.is_some());
 
         // LHS - data type
         let mut lhs_data_type = DataType::DataTypeUnknown;
         let mut left_node = AstNode::new(0);
         if let Some(left_node_id) = ast_node.lhs {
+
             // visit the left side - This might change the AST by inserting cast() nodes
             lhs_data_type = self.visit(left_node_id, node_map, expected_return_data_type);
+
             // retrieve AST node by id
             left_node = node_map.get(&left_node_id).unwrap().clone();
         }
@@ -966,9 +969,9 @@ impl TypeCheckingVisitor {
         let mut temp_function_name = String::new();
         let mut temp_parameter_count = 0;
 
-        let mut symbol_table_entry = SymbolTableEntry::new();
+        let mut new_symbol_table_entry = SymbolTableEntry::new();
 
-        symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Function;
+        new_symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Function;
 
         {
             // function name
@@ -976,8 +979,8 @@ impl TypeCheckingVisitor {
                 let function_name_node = node_map.get(&function_name_id).unwrap();
                 temp_function_name = function_name_node.string_val.clone();
 
-                symbol_table_entry.name = temp_function_name.clone();
-                symbol_table_entry.initial_name = temp_function_name.clone();
+                new_symbol_table_entry.name = temp_function_name.clone();
+                new_symbol_table_entry.initial_name = temp_function_name.clone();
             }
         }
 
@@ -1040,28 +1043,70 @@ impl TypeCheckingVisitor {
             if let Some(left_node_id) = ast_node.lhs {
                 self.visit(left_node_id, node_map, &data_type_as_enum);
 
-                symbol_table_entry.has_body = true;
+                new_symbol_table_entry.has_body = true;
             }
         }
 
-        symbol_table_entry.data_type = data_type_as_enum;
-        symbol_table_entry.parameter_count = temp_parameter_count;
+        new_symbol_table_entry.data_type = data_type_as_enum;
+        new_symbol_table_entry.parameter_count = temp_parameter_count;
 
         // if the function has already been inserted into the symbol table,
         // check if the next declaration matches (in return data type and
         // parameter amount)
 
         if self.symbol_table.borrow_mut().contains(&temp_function_name) {
-            let existing_symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&temp_function_name);
-            if symbol_table_entry != existing_symbol_table_entry {
-                panic!("[ERR] Invalid function declaration for '{}'! Does not match earlier declaration (return type and/or parameter count)!", temp_function_name);
+
+            // DEBUG
+            if self.debug {
+                println!("[TCV] Function name already contained in symbol_table: '{}'",
+                    temp_function_name);
+                println!("[TCV] new symbol_table has body?: '{}'",
+                    new_symbol_table_entry.has_body);
             }
-            if symbol_table_entry.has_body && existing_symbol_table_entry.has_body {
-                panic!("[ERR] Two different function declarations for '{}' both having a body found! Only one body per declaration is allowed!", temp_function_name)
+
+            let existing_symbol_table_entry
+                = self.symbol_table.borrow_mut().retrieve(&temp_function_name);
+
+            // compare prototypes
+            if new_symbol_table_entry != existing_symbol_table_entry {
+                panic!("[ERR] Invalid function declaration for '{}'!
+                    Does not match earlier declaration (return type and/or parameter count)!",
+                    temp_function_name);
             }
+
+            // check for a second implementation with body
+            if new_symbol_table_entry.has_body && existing_symbol_table_entry.has_body {
+                panic!("[ERR] Two different function declarations for '{}'
+                    both having a body found!
+                    Only one body per declaration is allowed!",
+                    temp_function_name)
+            }
+
+            // update the existing entry because now the new entry might have a body
+            if new_symbol_table_entry.has_body {
+
+                // DEBUG
+                if self.debug {
+                    println!("[TCV] Updating symbol_table entry for function: '{}'",
+                        temp_function_name);
+                }
+
+                // update identifier and respective entry into symbol table
+                self.symbol_table.borrow_mut().insert(temp_function_name.clone(), new_symbol_table_entry);
+            }
+
         } else {
+            // DEBUG
+            if self.debug {
+                println!("[TCV] Inserting function into symbol_table: '{}'.
+                    Does the inserted entry have a function body?: '{}'",
+                    temp_function_name,
+                    new_symbol_table_entry.has_body
+                );
+            }
+
             // add identifier and respective entry into symbol table
-            self.symbol_table.borrow_mut().insert(temp_function_name.clone(), symbol_table_entry);
+            self.symbol_table.borrow_mut().insert(temp_function_name.clone(), new_symbol_table_entry);
         }
 
         return return_type;
@@ -1382,6 +1427,9 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::ConstUInt => {
+                // if *expected_return_data_type == DataType::DataTypeBool {
+                //     println!("test");
+                // }
                 return DataType::DataTypeUnsignedInt;
             }
 
@@ -1652,7 +1700,7 @@ impl TypeCheckingVisitor {
 
                 // DEBUG
                 if self.debug {
-                    println!("[AstNodeType::VariableDeclaration] ----------------------------");
+                    println!("[TypeCheckingVisitor] [AstNodeType::VariableDeclaration] ----------------------------");
                     println!("{} {:?} file:{}, line:{}", ast_node.id, ast_node, ast_node.file, ast_node.line);
                 }
 
@@ -1666,7 +1714,7 @@ impl TypeCheckingVisitor {
 
                 // DEBUG
                 if self.debug {
-                    print!("VARIABLE_DECLARATION: {}: {:?}", ast_node.id, ast_node);
+                    print!("[TypeCheckingVisitor] VARIABLE_DECLARATION: {}: {:?}", ast_node.id, ast_node);
                 }
 
                 let mut symbol_table_entry = SymbolTableEntry::new();
@@ -1680,6 +1728,11 @@ impl TypeCheckingVisitor {
                 //     }
                 // }
 
+                // check if the data type is boolean
+                // if it is boolean, any non-zero assigned value is converted to
+                // the defined value true which is the constant 1!
+                let mut is_type_bool = false;
+
                 // data type
                 if let Some(left_node_id) = ast_node.lhs {
 
@@ -1687,7 +1740,7 @@ impl TypeCheckingVisitor {
 
                     // DEBUG
                     if self.debug {
-                        println!("[TCV] data-type: LEFT-NODE: {}: {:?} node_type:{:?}",
+                        println!("[TypeCheckingVisitor] data-type: LEFT-NODE: {}: {:?} node_type:{:?}",
                             left_node.id, left_node, left_node.node_type);
                     }
 
@@ -1723,15 +1776,21 @@ impl TypeCheckingVisitor {
 
                             // DEBUG
                             if self.debug {
-                                println!("[TCV] data_type: '{}'", data_type_as_string);
+                                println!("[TypeCheckingVisitor] data_type: '{}'", data_type_as_string);
                             }
 
                             let ts = self.type_system.borrow();
                             if let Some(data_type_ts) = ts.get(&data_type_as_string.to_lowercase()) {
+
+                                // check if the data type is boolean
+                                // if it is boolean, any non-zero assigned value is converted to
+                                // the defined value true which is the constant 1!
+                                is_type_bool = *data_type_ts == DataType::DataTypeBool;
+
                                 symbol_table_entry.data_type = data_type_ts.clone();
                                 data_type = data_type_ts.clone();
                             } else {
-                                panic!("[TCV::AstNodeType::VariableDeclaration] Should be valid DataType: {}. ast_node.id:{}, File: {}, Line: {}", data_type_as_string, ast_node.id, ast_node.file, ast_node.line);
+                                panic!("[TypeCheckingVisitor::AstNodeType::VariableDeclaration] Should be valid DataType: {}. ast_node.id:{}, File: {}, Line: {}", data_type_as_string, ast_node.id, ast_node.file, ast_node.line);
                             }
 
                             // let data_type_as_enum = match DataType::from_str(&data_type_as_string) {
@@ -1797,18 +1856,28 @@ impl TypeCheckingVisitor {
                 // add identifier into symbol table
                 self.symbol_table.borrow_mut().insert(varname, symbol_table_entry);
 
-                // initialization expression (initializer, variable is initialized at declaration)
                 //
+                // EXPRESSION - initialization expression (initializer, variable is initialized at declaration)
+                //
+
                 // perform semantic analysis of the initialization expression
                 // replace variable names with the unique variable names from
                 // the map stored inside the variable_naming_source
                 if let Some(expression_node_id) = ast_node.expression {
-                    let expression_node = node_map.get(&expression_node_id).unwrap();
+
                     // DEBUG
+                    let expression_ast_node = node_map.get(&expression_node_id).unwrap();
                     if self.debug {
-                        print!("{:?}", expression_node);
+                        print!("[TypeCheckingVisitor] Expression AstNode: {:?}", expression_ast_node);
                     }
-                    self.visit(expression_node_id, node_map, expected_return_data_type);
+
+                    // DEBUG
+                    if is_type_bool {
+                        // println!("is_type_bool");
+                        self.visit(expression_node_id, node_map, &DataType::DataTypeBool);
+                    } else {
+                        self.visit(expression_node_id, node_map, expected_return_data_type);
+                    }
                 }
 
                 return data_type;
@@ -1828,7 +1897,6 @@ impl TypeCheckingVisitor {
                     println!("{} {:?}", ast_node.id, ast_node);
                     println!("ast_node.string_val: '{}'", ast_node.string_val);
                 }
-                //return self.type_system.borrow_mut().get(&ast_node.string_val).unwrap().clone();
                 return DataType::DataTypeInt;
             }
 

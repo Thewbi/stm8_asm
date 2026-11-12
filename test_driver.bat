@@ -104,6 +104,8 @@ for %%L in (
     res\C\samples\c_samples\struct_9.c
     res\C\samples\c_samples\struct_10.c
     res\C\samples\c_samples\struct_11.c
+    res\C\samples\c_samples\struct_12.c
+    res\C\samples\c_samples\struct_13.c
 
     res\C\samples\c_samples\struct_field_access_arrow_0.c
 

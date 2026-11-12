@@ -1449,12 +1449,14 @@ impl AstNode {
         ast_node_id
     }
 
-    fn pretty_print_ast_datatype_dot(&self, string_buffer: &mut String, node_map: &Box<HashMap<usize, AstNode>>, extended_string: &str) -> usize {
-
+    fn pretty_print_ast_datatype_dot(&self,
+        string_buffer: &mut String,
+        node_map: &Box<HashMap<usize, AstNode>>,
+        extended_string: &str) -> usize
+    {
         // create node for this AstNode
         let ast_node_id = self.id;
 
-        // println!("{} [label=\"{} DataType: {}\"]", ast_node_id, ast_node_id, self.string_val);
         if self.print_file_line {
             string_buffer.push_str(format!("{} [label=\"{} {} DataType: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.file, self.line).as_str());
         } else {
@@ -1466,7 +1468,6 @@ impl AstNode {
         if let Some(left_node) = self.lhs.as_ref() {
             lhs_ast_node_id = node_map.get(&left_node).unwrap().pretty_print_ast_dot_ex(string_buffer, node_map, "ARRAY-Size");
             // connect parent and child
-            // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
             string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
         }
 
@@ -1474,7 +1475,6 @@ impl AstNode {
         if let Some(right_node) = self.rhs.as_ref() {
             rhs_ast_node_id = node_map.get(&right_node).unwrap().pretty_print_ast_dot(string_buffer, node_map);
             // connect parent and child
-            // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
             string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
         }
 
@@ -1962,20 +1962,18 @@ impl AstNode {
         // create node for this AstNode
         let ast_node_id = self.id;
 
-        // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         if self.print_file_line {
             string_buffer.push_str(format!("{} [label=\"{} SingleInit: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
         } else {
             string_buffer.push_str(format!("{} [label=\"{} SingleInit: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
         }
 
-        // lhs - true-statement
+        // LHS - true-statement
         let mut lhs_ast_node_id = 0;
         if let Some(left_node) = self.lhs.as_ref() {
             lhs_ast_node_id = node_map.get(&left_node).unwrap().pretty_print_ast_dot_ex(string_buffer, node_map, "Value");
             // connect parent and child
-            // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"LHS\"]\n", ast_node_id, lhs_ast_node_id).as_str());
         }
 
         ast_node_id

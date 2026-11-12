@@ -259,7 +259,6 @@ impl TackyVisitor {
         //
 
         let mut br_cnt = 0;
-        //let src_value_element: ValueElement =
         let ( src_value_element, data_type ) = self.visit(left_node_id, node_map, &String::from(""), &mut br_cnt);
         match src_value_element {
 
@@ -1114,6 +1113,18 @@ impl TackyVisitor {
                 // DEBUG
                 if self.debug {
                     println!("{:?}", ast_node);
+                }
+
+                //
+                // LHS - body of function delaration
+                //
+                // The LHS node is optional. If it is missing, this FunctionDeclaration
+                // is a prototype and the TACKY visitor should not export any TACKY instruction
+                if let Some(lhs_ast_node_id) = ast_node.lhs {
+                    // keep processing
+                } else {
+                    let return_value: ValueElement = ValueElement::Constant(String::from("0"));
+                    return ( return_value, DataType::DataTypeUnknown );
                 }
 
                 let mut function_name = String::new();
@@ -2567,6 +2578,12 @@ impl TackyVisitor {
             }
 
             AstNodeType::VariableDeclaration => {
+
+                // DEBUG
+                if self.debug {
+                    println!("[TackyVisitor] ast-node-id: {}, {:?}", ast_node.id, ast_node);
+                }
+
                 let mut node_as_string = String::from("");
                 node_as_string.push_str(ast_node.serialize(node_map).as_str());
 
@@ -2622,6 +2639,7 @@ impl TackyVisitor {
 
                 // LHS - data type
                 let mut data_type_as_string = String::from("ERROR");
+                let lhs_data_type = DataType::DataTypeUnknown;
                 let mut is_array: bool = false;
 
                 let mut left_node = &AstNode::new(0);
@@ -2632,10 +2650,11 @@ impl TackyVisitor {
 
                     // DEBUG
                     if self.debug {
-                        println!("Id: {}, {:?}", left_node.id, left_node);
+                        println!("[TackyVisitor][LHS]: Id: {}, {:?}", left_node.id, left_node);
                     }
 
                     is_array = left_node.node_type == AstNodeType::Array;
+                    //let is_bool = left_node.data_type.unwrap() == DataType::DataTypeBool;
 
                     data_type_as_string = left_node.string_val.clone();
 
@@ -2670,14 +2689,24 @@ impl TackyVisitor {
                             }
                         }
                         _ => {
-                            // nop
+                            // lhs_data_type = match DataType::from_str(data_type_as_string.as_str()) {
+                            //     Ok(data_type_result) => data_type_result,
+                            //     Err(e) => panic!("should be valid DataType: {e}"),
+                            // };
+                            let ts = self.type_system.borrow_mut();
+                            let lhs_data_type = ts.get(data_type_as_string.as_str()).unwrap().clone();
                         }
                     }
                 }
 
-                let mut implicit_array_element_count:i32 = -1;
+                // DEBUG
+                if self.debug {
+                    println!("[TackyVisitor] lhs_data_type: {:?}", lhs_data_type);
+                }
 
-                // When using a initializer during array declaration,
+                let mut implicit_array_element_count: i32 = -1;
+
+                // when using a initializer during array declaration,
                 // the compound statement that initializes
                 // the array is given in the expression node
                 if let Some(expression_id) = ast_node.expression {
@@ -2700,6 +2729,7 @@ impl TackyVisitor {
                         implicit_array_element_count = -1;
                     }
                 }
+                // DEBUG
                 if self.debug {
                     println!("explicit_array_element_count: {}", explicit_array_element_count);
                     println!("implicit_array_element_count: {}", implicit_array_element_count);
@@ -2815,33 +2845,55 @@ impl TackyVisitor {
                             if self.debug {
                                 println!("SingleInit");
                             }
+
                             if let Some(left_node_id) = expression_node.lhs {
                                 let left_node = node_map.get(&left_node_id).unwrap();
                                 // DEBUG
                                 if self.debug {
                                     print!("{:?}", left_node);
                                 }
+
                                 // Copy
                                 let mut copy_instruction: Instruction = Instruction::new();
                                 copy_instruction.instruction_type = InstructionType::Copy;
                                 match &left_node.node_type {
+
                                     AstNodeType::Expression => {
                                         let mut br_cnt = 0;
                                         let ( value_element, data_type ) = self.visit(left_node_id, node_map, &variable_identifier, &mut br_cnt);
+
+                                        // DEBUG
+                                        if self.debug {
+                                            println!("data_type: {}, value_element: {:?}", data_type, value_element);
+                                        }
                                         copy_instruction.src = value_element;
+
+                                        // if the target is of type _Bool, convert non-null values
+                                        // to the true constant
+                                        if lhs_data_type == DataType::DataTypeBool {
+                                            match copy_instruction.src {
+                                                ValueElement::Constant(literal_val) => {
+                                                    if literal_val == "0" {
+                                                        copy_instruction.src = ValueElement::Constant(String::from("0"));
+                                                    } else {
+                                                        copy_instruction.src = ValueElement::Constant(String::from("1"));
+                                                    }
+                                                }
+                                                _ => {
+                                                    panic!();
+                                                }
+                                            }
+                                        }
                                     }
+
                                     _ => {
                                         panic!("Unhandled type: {:?}", left_node.node_type);
                                     }
                                 }
-
                                 // println!("{:?}", copy_instruction.src);
-
                                 // need a source
                                 assert_ne!(copy_instruction.src, ValueElement::None);
-
                                 copy_instruction.dst = ValueElement::Variable(variable_identifier);
-
                                 if copy_instruction.src != copy_instruction.dst {
                                     // append instruction to latest top-level element of the program
                                     let last = self.program.top_level.len() - 1;
@@ -2952,6 +3004,7 @@ impl TackyVisitor {
                                 }
                             }
                         }
+
                         _ => {
                             panic!("test");
                         }
