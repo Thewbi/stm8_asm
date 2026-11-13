@@ -1,0 +1,28 @@
+# Open
+
+## need main()
+The system currently does not work if there is not main() in the compilation unit!
+
+## No global namespace
+It is impossible to create variables outside main() in the global namespace
+because no global scope is created before entering a function and
+during variable creation there is
+an incorrect index when accesing the scope stack or the scope stack is empty
+and is accessed with index 0 or something along the lines ...
+
+## Cannot process: res\C\samples\c_samples\struct_5.c
+The dot-chain cannot be correctly resolved.
+Needs to be resolved into successive offset additions until the total offset is found.
+
+## Cannot process: res\C\samples\c_samples\typedef_5.c
+```
+PIXEL_DATA** pixel_data;
+```
+pointer-to-pointer not handled yet!
+
+
+# Closed
+
+## Last line needs to have a newline character
+If the last line is not terminated with a newline character,
+the parser explodes because it cannot reduce the final rule!

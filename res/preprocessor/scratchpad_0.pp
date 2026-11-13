@@ -1,22 +1,11 @@
-// res\C\samples\c_samples\struct_5.c
+// res\C\samples\c_samples\pointer_2.c
 
-struct point {
-    int x;
-    int y;
-};
+typedef struct CPU_STRUCT {
+    int a;
+} CPU_STRUCT;
 
-struct tile {
-    struct point a;
-};
+//CPU_STRUCT* CPU;
 
-int main()
-{
-    // point_t p0 = { 3, 4 };
-    // p0.x = 5;
-    // p0.y = 6;
-
-    struct tile t;
-    t.a.x = 100;
-
+int main() {
     return 0;
 }

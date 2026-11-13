@@ -680,6 +680,8 @@ fn main() {
 
         let str: String = fs::read_to_string(&command_line_param_input_filename)
             .expect(format!("file '{:?}' cannot be read!", &command_line_param_input_filename).as_str());
+        // str.push('\n');
+        // str.push(' ');
         input_tuple = ( str.to_string(), command_line_param_input_filename.clone() )
     } else {
         // application code defines input file
@@ -749,6 +751,7 @@ fn main() {
             &include_path,
             input_tuple.1);
         preprocessor.process(&mut writer, &mut defined_symbol_map);
+        write!(writer, "\n");
 
         //
         // STOP TIME - PREPROCESSOR

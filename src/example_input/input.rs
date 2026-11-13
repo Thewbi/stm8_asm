@@ -610,6 +610,12 @@ pub fn provide_sourcode_input() -> ( String, String ) {
     let str: String = fs::read_to_string("build/preprocessed.c").expect("file cannot be read!");
  */
     let str: String = fs::read_to_string(filename).expect("file cannot be read!");
+    // str.push('a');
+    //str.push('\r');
+    //str.push('\n');
+    // str.push('\r');
+    // str.push('\n');
+    // str.push(' ');
 
     return ( str.to_string(), filename.to_string() )
 }

@@ -88,7 +88,10 @@ for %%L in (
     res\C\samples\c_samples\main_0.c
     res\C\samples\c_samples\multiplication_0.c
     res\C\samples\c_samples\parameter_pointer_0.c
+
     res\C\samples\c_samples\pointer_0.c
+    res\C\samples\c_samples\pointer_1.c
+    res\C\samples\c_samples\pointer_2.c
 
 
     res\C\samples\c_samples\return_0.c
