@@ -1851,7 +1851,19 @@ pub fn transition_dfa(dfa: &EpsilonNfa::<State, RegexBuildingBlock>,
     }
     if let Some(target_state_ids) = dfa.transitions.get(&(start_id, Input::Symbol(*input))) {
         let val = target_state_ids;
-        return val.clone().into_iter().next().unwrap();
+        let mut iter = val.clone().into_iter();
+        let iter_next_option = iter.next();
+
+        match iter_next_option {
+            Some(val) => {
+                return val;
+            }
+            _ => {
+                panic!();
+            }
+        }
+
+        // return iter_next_option.unwrap();
     }
 
     panic!("Cannot transition given input '{:?}'. File: {}, Line: {}", input, file, line);

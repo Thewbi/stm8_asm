@@ -1592,12 +1592,14 @@ impl TypeCheckingVisitor {
 
                 let left_node_id_option = ast_node.lhs;
 
-                let nnnn = ast_node.clone();
+                // let ast_node_clone = ast_node.clone();
+
+                let mut rhs_data_type = DataType::DataTypeUnknown;
 
                 // RHS - Parameter of the unary operator
                 if let Some(right_node_id) = ast_node.rhs {
 
-                    self.visit(right_node_id, node_map, expected_return_data_type);
+                    rhs_data_type = self.visit(right_node_id, node_map, expected_return_data_type);
 
                     let right_node = node_map.get(&right_node_id).unwrap();
 
@@ -1677,6 +1679,60 @@ impl TypeCheckingVisitor {
                                 _ => {
                                     todo!("Not implemented: '{:?}'", left_node.operator_type);
                                 }
+                            }
+                        }
+
+                        AstNodeType::PrefixOperator => {
+                            match left_node.operator_type {
+                                AstNodeOperatorType::Negate => todo!(),
+                                AstNodeOperatorType::Complement => todo!(),
+                                AstNodeOperatorType::Not => todo!(),
+                                AstNodeOperatorType::Addition => todo!(),
+                                AstNodeOperatorType::Subtraction => todo!(),
+                                AstNodeOperatorType::Multiplication => todo!(),
+                                AstNodeOperatorType::Division => todo!(),
+                                AstNodeOperatorType::Remainder => todo!(),
+                                AstNodeOperatorType::LessThan => todo!(),
+                                AstNodeOperatorType::GreaterThan => todo!(),
+                                AstNodeOperatorType::Equal => todo!(),
+                                AstNodeOperatorType::NotEqual => todo!(),
+                                AstNodeOperatorType::LessThanOrEqual => todo!(),
+                                AstNodeOperatorType::GreaterThanOrEqual => todo!(),
+                                AstNodeOperatorType::Assignment => todo!(),
+                                AstNodeOperatorType::AddAssignment => todo!(),
+                                AstNodeOperatorType::SubAssignment => todo!(),
+                                AstNodeOperatorType::MulAssignment => todo!(),
+                                AstNodeOperatorType::DivAssignment => todo!(),
+                                AstNodeOperatorType::ModAssignment => todo!(),
+                                AstNodeOperatorType::FunctionCall => todo!(),
+                                AstNodeOperatorType::Cast => todo!(),
+                                AstNodeOperatorType::Dereference => todo!(),
+                                AstNodeOperatorType::AddrOf => todo!(),
+                                AstNodeOperatorType::Increment => todo!(),
+                                AstNodeOperatorType::PrefixIncrement => {
+                                    //println!("left_node: {:?}", left_node);
+                                    // return left_node.get_analyzed_data_type();
+                                    //return DataType::DataTypeInt;
+                                    return rhs_data_type;
+                                }
+                                AstNodeOperatorType::Decrement => todo!(),
+                                AstNodeOperatorType::PrefixDecrement => todo!(),
+                                AstNodeOperatorType::Dot => todo!(),
+                                AstNodeOperatorType::Arrow => todo!(),
+                                AstNodeOperatorType::SizeOf => todo!(),
+                                AstNodeOperatorType::And => todo!(),
+                                AstNodeOperatorType::Or => todo!(),
+                                AstNodeOperatorType::Xor => todo!(),
+                                AstNodeOperatorType::LeftShift => todo!(),
+                                AstNodeOperatorType::RightShift => todo!(),
+                                AstNodeOperatorType::BinaryAndAssignment => todo!(),
+                                AstNodeOperatorType::BinaryOrAssignment => todo!(),
+                                AstNodeOperatorType::BinaryXorAssignment => todo!(),
+                                AstNodeOperatorType::LeftShiftAssignment => todo!(),
+                                AstNodeOperatorType::RightShiftAssignment => todo!(),
+                                AstNodeOperatorType::LogicalAnd => todo!(),
+                                AstNodeOperatorType::LogicalOr => todo!(),
+                                AstNodeOperatorType::NotApplicable => todo!(),
                             }
                         }
 

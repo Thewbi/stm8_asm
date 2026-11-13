@@ -43,10 +43,10 @@ impl AsmAstFunction {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum AstAstAssemblyType {
-    Byte,       // byte,   8 bit
-    Word,       // short, 16 bit
-    Doubleword,   // dword, 32 bit
-    Quadword,   // qword, 64 bit
+    Byte,           // byte,   8 bit
+    Word,           // short, 16 bit
+    Doubleword,     // dword, 32 bit
+    Quadword,       // qword, 64 bit
     Unknown
 }
 
@@ -77,7 +77,7 @@ impl AstAstAssemblyType {
     }
 }
 
-// TODO: REMOVE
+// TODO: REMOVE because it is used with the unsafe keyword
 static mut INSTRUCTION_ID: i32 = 0;
 
 // Type for a intermediate ASM instruction.
@@ -101,7 +101,7 @@ pub struct AsmAstInstruction {
 
 impl AsmAstInstruction {
     pub fn new() -> AsmAstInstruction {
-        // TODO: REMOVE
+        // TODO: REMOVE because it is used with the unsafe keyword
         unsafe { INSTRUCTION_ID = INSTRUCTION_ID + 1 };
 
         // unsafe {
@@ -112,7 +112,7 @@ impl AsmAstInstruction {
         // }
 
         AsmAstInstruction {
-            // TODO: REMOVE
+            // TODO: REMOVE because it is used with the unsafe keyword
             id: unsafe { INSTRUCTION_ID },
             //id: 0,
 
@@ -862,8 +862,9 @@ pub fn print_asm_ast_function(function: &AsmAstFunction, string_buffer: &mut Str
     }
 }
 
-pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction, string_buffer: &mut String, indent: usize) {
-
+pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction,
+    string_buffer: &mut String, indent: usize)
+{
     let double_indent_string = std::iter::repeat(" ").take(indent * 4).collect::<String>();
     let tripple_indent_string = std::iter::repeat(" ").take(indent * 6).collect::<String>();
 
@@ -876,6 +877,14 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction, string
     string_buffer.push_str(&indent_string);
 
     match &asm_ast_instruction.instruction_type {
+
+        AsmAstInstructionType::Cdq => {
+            string_buffer.push_str(format!("Cdq\n").as_str());
+        }
+
+        AsmAstInstructionType::Idiv => {
+            string_buffer.push_str(format!("Idiv\n").as_str());
+        }
 
         AsmAstInstructionType::Ret => {
             string_buffer.push_str(format!("Ret\n").as_str());

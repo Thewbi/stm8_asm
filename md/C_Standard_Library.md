@@ -313,9 +313,9 @@ value. GCC also turns any non-zero values into true.
 
 https://godbolt.org/ - x86-64 gcc (trunk)
 
-The constants true and 456 are emitted as $1 which is the value 1 for true.
+The constants true and 456 are emitted as \$1 which is the value 1 for true.
 This means the compiler casts??? or converts the int value 456 from int type
-into _Bool type, which means the value is converted to $1.
+into _Bool type, which means the value is converted to \$1.
 
 ```
 #include <stdbool.h>
@@ -366,6 +366,50 @@ int main() {
     pop     rbp
     ret
 ```
+
+# &lt;stdio.h&gt;
+
+Page 296
+
+The types declared are
+
+* ```size_t```
+* ```FILE```
+* ```fpos_t```
+
+## 7.21.5.3 The fopen function, page 305
+
+```
+#include <stdio.h>
+FILE *fopen(const char * restrict filename, const char * restrict mode);
+```
+
+HINT: ```restrict``` says that the pointer is the only thing that accesses the underlying object. It eliminates the potential for pointer aliasing, enabling better optimization by the compiler.
+
+HINT: https://stackoverflow.com/questions/54875751/does-fopen-call-createfile-on-windows
+fopen() can call the win32 API function CreateFileA() to implement file opening on windows.
+
+HINT: FILE might be implemented as a struct.
+
+According to https://stackoverflow.com/questions/5672746/what-exactly-is-the-file-keyword-in-c
+here is the implemention of FILE in MinGW32 5.1.4
+
+```
+typedef struct _iobuf
+{
+    char*   _ptr;
+    int     _cnt;
+    char*   _base;
+    int     _flag;
+    int     _file;
+    int     _charbuf;
+    int     _bufsiz;
+    char*   _tmpfname;
+} FILE;
+```
+
+
+
 
 # &lt;stdarg.h&gt;
 

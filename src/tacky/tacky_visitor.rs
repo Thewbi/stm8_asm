@@ -2025,6 +2025,14 @@ impl TackyVisitor {
                                         unary_instruction.unary_operator = UnaryOperator::Decrement;
                                     }
 
+                                    AstNodeOperatorType::PrefixIncrement => {
+                                        unary_instruction.unary_operator = UnaryOperator::Increment;
+                                    }
+
+                                    AstNodeOperatorType::PrefixDecrement => {
+                                        unary_instruction.unary_operator = UnaryOperator::Decrement;
+                                    }
+
                                     AstNodeOperatorType::Dereference => {
                                         // DEBUG
                                         if self.debug {

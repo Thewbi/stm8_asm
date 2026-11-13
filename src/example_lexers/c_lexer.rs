@@ -110,6 +110,7 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
 
     alphabet.insert(RegexBuildingBlock::CharacterLiteral(' ')); // WHITESPACE, SPACE
 
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('°'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('_'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('<'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('>'));

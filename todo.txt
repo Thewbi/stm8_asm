@@ -1,5 +1,46 @@
 # Open
 
+## Parser output has no file and line information
+
+This makes it hard to find the issue.
+
+Example:
+
+The first declaration '''int i''' is not
+terminated by a semicolon.
+The error from the parser just outputs a PANIC in state 41!
+Which is not helpful at all!
+There should be a filename and a line number for the user
+to check the file and find the error in the line.
+
+```
+int power(int base, int n) {
+    int i
+    int p;
+
+    p = 1;
+    for (i = 1; i <= n; ++i) {
+        p = p * base;
+    }
+    return p;
+}
+
+int main() {
+    int result = power(2, 4);
+
+    return result;
+}
+```
+
+## List von interger values
+
+lists of parameters are not covered
+
+```
+int fahr, celsius;
+int lower, upper, step;
+```
+
 ## need main()
 The system currently does not work if there is not main() in the compilation unit!
 
@@ -19,6 +60,71 @@ Needs to be resolved into successive offset additions until the total offset is 
 PIXEL_DATA** pixel_data;
 ```
 pointer-to-pointer not handled yet!
+
+## Character '°' kills the lexer
+
+I am not sure what i happening, but if the lexer looks up transitions
+for the '°' character, then the call enters the Rust-HashMap and never returns!
+Either the Rust HashMap is buggy or there is a problem with the lexer!
+
+These inputs kills it:
+
+```
+// (0°C 9/5) + 32
+/* (0°C 9/5) + 32 */
+// (0 ° C 9/5) + 32
+/* (0 ° C 9/5) + 32 */
+```
+
+The ° character is used in a single line comment
+
+Full source code:
+
+```
+//#include <stdio.h>
+
+/* Print Fahrenheit-Celsius table for fahr = 0,20,...,300 */
+
+int main()
+{
+    //float fahr, celsius;
+    //float lower, upper, step;
+
+    //int fahr, celsius;
+    //int lower, upper, step;
+
+    int fahr;
+    int celsius;
+    int lower;
+    int upper;
+    int step;
+
+    lower = 0;   // Lower limit of temperature scale
+    upper = 300; // Upper Limit
+    step = 20;   // Step size
+
+    celsius = lower;
+
+    //printf("Celsius\tFahrenheit\n");
+
+    while (celsius <= upper) {
+
+        // (0°C 9/5) + 32
+
+        //fahr = (celsius * (9.0 / 5.0)) + 32;
+
+        fahr = (celsius * (9 / 5)) + 32;
+
+        return fahr;
+
+        //printf("%8.0f %10.2f\n", celsius, fahr);
+
+        celsius = celsius + step;
+    }
+
+    return 17;
+}
+```
 
 
 # Closed

@@ -162,8 +162,10 @@ static STATE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 static REGENERATE_LEXER_PARSER: bool = false;
 
-pub fn print_ast(program_ast_node_id: &usize, node_map: &Box<HashMap::<usize, AstNode>>, filename: &str) {
-
+pub fn print_ast(program_ast_node_id: &usize,
+    node_map: &Box<HashMap::<usize, AstNode>>,
+    filename: &str)
+{
     let debug = false;
 
     // println!("");

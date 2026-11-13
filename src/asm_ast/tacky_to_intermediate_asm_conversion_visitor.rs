@@ -2680,10 +2680,11 @@ impl TackyToIntermediateAsmConversionVisitor {
 
     }
 
-    pub fn visit_tacky_binary_division(&mut self, asm_ast_function: &mut AsmAstFunction,
+    pub fn visit_tacky_binary_division(&mut self,
+        asm_ast_function: &mut AsmAstFunction,
         tacky_node_binary: &Instruction,
-        instruction_type_param: &AsmAstInstructionType) {
-
+        instruction_type_param: &AsmAstInstructionType)
+    {
         // println!("[AsmAstConversionVisitor::visit_tacky_binary_division()]");
 
         //
@@ -2697,6 +2698,8 @@ impl TackyToIntermediateAsmConversionVisitor {
         //
         // Cdq, page 63
         //
+        // Cdq - [C]onvert [D]ouble-Word to [Q]uad-Word
+        //
 
         let mut cdq: AsmAstInstruction = AsmAstInstruction::new();
         cdq.instruction_type = AsmAstInstructionType::Cdq;
@@ -2709,12 +2712,14 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         let mut idiv: AsmAstInstruction = AsmAstInstruction::new();
         idiv.instruction_type = instruction_type_param.clone();
+        idiv.assembly_type = AstAstAssemblyType::Doubleword;
 
         match &tacky_node_binary.src_2 {
 
             ValueElement::Constant(constant_value) => {
 
-                // idiv needs a register or memory operand to function. It cannot work with immediate values
+                // idiv needs a register or memory operand to function.
+                // It cannot work with immediate values
                 let mut mov: AsmAstInstruction = AsmAstInstruction::new();
                 mov.instruction_type = AsmAstInstructionType::Mov;
                 mov.assembly_type = AstAstAssemblyType::Doubleword;
