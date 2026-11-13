@@ -23,6 +23,38 @@ impl StructDecl {
         }
     }
 
+    fn reload_struct_member_data_type(&self, member: &StructDeclMember, type_system: &HashMap::<String, DataType>) -> DataType {
+        // reload data type from type system because it's size might have been updated
+
+        let mut data_type_from_type_system = DataType::DataTypeUnknown;
+        match &member.data_type {
+            DataType::DataTypeStruct(struct_decl) => {
+                data_type_from_type_system = type_system.get(&struct_decl.tag).unwrap().clone();
+            }
+            _ => {
+                data_type_from_type_system = member.data_type.clone();
+            }
+        }
+
+        return data_type_from_type_system;
+    }
+
+    // fn reload_data_type(&self, dt: &DataType, type_system: &HashMap::<String, DataType>) -> DataType {
+    //     // reload data type from type system because it's size might have been updated
+
+    //     let mut data_type_from_type_system = DataType::DataTypeUnknown;
+    //     match &member.data_type {
+    //         DataType::DataTypeStruct(struct_decl) => {
+    //             data_type_from_type_system = type_system.get(&struct_decl.tag).unwrap().clone();
+    //         }
+    //         _ => {
+    //             data_type_from_type_system = member.data_type.clone();
+    //         }
+    //     }
+
+    //     return data_type_from_type_system;
+    // }
+
     /// - alignment and padding rules. (Nora Sandler, page 493)
 	/// - the entire struct is memory aligned with the alignment of it's most strictly
     ///   aligned member (This is the member with the largest alignment)
@@ -35,11 +67,11 @@ impl StructDecl {
 	///   it's length must be a multiple of 8. Use padding if necessary.
     ///
     /// Debugging: https://www.embedcalc.com/structalign/#structalign
-    pub fn compute_memory_layout(&mut self, type_system: &HashMap::<String, DataType>) {
-
+    pub fn compute_memory_layout(&mut self, type_system: &HashMap::<String, DataType>) -> bool
+    {
         // DEBUG
         if self.debug {
-            println!("compute_memory_layout()");
+            println!("compute_memory_layout() for struct_decl.tag: '{}'", self.tag);
         }
 
         let mut align = 0;
@@ -56,18 +88,27 @@ impl StructDecl {
 
             assert_ne!(member.data_type, DataType::DataTypeUnknown, "Need a valid datatype!");
 
+            let data_type_from_type_system = self.reload_struct_member_data_type(&member, type_system);
+
             // distinguish between elementary data type and arrays
             // the alignment of an array is the alignment of the element type
-            match &member.data_type {
+            //match &member.data_type {
+            match &data_type_from_type_system {
                 DataType::DataTypeArray(element_data_type, size_option) => {
-
                     if let Some(size) = size_option {
                         // println!("size: {}, data_type: {}", size, data_type);
                         // let data_type_size = data_type.get_size(type_system);
                         // return data_type_size * size;
 
                         let data_type_size = element_data_type.get_size(type_system);
-                        //let temp_align = data_type_size * size;
+                        if data_type_size == 0 {
+                            // the size of a nested struct is not available yet,
+                            // it has not been computed yet!
+
+                            // Cannot compute the size if this struct! Aborting!
+                            return false;
+                        }
+
                         let temp_align = data_type_size;
                         if align < temp_align {
                             align = temp_align;
@@ -76,8 +117,23 @@ impl StructDecl {
                         panic!("size: unspecified, data_type: {}", element_data_type);
                     }
                 }
+                DataType::DataTypeStruct(struct_decl_tag) => {
+                    let data_type_size = data_type_from_type_system.get_size(type_system);
+                    if data_type_size == 0 {
+                        // the size of a nested struct is not available yet,
+                        // it has not been computed yet!
+
+                        // Cannot compute the size if this struct! Aborting!
+                        return false;
+                    }
+
+                    let temp_align = data_type_from_type_system.get_align(type_system);
+                    if align < temp_align {
+                        align = temp_align;
+                    }
+                }
                 _ => {
-                    let temp_align = member.data_type.get_align(type_system);
+                    let temp_align = data_type_from_type_system.get_align(type_system);
                     if align < temp_align {
                         align = temp_align;
                     }
@@ -97,12 +153,18 @@ impl StructDecl {
         for i in 0..len {
 
             let dt = &self.members[i].data_type;
+            // println!("data_type: {}", dt);
             let dt_size = DataType::get_size(&dt, type_system);
+            // println!("dt_size: {}", dt_size);
             let dt_align = DataType::get_align(&dt, type_system);
+            // println!("dt_align: {}", dt_align);
 
             if self.debug {
                 println!("data_type: {}, dt_size: {}, dt_align: {}", dt, dt_size, dt_align);
             }
+
+            assert_ne!(dt_size, 0, "Size should never be zero!");
+            assert_ne!(dt_align, 0, "Alignment should never be zero!");
 
             // fields are aligned to a boundary!
             // This boundary is not the align of the entire struct.
@@ -125,12 +187,15 @@ impl StructDecl {
         }
         wasted_bytes = wasted_bytes + (offset - old_offset);
 
+        // set the size into the data type
         self.size = offset;
 
         let mut waste_percentage: f32 = wasted_bytes as f32 / self.size as f32;
         waste_percentage = waste_percentage * 100.0;
 
         if self.debug {
+            println!("StructDecl Tag: '{}'", self.tag);
+            println!("---------------------------------------------------");
             println!("Total Size: {} bytes", self.size);
             println!("Alignment: {}-byte", align);
             println!("Padding Waste: {} bytes ({}%)", wasted_bytes, waste_percentage);
@@ -142,8 +207,10 @@ impl StructDecl {
                 println!("Member {}) Offset:{} Size:{} Name:{}", i, offset, size, name);
             }
         }
-    }
 
+        // size fully computed successfully
+        return true;
+    }
 }
 
 impl fmt::Debug for StructDecl {

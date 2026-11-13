@@ -1,32 +1,22 @@
-// res\C\samples\c_samples\struct_13.c
+// res\C\samples\c_samples\struct_5.c
 
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdbool.h>
-
-enum FETCH_SOURCE {
-    BACKGROUND,
-    WINDOW,
-    OBJECT
+struct point {
+    int x;
+    int y;
 };
 
-enum PALETTE {
-     OBJ_P0,
-     OBJ_P1,
-     NOT_OBJ
- };
-
-struct PIXEL_DATA {
-    uint8_t binary_data;
-    enum FETCH_SOURCE source;
-    bool palette;
-    bool priority;
-    uint16_t address;
-    uint8_t x_pos;
+struct tile {
+    struct point a;
 };
 
-typedef struct PIXEL_DATA PIXEL_DATA_t;
+int main()
+{
+    // point_t p0 = { 3, 4 };
+    // p0.x = 5;
+    // p0.y = 6;
 
-int main() {
+    struct tile t;
+    t.a.x = 100;
+
     return 0;
 }

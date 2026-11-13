@@ -1130,17 +1130,70 @@ fn main() {
             }
         }
 
-        // use the copied structs to compute their layout
+        // use the copied structs to compute their layout.
+        //
+        // SideNote:
+        // structs can contain other structs. This relationship
+        // between structs complicates size computation. The
+        // inner structs need to be computed first in order to
+        // determine the size of outer structs. Also circular
+        // dependencies between structs make it impossible to compute
+        // a memory layout as it is impossible to reserve space
+        // for inifinitly sized datastructures. Every stack item
+        // has to have finite space requirements.
         {
+            // println!("[Main] ompute_memory_layout() ...");
+
             // DEBUG
             if debug {
-                println!("compute_memory_layout()");
-                println!("struct_decl_vector.len(): {}", struct_decl_vector.len());
+                println!("[Main] compute_memory_layout()");
+                println!("[Main] struct_decl_vector.len(): {}", struct_decl_vector.len());
             }
-            for i in 0..struct_decl_vector.len() {
-                let (key, struct_decl_var) = &mut struct_decl_vector[i];
-                struct_decl_var.compute_memory_layout(&type_system_rc_4.borrow_mut());
+
+            // in case of circular dependencies between types, the loop which determines
+            // their sizes will run forever. To break infinite loops, count the reps
+            // and panic when the rep-budget is depleted. The budget of <loop_breaker>
+            // repetitions is arbitray. If your problem requires data-structures which are
+            // nested more than <loop_breaker> layers deep this compiler is not able to
+            // satisfy your needs!
+            let mut loop_breaker = 30;
+            let mut size_done = false;
+            while !size_done {
+
+                if loop_breaker <= 0 {
+                    panic!("[Main] Size of data types can not be computed! Circular data types might be present!");
+                }
+
+                // assume every size can be computed
+                size_done = true;
+
+                for i in 0..struct_decl_vector.len() {
+                    let ( key, struct_decl_var ) = &mut struct_decl_vector[i];
+
+                    // println!("[Main] compute_memory_layout() key: '{}'", key);
+
+                    let ts = &mut type_system_rc_4.borrow_mut();
+                    let size_computed_successfully = struct_decl_var.compute_memory_layout(ts);
+                    if !size_computed_successfully {
+
+                        // println!("[Main] CANNOT compute_memory_layout() key: {}", key);
+
+                        // one type's size cannot be compute (nested struct? circular nested structs?)
+                        // Try to just keep looping.
+                        // One of the next loops will compute the size of the nested struct
+                        // which makes it possible to compute the size of the struct
+                        // which contains the nested struct.
+                        size_done = false;
+                        continue;
+                    }
+
+                    // println!("size: {}", struct_decl_var.size);
+                    ts.insert(key.to_string(), DataType::DataTypeStruct(struct_decl_var.to_owned()));
+                }
+
+                loop_breaker = loop_breaker - 1;
             }
+            // println!("[Main] ompute_memory_layout() done.");
         }
 
         // update the hashmap behind the refcell by just executing

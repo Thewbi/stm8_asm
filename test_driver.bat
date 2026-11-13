@@ -101,6 +101,7 @@ for %%L in (
     res\C\samples\c_samples\struct_2.c
     res\C\samples\c_samples\struct_3.c
     res\C\samples\c_samples\struct_4.c
+    res\C\samples\c_samples\struct_5.c
     res\C\samples\c_samples\struct_6.c
     res\C\samples\c_samples\struct_7.c
     res\C\samples\c_samples\struct_8.c

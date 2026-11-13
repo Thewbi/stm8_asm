@@ -95,6 +95,9 @@ pub fn from_data_type(data_type: &DataType) -> AstNodeType {
         DataType::DataTypeDouble |
         DataType::DataTypeVoid |
         DataType::DataTypeBool => AstNodeType::DataType,
+
+        DataType::DataTypeStruct(_) => AstNodeType::StructureDeclaration,
+
         _ => panic!("Unhandled DataType: '{}'", data_type)
     }
 }
@@ -205,7 +208,7 @@ impl fmt::Debug for AstNode {
 
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 
-        println!("AST-NODE id: {} {{", self.id);
+        println!("[AstNode::Debug()] AST-NODE id: {} {{", self.id);
 
         match &self.node_type {
 
@@ -2140,9 +2143,9 @@ impl AstNode {
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         if self.print_file_line {
-            string_buffer.push_str(format!("{} [label=\"{} MemberTypeDec: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+            string_buffer.push_str(format!("{} [label=\"{} MemberTypeDecl: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
         } else {
-            string_buffer.push_str(format!("{} [label=\"{} MemberTypeDec: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+            string_buffer.push_str(format!("{} [label=\"{} MemberTypeDecl: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
         }
 
         // lhs - type
@@ -2152,7 +2155,7 @@ impl AstNode {
 
             // connect parent and child
             // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"LHS\"]\n", ast_node_id, lhs_ast_node_id).as_str());
         }
 
         // rhs - identifier
@@ -2162,7 +2165,7 @@ impl AstNode {
 
             // connect parent and child
             // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
-            string_buffer.push_str(format!("{} -> {}\n", ast_node_id, rhs_ast_node_id).as_str());
+            string_buffer.push_str(format!("{} -> {} [label=\"RHS\"]\n", ast_node_id, rhs_ast_node_id).as_str());
         }
 
         ast_node_id

@@ -154,8 +154,8 @@ const SIZEOF_INT: usize = 4;
 
 impl DataType {
 
-    pub fn get_size(&self,
-            type_system: &HashMap::<String, DataType>) -> usize {
+    pub fn get_size(&self, type_system: &HashMap::<String, DataType>) -> usize
+    {
         match self {
             DataType::DataTypeChar => 1,
             DataType::DataTypeUnsignedChar => 1,
@@ -200,7 +200,19 @@ impl DataType {
                 }
             }
             DataType::DataTypeStruct(data_type) => {
-                data_type.size
+                // reload the type from the type system becaue it could
+                // have been udpdate in the type system
+                let dt = type_system.get(&data_type.tag).unwrap().clone();
+                match dt {
+                    DataType::DataTypeStruct(st_decl) => {
+                        return st_decl.size;
+                    }
+                    _ => {
+                        todo!()
+                    }
+                }
+                // assert_ne!(data_type.size, 0, "Alignment needs to be a non-zero value!");
+                // data_type.size
             }
             _ => {
                 todo!("{}", self);

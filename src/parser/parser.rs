@@ -5542,8 +5542,16 @@ impl Parser<String> {
 
                                                     let ts = self.type_system.borrow_mut();
                                                     if ts.contains_key(&value) {
-                                                        let data_type = ts.get(&value).unwrap();
+                                                        let data_type: &DataType = ts.get(&value).unwrap();
+                                                        // DEBUG
+                                                        // println!("data_type: {}", data_type);
+                                                        // println!("");
                                                         type_ast_node.node_type = from_data_type(&data_type);
+                                                        // if data_type.is_struct {
+                                                        //     type_ast_node.node_type = AstNodeType::StructureDeclaration;
+                                                        // } else {
+                                                        //     type_ast_node.node_type = from_data_type(&data_type);
+                                                        // }
                                                     } else {
                                                         // TODO: rebuild the entire typedef system!
                                                         // This is so convoluted! I do not know why it works!
@@ -5682,6 +5690,8 @@ impl Parser<String> {
                                                 self.struct_decl.tag = struct_tag.clone();
 
                                                 // the stack contains the struct members in inverse order
+                                                // The members have been placed on the stack by ???
+
                                                 // The order matters for memory layout
                                                 // invert the order
                                                 let mut reverse = Vec::<usize>::new();
@@ -5724,15 +5734,87 @@ impl Parser<String> {
                                                     // LHS - assign datatype to new struct_member object
                                                     if let Some(member_type_node_id) = member_declaration_node.lhs {
 
-                                                        let member_type_node = node_map.get(&member_type_node_id).unwrap().clone();
+                                                        //self.print_ast_stack(node_map);
 
-                                                        // DEBUG
-                                                        if debug {
-                                                            println!("member_type_node: '{}'", &member_type_node.string_val);
-                                                            println!("type_ast_node.node_type: '{:?}'", &member_type_node.node_type);
+                                                        let member_type_node = node_map.get(&member_type_node_id).unwrap().clone();
+                                                        let mut member_type_as_string = member_type_node.string_val.clone();
+
+                                                        // can either be a DataType or a MemberTypeDecl
+                                                        // for 'int' there will be a DataType node
+                                                        // for 'unsigned int', there will be a MemberTypeDecl
+                                                        match member_type_node.node_type {
+
+                                                            AstNodeType::MemberTypeDeclaration => {
+
+                                                                // for types with additinonal type specifier (unsigned, signed)
+
+                                                                let lhs_ast_node_id = member_type_node.lhs.unwrap();
+                                                                let lhs_ast_node = node_map.get(&lhs_ast_node_id).unwrap().clone();
+                                                                let type_as_string = lhs_ast_node.string_val;
+                                                                // println!("[Parser] type_as_string: '{}'", type_as_string);
+
+                                                                let rhs_ast_node_id = member_type_node.rhs.unwrap();
+                                                                let rhs_ast_node = node_map.get(&rhs_ast_node_id).unwrap().clone();
+                                                                let type_specifier_as_string = rhs_ast_node.string_val;
+                                                                // println!("[Parser] type_specifier_as_string: '{}'", type_specifier_as_string);
+
+                                                                // let member_data_type = DataType::from_string();
+
+                                                                member_type_as_string = String::from("type_specifier_as_string");
+                                                                member_type_as_string.push_str(" ");
+                                                                member_type_as_string.push_str(type_as_string.as_str());
+                                                            }
+
+                                                            _ => {
+                                                                // DEBUG
+                                                                if debug {
+                                                                    println!("[Parser] member_type_node: '{:?}'", member_type_node);
+                                                                    println!("[Parser] member_type_node.string_val: '{}'", &member_type_node.string_val);
+                                                                    println!("[Parser] type_ast_node.node_type: '{:?}'", &member_type_node.node_type);
+                                                                    println!("[Parser] type_ast_node.analyzed_data_type: '{:?}'", &member_type_node.analyzed_data_type);
+                                                                }
+                                                            }
                                                         }
 
+                                                        // ASSERT
+                                                        assert!(member_type_as_string.len() > 0,
+                                                            "[PARSER Rule:107][ASSERT] Need a type name for type system lookup!");
+
                                                         match member_type_node.node_type {
+
+                                                            AstNodeType::Structure => {
+
+                                                                // DEBUG
+                                                                // println!("[Parser][Rule 107] member_type_as_string: '{}'", member_type_as_string);
+
+                                                                let ts = self.type_system.borrow();
+                                                                let data_type: DataType = ts.get(&member_type_as_string.to_lowercase()).unwrap().clone();
+
+                                                                struct_member.data_type = data_type;
+                                                                struct_member.member_type = member_type_as_string.clone();
+                                                            }
+
+                                                            AstNodeType::StructureDeclaration => {
+                                                                // let member_type_node_lhs = node_map.get(&member_type_node.lhs.unwrap()).unwrap().clone();
+                                                                // let member_type_node_rhs = node_map.get(&member_type_node.rhs.unwrap()).unwrap().clone();
+
+                                                                // // build a string (e.g. unsigned int)
+                                                                // let mut data = member_type_node_rhs.string_val.clone();
+                                                                // data.push_str(" ");
+                                                                // data.push_str(member_type_node_lhs.string_val.clone().as_str());
+
+                                                                // // string
+                                                                // struct_member.member_type = data;
+
+                                                                let ts = self.type_system.borrow();
+                                                                let data_type: DataType = ts.get(&member_type_as_string.to_lowercase()).unwrap().clone();
+
+                                                                // println!("data_type: {}", data_type);
+
+                                                                // let data_type = DataType::from_str(&member_type_node_lhs.string_val.clone()).expect("REASON");
+                                                                struct_member.data_type = data_type;
+                                                                struct_member.member_type = member_type_as_string.clone();
+                                                            }
 
                                                             AstNodeType::MemberTypeDeclaration => {
                                                                 let member_type_node_lhs = node_map.get(&member_type_node.lhs.unwrap()).unwrap().clone();
@@ -5887,6 +5969,9 @@ impl Parser<String> {
                                         }
 
                                         // 108; struct_or_union_specifier;struct_or_union;OPENING_CURLY_BRACKET;struct_declaration_list;CLOSING_CURLY_BRACKET
+                                        108 => {
+                                            panic!();
+                                        }
 
                                         // 109; struct_or_union_specifier -> struct_or_union IDENTIFIER
                                         109 => {
@@ -6066,6 +6151,9 @@ impl Parser<String> {
                                                 data_type_ast_node.node_type = AstNodeType::Structure;
                                                 data_type_ast_node.lhs = Some(type_ast_node_id);
                                                 data_type_ast_node.rhs = Some(identifier_ast_node.id);
+                                                // data_type_ast_node.analyzed_data_type = DataType::DataTypeStruct();
+                                                // data_type_ast_node.string_val = String::from("OmegaPepega!");
+                                                data_type_ast_node.string_val = value;
                                                 data_type_ast_node.file = file.clone();
                                                 data_type_ast_node.line = line;
 
@@ -6208,6 +6296,7 @@ impl Parser<String> {
                                                 member_declaration_ast_node.node_type = AstNodeType::MemberDeclaration;
                                                 member_declaration_ast_node.file = file.clone();
                                                 member_declaration_ast_node.line = line;
+                                                // member_declaration_ast_node.string_val = String::from("OmegaPepega!");
 
                                                 // RHS - member name
                                                 // LHS - assign datatype to new struct_member object
@@ -6409,8 +6498,14 @@ impl Parser<String> {
                                                                 AstNodeType::TypeSpecifier(_) => {
                                                                     member_declaration_ast_node.lhs = Some(type_ast_node_id);
                                                                 }
+                                                                AstNodeType::Structure => {
+                                                                    member_declaration_ast_node.lhs = Some(type_ast_node_id);
+                                                                }
+                                                                // AstNodeType::StructureDeclaration => {
+                                                                //     member_declaration_ast_node.lhs = Some(type_ast_node_id);
+                                                                // }
                                                                 _ => {
-                                                                    panic!("Unexpected: AstNodeType: '{:?}' in AstNode: {:?}",
+                                                                    panic!("[PARSER::Rule 115][ERR] Unexpected: AstNodeType: '{:?}' in AstNode: {:?}",
                                                                         type_ast_node.node_type, type_ast_node);
                                                                 }
                                                             }
@@ -9489,10 +9584,7 @@ impl Parser<String> {
     {
         let return_value = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
 
-        // if return_value == 10 {
-        //     println!("[get_ast_node_id] id: {}", return_value);
-        // }
-        // if return_value == 15 {
+        // if return_value == 12 {
         //     println!("[get_ast_node_id] id: {}", return_value);
         // }
 

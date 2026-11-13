@@ -829,31 +829,49 @@ impl TackyVisitor {
         // return 4;
     }
 
-    /// Will enrich the input copy_instruction parameter.
+    /// Will enrich the instruction passed into this function via the copy_instruction parameter.
     /// Will insert values into the offset and data_type members.
+    /// The reason is that now, the TACKY instruction can use the correct offset along
+    /// with the base address to access the nested field while copy data from memory into the
+    /// destination.
     ///
     /// e.g.
     /// b = struct_ptr->a;
     /// b = struct_0.a;
     /// b = struct_0.next->a;
     fn ast_node_to_copy_from_offset_instruction(&mut self,
-        lhs_sub: &AstNode,
-        node_map: &Box<HashMap<usize, AstNode>>,
+        ast_node: &AstNode,
+        node_map: &mut Box<HashMap<usize, AstNode>>,
         copy_instruction: &mut Instruction) -> ValueElement
     {
-        let lhs_lhs_sub_id = lhs_sub.lhs.unwrap();
-        let lhs_lhs_sub = node_map.get(&lhs_lhs_sub_id).unwrap();
+        //println!("[TackyVisitor] {:?}: ", ast_node);
+
+        let lhs_sub_ast_node_id = ast_node.lhs.unwrap();
+
+        // let destination_var_name = String::from("");
+        // let mut branch_counter: usize = 0;
+        // let ( value_element, data_type )
+        //     = self.visit(lhs_sub_ast_node_id, node_map, &destination_var_name, &mut branch_counter);
+
+        // //println!("[TackyVisitor] value_element: {:?}", value_element);
+        // //println!("[TackyVisitor] data_type: {:?}", data_type);
+
+        let lhs_sub_ast_node = node_map.get(&lhs_sub_ast_node_id).unwrap();
+
+        // if lhs_sub_ast_node.node_type == AstNodeType::Dot {
+        //     println!("do found!");
+        // }
 
         // DEBUG
         // println!("{}, {}", lhs_lhs_sub.id, lhs_lhs_sub.string_val);
 
-        let src_name = lhs_lhs_sub.string_val.clone();
+        let lhs_src_name = lhs_sub_ast_node.string_val.clone();
 
-        // // DEBUG
-        // println!("src_name: {}", src_name);
+        // DEBUG
+        // println!("[TACKY_VISITOR] src_name: '{}'", lhs_src_name);
 
         // TODO: learn why borrow_mut() works but borrow() does not!
-        let symbol_table_entry = self.symbol_table.borrow_mut().get(&src_name).unwrap();
+        let symbol_table_entry = self.symbol_table.borrow_mut().get(&lhs_src_name).unwrap();
 
         // DEBUG
         if self.debug {
@@ -868,7 +886,7 @@ impl TackyVisitor {
         // Retrieve datatype and the offset from the struct datatype
         //
 
-        let lhs_rhs_sub_id = lhs_sub.rhs.unwrap();
+        let lhs_rhs_sub_id = ast_node.rhs.unwrap();
         let lhs_rhs_sub = node_map.get(&lhs_rhs_sub_id).unwrap();
 
         // DEBUG
@@ -934,7 +952,7 @@ impl TackyVisitor {
             }
         }
 
-        return ValueElement::Variable(src_name.clone());
+        return ValueElement::Variable(lhs_src_name.clone());
     }
 
     pub fn find_base_variable(&mut self,
@@ -1350,7 +1368,7 @@ impl TackyVisitor {
                         // - an array subscript
                         if let Some(lhs_subnode_id) = ast_node.lhs {
 
-                            let lhs_sub = node_map.get(&lhs_subnode_id).unwrap();
+                            let lhs_sub = node_map.get(&lhs_subnode_id).unwrap().clone();
                             match lhs_sub.node_type {
 
                                 AstNodeType::Subscript => {
@@ -1368,10 +1386,13 @@ impl TackyVisitor {
 
                                     match lhs_sub.node_type {
 
+                                        // HHHHHH
                                         AstNodeType::Dot | AstNodeType::Arrow => {
                                             copy_instruction.instruction_type = InstructionType::CopyToOffset;
-                                            let value_element = self.ast_node_to_copy_from_offset_instruction(lhs_sub,
-                                                node_map, &mut copy_instruction);
+                                            let value_element
+                                                = self.ast_node_to_copy_from_offset_instruction(&lhs_sub,
+                                                    node_map,
+                                                    &mut copy_instruction);
                                             copy_instruction.dst = value_element;
                                         }
 
@@ -3192,7 +3213,7 @@ impl TackyVisitor {
             }
 
             AstNodeType::Dot => {
-                let ast_node = node_map.get(&ast_node_id).unwrap();
+                let ast_node = node_map.get(&ast_node_id).unwrap().clone();
 
                 // DEBUG
                 if self.debug {
@@ -3206,7 +3227,8 @@ impl TackyVisitor {
                 copy_instruction.instruction_type = InstructionType::CopyFromOffset;
                 let value_element
                     = self.ast_node_to_copy_from_offset_instruction(&ast_node,
-                        node_map, &mut copy_instruction);
+                        node_map,
+                        &mut copy_instruction);
                 copy_instruction.src = value_element;
                 copy_instruction.dst = ValueElement::Variable(dst_name.clone());
 

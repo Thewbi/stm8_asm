@@ -264,9 +264,9 @@ impl<'a> Lexer<'a> {
 
                         if self.lexer_debug {
                             if token_is_type {
-                                println!("LEXER_TYPE_RESOLUTION [{}:{}]: '{}' is a type!", self.file, self.line, self.token_string_buffer);
+                                println!("[LEXER][LEXER_TYPE_RESOLUTION] [{}:{}]: '{}' is a type!", self.file, self.line, self.token_string_buffer);
                             } else {
-                                println!("LEXER_TYPE_RESOLUTION [{}:{}]: '{}' is NOT a type!", self.file, self.line, self.token_string_buffer);
+                                println!("[LEXER][LEXER_TYPE_RESOLUTION] [{}:{}]: '{}' is NOT a type!", self.file, self.line, self.token_string_buffer);
                             }
                         }
 

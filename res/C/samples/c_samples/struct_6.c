@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\struct_6.c
+
 // // not allowed by grammar. Requires separation of struct and typedef
 // typedef struct Point {
 //     int x;

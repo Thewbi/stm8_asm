@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\struct_4.c
+
 struct point {
     int x;
     int y;
