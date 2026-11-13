@@ -2196,7 +2196,8 @@ impl TackyVisitor {
             AstNodeType::ConstLong |
             AstNodeType::ConstUInt |
             AstNodeType::ConstULong |
-            AstNodeType::ConstDouble => {
+            AstNodeType::ConstDouble |
+            AstNodeType::ConstChar => {
                 return ( ValueElement::Constant(ast_node.string_val.clone()), DataType::DataTypeUnknown );
             }
 

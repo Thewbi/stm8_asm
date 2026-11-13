@@ -3,6 +3,11 @@
 ///
 /// Unconditional unwrap operator.
 ///
+/// USAGE:
+/// ```
+/// let constant_value = rem_first_and_last(constant_value);
+/// ```
+///
 /// Given the input: "'\\''" a unwrap operation hopes to remove
 /// the leading and trailing single quote character.
 ///

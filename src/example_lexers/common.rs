@@ -1,14 +1,14 @@
 use std::collections::HashSet;
 
-use crate::EpsilonNfa;
-use crate::regex::enfa::add_character_literal;
-use crate::regex::enfa::enfa_copy;
-use crate::State;
-use crate::RegexBuildingBlock;
 use crate::regex::enfa::Fragment;
 use crate::regex::enfa::FragmentStack;
-use crate::InfixPostfixConverter;
+use crate::regex::enfa::enfa_copy;
+use crate::regex::enfa::add_character_literal;
 use crate::regex::enfa::recurse_postfix_build_fragment_stack;
+use crate::EpsilonNfa;
+use crate::State;
+use crate::RegexBuildingBlock;
+use crate::InfixPostfixConverter;
 use crate::Input;
 
 // This function will extend the input combined_fragment by a whole new sub-DFA for

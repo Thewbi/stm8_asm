@@ -1,6 +1,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::asm_ast::asm_ast::AsmAstOperandType::Imm;
+use crate::common::string_handling::rem_first_and_last;
 use crate::tacky::tacky::Program;
 use crate::tacky::tacky::TopLevel;
 use crate::tacky::tacky::TopLevelType;
@@ -2147,7 +2149,22 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         match &tacky_node_copy.src {
             ValueElement::Constant(constant_value) => {
-                mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+                if constant_value.starts_with("'") {
+
+                    let constant_value = rem_first_and_last(constant_value);
+                    let char_constant_value: char = constant_value.chars().next().unwrap();
+                    let i: i32 = char_constant_value as i32;
+                    mov.src
+                        = AsmAstOperand {
+                            operand_type: AsmAstOperandType::Imm(i)
+                        };
+
+                } else {
+                    mov.src
+                        = AsmAstOperand {
+                            operand_type: AsmAstOperandType::Imm(
+                                i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+                }
             }
             ValueElement::Variable(variable_name) => {
                 mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };

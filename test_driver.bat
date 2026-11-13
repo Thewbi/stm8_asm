@@ -43,6 +43,9 @@ for %%L in (
     res\C\samples\c_samples\bubblesort_3.c
     res\C\samples\c_samples\bubblesort_broken.c
 
+    res\C\samples\c_samples\char_0.c
+    res\C\samples\c_samples\char_1.c
+
     res\C\samples\c_samples\constant_0.c
 
     res\C\samples\c_samples\do_loop_0.c

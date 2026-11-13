@@ -1463,6 +1463,10 @@ impl TypeCheckingVisitor {
                 return DataType::DataTypeDouble;
             }
 
+            AstNodeType::ConstChar => {
+                return DataType::DataTypeChar;
+            }
+
             AstNodeType::Structure => {
                 todo!();
             }

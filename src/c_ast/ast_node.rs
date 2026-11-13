@@ -752,7 +752,8 @@ impl AstNode {
             | AstNodeType::ConstUInt
             | AstNodeType::ConstULong
             | AstNodeType::ConstDouble
-            | AstNodeType::ConstString => {
+            | AstNodeType::ConstString
+            | AstNodeType::ConstChar => {
                 self.pretty_print_ast_constant_dot_ex(string_buffer, node_map, extended_string)
             }
             AstNodeType::Expression => {
@@ -1091,6 +1092,15 @@ impl AstNode {
                     string_buffer.push_str(format!("{} [label=\"{} {} ConstString({}) [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, extended_string, without_quotes, self.analyzed_data_type, self.file, self.line).as_str());
                 } else {
                     string_buffer.push_str(format!("{} [label=\"{} {} ConstString({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, without_quotes, self.analyzed_data_type).as_str());
+                }
+            }
+
+            AstNodeType::ConstChar => {
+                let without_quotes = str::replace(&self.string_val, "\"", "\'");
+                if self.print_file_line {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstChar({}) [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, extended_string, without_quotes, self.analyzed_data_type, self.file, self.line).as_str());
+                } else {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstChar({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, without_quotes, self.analyzed_data_type).as_str());
                 }
             }
 

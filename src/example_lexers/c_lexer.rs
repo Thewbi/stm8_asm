@@ -26,6 +26,7 @@ pub const NUMERIC_TOKEN_ID: usize = 600;
 pub const FLOAT_NUMERIC_TOKEN_ID: usize = 601;
 pub const HEX_NUMERIC_TOKEN_ID: usize = 602;
 pub const STRING_LITERAL_TOKEN_ID: usize = 610;
+pub const CHAR_LITERAL_TOKEN_ID: usize = 611;
 
 // Defines token for a lexer.
 // The grammar is defined in produce_grammar_c_full_if_else_4(); (c_full_if_else_4.rs)
@@ -110,7 +111,6 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
 
     alphabet.insert(RegexBuildingBlock::CharacterLiteral(' ')); // WHITESPACE, SPACE
 
-    alphabet.insert(RegexBuildingBlock::CharacterLiteral('°'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('_'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('<'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('>'));
@@ -137,6 +137,8 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('='));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('"'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral(':'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('°'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('\''));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\\'));
 
     // "\n" | "\r\n" | "\r"
@@ -225,6 +227,14 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
         "(0|1|2|3|4|5|6|7|8|9)+",
         "NUMERIC",
         NUMERIC_TOKEN_ID);
+
+
+    //
+    // char_literal (token-id: 611)
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet,
+        "\'(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z)\'",
+        "CHAR_LITERAL",
+        CHAR_LITERAL_TOKEN_ID);
 
 /*
     //

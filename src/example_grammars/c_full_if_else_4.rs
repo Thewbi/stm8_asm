@@ -60,6 +60,7 @@ pub fn produce_grammar_c_full_if_else_4(grammar_rules: &mut Vec::<Rule<String>>)
     create_rule(grammar_rules, String::from("primary_expression -> HEX_NUMERIC"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("primary_expression -> NUMERIC"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("primary_expression -> FLOAT_NUMERIC"), treat_nonterminal_lowercase);
+    create_rule(grammar_rules, String::from("primary_expression -> CHAR_LITERAL"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("primary_expression -> STRING_LITERAL"), treat_nonterminal_lowercase);
     create_rule(grammar_rules, String::from("primary_expression -> OPENING_BRACKET expression CLOSING_BRACKET"), treat_nonterminal_lowercase);
 

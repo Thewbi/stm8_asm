@@ -158,7 +158,7 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
 
     alphabet.insert(RegexBuildingBlock::CharacterLiteral(' ')); // WHITESPACE, SPACE
 
-    alphabet.insert(RegexBuildingBlock::CharacterLiteral('°'));
+
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('_'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('<'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('>'));
@@ -185,16 +185,16 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('='));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('"'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral(':'));
-    alphabet.insert(RegexBuildingBlock::CharacterLiteral('\\'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('/'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('#'));
-    alphabet.insert(RegexBuildingBlock::CharacterLiteral('\''));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('`'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('°'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('\''));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('\\'));
 
     // "\n" | "\r\n" | "\r"
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\n'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\r'));
-
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\t'));
 
     //
