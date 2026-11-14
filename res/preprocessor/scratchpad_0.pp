@@ -1,8 +1,9 @@
-// res\C\samples\c_samples\char_0.c
+// res\C\samples\c_samples\char_4.c
 
 int main() {
-    char c;
-    c = 'A';
+    char arr[100];
+    arr[0] = 1;
+    arr[1] = 2;
 
-    return c;
+    return arr[1];
 }

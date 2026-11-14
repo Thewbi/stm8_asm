@@ -167,8 +167,10 @@ impl fmt::Display for AstNodeOperatorType {
             AstNodeOperatorType::AddrOf => write!(f, "AddrOf"),
             AstNodeOperatorType::Dereference => write!(f, "Deref *"),
 
+            AstNodeOperatorType::NotApplicable => write!(f, "NotApplicable"),
+
             //_ => todo!("{}", format!("operator '{:?}' not covered!", *self).to_string()),
-            _ => todo!(),
+            _ => todo!("{:?}", self),
         }
     }
 }
@@ -208,9 +210,53 @@ impl fmt::Debug for AstNode {
 
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 
+        write!(f, "AstNode {{\n").expect("Write failed!");
+        write!(f, "  id: '{}'\n", &self.id).expect("Write failed!");
+        write!(f, "  node_type: '{:?}'\n", &self.node_type).expect("Write failed!");
+        write!(f, "  parent: {:?}\n", &self.parent).expect("Write failed!");
+        write!(f, "  lhs: {:?}\n", &self.lhs).expect("Write failed!");
+        write!(f, "  rhs: {:?}\n", &self.rhs).expect("Write failed!");
+        write!(f, "  parent_id: {:?}\n", &self.parent_id).expect("Write failed!");
+        write!(f, "  data_type: {:?}\n", &self.data_type).expect("Write failed!");
+        write!(f, "  analyzed_data_type: {}\n", &self.analyzed_data_type).expect("Write failed!");
+        write!(f, "  expression: {:?}\n", &self.expression).expect("Write failed!");
+        write!(f, "  operator: {:?}\n", &self.operator).expect("Write failed!");
+        write!(f, "  operator_type: {}\n", &self.operator_type).expect("Write failed!");
+        write!(f, "  string_val: {}\n", &self.string_val).expect("Write failed!");
+        write!(f, "  initial_string_val: {}\n", &self.initial_string_val).expect("Write failed!");
+        write!(f, "  block_items: {:?}\n", &self.block_items).expect("Write failed!");
+        write!(f, "  parameters: {:?}\n", &self.parameters).expect("Write failed!");
+        write!(f, "  storage_class: {:?}\n", &self.storage_class).expect("Write failed!");
+        write!(f, "  is_extern: {}\n", &self.is_extern).expect("Write failed!");
+        write!(f, "  is_static: {}\n", &self.is_static).expect("Write failed!");
+        write!(f, "  is_const: {}\n", &self.is_const).expect("Write failed!");
+        write!(f, "  indent: {}\n", &self.indent).expect("Write failed!");
+        write!(f, "  function_name_ast_node: {:?}\n", &self.function_name_ast_node).expect("Write failed!");
+        write!(f, "  file: {}\n", &self.file).expect("Write failed!");
+        write!(f, "  line: {}\n", &self.line).expect("Write failed!");
+        write!(f, "  print_file_line: {}\n", &self.print_file_line).expect("Write failed!");
+        write!(f, "  debug: {}\n", &self.debug).expect("Write failed!");
+        write!(f, "}}\n").expect("Write failed!");
+
+        Ok(())
+    }
+
+    /*
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+
         println!("[AstNode::Debug()] AST-NODE id: {} {{", self.id);
 
         match &self.node_type {
+
+            AstNodeType::Program => {
+                println!("Program");
+                if let Some(left_node) = self.lhs.as_ref() {
+                    print!("LHS: {:?}", left_node);
+                }
+                if let Some(right_node) = self.rhs.as_ref() {
+                    print!("RHS: {:?}", right_node);
+                }
+            }
 
             AstNodeType::Compound => {
                 println!("Compound");
@@ -622,6 +668,7 @@ impl fmt::Debug for AstNode {
 
         Ok(())
     }
+    */
 }
 
 impl AstNode {

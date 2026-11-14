@@ -16,7 +16,6 @@ for %%L in (
     res\C\samples\c_sample_2\fibonacci_iterative.c
     res\C\samples\c_sample_2\vector_len_1.c
 
-
     res\C\samples\c_samples\array_0.c
     res\C\samples\c_samples\array_1.c
     res\C\samples\c_samples\array_2.c
@@ -56,7 +55,6 @@ for %%L in (
 
     res\C\samples\c_samples\enum_0.c
 
-
     res\C\samples\c_samples\enum_3.c
     res\C\samples\c_samples\enum_4.c
     res\C\samples\c_samples\enum_5.c
@@ -87,7 +85,6 @@ for %%L in (
     res\C\samples\c_samples\linked_list_3.c
     res\C\samples\c_samples\linked_list_4.c
 
-
     res\C\samples\c_samples\main_0.c
     res\C\samples\c_samples\multiplication_0.c
     res\C\samples\c_samples\parameter_pointer_0.c
@@ -95,7 +92,6 @@ for %%L in (
     res\C\samples\c_samples\pointer_0.c
     res\C\samples\c_samples\pointer_1.c
     res\C\samples\c_samples\pointer_2.c
-
 
     res\C\samples\c_samples\return_0.c
     res\C\samples\c_samples\return_1.c
@@ -119,16 +115,11 @@ for %%L in (
 
     res\C\samples\c_samples\struct_field_access_arrow_0.c
 
-
-
-
     res\C\samples\c_samples\struct_field_assignment_dot_0.c
     res\C\samples\c_samples\struct_field_assignment_dot_1.c
     res\C\samples\c_samples\struct_field_assignment_ptr_0.c
     res\C\samples\c_samples\struct_field_assignment_ptr_1.c
     res\C\samples\c_samples\struct_field_getAddress_0.c
-
-
 
     res\C\samples\c_samples\sub_0.c
     res\C\samples\c_samples\subscript_0.c

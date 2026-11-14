@@ -36,13 +36,13 @@ use crate::VariableNamingSource;
 //
 // Generates TACKY from an AST
 //
-// 1. src\c_ast\IdentifierResolutionVisitor - checks for duplicate or undeclared variable names
-// 2. src\tacky\tacky_visitor.rs (This file) - Generate TACKY (from AST)
-// 3. asm_ast/AsmAstConversionVisitor - Converts the AST into a ASM AST for assembly with a precursory form of mnenomics
-// 4. asm_ast/AsmAstFixupVisitor - replacing pseudo operands/variables with stack addresses
-// 5. asm_ast/AsmAstMasmEmitterVisitor / asm_ast/AsmAstASEmitterVisitor / ...
-//
-
+// 0. parser - Creates parse tree and abstract syntax tree
+// 1. src\c_ast\identifier_resolution_visitor.rs - Checks for duplicate or undeclared variable names
+// 2. src\c_ast\type_checking_visitor.rs - Performs type checking. The rules that are checked are documented in the file itself
+// 3. src\tacky\tacky_visitor.rs (This file) - Generate TACKY instruction structs (from AST nodes) and insert the instructions into the current top-level scope (self.program.top_level). The serialization of the instruction into the build/tacky.tky file is done in main.rs using the pub fn print_tacky_program() function.
+// 4. asm_ast/AsmAstConversionVisitor - Converts the AST into a ASM AST for assembly with a precursory form of mnenomics
+// 5. asm_ast/AsmAstFixupVisitor - Replacing pseudo operands/variables with stack addresses
+// 6. src\asm_ast\asm_ast_masm_emitter_visitor.rs / asm_ast/AsmAstASEmitterVisitor / ...
 pub struct TackyVisitor {
     variable_naming_source: Rc<RefCell<VariableNamingSource>>, // https://www.youtube.com/watch?v=8O0Nt9qY_vo
     symbol_table: Rc<RefCell<SymbolTable>>, // https://www.youtube.com/watch?v=8O0Nt9qY_vo
@@ -50,7 +50,6 @@ pub struct TackyVisitor {
     pub function_declaration: Option<Box<TopLevel>>,
     pub type_system: Rc<RefCell<HashMap::<String, DataType>>>,
 
-    // current_data_type: DataType,
     pub debug: bool,
 
 }
@@ -1168,10 +1167,12 @@ impl TackyVisitor {
 
         // arguments
         for param_id in &ast_node.parameters {
+
             // DEBUG
             if self.debug {
                 println!("{:?}", param_id);
             }
+
             let param = node_map.get(&param_id).unwrap();
             let mut argument = Argument::new();
             // name
@@ -1190,11 +1191,17 @@ impl TackyVisitor {
                 if self.debug {
                     print!("{:?}", right_node);
                 }
-                let ts = self.type_system.borrow_mut();
-                let ts_data_type = ts.get(&right_node.string_val).unwrap().clone();
+
+                //let ts = self.type_system.borrow_mut();
+                //let ts_data_type = ts.get(&right_node.string_val).unwrap().clone();
+
                 //argument.data_type = DataType::from_str(&right_node.string_val).expect(format!("Type is not known: {}\n", &right_node.string_val).as_str());
+
+                let ts_data_type = right_node.get_analyzed_data_type().clone();
+
                 argument.data_type = ts_data_type;
             }
+
             top_level_function.arguments.push(Box::new(argument));
         }
 
@@ -1255,6 +1262,472 @@ impl TackyVisitor {
                             self.program.top_level[last].body.push(Box::new(return_instruction));
                         }
                     }
+                }
+            }
+        }
+
+        ( ValueElement::None, DataType::DataTypeUnknown )
+    }
+
+    fn variable_declaration_handler(&mut self,
+        ast_node: &AstNode,
+        node_map: &mut Box<HashMap<usize, AstNode>>) -> ( ValueElement, DataType )
+    {
+        let mut node_as_string = String::from("");
+        node_as_string.push_str(ast_node.serialize(node_map).as_str());
+
+        // add a comment
+        let mut comment: Instruction = Instruction::new();
+        comment.instruction_type = InstructionType::Comment;
+        comment.label = node_as_string;
+
+        // append comment to latest top-level element of the program
+        let last = self.program.top_level.len() - 1;
+        self.program.top_level[last].body.push(Box::new(comment));
+
+        // In TACKY, variables are not declared. It is allowed to use variables
+        // without declaring them. Only if a variable is initialized, this is
+        // output into TACKY as a variable assignment.
+        //
+        // This implementation will output a variable declaration although it is
+        // not strictly required!
+        //
+        // Nora Sandler, page 110: "[..] we can discard variable declarations at this stage;
+        // in TACKY, you don't need to declare variables before using them.
+        // But we do need to emit TACKY to initialize varibles.
+        // If a declaration includes an initializer, we'll handle it like a normal variable
+        // assignment. If a declaration doesn't have an initializer, we won't amit any TACKY
+        // at all."
+
+        // println!("{:?}", ast_node);
+
+        //
+        // Create variable declaration
+        //
+
+        // RHS - identifier
+        let mut variable_identifier = String::from("ERROR");
+        if let Some(right_node_id) = ast_node.rhs {
+
+            let right_node = node_map.get(&right_node_id).unwrap();
+
+            // DEBUG
+            if self.debug {
+                print!("Id: {}, {:?}", right_node.id, right_node);
+            }
+
+            variable_identifier = right_node.string_val.clone();
+
+            // DEBUG
+            if self.debug {
+                println!("{:?}", variable_identifier);
+            }
+        }
+
+        let mut explicit_array_element_count: i32 = -1;
+
+        // LHS - data type
+        let mut data_type_as_string = String::from("ERROR");
+        let lhs_data_type = DataType::DataTypeUnknown;
+        let mut is_array: bool = false;
+
+        let mut left_node = &AstNode::new(0);
+        if let Some(left_node_id) = ast_node.lhs {
+
+            // retrieve left node by id
+            left_node = node_map.get(&left_node_id).unwrap();
+
+            // DEBUG
+            if self.debug {
+                println!("[TackyVisitor][LHS]: Id: {}, {:?}", left_node.id, left_node);
+            }
+
+            is_array = left_node.node_type == AstNodeType::Array;
+            //let is_bool = left_node.data_type.unwrap() == DataType::DataTypeBool;
+
+            data_type_as_string = left_node.string_val.clone();
+
+            // LHS of left node itself.
+            //
+            match left_node.node_type {
+                AstNodeType::Structure => {
+                    if let Some(rhs_node_id) = left_node.rhs {
+                        let lhs_rhs_node = node_map.get(&rhs_node_id).unwrap();
+                        data_type_as_string = lhs_rhs_node.string_val.clone();
+                    }
+                }
+                AstNodeType::Array => {
+                    // This node contains the element count of arrays
+                    // (if the user decided to specify that explicitly in code between angular brackets)
+                    //
+                    // This node is optional since it is allowed to not
+                    // specify the array size when an initializer is used while
+                    // declaring the array. e.g.: int arr[] = {64, 34, 25, 12, 22, 11, 90};
+                    if let Some(left_node_lhs_id) = left_node.lhs {
+
+                        // retrieve node by id
+                        let left_node_lhs = node_map.get(&left_node_lhs_id).unwrap();
+
+                        // DEBUG
+                        if self.debug {
+                            println!("****Id: {}, {:?}", left_node_lhs.id, left_node_lhs);
+                            println!("{}", left_node_lhs.string_val);
+                        }
+
+                        explicit_array_element_count = i32::from_str_radix(&left_node_lhs.string_val, 10).expect("REASON")
+                    }
+                }
+                _ => {
+                    // lhs_data_type = match DataType::from_str(data_type_as_string.as_str()) {
+                    //     Ok(data_type_result) => data_type_result,
+                    //     Err(e) => panic!("should be valid DataType: {e}"),
+                    // };
+                    let ts = self.type_system.borrow_mut();
+                    let lhs_data_type = ts.get(data_type_as_string.to_lowercase().as_str()).unwrap().clone();
+                }
+            }
+        }
+
+        // DEBUG
+        if self.debug {
+            println!("[TackyVisitor] lhs_data_type: {:?}", lhs_data_type);
+        }
+
+        let mut implicit_array_element_count: i32 = -1;
+
+        // when using a initializer during array declaration,
+        // the compound statement that initializes
+        // the array is given in the expression node
+        if let Some(expression_id) = ast_node.expression {
+
+            // retrieve node by id
+            let expression_node = node_map.get(&expression_id).unwrap();
+
+            // DEBUG
+            if self.debug {
+                println!("Id: {}, {:?}", expression_node.id, expression_node);
+            }
+
+            // determine the length of the array by looking at the initializer
+            // the initializer of an array needs to provide a value for each
+            // element. If the user does not explicitly specify the length of
+            // the array with angular brackets, then the length of the initializer
+            // becomes the length of the array
+            implicit_array_element_count = expression_node.block_items.len() as i32;
+            if implicit_array_element_count == 0 {
+                implicit_array_element_count = -1;
+            }
+        }
+        // DEBUG
+        if self.debug {
+            println!("[TackyVisitor][var_decl_handler] explicit_array_element_count: {}", explicit_array_element_count);
+            println!("[TackyVisitor][var_decl_handler] implicit_array_element_count: {}", implicit_array_element_count);
+        }
+        let mut array_element_count: i32 = 0;
+
+        // check array dimension
+        if is_array {
+
+            if explicit_array_element_count < 0 && implicit_array_element_count < 0 {
+                panic!("[ERR] No length found for array!");
+            } else if explicit_array_element_count < 0 && implicit_array_element_count > 0 {
+                array_element_count = implicit_array_element_count;
+            } else if explicit_array_element_count > 0 && implicit_array_element_count <= 0 {
+                array_element_count = explicit_array_element_count;
+            } else if explicit_array_element_count > 0 && implicit_array_element_count > 0 {
+                if explicit_array_element_count != implicit_array_element_count {
+                    panic!("[ERR] Explicit array length and length of initializer do not match!");
+                } else {
+                    array_element_count = explicit_array_element_count;
+                }
+            }
+
+            // an array of size zero is weird!
+            // https://stackoverflow.com/questions/9722632/what-happens-if-i-define-a-0-size-array-in-c-c
+            assert_ne!(array_element_count, 0, "[ERR] An array of size 0 is not allowed!");
+        }
+        // DEBUG
+        if self.debug {
+            println!("[TackyVisitor][var_decl_handler] explicit_array_element_count: {}", explicit_array_element_count);
+            println!("[TackyVisitor][var_decl_handler] implicit_array_element_count: {}", implicit_array_element_count);
+            println!("[TackyVisitor][var_decl_handler] => array_element_count: {}", array_element_count);
+        }
+
+        //
+        // create TACKY variable declaration
+        //
+
+        let mut var_declaration: Instruction = Instruction::new();
+        var_declaration.instruction_type = InstructionType::VariableDeclaration;
+
+        if self.debug {
+            println!("[TackyVisitor][var_decl_handler] data_type_as_string: '{}'", data_type_as_string);
+        }
+
+        let data_type: DataType
+            = self.type_system.borrow().get(&data_type_as_string.to_lowercase()).unwrap().clone();
+        var_declaration.data_type = data_type.clone();
+        var_declaration.label = variable_identifier.clone();
+
+        if self.symbol_table.borrow_mut().contains_key(&variable_identifier) {
+            // this branch will perform an update and leave all other properties
+            // as is. This is is important because the type checking visitor which
+            // created the initial entry has added status about the variable being
+            // a pointer. This status should not be lost!
+            // This is a mess!!!!!
+            //
+            // TODO: Why is there a new entry inserted into the symbol table?
+            // I think that here, the status if it is an array and the amount of array
+            // elements are updated. If this is the case, why was this not done directly
+            // inside the type_checking_visitor?
+            //
+            // Maybe move all symbol_table_entry creation into the type checking visitor
+            // There are more creations inside this tacky visistor. It is unclear why
+            // there is a separation between the type checking- and the tacky visitor
+            // for symbol table updates!?!?!?!?
+            let mut symbol_table_entry = self.symbol_table.borrow_mut().get(&variable_identifier).unwrap();
+
+            if self.debug {
+                println!("[TackyVisitor][var_decl_handler] symbol_table_entry: {:?}", symbol_table_entry);
+            }
+
+            symbol_table_entry.is_array = is_array;
+            symbol_table_entry.array_element_count = array_element_count;
+            // DEBUG
+            if self.debug {
+                println!("[TackyVisitor][var_decl_handler] key:'{}', value{:?}", variable_identifier.clone(), symbol_table_entry);
+            }
+            self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
+
+            // update data type to array in the TACKY variable declaration instruction
+            var_declaration.data_type = DataType::DataTypeArray(Box::new(data_type.clone()), Some(array_element_count as usize));
+
+        } else {
+            // create symbol table entry for temporary variable
+            let mut symbol_table_entry = SymbolTableEntry::new();
+            symbol_table_entry.name = variable_identifier.clone();
+            symbol_table_entry.initial_name = variable_identifier.clone();
+            symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
+            symbol_table_entry.data_type = data_type.clone();
+            symbol_table_entry.is_array = is_array;
+            symbol_table_entry.array_element_count = array_element_count;
+            // DEBUG
+            if self.debug {
+                println!("[TackyVisitor][var_decl_handler] key:'{}', value{:?}", variable_identifier.clone(), symbol_table_entry);
+            }
+
+            // TODO: Why is there a new entry inserted into the symbol table?
+            // I think that here, the status if it is an array and the amount of array
+            // elements are updated. If this is the case, why was this not done directly
+            // inside the type_checking_visitor?
+            //
+            // Maybe move all symbol_table_entry creation into the type checking visitor
+            // There are more creations inside this tacky visistor. It is unclear why
+            // there is a separation between the type checking- and the tacky visitor
+            // for symbol table updates!?!?!?!?
+            self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
+        }
+
+        // append instruction to latest top-level element of the program
+        let last = self.program.top_level.len() - 1;
+        self.program.top_level[last].body.push(Box::new(var_declaration));
+
+        //
+        // Initializer
+        //
+
+        // expression
+        if let Some(expression_node_id) = ast_node.expression {
+
+            let expression_node = node_map.get(&expression_node_id).unwrap();
+
+            // DEBUG
+            if self.debug {
+                print!("{:?}", expression_node);
+            }
+
+            match expression_node.node_type {
+
+                AstNodeType::SingleInit => {
+                    // DEBUG
+                    if self.debug {
+                        println!("SingleInit");
+                    }
+
+                    //
+                    // LHS - is where the expression to assign to the destination lives
+                    //
+
+                    if let Some(left_node_id) = expression_node.lhs {
+
+                        let left_node = node_map.get(&left_node_id).unwrap();
+
+                        // DEBUG
+                        if self.debug {
+                            print!("{:?}", left_node);
+                        }
+
+                        // Copy
+                        let mut copy_instruction: Instruction = Instruction::new();
+                        copy_instruction.instruction_type = InstructionType::Copy;
+
+                        match &left_node.node_type {
+
+                            AstNodeType::Expression => {
+                                let mut br_cnt = 0;
+                                let ( value_element, data_type )
+                                    = self.visit(left_node_id, node_map, &variable_identifier, &mut br_cnt);
+
+                                // DEBUG
+                                if self.debug {
+                                    println!("[TV] AstNodeType::VariableDeclaration - data_type: {}, value_element: {:?}", data_type, value_element);
+                                }
+
+                                copy_instruction.src = value_element;
+
+                                // if the target is of type _Bool, convert non-null values
+                                // to the true constant
+                                if lhs_data_type == DataType::DataTypeBool {
+                                    match copy_instruction.src {
+                                        ValueElement::Constant(literal_val) => {
+                                            if literal_val == "0" {
+                                                copy_instruction.src = ValueElement::Constant(String::from("0"));
+                                            } else {
+                                                copy_instruction.src = ValueElement::Constant(String::from("1"));
+                                            }
+                                        }
+                                        _ => {
+                                            panic!();
+                                        }
+                                    }
+                                }
+                            }
+
+                            _ => {
+                                panic!("Unhandled type: {:?}", left_node.node_type);
+                            }
+                        }
+
+                        // DEBUG
+                        // println!("{:?}", copy_instruction.src);
+
+                        // need a source
+                        assert_ne!(copy_instruction.src, ValueElement::None);
+
+                        copy_instruction.dst = ValueElement::Variable(variable_identifier);
+                        if copy_instruction.src != copy_instruction.dst {
+                            // append instruction to latest top-level element of the program
+                            let last = self.program.top_level.len() - 1;
+                            self.program.top_level[last].body.push(Box::new(copy_instruction));
+                        }
+                    }
+                }
+
+                AstNodeType::CompoundInit => {
+                    // panic!("test");
+
+                    // Format:
+                    // Rule 77: declaration -> declaration_specifiers init_declarator_list SEMICOLON
+                    //
+                    // LHS contains the data type
+                    // RHS contains the initializer list. It is an ASTNode that stores the values in the block_items properties
+
+                    // // determine the type of the variable which is cast
+                    // let symbol_table_entry: SymbolTableEntry =
+                    //     self.symbol_table.borrow_mut().get(variable_name).unwrap();
+
+                    let data_type: DataType = self.type_system.borrow().get(&data_type_as_string).unwrap().clone();
+
+                    // the data type of the objects in the initializer list is
+                    // let data_type = DataType::from_str(&data_type_as_string).expect("Need type");
+
+                    // DEBUG
+                    if self.debug {
+                        println!("DataType: {}", data_type);
+                    }
+
+                    // LHS - data type
+                    if let Some(left_node_id) = ast_node.lhs {
+                        let left_node = node_map.get(&left_node_id).unwrap();
+                        // DEBUG
+                        if self.debug {
+                            println!("DataType-Initializer: {:?}", left_node.string_val);
+                        }
+                    }
+
+                    // RHS - identifier
+                    let mut identifier = String::new();
+                    if let Some(right_node_id) = ast_node.rhs {
+                        let right_node = node_map.get(&right_node_id).unwrap();
+                        // DEBUG
+                        if self.debug {
+                            println!("{:?}", right_node.string_val);
+                        }
+                        identifier = right_node.string_val.clone();
+                    }
+
+                    // RHS - initializer list
+                    if let Some(expression_node_id) = ast_node.expression {
+                        let expression_node = node_map.get(&expression_node_id).unwrap();
+
+                        // DEBUG
+                        if self.debug {
+                            println!("{:?}", expression_node);
+                        }
+
+                        // add a comment
+                        let mut comment_declaration: Instruction = Instruction::new();
+                        comment_declaration.instruction_type = InstructionType::Comment;
+                        comment_declaration.label = "initialize array elements".to_string();
+
+                        // append comment to latest top-level element of the program
+                        let last = self.program.top_level.len() - 1;
+                        self.program.top_level[last].body.push(Box::new(comment_declaration));
+
+                        let mut current_offset = 0;
+                        for i in 0..expression_node.block_items.len() {
+
+                            let block_item_id = expression_node.block_items[expression_node.block_items.len()-1-i];
+                            let block_item = node_map.get(&block_item_id).unwrap();
+
+                            // DEBUG
+                            if self.debug {
+                                println!("{:?}", block_item);
+                            }
+
+                            if let Some(left_node_id) = block_item.lhs {
+
+                                // DEBUG
+                                if self.debug {
+                                    println!("LHS: {:?}", left_node_id);
+                                }
+
+                                let left_node = node_map.get(&left_node_id).unwrap();
+
+                                // DEBUG
+                                if self.debug {
+                                    println!("Value: {:?}", left_node.string_val);
+                                }
+
+                                let mut copy_to_offset: Instruction = Instruction::new();
+                                copy_to_offset.instruction_type = InstructionType::CopyToOffset;
+                                copy_to_offset.data_type = data_type.clone();
+                                copy_to_offset.src = ValueElement::Constant(left_node.string_val.clone());
+                                copy_to_offset.dst = ValueElement::Variable(identifier.clone());
+                                copy_to_offset.offset = current_offset;
+
+                                // append instruction to latest top-level element of the program
+                                let last = self.program.top_level.len() - 1;
+                                self.program.top_level[last].body.push(Box::new(copy_to_offset));
+
+                                current_offset = current_offset + data_type.get_size(&self.type_system.borrow()) as i32;
+                            }
+                        }
+                    }
+                }
+
+                _ => {
+                    panic!("test");
                 }
             }
         }
@@ -2414,27 +2887,6 @@ impl TackyVisitor {
                 return ( ValueElement::Variable(dst_name.clone()), DataType::DataTypeUnknown );
             }
 
-            // AstNodeType::Conditional => {
-
-            //     //
-            //     // Case - if with else (no else-if)
-            //     //
-
-            //     // -- condition
-            //     // <instructions for condition>
-            //     // v = <result of condition>
-            //     // JumpIfZero(v, if-0-label) -- if the condition is false, jump to the if-0-label
-            //     //     -- body
-            //     //     <instructions for body>
-            //     //     Jump(if-end-label) -- branch taken, jump to the final end label
-            //     // Label<if-0-label>
-            //     //     -- body
-            //     //     <instructions for body>
-            //     //     Jump(if-end-label) -- branch taken, jump to the final end label
-            //     // Label<if-end-label> -- create the if-end-label
-
-            // }
-
             AstNodeType::Switch => {
                 self.switch_handler(&ast_node, node_map, branch_counter);
             }
@@ -2701,451 +3153,12 @@ impl TackyVisitor {
             }
 
             AstNodeType::VariableDeclaration => {
-
                 // DEBUG
                 if self.debug {
                     println!("[TackyVisitor] ast-node-id: {}, {:?}", ast_node.id, ast_node);
                 }
 
-                let mut node_as_string = String::from("");
-                node_as_string.push_str(ast_node.serialize(node_map).as_str());
-
-                // add a comment
-                let mut comment: Instruction = Instruction::new();
-                comment.instruction_type = InstructionType::Comment;
-                comment.label = node_as_string;
-
-                // append comment to latest top-level element of the program
-                let last = self.program.top_level.len() - 1;
-                self.program.top_level[last].body.push(Box::new(comment));
-
-                // In TACKY, variables are not declared. It is allowed to use variables
-                // without declaring them. Only if a variable is initialized, this is
-                // output into TACKY as a variable assignment.
-                //
-                // This implementation will output a variable declaration although it is
-                // not strictly required!
-                //
-                // Nora Sandler, page 110: "[..] we can discard variable declarations at this stage;
-                // in TACKY, you don't need to declare variables before using them.
-                // But we do need to emit TACKY to initialize varibles.
-                // If a declaration includes an initializer, we'll handle it like a normal variable
-                // assignment. If a declaration doesn't have an initializer, we won't amit any TACKY
-                // at all."
-
-                // println!("{:?}", ast_node);
-
-                //
-                // Create variable declaration
-                //
-
-                // RHS - identifier
-                let mut variable_identifier = String::from("ERROR");
-                if let Some(right_node_id) = ast_node.rhs {
-
-                    let right_node = node_map.get(&right_node_id).unwrap();
-
-                    // DEBUG
-                    if self.debug {
-                        print!("Id: {}, {:?}", right_node.id, right_node);
-                    }
-
-                    variable_identifier = right_node.string_val.clone();
-
-                    // DEBUG
-                    if self.debug {
-                        println!("{:?}", variable_identifier);
-                    }
-                }
-
-                let mut explicit_array_element_count: i32 = -1;
-
-                // LHS - data type
-                let mut data_type_as_string = String::from("ERROR");
-                let lhs_data_type = DataType::DataTypeUnknown;
-                let mut is_array: bool = false;
-
-                let mut left_node = &AstNode::new(0);
-                if let Some(left_node_id) = ast_node.lhs {
-
-                    // retrieve left node by id
-                    left_node = node_map.get(&left_node_id).unwrap();
-
-                    // DEBUG
-                    if self.debug {
-                        println!("[TackyVisitor][LHS]: Id: {}, {:?}", left_node.id, left_node);
-                    }
-
-                    is_array = left_node.node_type == AstNodeType::Array;
-                    //let is_bool = left_node.data_type.unwrap() == DataType::DataTypeBool;
-
-                    data_type_as_string = left_node.string_val.clone();
-
-                    // LHS of left node itself.
-                    //
-                    match left_node.node_type {
-                        AstNodeType::Structure => {
-                            if let Some(rhs_node_id) = left_node.rhs {
-                                let lhs_rhs_node = node_map.get(&rhs_node_id).unwrap();
-                                data_type_as_string = lhs_rhs_node.string_val.clone();
-                            }
-                        }
-                        AstNodeType::Array => {
-                            // This node contains the element count of arrays
-                            // (if the user decided to specify that explicitly in code between angular brackets)
-                            //
-                            // This node is optional since it is allowed to not
-                            // specify the array size when an initializer is used while
-                            // declaring the array. e.g.: int arr[] = {64, 34, 25, 12, 22, 11, 90};
-                            if let Some(left_node_lhs_id) = left_node.lhs {
-
-                                // retrieve node by id
-                                let left_node_lhs = node_map.get(&left_node_lhs_id).unwrap();
-
-                                // DEBUG
-                                if self.debug {
-                                    println!("****Id: {}, {:?}", left_node_lhs.id, left_node_lhs);
-                                    println!("{}", left_node_lhs.string_val);
-                                }
-
-                                explicit_array_element_count = i32::from_str_radix(&left_node_lhs.string_val, 10).expect("REASON")
-                            }
-                        }
-                        _ => {
-                            // lhs_data_type = match DataType::from_str(data_type_as_string.as_str()) {
-                            //     Ok(data_type_result) => data_type_result,
-                            //     Err(e) => panic!("should be valid DataType: {e}"),
-                            // };
-                            let ts = self.type_system.borrow_mut();
-                            let lhs_data_type = ts.get(data_type_as_string.to_lowercase().as_str()).unwrap().clone();
-                        }
-                    }
-                }
-
-                // DEBUG
-                if self.debug {
-                    println!("[TackyVisitor] lhs_data_type: {:?}", lhs_data_type);
-                }
-
-                let mut implicit_array_element_count: i32 = -1;
-
-                // when using a initializer during array declaration,
-                // the compound statement that initializes
-                // the array is given in the expression node
-                if let Some(expression_id) = ast_node.expression {
-
-                    // retrieve node by id
-                    let expression_node = node_map.get(&expression_id).unwrap();
-
-                    // DEBUG
-                    if self.debug {
-                        println!("Id: {}, {:?}", expression_node.id, expression_node);
-                    }
-
-                    // determine the length of the array by looking at the initializer
-                    // the initializer of an array needs to provide a value for each
-                    // element. If the user does not explicitly specify the length of
-                    // the array with angular brackets, then the length of the initializer
-                    // becomes the length of the array
-                    implicit_array_element_count = expression_node.block_items.len() as i32;
-                    if implicit_array_element_count == 0 {
-                        implicit_array_element_count = -1;
-                    }
-                }
-                // DEBUG
-                if self.debug {
-                    println!("explicit_array_element_count: {}", explicit_array_element_count);
-                    println!("implicit_array_element_count: {}", implicit_array_element_count);
-                }
-                let mut array_element_count: i32 = 0;
-
-                // check array dimension
-                if is_array {
-
-                    if explicit_array_element_count < 0 && implicit_array_element_count < 0 {
-                        panic!("[ERR] No length found for array!");
-                    } else if explicit_array_element_count < 0 && implicit_array_element_count > 0 {
-                        array_element_count = implicit_array_element_count;
-                    } else if explicit_array_element_count > 0 && implicit_array_element_count <= 0 {
-                        array_element_count = explicit_array_element_count;
-                    } else if explicit_array_element_count > 0 && implicit_array_element_count > 0 {
-                        if explicit_array_element_count != implicit_array_element_count {
-                            panic!("[ERR] Explicit array length and length of initializer do not match!");
-                        } else {
-                            array_element_count = explicit_array_element_count;
-                        }
-                    }
-
-                    // an array of size zero is weird!
-                    // https://stackoverflow.com/questions/9722632/what-happens-if-i-define-a-0-size-array-in-c-c
-                    assert_ne!(array_element_count, 0, "[ERR] An array of size 0 is not allowed!");
-                }
-                // DEBUG
-                if self.debug {
-                    println!("explicit_array_element_count: {}", explicit_array_element_count);
-                    println!("implicit_array_element_count: {}", implicit_array_element_count);
-                    println!("=> array_element_count: {}", array_element_count);
-                }
-                // create TACKY variable declaration
-                let mut var_declaration: Instruction = Instruction::new();
-                var_declaration.instruction_type = InstructionType::VariableDeclaration;
-                let data_type: DataType = self.type_system.borrow().get(&data_type_as_string.to_lowercase()).unwrap().clone();
-                var_declaration.data_type = data_type.clone();
-                var_declaration.label = variable_identifier.clone();
-
-                if self.symbol_table.borrow_mut().contains_key(&variable_identifier) {
-                    // this branch will perform an update and leave all other properties
-                    // as is. This is is important because the type checking visitor which
-                    // created the initial entry has added status about the variable being
-                    // a pointer. This status should not be lost!
-                    // This is a mess!!!!!
-                    //
-                    // TODO: Why is there a new entry inserted into the symbol table?
-                    // I think that here, the status if it is an array and the amount of array
-                    // elements are updated. If this is the case, why was this not done directly
-                    // inside the type_checking_visitor?
-                    //
-                    // Maybe move all symbol_table_entry creation into the type checking visitor
-                    // There are more creations inside this tacky visistor. It is unclear why
-                    // there is a separation between the type checking- and the tacky visitor
-                    // for symbol table updates!?!?!?!?
-                    let mut symbol_table_entry = self.symbol_table.borrow_mut().get(&variable_identifier).unwrap();
-                    symbol_table_entry.is_array = is_array;
-                    symbol_table_entry.array_element_count = array_element_count;
-                    // DEBUG
-                    if self.debug {
-                        println!("[TackyVisitor] key:'{}', value{:?}", variable_identifier.clone(), symbol_table_entry);
-                    }
-                    self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
-                } else {
-                    // create symbol table entry for temporary variable
-                    let mut symbol_table_entry = SymbolTableEntry::new();
-                    symbol_table_entry.name = variable_identifier.clone();
-                    symbol_table_entry.initial_name = variable_identifier.clone();
-                    symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
-                    symbol_table_entry.data_type = data_type.clone();
-                    symbol_table_entry.is_array = is_array;
-                    symbol_table_entry.array_element_count = array_element_count;
-                    // DEBUG
-                    if self.debug {
-                        println!("[TackyVisitor] key:'{}', value{:?}", variable_identifier.clone(), symbol_table_entry);
-                    }
-
-                    // TODO: Why is there a new entry inserted into the symbol table?
-                    // I think that here, the status if it is an array and the amount of array
-                    // elements are updated. If this is the case, why was this not done directly
-                    // inside the type_checking_visitor?
-                    //
-                    // Maybe move all symbol_table_entry creation into the type checking visitor
-                    // There are more creations inside this tacky visistor. It is unclear why
-                    // there is a separation between the type checking- and the tacky visitor
-                    // for symbol table updates!?!?!?!?
-                    self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
-                }
-
-                // append instruction to latest top-level element of the program
-                let last = self.program.top_level.len() - 1;
-                self.program.top_level[last].body.push(Box::new(var_declaration));
-
-                //
-                // Initializer
-                //
-
-                // expression
-                if let Some(expression_node_id) = ast_node.expression {
-
-                    let expression_node = node_map.get(&expression_node_id).unwrap();
-
-                    // DEBUG
-                    if self.debug {
-                        print!("{:?}", expression_node);
-                    }
-
-                    match expression_node.node_type {
-
-                        AstNodeType::SingleInit => {
-                            // DEBUG
-                            if self.debug {
-                                println!("SingleInit");
-                            }
-
-                            //
-                            // LHS - is where the expression to assign to the destination lives
-                            //
-
-                            if let Some(left_node_id) = expression_node.lhs {
-
-                                let left_node = node_map.get(&left_node_id).unwrap();
-
-                                // DEBUG
-                                if self.debug {
-                                    print!("{:?}", left_node);
-                                }
-
-                                // Copy
-                                let mut copy_instruction: Instruction = Instruction::new();
-                                copy_instruction.instruction_type = InstructionType::Copy;
-
-                                match &left_node.node_type {
-
-                                    AstNodeType::Expression => {
-                                        let mut br_cnt = 0;
-                                        let ( value_element, data_type )
-                                            = self.visit(left_node_id, node_map, &variable_identifier, &mut br_cnt);
-
-                                        // DEBUG
-                                        if self.debug {
-                                            println!("[TV] AstNodeType::VariableDeclaration - data_type: {}, value_element: {:?}", data_type, value_element);
-                                        }
-
-                                        copy_instruction.src = value_element;
-
-                                        // if the target is of type _Bool, convert non-null values
-                                        // to the true constant
-                                        if lhs_data_type == DataType::DataTypeBool {
-                                            match copy_instruction.src {
-                                                ValueElement::Constant(literal_val) => {
-                                                    if literal_val == "0" {
-                                                        copy_instruction.src = ValueElement::Constant(String::from("0"));
-                                                    } else {
-                                                        copy_instruction.src = ValueElement::Constant(String::from("1"));
-                                                    }
-                                                }
-                                                _ => {
-                                                    panic!();
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    _ => {
-                                        panic!("Unhandled type: {:?}", left_node.node_type);
-                                    }
-                                }
-
-                                // DEBUG
-                                // println!("{:?}", copy_instruction.src);
-
-                                // need a source
-                                assert_ne!(copy_instruction.src, ValueElement::None);
-
-                                copy_instruction.dst = ValueElement::Variable(variable_identifier);
-                                if copy_instruction.src != copy_instruction.dst {
-                                    // append instruction to latest top-level element of the program
-                                    let last = self.program.top_level.len() - 1;
-                                    self.program.top_level[last].body.push(Box::new(copy_instruction));
-                                }
-                            }
-                        }
-
-                        AstNodeType::CompoundInit => {
-                            // panic!("test");
-
-                            // Format:
-                            // Rule 77: declaration -> declaration_specifiers init_declarator_list SEMICOLON
-                            //
-                            // LHS contains the data type
-                            // RHS contains the initializer list. It is an ASTNode that stores the values in the block_items properties
-
-                            // // determine the type of the variable which is cast
-                            // let symbol_table_entry: SymbolTableEntry =
-                            //     self.symbol_table.borrow_mut().get(variable_name).unwrap();
-
-                            let data_type: DataType = self.type_system.borrow().get(&data_type_as_string).unwrap().clone();
-
-                            // the data type of the objects in the initializer list is
-                            // let data_type = DataType::from_str(&data_type_as_string).expect("Need type");
-
-                            // DEBUG
-                            if self.debug {
-                                println!("DataType: {}", data_type);
-                            }
-
-                            // LHS - data type
-                            if let Some(left_node_id) = ast_node.lhs {
-                                let left_node = node_map.get(&left_node_id).unwrap();
-                                // DEBUG
-                                if self.debug {
-                                    println!("DataType-Initializer: {:?}", left_node.string_val);
-                                }
-                            }
-
-                            // RHS - identifier
-                            let mut identifier = String::new();
-                            if let Some(right_node_id) = ast_node.rhs {
-                                let right_node = node_map.get(&right_node_id).unwrap();
-                                // DEBUG
-                                if self.debug {
-                                    println!("{:?}", right_node.string_val);
-                                }
-                                identifier = right_node.string_val.clone();
-                            }
-
-                            // RHS - initializer list
-                            if let Some(expression_node_id) = ast_node.expression {
-                                let expression_node = node_map.get(&expression_node_id).unwrap();
-
-                                // DEBUG
-                                if self.debug {
-                                    println!("{:?}", expression_node);
-                                }
-
-                                // add a comment
-                                let mut comment_declaration: Instruction = Instruction::new();
-                                comment_declaration.instruction_type = InstructionType::Comment;
-                                comment_declaration.label = "initialize array elements".to_string();
-
-                                // append comment to latest top-level element of the program
-                                let last = self.program.top_level.len() - 1;
-                                self.program.top_level[last].body.push(Box::new(comment_declaration));
-
-                                let mut current_offset = 0;
-                                for i in 0..expression_node.block_items.len() {
-
-                                    let block_item_id = expression_node.block_items[expression_node.block_items.len()-1-i];
-                                    let block_item = node_map.get(&block_item_id).unwrap();
-
-                                    // DEBUG
-                                    if self.debug {
-                                        println!("{:?}", block_item);
-                                    }
-
-                                    if let Some(left_node_id) = block_item.lhs {
-
-                                        // DEBUG
-                                        if self.debug {
-                                            println!("LHS: {:?}", left_node_id);
-                                        }
-
-                                        let left_node = node_map.get(&left_node_id).unwrap();
-
-                                        // DEBUG
-                                        if self.debug {
-                                            println!("Value: {:?}", left_node.string_val);
-                                        }
-
-                                        let mut copy_to_offset: Instruction = Instruction::new();
-                                        copy_to_offset.instruction_type = InstructionType::CopyToOffset;
-                                        copy_to_offset.data_type = data_type.clone();
-                                        copy_to_offset.src = ValueElement::Constant(left_node.string_val.clone());
-                                        copy_to_offset.dst = ValueElement::Variable(identifier.clone());
-                                        copy_to_offset.offset = current_offset;
-
-                                        // append instruction to latest top-level element of the program
-                                        let last = self.program.top_level.len() - 1;
-                                        self.program.top_level[last].body.push(Box::new(copy_to_offset));
-
-                                        current_offset = current_offset + data_type.get_size(&self.type_system.borrow()) as i32;
-                                    }
-                                }
-                            }
-                        }
-
-                        _ => {
-                            panic!("test");
-                        }
-                    }
-                }
+                self.variable_declaration_handler(&ast_node, node_map);
             }
 
             AstNodeType::DataType => {

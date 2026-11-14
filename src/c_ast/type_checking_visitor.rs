@@ -1431,7 +1431,8 @@ impl TypeCheckingVisitor {
 
         // DEBUG
         if self.debug {
-            println!("[TCV][visit] ast_node.node_type: {:?}", ast_node.node_type);
+            //println!("[TCV][visit] ast_node.node_type: {:?}", ast_node.node_type);
+            println!("[TCV][visit] ast_node: {:?}", ast_node);
         }
 
         match ast_node.node_type {
@@ -1472,7 +1473,19 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::Array => {
-                todo!();
+                let data_type_name = ast_node.string_val;
+                let mut inner_data_type: DataType = DataType::from_str(&data_type_name).unwrap();
+
+                let node_data_type_id_option = ast_node.data_type;
+                if let Some(node_data_type_id) = node_data_type_id_option {
+                    // println!("node_data_type_id: '{}'", node_data_type_id);
+                    let node_data_type_ast_node = node_map.get(&node_data_type_id).unwrap();
+                    // println!("node_data_type_ast_node: {:?}", node_data_type_ast_node);
+
+                    inner_data_type = node_data_type_ast_node.get_analyzed_data_type();
+                }
+
+                return DataType::DataTypeArray(Box::new(inner_data_type), None)
             }
 
             AstNodeType::Expression => {

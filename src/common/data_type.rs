@@ -151,6 +151,7 @@ impl PartialEq for DataType {
 }
 
 const SIZEOF_INT: usize = 4;
+const SIZEOF_ADDRESS_X64: usize = 8;
 
 impl DataType {
 
@@ -174,7 +175,7 @@ impl DataType {
             DataType::DataTypeFloat => 4,
             DataType::DataTypeDouble => 8,
             DataType::DataTypePointer(inner_data_type) => {
-                return 8; // ptr on 64 bit are 8 byte!
+                return SIZEOF_ADDRESS_X64; // ptr on 64 bit are 8 byte!
                 // match **inner_data_type {
                 //     DataType::DataTypeLong => 8,
                 //     _ => {
@@ -196,7 +197,23 @@ impl DataType {
                     let data_type_size = data_type.get_size(type_system);
                     return data_type_size * size;
                 } else {
-                    panic!("size: unspecified, data_type: {}", data_type);
+                    // a formal parameter of array type has no size.
+                    // In this case, assume the address of the first element.
+                    // An address is 8 byte on x64, therefore return size 8.
+                    //
+                    // Example Code:
+                    //
+                    // ```
+                    // int strlen(char s[])
+                    // {
+                    //    ...
+                    // }
+                    // ```
+
+                    //panic!("size: unspecified, data_type: {}", data_type);
+
+                    // return size of address (8 byte on x64)
+                    return SIZEOF_ADDRESS_X64;
                 }
             }
             DataType::DataTypeStruct(data_type) => {

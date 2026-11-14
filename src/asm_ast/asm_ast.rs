@@ -51,10 +51,15 @@ pub enum AstAstAssemblyType {
 }
 
 impl AstAstAssemblyType {
-    pub fn from_data_type(data_type: &DataType)
-        -> AstAstAssemblyType
+    pub fn from_data_type(data_type: &DataType) -> AstAstAssemblyType
     {
         match data_type {
+            DataType::DataTypeChar => {
+                AstAstAssemblyType::Byte // byte, 8 bit
+            }
+            // DataType::DataTypeShort => {
+            //     AstAstAssemblyType:: // byte, 16 bit
+            // }
             DataType::DataTypeUnsignedInt => {
                 AstAstAssemblyType::Doubleword // dword, 32 bit
             }
@@ -68,7 +73,13 @@ impl AstAstAssemblyType {
                 AstAstAssemblyType::Quadword // qword, 64 bit
             }
             DataType::DataTypeStruct(struct_decl) => {
+                // TODO: is this correct???
                 AstAstAssemblyType::Unknown
+            }
+            DataType::DataTypeArray(array_inner_data_type, length_option) => {
+                // array parameters are the pointer (address, 8 byte on x64)
+                // to the first element of the array
+                AstAstAssemblyType::Quadword
             }
             _ => {
                 unimplemented!("No implementation for {}", data_type);
@@ -547,6 +558,9 @@ impl AsmAstReg {
                 // string_buffer.push_str("di");
                 // append suffix for data type
                 match data_type {
+                    AstAstAssemblyType::Byte => {
+                        string_buffer.push_str("di");
+                    }
                     AstAstAssemblyType::Word => {
                         string_buffer.push_str("di");
                     }
@@ -557,7 +571,7 @@ impl AsmAstReg {
                         string_buffer.push_str("rdi");
                     }
                     _ => {
-                        panic!("");
+                        panic!("Unhandled DataType: {:?}", data_type);
                     }
                 }
             }

@@ -507,6 +507,7 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
         }
 
         InstructionType::VariableDeclaration => {
+            // println!("instruction: {:?}", instruction);
             string_buffer.push_str(format!("VariableDeclaration(label:{:?}, data_type:{:?})\n", instruction.label, instruction.data_type.to_string()).as_str());
         }
 
