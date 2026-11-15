@@ -5797,6 +5797,8 @@ impl Parser<String> {
                                                     if let Some(member_name_node_id) = member_declaration_node.rhs {
                                                         let member_name_node = node_map.get(&member_name_node_id).unwrap().clone();
                                                         struct_member.member_name = member_name_node.string_val.clone();
+                                                    } else {
+                                                        panic!("Struct field needs a name!");
                                                     }
 
                                                     // LHS - assign datatype to new struct_member object
@@ -6380,6 +6382,11 @@ impl Parser<String> {
                                                 member_declaration_ast_node.line = line;
                                                 // member_declaration_ast_node.string_val = String::from("OmegaPepega!");
 
+                                                // DEBUG
+                                                if debug {
+                                                    self.print_ast_stack(node_map);
+                                                }
+
                                                 // RHS - member name
                                                 // LHS - assign datatype to new struct_member object
 
@@ -6404,10 +6411,9 @@ impl Parser<String> {
                                                             let type_ast_node_id = self.ast_stack_pop().unwrap();
                                                             let type_ast_node = node_map.get(&type_ast_node_id).unwrap();
 
-                                                            // println!("type_ast_node_id: {}, {:?}", type_ast_node_id, type_ast_node);
-
                                                             // DEBUG
                                                             if debug {
+                                                                println!("[Parser][Rule 116] type_ast_node_id: {}, {:?}", type_ast_node_id, type_ast_node);
                                                                 println!("[Parser][Rule 116] type_ast_node: '{}'", &type_ast_node.string_val);
                                                                 println!("[Parser][Rule 116] type_ast_node.node_type: '{:?}'", &type_ast_node.node_type);
                                                             }
@@ -6623,6 +6629,7 @@ impl Parser<String> {
 
                                                 self.struct_field_counter = self.struct_field_counter + 1;
 
+                                                // DEBUG
                                                 if debug {
                                                     println!("{:?}", member_declaration_ast_node);
                                                 }
@@ -6701,6 +6708,15 @@ impl Parser<String> {
 
                                         // 119;specifier_qualifier_list;type_qualifier;specifier_qualifier_list
                                         119 => {
+
+                                            // Examples:
+                                            // const char *filename;
+
+                                            // For
+                                            // char *filename;
+                                            // (without qualifier const)
+                                            // the Rule 118 is executed!
+
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -6718,12 +6734,13 @@ impl Parser<String> {
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, specifier_qualifier_list_node.id).as_str());
 
                                             //
-                                            // LHS - type_qualifier
+                                            // LHS - type_qualifier (const, ...)
                                             //
 
                                             // take old node from stack - type_qualifier
-                                            let type_qualifier_node = debug_node_stack.pop().unwrap();
-                                            // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
+                                            let type_qualifier_node: DebugNode = debug_node_stack.pop().unwrap();
+                                            // print transition from old node id to new node id into string buffer.
+                                            // e.g. 0 -> 1 [label="Symbol(h)"];
                                             string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, type_qualifier_node.id).as_str());
 
                                             // TODO: SEMICOLON
@@ -6744,14 +6761,40 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 // DEBUG
-                                                // self.print_ast_stack(node_map);
+                                                if debug {
+                                                    self.print_ast_stack(node_map);
+                                                }
 
+                                                // LHS - DataType
                                                 let lhs_ast_node_id = self.ast_stack_pop().unwrap();
+                                                let mut data_type_ast_node = node_map.get(&lhs_ast_node_id).unwrap().clone();
+
+                                                // RHS - Qualifier (const, ...)
                                                 let rhs_ast_node_id = self.ast_stack_pop().unwrap();
 
+                                                // // DEBUG
                                                 // println!("{}", lhs_ast_node_id);
                                                 // println!("{}", rhs_ast_node_id);
 
+                                                let qualifier_ast_node = node_map.get(&rhs_ast_node_id).unwrap();
+                                                println!("qualifier_ast_node: {:?}", &qualifier_ast_node);
+                                                if qualifier_ast_node.string_val == "CONST" {
+                                                    data_type_ast_node.is_const = true;
+                                                } else {
+                                                    todo!("Handle case!");
+                                                }
+
+                                                data_type_ast_node.is_const = true;
+                                                node_map.insert(data_type_ast_node.id, data_type_ast_node);
+
+                                                // instead of adding a new node to the stack,
+                                                // retrieve the MemberTypeDeclaration node from the stack
+                                                // which is already there and just set the qualifier flag
+                                                // then place the same node back to the stack.
+                                                // This unifies rule 116 for two cases which are
+                                                // qualifier present (const, ...) and qualifier not present.
+
+                                                /*
                                                 let mut ast_node: AstNode = AstNode::new(self.get_ast_node_id());
                                                 ast_node.node_type = AstNodeType::MemberTypeDeclaration;
                                                 ast_node.lhs = Some(lhs_ast_node_id);
@@ -6762,6 +6805,9 @@ impl Parser<String> {
                                                 self.ast_stack.push(ast_node.id);
 
                                                 node_map.insert(ast_node.id, ast_node);
+                                                */
+
+                                                self.ast_stack.push(lhs_ast_node_id);
                                             }
                                         }
 
@@ -9825,7 +9871,7 @@ impl Parser<String> {
     {
         let return_value = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
 
-        //if return_value == 6 {
+        //if return_value == 7 {
         //    println!("[get_ast_node_id] id: {}", return_value);
         //}
 
