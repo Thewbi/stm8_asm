@@ -75,7 +75,7 @@ which type the point to!
 
 # Source Code Structure
 
-## How to regenerate the parser
+## How to regenerate the parser?
 
 In main.rs look for the if-statement:
 
@@ -112,7 +112,7 @@ from file is way faster than running the algorithms.
 
 The Parsers (parser.rs) has a function for each rule which is called when a rule is reduced. In each of these functions, the .dot graphviz is printed into a String called string_buffer. Also AST nodes are created in these functions. This means the parser outputs the parse tree and prepares AST nodes at the same time.
 
-## Where is the symbol table and how is it used
+## Where is the symbol table and how is it used?
 
 The symbol table is defined in main.rs. It is passed to the TypeCheckingVisitor via a smart pointer.
 The TypeCheckingVisitor assigns a type to a variable declaration and inserts this information into the symbol table.
@@ -188,7 +188,47 @@ The stack frame layout is output in the emitter visitor.
 For different targets, there are different emitter visitors.
 The emitter visitor for MSVC on x64 is ```src\asm_ast\asm_ast_masm_emitter_visitor.rs```.
 
-Inside ```src\asm_ast\asm_ast_masm_emitter_visitor.rs```,
+Inside ```src\asm_ast\asm_ast_masm_emitter_visitor.rs```, ...
+
+## How to debug the memory layout created for structs?
+
+The memory layout of structs is computed in main.rs.
+Look for the call to
+```
+struct_decl_var.compute_memory_layout(ts);
+```
+
+To debug the result, first output the result to the console:
+Edit src\common\struct_decl.rs and the function ```pub fn compute_memory_layout()```
+
+and activate the output:
+
+```
+if self.debug {
+    println!("StructDecl Tag: '{}'", self.tag);
+    println!("---------------------------------------------------");
+    println!("Total Size: {} bytes", self.size);
+    println!("Alignment: {}-byte", align);
+    println!("Padding Waste: {} bytes ({}%)", wasted_bytes, waste_percentage);
+    let len = self.members.len();
+    for i in 0..len {
+        let offset = &self.members[i].offset;
+        let size = &self.members[i].size;
+        let name = &self.members[i].member_name;
+        println!("Member {}) Offset:{} Size:{} Name:{}", i, offset, size, name);
+    }
+}
+```
+
+Now enter the fields of the struct into the online tools and compare:
+(HINT: the embedcalc.com tool is 32 bit only! For 64 bit better use nothingleaves.com!)
+* https://www.embedcalc.com/structalign/#structalign
+* https://nothingleaves.com/tools/memory-layout-visualizer/
+
+The size of the struct, the offsets of the fields and the size of the fields
+need to match the output of the tools. The reason is that there is exactly
+a single solution for laying out a struct since the specification is very
+clear about how to layout structs.
 
 # The Preprocessor
 

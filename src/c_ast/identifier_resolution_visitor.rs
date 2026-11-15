@@ -970,6 +970,9 @@ impl IdentifierResolutionVisitor {
                         struct_member.member_name = member_name_node.string_val.clone();
                         struct_member.member_type = member_type_node.string_val.clone();
 
+                        assert_ne!(struct_member.member_name, "", "Struct Member has no name!");
+                        assert_ne!(struct_member.member_type, "", "Struct Member has no type!");
+
                         struct_decl.members.push(struct_member);
                     }
 

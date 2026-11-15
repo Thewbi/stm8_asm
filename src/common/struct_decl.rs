@@ -66,7 +66,9 @@ impl StructDecl {
     ///   is aligned at boundaries of 8. If the struct has an alignment of 8,
 	///   it's length must be a multiple of 8. Use padding if necessary.
     ///
-    /// Debugging: https://www.embedcalc.com/structalign/#structalign
+    /// Debugging:
+    /// https://www.embedcalc.com/structalign/#structalign
+    /// https://nothingleaves.com/tools/memory-layout-visualizer/
     pub fn compute_memory_layout(&mut self, type_system: &HashMap::<String, DataType>) -> bool
     {
         // DEBUG
@@ -86,6 +88,7 @@ impl StructDecl {
                 println!("{:?}", member);
             }
 
+            assert_ne!(member.member_name, "", "MemberField has no name!");
             assert_ne!(member.data_type, DataType::DataTypeUnknown, "Need a valid datatype!");
 
             let data_type_from_type_system = self.reload_struct_member_data_type(&member, type_system);
@@ -193,7 +196,19 @@ impl StructDecl {
         let mut waste_percentage: f32 = wasted_bytes as f32 / self.size as f32;
         waste_percentage = waste_percentage * 100.0;
 
+        //
+        // Tools for comparison:
+        //
+        // 64-bit
+        // https://nothingleaves.com/tools/memory-layout-visualizer/
+        //
+        // 32-bit
+        // https://www.embedcalc.com/structalign/#structalign
+        //
+
+        // DEBUG - struct layout
         if self.debug {
+            println!("---------------------------------------------------");
             println!("StructDecl Tag: '{}'", self.tag);
             println!("---------------------------------------------------");
             println!("Total Size: {} bytes", self.size);

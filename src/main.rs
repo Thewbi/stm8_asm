@@ -562,7 +562,7 @@ fn main() {
     static TEST_PREPROCESSOR_TREE_CONVERSION: bool = false;
     if TEST_PREPROCESSOR_TREE_CONVERSION {
 
-        println!("x+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+x");
+        println!("x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x");
 
         // let data = String::from("a+b");
         // let data = String::from("a * (b + c)");
@@ -668,7 +668,7 @@ fn main() {
         //print_arena_dot_mark(&expression_parser.arena, root_id, expression_parser.ptr_node_id.index);
         print_arena_dot(&expression_parser.arena, root_id);
 
-        println!("x+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+xx+x+x+x+x+x+x+x");
+        println!("x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x");
     }
 
     //

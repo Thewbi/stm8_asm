@@ -5902,6 +5902,12 @@ impl Parser<String> {
 
                                                             AstNodeType::DataType => {
                                                                 let type_as_string = member_type_node.string_val;
+
+                                                                // DEBUG
+                                                                if debug {
+                                                                    println!("[Parser][AstNodeType::DataType] type_as_string: '{}'", type_as_string);
+                                                                }
+
                                                                 struct_member.member_type = type_as_string.clone();
 
                                                                 // DEBUG
@@ -5980,7 +5986,9 @@ impl Parser<String> {
                                                             }
 
                                                             AstNodeType::Pointer => {
-                                                                // println!("type_as_string: {}", member_type_node.analyzed_data_type);
+                                                                // DEBUG
+                                                                // println!("[Parser][AstNodeType::Pointer]  type_as_string: '{}'", member_type_node.analyzed_data_type);
+
                                                                 struct_member.member_type = member_type_node.get_analyzed_data_type().to_string();
 
                                                                 let dataT = member_type_node.get_analyzed_data_type();
@@ -5996,10 +6004,12 @@ impl Parser<String> {
 
                                                     } else {
 
+                                                        struct_member.member_name = struct_member.member_name.clone();
                                                         struct_member.data_type = member_declaration_node.get_analyzed_data_type().clone();
 
                                                     }
 
+                                                    assert_ne!(struct_member.member_name, "", "Need name!");
                                                     assert_ne!(struct_member.data_type, DataType::DataTypeUnknown, "Need datatype!");
 
                                                     self.struct_decl.members.push(struct_member);
@@ -6353,6 +6363,7 @@ impl Parser<String> {
                                             // e.g. unsigned int x;
                                             // e.g. signed int y;
                                             // e.g. int z;
+                                            // e.g. char* c_ptr;
                                             //
 
                                             if self.construct_ast {
@@ -6397,8 +6408,8 @@ impl Parser<String> {
 
                                                             // DEBUG
                                                             if debug {
-                                                                println!("type_ast_node: '{}'", &type_ast_node.string_val);
-                                                                println!("type_ast_node.node_type: '{:?}'", &type_ast_node.node_type);
+                                                                println!("[Parser][Rule 116] type_ast_node: '{}'", &type_ast_node.string_val);
+                                                                println!("[Parser][Rule 116] type_ast_node.node_type: '{:?}'", &type_ast_node.node_type);
                                                             }
 
                                                             // add the type the pointer points to
@@ -6443,7 +6454,7 @@ impl Parser<String> {
                                                                     let data_type_ptr = DataType::DataTypePointer(Box::new(data_type));
                                                                     // DEBUG
                                                                     if debug {
-                                                                        println!("[parser][114] ast_node.id: {}, data_type: {:?}", ast_node.id, data_type_ptr);
+                                                                        println!("[parser][Rule 116] ast_node.id: {}, data_type: {:?}", ast_node.id, data_type_ptr);
                                                                     }
                                                                     ast_node.set_analyzed_data_type(data_type_ptr.clone());
 
@@ -6507,12 +6518,38 @@ impl Parser<String> {
                                                                     let string_val = type_ast_node.string_val.as_str();
 
                                                                     // DEBUG
-                                                                    // println!("string_val: {:?}", string_val);
+                                                                    if debug {
+                                                                        println!("[parser][Rule 116] string_val (inner type name): '{:?}'", string_val);
+                                                                    }
+                                                                    let inner_data_type = DataType::from_str(string_val).expect("Error");
 
-                                                                    let data_type = DataType::from_str(string_val).expect("Error");
-                                                                    ast_node.set_analyzed_data_type(data_type.clone());
+                                                                    let pointer_data_type = DataType::DataTypePointer(Box::new(inner_data_type));
+                                                                    ast_node.set_analyzed_data_type(pointer_data_type.clone());
 
-                                                                    member_declaration_ast_node.set_analyzed_data_type(data_type.clone());
+                                                                    member_declaration_ast_node.set_analyzed_data_type(pointer_data_type.clone());
+
+                                                                    let mut identifier_ast_node: AstNode = AstNode::new(self.get_ast_node_id());
+                                                                    identifier_ast_node.node_type = AstNodeType::Identifier;
+                                                                    identifier_ast_node.string_val = ast_node.string_val.clone();
+                                                                    identifier_ast_node.file = file.clone();
+                                                                    identifier_ast_node.line = line;
+
+                                                                    let mut type_ast_node: AstNode = AstNode::new(self.get_ast_node_id());
+                                                                    type_ast_node.node_type = AstNodeType::Pointer;
+                                                                    type_ast_node.string_val = string_val.to_string();
+                                                                    type_ast_node.file = file.clone();
+                                                                    type_ast_node.line = line;
+                                                                    type_ast_node.set_analyzed_data_type(pointer_data_type.clone());
+
+                                                                    member_declaration_ast_node.lhs = Some(type_ast_node.id);
+                                                                    member_declaration_ast_node.rhs = Some(identifier_ast_node.id);
+
+                                                                    // // update node
+                                                                    // node_map.insert(member_declaration_ast_node.id, member_declaration_ast_node);
+
+                                                                    node_map.insert(identifier_ast_node.id, identifier_ast_node);
+                                                                    node_map.insert(type_ast_node.id, type_ast_node);
+
                                                                 }
                                                             }
 
@@ -6576,7 +6613,7 @@ impl Parser<String> {
                                                                 //     member_declaration_ast_node.lhs = Some(type_ast_node_id);
                                                                 // }
                                                                 _ => {
-                                                                    panic!("[PARSER::Rule 115][ERR] Unexpected: AstNodeType: '{:?}' in AstNode: {:?}",
+                                                                    panic!("[PARSER::Rule 116][ERR] Unexpected: AstNodeType: '{:?}' in AstNode: {:?}",
                                                                         type_ast_node.node_type, type_ast_node);
                                                                 }
                                                             }
@@ -9788,9 +9825,9 @@ impl Parser<String> {
     {
         let return_value = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
 
-        // if return_value == 12 {
-        //     println!("[get_ast_node_id] id: {}", return_value);
-        // }
+        //if return_value == 6 {
+        //    println!("[get_ast_node_id] id: {}", return_value);
+        //}
 
         return_value
     }

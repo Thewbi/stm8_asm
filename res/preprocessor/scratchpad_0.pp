@@ -1,11 +1,17 @@
-// res\C\samples\c_samples\pointer_2.c
+// res\C\samples\c_samples\struct_15.c
 
-typedef struct CPU_STRUCT {
-    int a;
-} CPU_STRUCT;
+typedef struct _iobuf
+{
+    char*   _ptr;
+    int     _cnt;
+    char*   _base;
+    int     _flag;
+    int     _file;
+    int     _charbuf;
+    int     _bufsiz;
+    char*   _tmpfname;
+} FILE;
 
 int main() {
-    CPU_STRUCT* CPU;
-
     return 0;
 }

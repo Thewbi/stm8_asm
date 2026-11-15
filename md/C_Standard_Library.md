@@ -408,6 +408,30 @@ typedef struct _iobuf
 } FILE;
 ```
 
+Apparently on 64 bit windows, a file handle is a 8-byte value and
+the FILE data type needs to contain a void-pointer to acommodate
+for a FILE handle!
+
+In the example below, the _Placeholder will store the HANDLE!
+
+```
+ struct _iobuf {
+#ifdef _UCRT
+    void *_Placeholder;
+#else
+    char *_ptr;
+    int _cnt;
+    char *_base;
+    int _flag;
+    int _file;
+    int _charbuf;
+    int _bufsiz;
+    char *_tmpfname;
+#endif
+  };
+  typedef struct _iobuf FILE;
+```
+
 
 
 
