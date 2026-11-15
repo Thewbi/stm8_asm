@@ -160,7 +160,7 @@ const BASE_PATH: &'static str = "build/";
 static RULE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 static STATE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-static REGENERATE_LEXER_PARSER: bool = false;
+static REGENERATE_LEXER_PARSER: bool = !true;
 
 pub fn print_ast(program_ast_node_id: &usize,
     node_map: &Box<HashMap::<usize, AstNode>>,

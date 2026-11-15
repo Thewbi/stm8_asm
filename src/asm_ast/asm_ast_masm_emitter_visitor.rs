@@ -165,7 +165,17 @@ impl AsmAstMasmEmitterVisitor {
                     if self.print_to_console {
                         print!("byte ptr [rbp{}]", stack_val);
                     }
-                    format!("byte ptr [{}{}]", register.to_string(), stack_val)
+                    // format!("byte ptr [{}{}]", register.to_string(), stack_val)
+                    //format!("byte ptr [{}-{}+{}*4]", register.to_string(), stack_val, offset_register)
+
+                    // stack_val might be a negative value because the stack grows towards zero and
+                    // a new stack element is added by subtracting from the stack base pointer.
+                    // If the value is negative, do not insert another minus operator!
+                    if *stack_val < 0i32 {
+                        format!("byte ptr [{}{}+{}*1]", register.to_string(), stack_val, offset_register)
+                    } else {
+                        format!("byte ptr [{}-{}+{}*1]", register.to_string(), stack_val, offset_register)
+                    }
                 }
             }
 
@@ -413,8 +423,8 @@ impl AsmAstMasmEmitterVisitor {
                     println!("{}", asm_ast_reg_val);
                 }
 
-                // TODO: This is a big problem: Cannot just convert a register enum to a string
-                // since the register needs to fit the data type!
+                // TODO: This is a big problem: Cannot just convert a
+                // register enum to a string since the register needs to fit the data type!
                 // e.g.
                 // r10 for Quadword
                 // r10d for Doubleword
@@ -424,6 +434,9 @@ impl AsmAstMasmEmitterVisitor {
 
                 let register_for_data_type
                     = asm_ast_reg_val.output_register_matching_datatype(&assembly_type);
+
+                // println!("[MASMEmitterVisitor] register_for_data_type: '{}'", register_for_data_type);
+
                 self.string_buffer.push_str(&register_for_data_type);
             }
 
@@ -466,7 +479,6 @@ impl AsmAstMasmEmitterVisitor {
                     println!("{}", format!("{}", pseudo_val).as_str());
                 }
 
-                // TODO
                 if self.stack_offset_map.contains_key(pseudo_val) {
 
                     let stack_val = self.stack_offset_map.get(pseudo_val).unwrap();
@@ -475,7 +487,9 @@ impl AsmAstMasmEmitterVisitor {
                     if self.print_to_console {
                         println!("{} => {:?}", pseudo_val, stack_val);
                     }
-                    self.string_buffer.push_str(self.add_stack_variable_with_offset(assembly_type, stack_val, pseudo_offset, &AsmAstReg::RBP).as_str());
+
+                    self.string_buffer.push_str(
+                        self.add_stack_variable_with_offset(assembly_type, stack_val, pseudo_offset, &AsmAstReg::RBP).as_str());
                 }
             }
 
@@ -502,8 +516,8 @@ impl AsmAstMasmEmitterVisitor {
                     }
                 }
 
-                // // DEBUG
-                // println!("{}", &value_as_string);
+                // DEBUG
+                // println!("[ASM MASM Emitter] '{}'", &value_as_string);
 
                 self.string_buffer.push_str(&value_as_string);
             }
@@ -714,7 +728,9 @@ impl AsmAstMasmEmitterVisitor {
                 // need data types for generating instructions
                 assert_ne!(asm_ast_instruction.assembly_type,
                     AstAstAssemblyType::Unknown,
-                    "\n\n[ERROR] asm_ast_instruction.id: {}, {:?} has data type unknown", asm_ast_instruction.id, asm_ast_instruction);
+                    "\n\n[ERROR] asm_ast_instruction.id: {}, {:?} has data type unknown",
+                    asm_ast_instruction.id,
+                    asm_ast_instruction);
 
                 self.string_buffer.push_str("    mov ");
                 self.emit_asm_ast_operand(

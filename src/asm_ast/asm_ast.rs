@@ -454,6 +454,9 @@ impl AsmAstReg {
             AsmAstReg::AX | AsmAstReg::EAX | AsmAstReg::RAX => {
                 // append suffix for data type
                 match data_type {
+                    AstAstAssemblyType::Byte => {
+                        string_buffer.push_str("al");
+                    }
                     AstAstAssemblyType::Word => {
                         string_buffer.push_str("ax");
                     }
@@ -559,7 +562,7 @@ impl AsmAstReg {
                 // append suffix for data type
                 match data_type {
                     AstAstAssemblyType::Byte => {
-                        string_buffer.push_str("di");
+                        string_buffer.push_str("dl");
                     }
                     AstAstAssemblyType::Word => {
                         string_buffer.push_str("di");

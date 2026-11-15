@@ -4,8 +4,8 @@ typedef struct CPU_STRUCT {
     int a;
 } CPU_STRUCT;
 
-CPU_STRUCT* CPU;
-
 int main() {
+    CPU_STRUCT* CPU;
+
     return 0;
 }

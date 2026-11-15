@@ -44,6 +44,9 @@ for %%L in (
 
     res\C\samples\c_samples\char_0.c
     res\C\samples\c_samples\char_1.c
+    res\C\samples\c_samples\char_2.c
+    res\C\samples\c_samples\char_3.c
+    res\C\samples\c_samples\char_4.c
 
     res\C\samples\c_samples\constant_0.c
 

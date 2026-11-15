@@ -2,8 +2,13 @@
 
 int main() {
     char arr[100];
-    arr[0] = 1;
-    arr[1] = 2;
+    //int arr[100];
+    arr[0] = 10;
+    arr[1] = 20;
+    arr[2] = 30;
 
+    if (arr[1] == 20) {
+        return 0;
+    }
     return arr[1];
 }

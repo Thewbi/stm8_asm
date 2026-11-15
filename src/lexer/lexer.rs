@@ -204,7 +204,8 @@ impl<'a> Lexer<'a> {
                 }
 
                 // token_name required
-                assert_ne!(token_name, "", "Could not process or identify token!");
+                assert_ne!(token_name, "", "{}",
+                    format!("Could not process or identify token! File:{}, Line:{}", file, line).as_str());
 
                 let terminal = RuleElement::Terminal(token_name);
 

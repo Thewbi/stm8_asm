@@ -1,9 +1,11 @@
-// res\C\samples\c_samples\char_4.c
+// res\C\samples\c_samples\pointer_2.c
+
+typedef struct CPU_STRUCT {
+    int a;
+} CPU_STRUCT;
 
 int main() {
-    char arr[100];
-    arr[0] = 1;
-    arr[1] = 2;
+    CPU_STRUCT* CPU;
 
-    return arr[1];
+    return 0;
 }
