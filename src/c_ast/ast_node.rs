@@ -76,6 +76,7 @@ pub enum AstNodeType {
     AddAssignment,
     Typedef,
     TypeSpecifier(String),
+    InlineAssembly,
     Unknown,
 }
 
@@ -102,7 +103,7 @@ pub fn from_data_type(data_type: &DataType) -> AstNodeType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum AstNodeOperatorType {
     Negate,
     Complement,
@@ -926,8 +927,12 @@ impl AstNode {
             AstNodeType::Typedef => {
                 self.pretty_print_ast_typedef_dot(string_buffer, node_map)
             }
-            AstNodeType::TypeSpecifier(vvvv) => {
-                self.pretty_print_ast_type_specifier_dot(string_buffer, node_map, &vvvv)
+            AstNodeType::TypeSpecifier(type_specifier_value) => {
+                self.pretty_print_ast_type_specifier_dot(string_buffer, node_map, &type_specifier_value)
+            }
+            AstNodeType::InlineAssembly => {
+                self.pretty_print_ast_inline_assembly_dot(string_buffer, node_map)
+                //panic!();
             }
             _ => {
                 panic!("{}", format!("Unhandled AST node_type: {:?}", self.node_type).as_str());
@@ -1027,17 +1032,15 @@ impl AstNode {
             // create node for the body/block
             let block_ast_node = node_map.get(&block_ast_node_id).unwrap();
 
-            // println!("{} [label=\"{} Body/Block: {}\"]", block_ast_node_id, block_ast_node_id, self.string_val);
             string_buffer.push_str(format!("{} [label=\"{} Body/Block: {}\"]\n", block_ast_node_id, block_ast_node_id, self.string_val).as_str());
             // connect parent and child
-            // println!("{} -> {}", ast_node_id, block_ast_node_id);
             string_buffer.push_str(format!("{} -> {} [label=\"LHS\"];\n", ast_node_id, block_ast_node_id).as_str());
 
             // add instructions and declarations into body/block
             for i in 0..block_ast_node.block_items.len() {
+
                 let block_item_ast_node_id = node_map.get(&block_ast_node.block_items[block_ast_node.block_items.len()-1-i]).unwrap().pretty_print_ast_dot(string_buffer, node_map);
                 // connect parent and child
-                // println!("{} -> {}", block_ast_node_id, block_item_ast_node_id);
                 string_buffer.push_str(format!("{} -> {} [label=\"BLOCK_ITEM\"];\n", block_ast_node_id, block_item_ast_node_id).as_str());
             }
         }
@@ -1054,6 +1057,14 @@ impl AstNode {
             // storage_class_ast_node_id = storage_class_node.pretty_print_ast_dot(string_buffer);
             string_buffer.push_str(format!("{} -> {} [label=\"STORAGE_CLASS\"];\n", ast_node_id, storage_class_ast_node_id).as_str());
         }
+
+        // for i in 0..self.block_items.len() {
+        //     let ast_node_id = self.block_items[i];
+        //     let ast_node = node_map.get(&ast_node_id).unwrap();
+        //     let block_item_ast_node_id = ast_node.pretty_print_ast_dot(string_buffer, node_map);
+        //     // connect parent and child
+        //     string_buffer.push_str(format!("{} -> {} [label=\"BLOCK_ITEM\"];\n", block_ast_node_id, block_item_ast_node_id).as_str());
+        // }
 
         ast_node_id
     }
@@ -1185,12 +1196,10 @@ impl AstNode {
             match self.operator_type {
 
                 AstNodeOperatorType::Cast => {
-                    // println!("test");
                     lhs_ast_node_id = node_map.get(&left_node).unwrap().pretty_print_ast_dot_ex(string_buffer, node_map, "Cast-TargetType:");
                 }
 
                 _ => {
-                    // println!("test2");
                     lhs_ast_node_id = node_map.get(&left_node).unwrap().pretty_print_ast_dot(string_buffer, node_map);
                 }
             }
@@ -2459,30 +2468,33 @@ impl AstNode {
         ast_node_id
     }
 
-    fn pretty_print_ast_type_specifier_dot(&self, string_buffer: &mut String,
-        node_map: &Box<HashMap::<usize, AstNode>>, type_specifier_val: &String) -> usize {
-
-        // create node for this AstNode
+    fn pretty_print_ast_type_specifier_dot(&self,
+        string_buffer: &mut String,
+        node_map: &Box<HashMap::<usize, AstNode>>,
+        type_specifier_val: &String) -> usize
+    {
         let ast_node_id = self.id;
 
-        // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         if self.print_file_line {
             string_buffer.push_str(format!("{} [label=\"{} TypeSpecifier: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
         } else {
             string_buffer.push_str(format!("{} [label=\"{} TypeSpecifier: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
         }
 
-        // // lhs - type
-        // let mut lhs_ast_node_id = 0;
-        // if let Some(left_node_id) = self.lhs.as_ref() {
+        ast_node_id
+    }
 
-        //     let left_node = node_map.get(left_node_id).unwrap();
-        //     lhs_ast_node_id = left_node.pretty_print_ast_dot_ex(string_buffer, node_map, "LHS:");
+    fn pretty_print_ast_inline_assembly_dot(&self,
+        string_buffer: &mut String,
+        node_map: &Box<HashMap::<usize, AstNode>>) -> usize
+    {
+        let ast_node_id = self.id;
 
-        //     // connect parent and child
-        //     // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
-        //     string_buffer.push_str(format!("{} -> {} [label=\"LHS\"]\n", ast_node_id, lhs_ast_node_id).as_str());
-        // }
+        if self.print_file_line {
+            string_buffer.push_str(format!("{} [label=\"{} InlineAssembly: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+        } else {
+            string_buffer.push_str(format!("{} [label=\"{} InlineAssembly: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+        }
 
         ast_node_id
     }

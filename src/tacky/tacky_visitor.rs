@@ -18,6 +18,7 @@ use crate::AstNodeType::FunctionDeclaration as ASTFunction;
 
 use crate::Instruction;
 
+use crate::common::data_type::DataType::DataTypeUnknown;
 use crate::common::struct_decl::StructDeclMember;
 use crate::common::symbol_table::SymbolTable;
 use crate::common::symbol_table::SymbolTableEntry;
@@ -51,7 +52,6 @@ pub struct TackyVisitor {
     pub type_system: Rc<RefCell<HashMap::<String, DataType>>>,
 
     pub debug: bool,
-
 }
 
 impl TackyVisitor {
@@ -114,11 +114,6 @@ impl TackyVisitor {
         temp_var_name: &String,
         data_type: DataType)
     {
-        // // DEBUG
-        // if temp_var_name == "tmp.4" {
-        //     println!("[TackyVisitor::declare_temporary_variable()]test");
-        // }
-
         // create symbol table entry for temporary variable
         let mut symbol_table_entry = SymbolTableEntry::new();
         symbol_table_entry.name = temp_var_name.clone();
@@ -128,6 +123,7 @@ impl TackyVisitor {
         symbol_table_entry.is_array = false;
         symbol_table_entry.array_element_count = 0;
 
+        assert_ne!(symbol_table_entry.data_type, DataType::DataTypeUnknown);
         self.symbol_table.borrow_mut().insert(temp_var_name.clone(), symbol_table_entry);
 
         // create temporary variable to cast into
@@ -135,6 +131,11 @@ impl TackyVisitor {
         dest_var_declaration.instruction_type = InstructionType::VariableDeclaration;
         dest_var_declaration.data_type = data_type.clone();
         dest_var_declaration.label = temp_var_name.clone();
+
+        // DEBUG
+        if self.debug {
+            println!("[TV] dest_var_declaration: {:?}", dest_var_declaration);
+        }
 
         // append instruction to latest top-level element of the program
         let last = self.program.top_level.len() - 1;
@@ -288,6 +289,11 @@ impl TackyVisitor {
                 dest_var_declaration.data_type = target_type.clone();
                 dest_var_declaration.label = dest_var_name.clone();
 
+                // DEBUG
+                if self.debug {
+                    println!("[TV] dest_var_declaration: {:?}", dest_var_declaration);
+                }
+
                 // append instruction to latest top-level element of the program
                 let last = self.program.top_level.len() - 1;
                 self.program.top_level[last].body.push(Box::new(dest_var_declaration));
@@ -300,6 +306,8 @@ impl TackyVisitor {
 
                 let temp = ast_node.get_analyzed_data_type();
                 symbol_table_entry.data_type = DataType::from_str(&target_type.clone().to_string()).expect("msg");
+
+                assert_ne!(symbol_table_entry.data_type, DataType::DataTypeUnknown);
                 self.symbol_table.borrow_mut().insert(dest_var_name.clone(), symbol_table_entry);
 
                 match target_type {
@@ -665,12 +673,6 @@ impl TackyVisitor {
         // println!("temp_var_name: {}", temp_var_name);
 
         let lhs_node_id = ast_node.lhs.unwrap();
-
-        // // DEBUG
-        // if lhs_node_id == 50 {
-        //     println!("ast_node: {:?}", ast_node);
-        //     println!("test");
-        // }
 
         let mut br_cnt = 0;
         let ( lhs_value_element, lhs_data_type )
@@ -1123,29 +1125,17 @@ impl TackyVisitor {
         // return type
         if let Some(data_type_id) = ast_node.rhs {
 
-            let data_type = node_map.get(&data_type_id).unwrap();
+            let data_type_ast_node = node_map.get(&data_type_id).unwrap();
 
             // DEBUG
             if self.debug {
-                println!("{:?}", data_type);
+                println!("data_type_ast_node: {:?}", data_type_ast_node);
             }
 
-            // DataType {
-            // DataTypeByte,
-            // DataTypeChar,
-            // DataTypeInt,
-            // DataTypeShort,
-            // DataTypeLong,
-            // DataTypeFloat,
-            // DataTypeDouble,
-
-            // DataTypeVoid, // is it beneficial to treat void as a data type? (void-pointer?)
-
-            // DataTypeUnknown,
-
-            match data_type.node_type.clone() {
+            match data_type_ast_node.node_type.clone() {
                 AstNodeType::DataType => {
-                    top_level_function.return_type = Some(DataType::from_str(&data_type.string_val).expect("REASON"));
+                    let return_data_type = DataType::from_str(&data_type_ast_node.string_val).expect("REASON");
+                    top_level_function.return_type = Some(return_data_type);
                 },
                 AstNodeType::TypeSpecifier(type_name) => {
                     let ts = self.type_system.borrow_mut();
@@ -1165,18 +1155,19 @@ impl TackyVisitor {
             }
         }
 
-        // arguments
-        for param_id in &ast_node.parameters {
+        // arguments / formal parameters
+        for param_ast_node_id in &ast_node.parameters {
 
             // DEBUG
             if self.debug {
-                println!("{:?}", param_id);
+                println!("[TV] param_ast_node_id: {:?}", param_ast_node_id);
             }
 
-            let param = node_map.get(&param_id).unwrap();
+            let param_ast_node = node_map.get(&param_ast_node_id).unwrap();
             let mut argument = Argument::new();
-            // name
-            if let Some(left_node_id) = param.lhs {
+
+            // parameter name
+            if let Some(left_node_id) = param_ast_node.lhs {
                 // DEBUG
                 if self.debug {
                     print!("{:?}", left_node_id);
@@ -1184,23 +1175,35 @@ impl TackyVisitor {
                 let left_node = node_map.get(&left_node_id).unwrap();
                 argument.name = left_node.string_val.clone();
             }
-            // data type
-            if let Some(right_node_id) = param.rhs {
-                let right_node = node_map.get(&right_node_id).unwrap();
-                // DEBUG
-                if self.debug {
-                    print!("{:?}", right_node);
+
+            // println!("param_ast_node: {:?}", param_ast_node);
+
+            // Honolulu
+            // parameter data type
+            argument.data_type = param_ast_node.get_analyzed_data_type().clone();
+
+            if argument.data_type == DataTypeUnknown {
+                // parameter data type
+                if let Some(right_node_id) = param_ast_node.rhs {
+
+                    let right_ast_node = node_map.get(&right_node_id).unwrap();
+
+                    // DEBUG
+                    if self.debug {
+                        print!("[TV] right_ast_node: {:?}", right_ast_node);
+                    }
+
+                    //let ts = self.type_system.borrow_mut();
+                    //let ts_data_type = ts.get(&right_node.string_val).unwrap().clone();
+                    //argument.data_type = DataType::from_str(&right_node.string_val).expect(format!("Type is not known: {}\n", &right_node.string_val).as_str());
+
+                    let ts_data_type = right_ast_node.get_analyzed_data_type().clone();
+
+                    argument.data_type = ts_data_type;
                 }
-
-                //let ts = self.type_system.borrow_mut();
-                //let ts_data_type = ts.get(&right_node.string_val).unwrap().clone();
-
-                //argument.data_type = DataType::from_str(&right_node.string_val).expect(format!("Type is not known: {}\n", &right_node.string_val).as_str());
-
-                let ts_data_type = right_node.get_analyzed_data_type().clone();
-
-                argument.data_type = ts_data_type;
             }
+
+            assert_ne!(argument.data_type, DataType::DataTypeUnknown, "Need a type!");
 
             top_level_function.arguments.push(Box::new(argument));
         }
@@ -1274,6 +1277,9 @@ impl TackyVisitor {
         node_map: &mut Box<HashMap<usize, AstNode>>) -> ( ValueElement, DataType )
     {
         let mut node_as_string = String::from("");
+        node_as_string.push_str("[");
+        node_as_string.push_str(usize::to_string(&ast_node.id).as_str());
+        node_as_string.push_str("] ");
         node_as_string.push_str(ast_node.serialize(node_map).as_str());
 
         // add a comment
@@ -1305,7 +1311,10 @@ impl TackyVisitor {
         // Create variable declaration
         //
 
-        // RHS - identifier
+        //
+        // RHS - variable identifier
+        //
+
         let mut variable_identifier = String::from("ERROR");
         if let Some(right_node_id) = ast_node.rhs {
 
@@ -1326,7 +1335,10 @@ impl TackyVisitor {
 
         let mut explicit_array_element_count: i32 = -1;
 
-        // LHS - data type
+        //
+        // LHS - variable data type
+        //
+
         let mut data_type_as_string = String::from("ERROR");
         let lhs_data_type = DataType::DataTypeUnknown;
         let mut is_array: bool = false;
@@ -1343,7 +1355,7 @@ impl TackyVisitor {
             }
 
             is_array = left_node.node_type == AstNodeType::Array;
-            //let is_bool = left_node.data_type.unwrap() == DataType::DataTypeBool;
+            // println!("[TV] is_array: {}", is_array);
 
             data_type_as_string = left_node.string_val.clone();
 
@@ -1446,6 +1458,7 @@ impl TackyVisitor {
             // https://stackoverflow.com/questions/9722632/what-happens-if-i-define-a-0-size-array-in-c-c
             assert_ne!(array_element_count, 0, "[ERR] An array of size 0 is not allowed!");
         }
+
         // DEBUG
         if self.debug {
             println!("[TackyVisitor][var_decl_handler] explicit_array_element_count: {}", explicit_array_element_count);
@@ -1460,12 +1473,14 @@ impl TackyVisitor {
         let mut var_declaration: Instruction = Instruction::new();
         var_declaration.instruction_type = InstructionType::VariableDeclaration;
 
-        if self.debug {
-            println!("[TackyVisitor][var_decl_handler] data_type_as_string: '{}'", data_type_as_string);
-        }
-
         let data_type: DataType
             = self.type_system.borrow().get(&data_type_as_string.to_lowercase()).unwrap().clone();
+
+        // DEBUG
+        if self.debug {
+            println!("[TackyVisitor][var_decl_handler] data_type_as_string: '{}', data_type: {}", data_type_as_string, data_type);
+        }
+
         var_declaration.data_type = data_type.clone();
         var_declaration.label = variable_identifier.clone();
 
@@ -1487,6 +1502,7 @@ impl TackyVisitor {
             // for symbol table updates!?!?!?!?
             let mut symbol_table_entry = self.symbol_table.borrow_mut().get(&variable_identifier).unwrap();
 
+            // DEBUG
             if self.debug {
                 println!("[TackyVisitor][var_decl_handler] symbol_table_entry: {:?}", symbol_table_entry);
             }
@@ -1497,10 +1513,21 @@ impl TackyVisitor {
             if self.debug {
                 println!("[TackyVisitor][var_decl_handler] key:'{}', value{:?}", variable_identifier.clone(), symbol_table_entry);
             }
+
+            // DEBUG
+            if self.debug {
+                println!("[TV] symbol_table_entry: {:?}", symbol_table_entry);
+            }
+
+            assert_ne!(symbol_table_entry.data_type, DataType::DataTypeUnknown);
             self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
 
-            // update data type to array in the TACKY variable declaration instruction
-            var_declaration.data_type = DataType::DataTypeArray(Box::new(data_type.clone()), Some(array_element_count as usize));
+            if is_array {
+                // update data type to array in the TACKY variable declaration instruction
+                var_declaration.data_type = DataType::DataTypeArray(
+                        Box::new(data_type.clone()),
+                        Some(array_element_count as usize));
+            }
 
         } else {
             // create symbol table entry for temporary variable
@@ -1511,6 +1538,12 @@ impl TackyVisitor {
             symbol_table_entry.data_type = data_type.clone();
             symbol_table_entry.is_array = is_array;
             symbol_table_entry.array_element_count = array_element_count;
+
+            // DEBUG
+            if self.debug {
+                println!("[TV] symbol_table_entry: {:?}", symbol_table_entry);
+            }
+
             // DEBUG
             if self.debug {
                 println!("[TackyVisitor][var_decl_handler] key:'{}', value{:?}", variable_identifier.clone(), symbol_table_entry);
@@ -1525,7 +1558,14 @@ impl TackyVisitor {
             // There are more creations inside this tacky visistor. It is unclear why
             // there is a separation between the type checking- and the tacky visitor
             // for symbol table updates!?!?!?!?
+
+            assert_ne!(symbol_table_entry.data_type, DataType::DataTypeUnknown);
             self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
+        }
+
+        // DEBUG
+        if self.debug {
+            println!("[TV] var_declaration: {:?}", var_declaration);
         }
 
         // append instruction to latest top-level element of the program
@@ -1624,8 +1664,6 @@ impl TackyVisitor {
                 }
 
                 AstNodeType::CompoundInit => {
-                    // panic!("test");
-
                     // Format:
                     // Rule 77: declaration -> declaration_specifiers init_declarator_list SEMICOLON
                     //
@@ -1779,6 +1817,10 @@ impl TackyVisitor {
                 }
 
                 self.function_declaration_handler(&ast_node, node_map);
+            }
+
+            AstNodeType::FunctionCall => {
+                println!("test");
             }
 
             AstNodeType::Block => {
@@ -2035,14 +2077,14 @@ impl TackyVisitor {
                         function_call_instruction.instruction_type = InstructionType::FunCall;
 
                         if let Some(lhs_ast_node_id) = ast_node.lhs {
-                            let lhs_ast_node = node_map.get(&lhs_ast_node_id).unwrap();
+                            let lhs_ast_node = node_map.get(&lhs_ast_node_id).unwrap().clone();
                             function_call_instruction.function_name = lhs_ast_node.string_val.clone();
 
                             // PARAMETERS / ARGUMENTS
                             for i in 0..lhs_ast_node.parameters.len() {
 
                                 let parameter_ast_node_id = &lhs_ast_node.parameters[lhs_ast_node.parameters.len()-1-i];
-                                let parameter_ast_node = node_map.get(&parameter_ast_node_id).unwrap();
+                                let parameter_ast_node = node_map.get(&parameter_ast_node_id).unwrap().clone();
 
                                 // DEBUG
                                 if self.debug {
@@ -2050,17 +2092,53 @@ impl TackyVisitor {
                                 }
 
                                 match parameter_ast_node.node_type {
+                                    AstNodeType::ConstChar |
+                                    AstNodeType::ConstString |
                                     AstNodeType::ConstInt |
                                     AstNodeType::ConstLong |
                                     AstNodeType::ConstUInt => {
+                                        // push a parameter into the function so that the
+                                        // code for moving data into the registers or stack values
+                                        // is generated
                                         function_call_instruction.parameters.push(
                                             Box::new(ValueElement::Constant(
                                                 String::from(parameter_ast_node.string_val.clone()))));
                                     }
                                     AstNodeType::Identifier => {
+                                        // push a parameter into the function so that the
+                                        // code for moving data into the registers or stack values
+                                        // is generated
                                         function_call_instruction.parameters.push(
                                             Box::new(ValueElement::Variable(
                                                 String::from(parameter_ast_node.string_val.clone()))));
+                                    }
+                                    AstNodeType::Expression => {
+                                        let mut br_cnt = 0;
+                                        let (value_element, data_type )
+                                            = self.visit(parameter_ast_node.id, node_map, &dst_name, &mut br_cnt);
+
+                                        // DEBUG
+                                        if self.debug {
+                                            println!("value_element: {:?}", value_element);
+                                            println!("data_type: {:?}", data_type);
+                                        }
+
+                                        function_call_instruction.parameters.push(Box::new(value_element));
+
+                                        //function_call_instruction.parameters.push(
+                                        //    Box::new(ValueElement::Variable(
+                                        //        String::from(parameter_ast_node.string_val.clone()))));
+
+                                        //match parameter_ast_node.operator_type {
+                                        //    AstNodeOperatorType::AddrOf => {
+                                        //        function_call_instruction.parameters.push(
+                                        //        Box::new(ValueElement::Variable(
+                                        //            String::from(parameter_ast_node.string_val.clone()))));
+                                        //    }
+                                        //    _ => {
+                                        //        todo!();
+                                        //    }
+                                        //}
                                     }
                                     _ => {
                                         panic!("Please add node_type for: '{:?}'! ast_node: {:?}",
@@ -2070,6 +2148,11 @@ impl TackyVisitor {
                                 }
                             }
                         }
+
+                        //
+                        // return value - the variable which stores the return value
+                        // is passed in as a parameter to this visitor
+                        //
 
                         function_call_instruction.dst = ValueElement::Variable(dst_name.clone());
 
@@ -2118,7 +2201,8 @@ impl TackyVisitor {
                         // source variable name is retrieved from LHS
                         if let Some(lhs_node_id) = ast_node.lhs {
                             let lhs_node = node_map.get(&lhs_node_id).unwrap();
-                            get_address_instruction.src = ValueElement::Variable(lhs_node.string_val.clone());
+                            // get_address_instruction.src = ValueElement::Variable(lhs_node.string_val.clone());
+                            get_address_instruction.src = ValueElement::Constant(lhs_node.string_val.clone());
                         }
 
                         // the destination variable name is passed in as a parameter to this functino
@@ -2131,6 +2215,8 @@ impl TackyVisitor {
                         // in the symbol table
                         let mut symbol_table_entry = self.symbol_table.borrow_mut().get(&dst_name).unwrap();
                         symbol_table_entry.is_pointer = true;
+
+                        assert_ne!(symbol_table_entry.data_type, DataType::DataTypeUnknown);
                         self.symbol_table.borrow_mut().insert(dst_name.clone(), symbol_table_entry);
 
                         // append instruction to latest top-level element of the program
@@ -2430,6 +2516,7 @@ impl TackyVisitor {
                                 println!("[TackyVisitor] {:?}", symbol_table_entry);
                             }
 
+                            assert_ne!(symbol_table_entry.data_type, DataType::DataTypeUnknown);
                             self.symbol_table.borrow_mut().insert(dst_name.clone(), symbol_table_entry);
 
                             // append instruction to latest top-level element of the program
@@ -3070,6 +3157,7 @@ impl TackyVisitor {
                     symbol_table_entry.array_element_count = 0;
 
                     // this will generate the TACKY instruction which implements the predicate / comparison
+                    assert_ne!(symbol_table_entry.data_type, DataType::DataTypeUnknown);
                     self.symbol_table.borrow_mut().insert(exp_result_var_name.clone(), symbol_table_entry);
 
                     let lhs_value_element = self.visit(lhs_id, node_map, &exp_result_var_name, branch_counter);
@@ -3277,6 +3365,10 @@ impl TackyVisitor {
                 return ( self.arrow_handler(ast_node_id, node_map, dst_name.clone()), DataType::DataTypeUnknown );
             }
 
+            AstNodeType::InlineAssembly => {
+
+            }
+
             _ => {
                 panic!("{}", format!("Unhandled NodeType '{:?}'!\n", ast_node.node_type).as_str());
             }
@@ -3301,13 +3393,20 @@ impl TackyVisitor {
         // src
         //
 
-        // determine the type and name of the variable which is assigned
+        // LHS - determine the type and name of the variable which is assigned
         if let Some(left_node_id) = ast_node.lhs {
 
             let left_node = node_map.get(&left_node_id).unwrap();
+            let left_node_string_val = left_node.string_val.clone();
+
+            // DEBUG
+            if self.debug {
+                println!("[TV] left_node_string_val: '{}'", left_node_string_val);
+            }
 
             // data type of the array
-            let symbol_table_entry: SymbolTableEntry = self.symbol_table.borrow_mut().get(&left_node.string_val).unwrap();
+            let symbol_table_entry: SymbolTableEntry
+                = self.symbol_table.borrow_mut().get(&left_node_string_val).unwrap();
             subscript_instruction.data_type = symbol_table_entry.data_type.clone();
 
             // variable name of the object / array that is subscripted
@@ -3332,6 +3431,8 @@ impl TackyVisitor {
         if self.debug {
             println!("{:?}", subscript_instruction);
         }
+
+        assert_ne!(subscript_instruction.data_type, DataTypeUnknown);
 
         subscript_instruction
     }

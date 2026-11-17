@@ -38,8 +38,8 @@ pub fn rem_first_and_last(value: &str) -> &str {
 /// Otherwise, the original input string is returned unchanged.
 ///
 /// e.g.
-/// "test" and match_character = " -> test
-/// "test' and match_character = " -> "test'
+/// "test1" and match_character = " -> test1
+/// "test1' and match_character = " -> "test1'
 pub fn rem_first_and_last_matches(value: &str, match_character: char) -> &str {
 
     let first_character = value.chars().nth(0);

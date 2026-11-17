@@ -135,7 +135,8 @@ impl AsmAstFixupVisitor {
 
                             // first, determine the data type. This is needed in order to determine
                             // the correct amount of bytes to increment the stack pointer with
-                            let symbol_table_entry = self.backend_symbol_table.borrow_mut().retrieve(&pseudo_name);
+                            let symbol_table_entry
+                                = self.backend_symbol_table.borrow_mut().retrieve(&pseudo_name);
 
                             // pointer or not a pointer?
                             if symbol_table_entry.is_pointer {
@@ -155,6 +156,8 @@ impl AsmAstFixupVisitor {
 
                                 let data_type = symbol_table_entry.data_type.clone();
 
+                                // println!("[AsmFixupVisitor] data_type: {}", data_type);
+
                                 // convert the data type into the offset in bytes
                                 self.stack_offset = self.stack_offset - data_type.get_size(&self.type_system.borrow()) as i32;
 
@@ -170,9 +173,9 @@ impl AsmAstFixupVisitor {
                             println!("[AsmAstFixupVisitor][ERR] Cannot find symbol '{}' in backend_symbol_table", &pseudo_name);
                             println!("[AsmAstFixupVisitor][ERR] Printing symbol table for debugging ...");
                             // DEBUG
-                            //if self.debug {
+                            if self.debug {
                                 self.backend_symbol_table.borrow_mut().print_symbol_table();
-                            //}
+                            }
                             panic!("Cannot find symbol '{}' in backend_symbol_table", &pseudo_name);
                         }
                     }
@@ -265,6 +268,10 @@ impl AsmAstFixupVisitor {
                         }
                     }
                 }
+            }
+
+            AsmAstOperandType::DirectGetAddress(symbol_name) => {
+                // nothing
             }
 
             AsmAstOperandType::Imm(immediate_value) => {
@@ -454,10 +461,6 @@ impl AsmAstFixupVisitor {
                 if self.debug {
                     println!("Mov {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
                 }
-
-                // if asm_ast_instruction.id == 1111 {
-                //     println!("test");
-                // }
 
                 // replace pseudo operand by relative address on stack
                 asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
@@ -836,7 +839,6 @@ impl AsmAstFixupVisitor {
                     println!("FunctionCall {:?}", asm_ast_instruction.dst);
                     println!("{:?}", asm_ast_instruction);
                 }
-
                 new_body.push(Box::new(asm_ast_instruction));
             }
 
@@ -846,7 +848,10 @@ impl AsmAstFixupVisitor {
                 //     println!("ShiftRightArithmetic {:?}", asm_ast_instruction.dst);
                 //     println!("{:?}", asm_ast_instruction);
                 // }
+                new_body.push(Box::new(asm_ast_instruction));
+            }
 
+            AsmAstInstructionType::GlobalConstantDeclaration => {
                 new_body.push(Box::new(asm_ast_instruction));
             }
 

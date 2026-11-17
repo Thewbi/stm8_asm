@@ -36,6 +36,10 @@ impl AsmAstGASEmitterVisitor {
         }
     }
 
+    pub fn visit_data_section(&mut self, data_section: &mut Vec<Box<AsmAstInstruction>>) {
+        todo!();
+    }
+
     pub fn visit_asm_ast_program(&mut self, asm_ast_program: &mut AsmAstProgram) {
         // println!("[AsmAstGASEmitterVisitor::visit_asm_ast_program()]");
 

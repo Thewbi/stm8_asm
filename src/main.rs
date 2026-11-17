@@ -647,9 +647,6 @@ fn main() {
         let mut expression_parser = ExpressionParser::new();
 
         for token in preprocessor_lexer {
-            // if token.text == ")" {
-            //     println!("test");
-            // }
             expression_parser.process_token(token);
         }
 
@@ -1565,6 +1562,7 @@ fn main() {
                 if emit_gcc {
                     println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                     let mut asm_ast_emitter_visitor = AsmAstGASEmitterVisitor::new();
+                    asm_ast_emitter_visitor.visit_data_section(&mut tacky_to_intermediate_asm_conversion_visitor.data_section);
                     asm_ast_emitter_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
                     println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                     println!("gcc -c temp.S -o temp.o");
@@ -1597,6 +1595,7 @@ fn main() {
                     let mut asm_ast_emitter_visitor = AsmAstMasmEmitterVisitor::new();
                     asm_ast_emitter_visitor.stack_offset_map = stack_offset_map;
                     asm_ast_emitter_visitor.print_to_console = false;
+                    asm_ast_emitter_visitor.visit_data_section(&mut tacky_to_intermediate_asm_conversion_visitor.data_section);
                     asm_ast_emitter_visitor.visit_asm_ast_program(&mut tacky_to_intermediate_asm_conversion_visitor.asm_ast_program);
                     // println!("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                     // println!("Use MASM from within Visual Studio (Community Edition)");

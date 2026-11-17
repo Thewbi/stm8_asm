@@ -11,6 +11,7 @@ use crate::example_lexers::c_lexer::IDENTIFIER_TOKEN_ID;
 use crate::example_lexers::c_lexer::NEWLINE_TOKEN_ID;
 use crate::example_lexers::c_lexer::TABULATOR_TOKEN_ID;
 use crate::example_lexers::c_lexer::WHITESPACE_TOKEN_ID;
+use crate::parser::parser::ParserMode;
 use crate::parser::parser::ParserTrait;
 use crate::regex::enfa::transition_dfa;
 use crate::State;
@@ -221,32 +222,58 @@ impl<'a> Lexer<'a> {
 
                 match self.dfa.states[&self.current_state_id].token_id {
 
+                    NEWLINE_TOKEN_ID |
+                    TABULATOR_TOKEN_ID |
                     WHITESPACE_TOKEN_ID => {
-                        // ignore NEWLINE, TABULATOR and WHITESPACE - ignoring means, do not forward to the parser
 
-                        // DEBUG
-                        if self.lexer_debug {
-                            println!("[LEXER.TRAP_STATE] NOT Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
+                        // if the parser has detected a token which turns on
+                        // inline-assembly mode, the parser wants to consume whitespace
+                        // characters to detect newlines which separate ASM lines from
+                        // each other.
+                        if parser.parser_mode == ParserMode::InlineAssembly {
+                            // pass token to the parser
+                            parser.provide_input(
+                                rule_map,
+                                step,
+                                &terminal,
+                                &self.token_string_buffer,
+                                debug_node_string_buffer,
+                                debug_node_stack,
+                                node_map,
+                                file,
+                                line
+                            );
+                        } else {
+                            // ignore NEWLINE, TABULATOR and WHITESPACE
+                            // - ignoring means, do not forward to the parser
+
+                            // DEBUG
+                            if self.lexer_debug {
+                                println!("[LEXER.TRAP_STATE] NOT Passing token to parser: {:?}, {:?}",
+                                    self.token_string_buffer, terminal);
+                            }
                         }
                     }
 
-                    TABULATOR_TOKEN_ID => {
-                        // ignore NEWLINE, TABULATOR and WHITESPACE - ignoring means, do not forward to the parser
+                    // TABULATOR_TOKEN_ID => {
+                    //     // ignore NEWLINE, TABULATOR and WHITESPACE
+                    //     // - ignoring means, do not forward to the parser
 
-                        // DEBUG
-                        if self.lexer_debug {
-                            println!("[LEXER.TRAP_STATE] NOT Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
-                        }
-                    }
+                    //     // DEBUG
+                    //     if self.lexer_debug {
+                    //         println!("[LEXER.TRAP_STATE] NOT Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
+                    //     }
+                    // }
 
-                    NEWLINE_TOKEN_ID => {
-                        // ignore NEWLINE, TABULATOR and WHITESPACE - ignoring means, do not forward to the parser
+                    // NEWLINE_TOKEN_ID => {
+                    //     // ignore NEWLINE, TABULATOR and WHITESPACE
+                    //     // - ignoring means, do not forward to the parser
 
-                        // DEBUG
-                        if self.lexer_debug {
-                            println!("[LEXER.TRAP_STATE] NOT Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
-                        }
-                    }
+                    //     // DEBUG
+                    //     if self.lexer_debug {
+                    //         println!("[LEXER.TRAP_STATE] NOT Passing token to parser: {:?}, {:?}", self.token_string_buffer, terminal);
+                    //     }
+                    // }
 
                     IDENTIFIER_TOKEN_ID => {
 
@@ -316,7 +343,7 @@ impl<'a> Lexer<'a> {
                             parser.provide_input(
                                 rule_map,
                                 step,
-                                &terminal,
+                                &terminal, // this is the token produced by the lexer
                                 &self.token_string_buffer,
                                 debug_node_string_buffer,
                                 debug_node_stack,

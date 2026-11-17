@@ -6,7 +6,6 @@ use std::error::Error;
 
 use crate::common::struct_decl::StructDecl;
 
-//#[derive(Clone, Debug, PartialEq)]
 #[derive(Clone, Debug)]
 pub enum DataType {
     DataTypeChar,
@@ -29,6 +28,7 @@ pub enum DataType {
     DataTypeEnum(String),
     DataTypeBool,
     DataTypeUnknown,
+    DataTypeString,
 }
 
 impl fmt::Display for DataType {
@@ -54,6 +54,7 @@ impl fmt::Display for DataType {
             DataType::DataTypeTypedeffed(data_type) => write!(f, "Typedeffed-[{}]", data_type),
             DataType::DataTypeEnum(enum_identifier) => write!(f, "Enum-[{}]", enum_identifier),
             DataType::DataTypeBool => write!(f, "_Bool"),
+            DataType::DataTypeString => write!(f, "string"),
         }
     }
 }
@@ -209,9 +210,7 @@ impl DataType {
                     //    ...
                     // }
                     // ```
-
                     //panic!("size: unspecified, data_type: {}", data_type);
-
                     // return size of address (8 byte on x64)
                     return SIZEOF_ADDRESS_X64;
                 }
@@ -228,8 +227,9 @@ impl DataType {
                         todo!()
                     }
                 }
-                // assert_ne!(data_type.size, 0, "Alignment needs to be a non-zero value!");
-                // data_type.size
+            }
+            DataType::DataTypeString => {
+                return SIZEOF_ADDRESS_X64;
             }
             _ => {
                 todo!("{}", self);

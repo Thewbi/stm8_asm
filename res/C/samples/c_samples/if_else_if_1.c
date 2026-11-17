@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\if_else_if_1.c
+
 int main() {
     int i = 15;
     if (i < 10) {

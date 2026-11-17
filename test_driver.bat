@@ -153,7 +153,8 @@ for %%L in (
     REM /c only assemble, no linking
     REM /Fl build\main.lst
     call ml64.exe /Fo build\main.obj /c build\main.asm >NUL 2>&1
-    call link.exe /SUBSYSTEM:console /LARGEADDRESSAWARE:NO /ENTRY:main /OUT:build\main.exe build\main.obj >NUL 2>&1
+    REM call link.exe /SUBSYSTEM:console /LARGEADDRESSAWARE:NO /ENTRY:main /OUT:build\main.exe build\main.obj >NUL 2>&1
+    call link.exe /SUBSYSTEM:console /LARGEADDRESSAWARE:NO /ENTRY:main /OUT:build\main.exe /SUBSYSTEM:CONSOLE kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ucrt.lib build\main.obj >NUL 2>&1
     call build\main.exe
     REM IF "!errorlevel!" == "0" ( echo [SUCCESS] %%L ) ELSE ( echo [FAILURE] %%L & EXIT /b )
     IF "!errorlevel!" == "0" ( echo [SUCCESS] %%L ) ELSE ( echo [FAILURE] %%L )
@@ -164,8 +165,6 @@ if exist build\main.obj del build\main.obj
 if exist build\main.exe del build\main.exe
 
 echo [DONE]
-
-
 
 REM res\C\samples\c_samples\function_call_0.c
 REM    res\C\samples\c_samples\function_call_1.c

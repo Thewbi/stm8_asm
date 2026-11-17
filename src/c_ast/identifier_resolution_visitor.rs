@@ -1538,6 +1538,10 @@ impl IdentifierResolutionVisitor {
                 panic!("Unknown");
             }
 
+            AstNodeType::InlineAssembly => {
+                // do not visit this node
+            }
+
             _ => {
                 todo!("Unhandled AstNodeType: {:?}", ast_node.node_type);
             }

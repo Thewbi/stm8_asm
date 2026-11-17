@@ -17,6 +17,7 @@ pub struct SymbolTableEntry {
     pub symbol_table_entry_type: SymbolTableEntryType,
     pub data_type: DataType,
     pub parameter_count: usize,
+    pub parameter_data_types: Vec::<DataType>,
     pub has_body: bool,
     pub is_array: bool,
     pub array_element_count: i32,
@@ -24,6 +25,7 @@ pub struct SymbolTableEntry {
     pub is_struct: bool,
     pub is_const: bool,
     pub initial_value: i32,
+    pub string_val: String,
 
     // TODO: add custom typedeffed types here somehow!
 }
@@ -37,6 +39,7 @@ impl SymbolTableEntry {
             symbol_table_entry_type: SymbolTableEntryType::Unknown,
             data_type: DataType::DataTypeUnknown, // data type of variable and return data type for functions
             parameter_count: 0usize,
+            parameter_data_types: Vec::<DataType>::new(),
             has_body: false,
             is_array: false,
             array_element_count: 0i32,
@@ -44,6 +47,7 @@ impl SymbolTableEntry {
             is_struct: false,
             is_const: false,
             initial_value: 0i32,
+            string_val: String::new(),
         };
         instance
     }
@@ -60,6 +64,7 @@ impl fmt::Debug for SymbolTableEntry {
             write!(f, "  initial_name: '{}'\n", &self.initial_name).expect("Write failed!");
             write!(f, "  symbol_table_entry_type: {:?}\n", &self.symbol_table_entry_type).expect("Write failed!");
             write!(f, "  parameter_count: {}\n", &self.parameter_count).expect("Write failed!");
+            write!(f, "  parameter_data_types: {:?}\n", &self.parameter_data_types).expect("Write failed!");
             write!(f, "  data_type: {}\n", &self.data_type).expect("Write failed!");
             write!(f, "  has_body: {}\n", &self.has_body).expect("Write failed!");
             write!(f, "  is_array: {}\n", &self.is_array).expect("Write failed!");
@@ -75,6 +80,7 @@ impl fmt::Debug for SymbolTableEntry {
             write!(f, "  initial_name: {} ", &self.initial_name).expect("Write failed!");
             write!(f, "  symbol_table_entry_type: {:?} ", &self.symbol_table_entry_type).expect("Write failed!");
             write!(f, "  parameter_count: {} ", &self.parameter_count).expect("Write failed!");
+            write!(f, "  parameter_data_types: {:?}", &self.parameter_data_types).expect("Write failed!");
             write!(f, "  data_type: {} ", &self.data_type).expect("Write failed!");
             write!(f, "  has_body: {} ", &self.has_body).expect("Write failed!");
             write!(f, "  is_array: {} ", &self.is_array).expect("Write failed!");

@@ -228,7 +228,6 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
         "NUMERIC",
         NUMERIC_TOKEN_ID);
 
-
     //
     // char_literal (token-id: 611)
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet,
@@ -384,6 +383,21 @@ pub fn produce_c_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "void", "VOID", 129);
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "volatile", "VOLATILE", 130); // volatile
     add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "while", "WHILE", 131); // while
+
+    // GCC
+    // __asm__(
+    //    "movl %edx, %eax\n\t"
+    //    "addl $2, %eax\n\t"
+    // );
+
+    // MSVC
+    // __asm {
+    //    mov eax, edx
+    //    add eax, 2
+    // }
+
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "__asm__", "INLINE_ASM_A", 132);
+    add_token_definition(&mut converter, &mut combined_fragment, &mut alphabet, "__asm", "INLINE_ASM_B", 133);
 
     //
     // Phase 3 - Convert eNFA to DFA

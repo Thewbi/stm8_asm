@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use crate::asm_ast::asm_ast::AsmAstReg::EAX;
 use crate::asm_ast::asm_ast::AstAstAssemblyType;
+use crate::common::string_handling::rem_first_and_last;
+use crate::common::string_handling::rem_first_and_last_matches;
 use crate::tacky::tacky::Program;
 use crate::tacky::tacky::TopLevel;
 use crate::tacky::tacky::TopLevelType;
@@ -493,6 +495,12 @@ impl AsmAstMasmEmitterVisitor {
                 }
             }
 
+            AsmAstOperandType::DirectGetAddress(symbol_val) => {
+                self.string_buffer.push_str(" [");
+                self.string_buffer.push_str(rem_first_and_last(symbol_val));
+                self.string_buffer.push_str("] ");
+            }
+
             AsmAstOperandType::Memory(register, stack_val) => {
 
                 let value_as_string;
@@ -548,6 +556,50 @@ impl AsmAstMasmEmitterVisitor {
     // non-util, implementation function
     //
 
+    pub fn visit_data_section(&mut self, data_section: &mut Vec<Box<AsmAstInstruction>>) {
+        self.string_buffer.push_str("\n");
+        self.string_buffer.push_str("    .data\n");
+
+        for i in 0..data_section.len() {
+            let asm_ast_instruction = &data_section[i];
+
+            // DEBUG
+            if self.debug {
+                println!("[ASM_AST_VISITOR] asm_ast_instruction: {:?}", asm_ast_instruction);
+            }
+
+            match asm_ast_instruction.instruction_type {
+                AsmAstInstructionType::GlobalConstantDeclaration => {
+
+                    let asm_ast_operand: &AsmAstOperand = &asm_ast_instruction.src;
+                    let asm_ast_operand_type: &AsmAstOperandType = &asm_ast_operand.operand_type;
+
+                    let mut data = String::new();
+
+                    match asm_ast_operand_type {
+                        AsmAstOperandType::ImmString(string_val) => {
+                            data = String::from(rem_first_and_last(&string_val));
+                            //data = string_val.clone();
+                        }
+                        _ => {
+                            todo!();
+                        }
+                    }
+
+                    // zero terminate the string but do not add any newline
+                    // msg DB        'testor_ultra', 00h
+                    self.string_buffer.push_str(data.as_str());
+                    self.string_buffer.push_str(" DB '");
+                    self.string_buffer.push_str(format!("{}", data).as_str());
+                    self.string_buffer.push_str("', 00h");
+                }
+                _ => {
+                    todo!();
+                }
+            }
+        }
+    }
+
     pub fn visit_asm_ast_program(&mut self, asm_ast_program: &mut AsmAstProgram) {
         // println!("[AsmAstMasmEmitterVisitor::visit_asm_ast_program()]");
 
@@ -588,6 +640,12 @@ impl AsmAstMasmEmitterVisitor {
         // println!("    .code");
         self.string_buffer.push_str("\n");
         self.string_buffer.push_str("    .code\n");
+
+        // UCRT calls
+        // if these calls are inserted, you need to link againts all the libs
+        // link.exe /SUBSYSTEM:console /LARGEADDRESSAWARE:NO /ENTRY:main /OUT:build\main.exe /SUBSYSTEM:CONSOLE kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ucrt.lib build\main.obj >NUL 2>&1
+        self.string_buffer.push_str("extern putchar: proc\n");
+        self.string_buffer.push_str("extern fopen: proc\n");
 
         // iterate over all functions
         for i in 0..asm_ast_program.functions.len() {
@@ -1099,6 +1157,11 @@ impl AsmAstMasmEmitterVisitor {
 
                 self.string_buffer.push_str("    ; ");
                 self.string_buffer.push_str(asm_ast_instruction.comment.clone().as_str());
+                self.string_buffer.push_str("\n");
+            }
+
+            AsmAstInstructionType::GlobalConstantDeclaration => {
+                self.string_buffer.push_str("    blubb ");
                 self.string_buffer.push_str("\n");
             }
 

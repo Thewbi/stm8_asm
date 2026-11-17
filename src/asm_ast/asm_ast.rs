@@ -81,6 +81,11 @@ impl AstAstAssemblyType {
                 // to the first element of the array
                 AstAstAssemblyType::Quadword
             }
+            DataType::DataTypePointer(target_data_type) => {
+                // array parameters are the pointer (address, 8 byte on x64)
+                // to the first element of the array
+                AstAstAssemblyType::Quadword
+            }
             _ => {
                 unimplemented!("No implementation for {}", data_type);
             }
@@ -296,6 +301,10 @@ impl fmt::Display for AsmAstInstruction {
             AsmAstInstructionType::ShiftRightArithmetic => {
                 write!(f, "{}", format!("ShiftRightArithmetic(dst:{:?}, imm:{:?})", self.dst, self.src).as_str()).expect("Write failed!");
             }
+
+            AsmAstInstructionType::GlobalConstantDeclaration => {
+                write!(f, "{}", format!("GlobalConstantDeclaration(ImmString:{:?})", self.src).as_str()).expect("Write failed!");
+            }
         }
 
         Ok(())
@@ -341,6 +350,7 @@ pub enum AsmAstInstructionType {
     // DoubleToUInt,
     // VariableDeclaration,
     ShiftRightArithmetic,
+    GlobalConstantDeclaration,
 }
 
 #[derive(Clone, Debug)]
@@ -359,6 +369,7 @@ impl AsmAstOperand {
 #[derive(Clone, Debug, PartialEq)]
 pub enum AsmAstOperandType {
     Imm(i32),
+    ImmString(String),
     Reg(AsmAstReg),
     DerefReg(AsmAstReg),
     Pseudo(String),
@@ -369,6 +380,7 @@ pub enum AsmAstOperandType {
     // general Memory Operand that uses an explicit register instead of implicit RBP like Stack(i32) did.
     // The format is now BaseRegister (AsmAstReg) + offset (i32)
     Memory(AsmAstReg, i32),
+    DirectGetAddress(String),
     // (E)qual, (N)ot (E)qual, (L)essThan, (L)essThan or (E)qual, (G)reaterThan, (G)reaterThan or (E)qual
     ComparisonType(String),
     Label(String),
@@ -519,6 +531,9 @@ impl AsmAstReg {
 
             AsmAstReg::CX => {
                 match data_type {
+                    AstAstAssemblyType::Byte => {
+                        string_buffer.push_str("cl");
+                    }
                     AstAstAssemblyType::Doubleword => {
                         string_buffer.push_str("ecx");
                     }
@@ -526,7 +541,7 @@ impl AsmAstReg {
                         string_buffer.push_str("rcx");
                     }
                     _ => {
-                        panic!("");
+                        panic!("Unhandled: {:?}", data_type);
                     }
                 }
             }
@@ -1031,6 +1046,12 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction,
         AsmAstInstructionType::ShiftRightArithmetic => {
             string_buffer.push_str(format!("ShiftRightArithmetic(reg:{:?}, imm:{:?})\n",
                 asm_ast_instruction.dst,
+                asm_ast_instruction.src
+            ).as_str());
+        }
+
+        AsmAstInstructionType::GlobalConstantDeclaration => {
+            string_buffer.push_str(format!("GlobalConstantDeclaration(immString:{:?})\n",
                 asm_ast_instruction.src
             ).as_str());
         }

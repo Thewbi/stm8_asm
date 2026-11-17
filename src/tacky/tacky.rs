@@ -374,7 +374,7 @@ pub fn print_tacky_function(function: &TopLevel, string_buffer: &mut String, ind
     function_string_buffer.push_str("// -----------------------------------------------------------------------------------\n");
     function_string_buffer.push_str(format!("Function(\"{}\", {}", function.name, function.global).as_str());
 
-    // add all format arguments (name and data type)
+    // add all formal arguments (name and data type)
     for argument in function.arguments.iter() {
         function_string_buffer.push_str(format!(", Arg(\"{}\", {:?})", argument.name, argument.data_type).as_str());
     }
@@ -390,6 +390,8 @@ pub fn print_tacky_function(function: &TopLevel, string_buffer: &mut String, ind
 }
 
 pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut String, indent: usize) {
+
+    let debug: bool = false;
 
     // indent
     let indent_string = std::iter::repeat(" ").take(indent * 2).collect::<String>();
@@ -507,7 +509,10 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
         }
 
         InstructionType::VariableDeclaration => {
-            // println!("instruction: {:?}", instruction);
+            // DEBUG
+            if debug {
+                println!("instruction: {:?}", instruction);
+            }
             string_buffer.push_str(format!("VariableDeclaration(label:{:?}, data_type:{:?})\n", instruction.label, instruction.data_type.to_string()).as_str());
         }
 

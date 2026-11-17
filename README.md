@@ -230,6 +230,10 @@ need to match the output of the tools. The reason is that there is exactly
 a single solution for laying out a struct since the specification is very
 clear about how to layout structs.
 
+## How are constant strings handled?
+
+[ConstStrings](md/const_string_data.md)
+
 # The Preprocessor
 
 [Preprocessor](md/Preprocessor.md)
