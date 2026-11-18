@@ -38,6 +38,6 @@ int strlen(char *s)
 }
 
 int main() {
-    int result = strlen("test");
+    int result = strlen("msg_const_val"); // 6D 73 67 5F 63 6F 6E 73 74 5F 76 61 6C
     return result;
 }

@@ -404,9 +404,8 @@ impl AsmAstMasmEmitterVisitor {
     pub fn emit_asm_ast_operand(&mut self,
         asm_ast_operand: &AsmAstOperand,
         asm_ast_offset: &AsmAstOperand,
-        assembly_type: &AstAstAssemblyType,
-    ) {
-
+        assembly_type: &AstAstAssemblyType)
+    {
         match &asm_ast_operand.operand_type {
 
             AsmAstOperandType::Imm(imm_val) => {
@@ -496,8 +495,12 @@ impl AsmAstMasmEmitterVisitor {
             }
 
             AsmAstOperandType::DirectGetAddress(symbol_val) => {
+
+                // let val = rem_first_and_last(symbol_val);
+                let val = symbol_val;
+
                 self.string_buffer.push_str(" [");
-                self.string_buffer.push_str(rem_first_and_last(symbol_val));
+                self.string_buffer.push_str(val);
                 self.string_buffer.push_str("] ");
             }
 
@@ -571,15 +574,25 @@ impl AsmAstMasmEmitterVisitor {
             match asm_ast_instruction.instruction_type {
                 AsmAstInstructionType::GlobalConstantDeclaration => {
 
-                    let asm_ast_operand: &AsmAstOperand = &asm_ast_instruction.src;
-                    let asm_ast_operand_type: &AsmAstOperandType = &asm_ast_operand.operand_type;
-
-                    let mut data = String::new();
-
+                    let src_asm_ast_operand: &AsmAstOperand = &asm_ast_instruction.src;
+                    let asm_ast_operand_type: &AsmAstOperandType = &src_asm_ast_operand.operand_type;
+                    let mut src_data = String::new();
                     match asm_ast_operand_type {
                         AsmAstOperandType::ImmString(string_val) => {
-                            data = String::from(rem_first_and_last(&string_val));
-                            //data = string_val.clone();
+                            //src_data = String::from(rem_first_and_last(&string_val));
+                            src_data = string_val.clone();
+                        }
+                        _ => {
+                            todo!();
+                        }
+                    }
+
+                    let dst_asm_ast_operand: &AsmAstOperand = &asm_ast_instruction.dst;
+                    let asm_ast_operand_type: &AsmAstOperandType = &dst_asm_ast_operand.operand_type;
+                    let mut dst_data = String::new();
+                    match asm_ast_operand_type {
+                        AsmAstOperandType::ImmString(string_val) => {
+                            dst_data = String::from(rem_first_and_last(&string_val));
                         }
                         _ => {
                             todo!();
@@ -588,10 +601,10 @@ impl AsmAstMasmEmitterVisitor {
 
                     // zero terminate the string but do not add any newline
                     // msg DB        'testor_ultra', 00h
-                    self.string_buffer.push_str(data.as_str());
+                    self.string_buffer.push_str(src_data.as_str());
                     self.string_buffer.push_str(" DB '");
-                    self.string_buffer.push_str(format!("{}", data).as_str());
-                    self.string_buffer.push_str("', 00h");
+                    self.string_buffer.push_str(format!("{}", dst_data).as_str());
+                    self.string_buffer.push_str("', 00h\n");
                 }
                 _ => {
                     todo!();

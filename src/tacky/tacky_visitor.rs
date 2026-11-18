@@ -2211,7 +2211,7 @@ impl TackyVisitor {
 
                         // self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
 
-                        // make the destinatin variable a pointer by setting the is_pointer flag to true
+                        // make the destination variable a pointer by setting the is_pointer flag to true
                         // in the symbol table
                         let mut symbol_table_entry = self.symbol_table.borrow_mut().get(&dst_name).unwrap();
                         symbol_table_entry.is_pointer = true;

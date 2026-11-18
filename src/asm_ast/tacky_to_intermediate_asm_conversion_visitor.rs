@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::panic::AssertUnwindSafe;
 use std::rc::Rc;
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 use crate::asm_ast::asm_ast::AsmAstOperandType::Imm;
 use crate::common::string_handling::rem_first_and_last;
@@ -235,7 +236,7 @@ impl TackyToIntermediateAsmConversionVisitor {
             // TODO: windows calling convention!
             // System-V ABI
             // only process arguments 0 ot 5, the rest of the arguments is on the stack already
-            if i > 5 {
+            if i > REGISTER_COUNT {
                 continue;
             }
 
@@ -444,6 +445,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         //
         // CASE 1 - subscript is src of assignment:
         // EXAMPLE: i = arr[1];
+        //
 
         // DEBUG
         if self.debug {
@@ -1850,7 +1852,10 @@ impl TackyToIntermediateAsmConversionVisitor {
         // or PseudoMem for aggregate values such as arrays and structs.
         //
 
-        // println!("{:?}", tacky_instruction_get_address);
+        // DEBUG
+        if self.debug {
+            println!("[T2InterASM] Tacky-Instruction: {:?}", tacky_instruction_get_address);
+        }
 
         //
         // Lea - see page 378, page 414
@@ -1861,6 +1866,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         lea.comment = String::from(format!("    ; lea for GetAddress()").to_string());
         lea.assembly_type = AstAstAssemblyType::Quadword; // address 8 byte on 64 bit
         match &tacky_instruction_get_address.src {
+
             ValueElement::Variable(var_name) => {
                 let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name);
                 let symbol_table_entry = symbol_table_entry_option.expect(format!("No symbol for '{}' found in symbol table!\n", var_name).as_str());
@@ -1894,24 +1900,56 @@ impl TackyToIntermediateAsmConversionVisitor {
                     }
                 }
             }
+
             ValueElement::Constant(const_val) => {
 
-                // println!("const_val: '{}'", const_val);
+                // DEBUG
+                if self.debug {
+                    println!("[T2InterASM] const_val: '{}'", const_val);
+                }
 
-                // add a global const for the data section into the application
+                let mut hasher = DefaultHasher::new();
+                const_val.hash(&mut hasher);
+                let hash_value: u64 = hasher.finish();
+                let hash_value_as_string = hash_value.to_string();
+
+                // println!("Hash is {:?}!", &hash_value_as_string);
+
+                // prefix underscore because the first character in
+                // the assembly code for a label needs to be underscore
+                // or character but not digit
+                let mut st = String::from("_");
+                st.push_str(hash_value_as_string.as_str());
+
+                //
+                // data section
+                //
+                // add a global const which needs to go into the data section
+                // add it into the application
                 let mut global_constant_instruction = AsmAstInstruction::new();
                 global_constant_instruction.instruction_type
                     = AsmAstInstructionType::GlobalConstantDeclaration;
                 global_constant_instruction.src = AsmAstOperand {
+                        operand_type: AsmAstOperandType::ImmString(st.clone())
+                    };
+                global_constant_instruction.dst = AsmAstOperand {
                         operand_type: AsmAstOperandType::ImmString(String::from(const_val))
                     };
                 self.data_section.push(Box::new(global_constant_instruction));
 
-                let symbol_table_entry_option = self.symbol_table.borrow_mut().get(const_val);
-                let symbol_table_entry = symbol_table_entry_option.expect(
-                    format!("No symbol for '{}' found in symbol table!\n", const_val).as_str());
-                lea.src = AsmAstOperand { operand_type: AsmAstOperandType::DirectGetAddress(const_val.clone()) };
+                // SYMBOL_TABLE_CONST_STRING
+                //
+                // // retrieve the constant from the symbol table and add it as a src to LEA
+                // let symbol_table_entry_option = self.symbol_table.borrow_mut().get(const_val);
+                // let symbol_table_entry = symbol_table_entry_option.expect(
+                //     format!("No symbol for '{}' found in symbol table!\n", const_val).as_str());
+
+                lea.src = AsmAstOperand {
+                    // operand_type: AsmAstOperandType::DirectGetAddress(const_val.clone())
+                    operand_type: AsmAstOperandType::DirectGetAddress(st.clone())
+                };
             }
+
             _ => {
                 panic!("Need variable!");
             }

@@ -24,7 +24,7 @@
 // TODO:
 // output: extern putchar: proc
 
-#include <stdio.h>
+//#include <stdio.h>
 
 int putchar(int c);
 

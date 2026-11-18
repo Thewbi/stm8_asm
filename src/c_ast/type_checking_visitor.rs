@@ -1074,7 +1074,6 @@ impl TypeCheckingVisitor {
         new_symbol_table_entry.data_type = data_type_as_enum;
         new_symbol_table_entry.parameter_count = temp_parameter_count;
 
-
         // if the function has already been inserted into the symbol table,
         // check if the next declaration matches (in return data type and
         // parameter amount)
@@ -1484,6 +1483,29 @@ impl TypeCheckingVisitor {
 
             AstNodeType::ConstChar => {
                 return DataType::DataTypeChar;
+            }
+
+            AstNodeType::ConstString => {
+
+                // SYMBOL_TABLE_CONST_STRING
+                //
+                // let string_val = ast_node.string_val.clone();
+                //
+                // // insert param into the symbol table
+                // let mut symbol_table_entry: SymbolTableEntry = SymbolTableEntry::new();
+                // symbol_table_entry.name = string_val.clone();
+                // symbol_table_entry.initial_name = string_val.clone();
+                // symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
+                // symbol_table_entry.data_type = DataType::DataTypeString;
+                // symbol_table_entry.parameter_count = 0usize;
+                // symbol_table_entry.has_body = false;
+                // symbol_table_entry.is_array = false;
+                // symbol_table_entry.is_pointer = false;
+                // symbol_table_entry.string_val = string_val.clone();
+                // let mut symbol_table = self.symbol_table.borrow_mut();
+                // symbol_table.insert(string_val.clone(), symbol_table_entry);
+
+                return DataType::DataTypeString;
             }
 
             AstNodeType::Structure => {
@@ -2239,77 +2261,119 @@ impl TypeCheckingVisitor {
                                     println!("[TCV] formal_parameter_datatype: {}", formal_parameter_data_type);
                                 }
 
+                                assert_ne!(formal_parameter_data_type, DataType::DataTypeUnknown, "Need data type!");
+
                                 let mut actual_parameter_datatype = DataType::DataTypeUnknown;
                                 match actual_parameter_ast_node.node_type {
+                                    AstNodeType::ConstChar => {
+                                        actual_parameter_datatype = DataType::DataTypeChar;
+                                    }
+                                    AstNodeType::ConstInt => {
+                                        actual_parameter_datatype = DataType::DataTypeInt;
+                                    }
+                                    AstNodeType::ConstLong => {
+                                        actual_parameter_datatype = DataType::DataTypeLong;
+                                    }
+                                    AstNodeType::ConstUInt => {
+                                        actual_parameter_datatype = DataType::DataTypeInt;
+                                    }
+                                    AstNodeType::ConstULong => {
+                                        actual_parameter_datatype = DataType::DataTypeUnsignedLong;
+                                    }
+                                    AstNodeType::ConstDouble => {
+                                        actual_parameter_datatype = DataType::DataTypeDouble;
+                                    }
                                     AstNodeType::ConstString => {
                                         actual_parameter_datatype = DataType::DataTypeString;
                                     }
                                     _ => {
-                                        actual_parameter_datatype = actual_parameter_ast_node.analyzed_data_type.clone();
+                                        let string_val = actual_parameter_ast_node.string_val;
+                                        let mut st = self.symbol_table.borrow_mut();
+                                        let symbol_table_entry = st.retrieve(&string_val);
+                                        actual_parameter_datatype = symbol_table_entry.data_type;
+
+                                        assert_ne!(actual_parameter_datatype, DataType::DataTypeUnknown, "Need data type!");
                                     }
                                 }
 
                                 // DEBUG
                                 if self.debug {
-                                    println!("[TCV] actual_parameter_datatype: {}", actual_parameter_datatype);
+                                    println!("[TCV] actual_parameter_datatype: {}",
+                                        actual_parameter_datatype);
                                 }
+
+                                assert_ne!(actual_parameter_datatype, DataType::DataTypeUnknown,
+                                    "Need data type!");
 
                                 // add cast or addr of operator
                                 if actual_parameter_datatype != formal_parameter_data_type {
 
-                                    let addr_of_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                    let mut addr_of_ast_node = AstNode::new(addr_of_ast_node_id);
-                                    addr_of_ast_node.node_type = AstNodeType::Expression;
-                                    addr_of_ast_node.operator_type = AstNodeOperatorType::AddrOf;
-                                    addr_of_ast_node.string_val = String::from("msg_const_val");
-                                    addr_of_ast_node.lhs = Some(*actual_parameter_ast_node_id);
-                                    addr_of_ast_node.rhs = Some(*actual_parameter_ast_node_id);
-                                    node_map.insert(addr_of_ast_node.id, addr_of_ast_node);
+                                    // check if actual_parameter_datatype is a pointer
+                                    match formal_parameter_data_type {
 
-                                    self.visit(addr_of_ast_node_id, node_map, expected_return_data_type);
+                                        DataType::DataTypePointer(inner_data_type) => {
 
-                                    // replace parameter
-                                    ast_node.parameters[0] = addr_of_ast_node_id;
+                                            let addr_of_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let mut addr_of_ast_node = AstNode::new(addr_of_ast_node_id);
+                                            addr_of_ast_node.node_type = AstNodeType::Expression;
+                                            addr_of_ast_node.operator_type = AstNodeOperatorType::AddrOf;
+                                            addr_of_ast_node.string_val = String::from("msg_const_val");
+                                            addr_of_ast_node.lhs = Some(*actual_parameter_ast_node_id);
+                                            addr_of_ast_node.rhs = Some(*actual_parameter_ast_node_id);
+                                            node_map.insert(addr_of_ast_node.id, addr_of_ast_node);
 
-                                    // actual_parameter_ast_node.node_type = AstNodeType::Expression;
-                                    // actual_parameter_ast_node.operator_type = AstNodeOperatorType::AddrOf;
-                                    // node_map.insert(actual_parameter_ast_node.id, actual_parameter_ast_node);
-/*
-                                    // retrieve id
-                                    let cast_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            self.visit(addr_of_ast_node_id, node_map, expected_return_data_type);
 
-                                    // build ASTNode
-                                    let mut cast_ast_node = AstNode::new(cast_ast_node_id);
-                                    cast_ast_node.node_type = AstNodeType::Cast;
-                                    cast_ast_node.lhs = Some(right_node.id); // LHS is the variable or literal (value element) which needs casting
-                                    cast_ast_node.set_analyzed_data_type(common_data_type.clone()); // analyzed_data_type is the type to cast into
-                                    cast_ast_node.parent_id = Some(ast_node_parent_id);
-                                    cast_ast_node.operator_type = AstNodeOperatorType::AddrOf;
-                                    // TODO insert correct file and line
-                                    cast_ast_node.file = String::from("test.c");
-                                    cast_ast_node.line = 999;
+                                            // replace parameter
+                                            ast_node.parameters[0] = addr_of_ast_node_id;
+                                        }
 
-                                    // add to ASTNode map
-                                    node_map.insert(cast_ast_node_id, cast_ast_node);
+                                        _ => {
 
-                                    // the left node becomes child of the new middle node
-                                    right_node.parent_id = Some(cast_ast_node_id);
+                                            panic!();
 
-                                    // // DEBUG
-                                    // if self.debug {
-                                    //     println!("{}", cast_ast_node_id);
-                                    //     println!("{:?}", ast_node); // parent
-                                    //     println!("{:?}", cast_ast_node); // new middle
-                                    //     println!("{:?}", left_node); // child
-                                    // }
+                                            // actual_parameter_ast_node.node_type = AstNodeType::Expression;
+                                            // actual_parameter_ast_node.operator_type = AstNodeOperatorType::AddrOf;
+                                            // node_map.insert(actual_parameter_ast_node.id, actual_parameter_ast_node);
 
-                                    // clone parent, insert new LHS
-                                    let mut ast_node_clone = ast_node.clone();
-                                    ast_node_clone.lhs = Some(cast_ast_node_id);
+                                            /*
+                                            // retrieve id
+                                            let cast_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
 
-                                    // replace parent in hashmap
-                                    node_map.insert(ast_node_clone.id, ast_node_clone);
- */
+                                            // build ASTNode
+                                            let mut cast_ast_node = AstNode::new(cast_ast_node_id);
+                                            cast_ast_node.node_type = AstNodeType::Cast;
+                                            cast_ast_node.lhs = Some(right_node.id); // LHS is the variable or literal (value element) which needs casting
+                                            cast_ast_node.set_analyzed_data_type(common_data_type.clone()); // analyzed_data_type is the type to cast into
+                                            cast_ast_node.parent_id = Some(ast_node_parent_id);
+                                            cast_ast_node.operator_type = AstNodeOperatorType::AddrOf;
+                                            // TODO insert correct file and line
+                                            cast_ast_node.file = String::from("test.c");
+                                            cast_ast_node.line = 999;
+
+                                            // add to ASTNode map
+                                            node_map.insert(cast_ast_node_id, cast_ast_node);
+
+                                            // the left node becomes child of the new middle node
+                                            right_node.parent_id = Some(cast_ast_node_id);
+
+                                            // // DEBUG
+                                            // if self.debug {
+                                            //     println!("{}", cast_ast_node_id);
+                                            //     println!("{:?}", ast_node); // parent
+                                            //     println!("{:?}", cast_ast_node); // new middle
+                                            //     println!("{:?}", left_node); // child
+                                            // }
+
+                                            // clone parent, insert new LHS
+                                            let mut ast_node_clone = ast_node.clone();
+                                            ast_node_clone.lhs = Some(cast_ast_node_id);
+
+                                            // replace parent in hashmap
+                                            node_map.insert(ast_node_clone.id, ast_node_clone);
+                                            */
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -2475,27 +2539,6 @@ impl TypeCheckingVisitor {
             AstNodeType::InlineAssembly => {
                 // do not visit this node
                 return DataType::DataTypeUnknown;
-            }
-
-            AstNodeType::ConstString => {
-
-                let string_val = ast_node.string_val.clone();
-
-                // insert param into the symbol table
-                let mut symbol_table_entry: SymbolTableEntry = SymbolTableEntry::new();
-                symbol_table_entry.name = string_val.clone();
-                symbol_table_entry.initial_name = string_val.clone();
-                symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
-                symbol_table_entry.data_type = DataType::DataTypeString;
-                symbol_table_entry.parameter_count = 0usize;
-                symbol_table_entry.has_body = false;
-                symbol_table_entry.is_array = false;
-                symbol_table_entry.is_pointer = false;
-                symbol_table_entry.string_val = string_val.clone();
-                let mut symbol_table = self.symbol_table.borrow_mut();
-                symbol_table.insert(string_val.clone(), symbol_table_entry);
-
-                return DataType::DataTypeString;
             }
 
             _ => {
