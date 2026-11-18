@@ -268,6 +268,10 @@ impl fmt::Display for AsmAstInstruction {
                 write!(f, "{}", format!("Lea(src:{:?}, dst:{:?})", self.src, self.dst).as_str()).expect("Write failed!");
             }
 
+            AsmAstInstructionType::Xor => {
+                write!(f, "{}", format!("Xor(src:{:?}, dst:{:?})", self.src, self.dst).as_str()).expect("Write failed!");
+            }
+
             AsmAstInstructionType::FunctionCall => {
                 write!(f, "{}", format!("FunctionCall(identifier:{:?})", self.identifier).as_str()).expect("Write failed!");
             }
@@ -327,6 +331,7 @@ pub enum AsmAstInstructionType {
     JmpCC,
     SetCC,
     Lea,
+    Xor,
     // JumpIfZero,
     // JumpIfNotZero,
     // Copy,
@@ -372,6 +377,7 @@ pub enum AsmAstOperandType {
     ImmString(String),
     Reg(AsmAstReg),
     DerefReg(AsmAstReg),
+    BaseRegWithOffsetAndSize(AsmAstReg, AsmAstReg, i32),
     Pseudo(String),
     // destination/register name, offset
     // Stack(i32), // implicitly uses the RBP register as a base plus an i32 offset
@@ -972,6 +978,12 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction,
 
         AsmAstInstructionType::Lea => {
             string_buffer.push_str(format!("Lea(src:{:?}, dst:{:?})\n",
+                asm_ast_instruction.src,
+                asm_ast_instruction.dst).as_str());
+        }
+
+        AsmAstInstructionType::Xor => {
+            string_buffer.push_str(format!("Xor(src:{:?}, dst:{:?})\n",
                 asm_ast_instruction.src,
                 asm_ast_instruction.dst).as_str());
         }

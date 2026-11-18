@@ -903,6 +903,7 @@ fn main() {
     let type_system_rc_2 = type_system_rc_1.clone(); // tacky visitor
     let type_system_rc_3 = type_system_rc_1.clone(); // AsmAstFixupVisitor
     let type_system_rc_4 = type_system_rc_1.clone(); // computing layouts of structs
+    let type_system_rc_5 = type_system_rc_1.clone(); // for TackyToIntermediateAsmConversionVisitor
     let type_system_rc_99 = type_system_rc_1.clone(); // debug output
 
     //
@@ -1486,6 +1487,7 @@ fn main() {
                         variable_naming_source_rc_4,
                         struct_naming_source_rc_2,
                         symbol_table_rc_4,
+                        type_system_rc_5
                 );
                 tacky_to_intermediate_asm_conversion_visitor.visit_tacky_program(&tacky_visitor.program);
 

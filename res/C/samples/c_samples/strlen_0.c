@@ -1,4 +1,4 @@
-// res\C\samples\c_samples\putchar_0.c
+// res\C\samples\c_samples\strlen_0.c
 //
 // includelib kernel32.lib
 // includelib User32.lib

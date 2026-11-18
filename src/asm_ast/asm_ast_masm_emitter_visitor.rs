@@ -159,7 +159,7 @@ impl AsmAstMasmEmitterVisitor {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
-                        print!("byte ptr [rbp+{}]", stack_val);
+                        print!("byte ptr [{}+{}]", register.to_string(), stack_val);
                     }
                     format!("byte ptr [{}+{}]", register.to_string(), stack_val)
                 } else {
@@ -449,6 +449,9 @@ impl AsmAstMasmEmitterVisitor {
                 let mut string_buffer: String = String::new();
 
                 match assembly_type {
+                    AstAstAssemblyType::Byte => {
+                        string_buffer.push_str("byte ptr[");
+                    }
                     AstAstAssemblyType::Doubleword => {
                         string_buffer.push_str("dword ptr[");
                     }
@@ -461,9 +464,64 @@ impl AsmAstMasmEmitterVisitor {
                 }
 
                 string_buffer.push_str(&asm_ast_reg_val.to_string());
+
+                // DEBUG
+                if self.debug {
+                    println!("test {:?}", asm_ast_offset);
+                    println!("");
+                }
+
+                //let offset_value: String;
+                //match &asm_ast_offset.operand_type {
+//
+                //    // AsmAstOperandType::Unknown => {
+                //    //     offset_value = self.add_stack_variable(assembly_type, stack_val, register);
+                //    // }
+//
+                //    AsmAstOperandType::Reg(reg_name) => {
+                //        offset_value = self.add_stack_variable_with_register_offset(assembly_type, &reg_name, &1i32, register);
+                //    }
+//
+                //    // AsmAstOperandType::Imm(offset) => {
+                //    //     offset_value = self.add_stack_variable_with_immediate_offset(assembly_type, &offset, stack_val, register);
+                //    // }
+//
+                //    _ => {
+                //        panic!("");
+                //    }
+                //}
+                //string_buffer.push_str(&asm_ast_reg_val.to_string());
+
                 string_buffer.push_str("]");
 
                 self.string_buffer.push_str(&string_buffer.to_string());
+            }
+
+            AsmAstOperandType::BaseRegWithOffsetAndSize(base_reg, offset_reg, data_type_size) => {
+
+                let mut string_buffer: String = String::new();
+
+                match assembly_type {
+                    AstAstAssemblyType::Byte => {
+                        string_buffer.push_str("byte ptr[");
+                    }
+                    AstAstAssemblyType::Doubleword => {
+                        string_buffer.push_str("dword ptr[");
+                    }
+                    AstAstAssemblyType::Quadword => {
+                        string_buffer.push_str("qword ptr[");
+                    }
+                    _ => {
+                        panic!("Unhandled type {:?}", &assembly_type);
+                    }
+                }
+
+                string_buffer.push_str(&format!("{}+{}*{}", base_reg.to_string(), offset_reg.to_string(), data_type_size).to_string());
+
+                string_buffer.push_str("]");
+
+                self.string_buffer.push_str(&string_buffer.to_string());
+
             }
 
             AsmAstOperandType::Pseudo(pseudo_val) => {
@@ -496,7 +554,6 @@ impl AsmAstMasmEmitterVisitor {
 
             AsmAstOperandType::DirectGetAddress(symbol_val) => {
 
-                // let val = rem_first_and_last(symbol_val);
                 let val = symbol_val;
 
                 self.string_buffer.push_str(" [");
@@ -829,7 +886,9 @@ impl AsmAstMasmEmitterVisitor {
                 self.emit_asm_ast_operand(&asm_ast_instruction.src, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
 
                 // comment
-                self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
+                if asm_ast_instruction.comment.len() > 0 {
+                    self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
+                }
 
                 // newline
                 self.string_buffer.push_str("\n");
@@ -842,7 +901,9 @@ impl AsmAstMasmEmitterVisitor {
 
                 // comment
                 // print!("{}", asm_ast_instruction.comment);
-                self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
+                if asm_ast_instruction.comment.len() > 0 {
+                    self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
+                }
 
                 // newline
                 // println!("");
@@ -1052,9 +1113,9 @@ impl AsmAstMasmEmitterVisitor {
                     &asm_ast_instruction.assembly_type);
 
                 // comment
-                // print!("{}", asm_ast_instruction.comment);
-                self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
-
+                if asm_ast_instruction.comment.len() > 0 {
+                    self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
+                }
                 self.string_buffer.push_str("\n");
             }
 
@@ -1092,7 +1153,9 @@ impl AsmAstMasmEmitterVisitor {
                     AsmAstOperandType::Imm(imm_value) => {
 
                         // comment
-                        self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
+                        if asm_ast_instruction.comment.len() > 0 {
+                            self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
+                        }
 
                         // instruction
                         self.string_buffer.push_str(format!("    sub rsp, {:?}\n", imm_value).as_str()); // save space on stack for all local variables
@@ -1153,8 +1216,29 @@ impl AsmAstMasmEmitterVisitor {
                     &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
                     &asm_ast_instruction.assembly_type);
 
-                self.string_buffer.push_str("; ");
-                self.string_buffer.push_str(asm_ast_instruction.comment.clone().as_str());
+                if asm_ast_instruction.comment.len() > 0 {
+                    self.string_buffer.push_str("    ; ");
+                    self.string_buffer.push_str(asm_ast_instruction.comment.clone().as_str());
+                }
+                self.string_buffer.push_str("\n");
+            }
+
+            AsmAstInstructionType::Xor => {
+                // println!("{:?}", asm_ast_instruction);
+
+                self.string_buffer.push_str("    xor ");
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst,
+                    &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                    &asm_ast_instruction.assembly_type);
+                self.string_buffer.push_str(", ");
+                self.emit_asm_ast_operand(&asm_ast_instruction.src,
+                    &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                    &asm_ast_instruction.assembly_type);
+
+                if asm_ast_instruction.comment.len() > 0 {
+                    self.string_buffer.push_str("    ; ");
+                    self.string_buffer.push_str(asm_ast_instruction.comment.clone().as_str());
+                }
                 self.string_buffer.push_str("\n");
             }
 
@@ -1168,8 +1252,10 @@ impl AsmAstMasmEmitterVisitor {
                     &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
                     &asm_ast_instruction.assembly_type);
 
-                self.string_buffer.push_str("    ; ");
-                self.string_buffer.push_str(asm_ast_instruction.comment.clone().as_str());
+                if asm_ast_instruction.comment.len() > 0 {
+                    self.string_buffer.push_str("    ; ");
+                    self.string_buffer.push_str(asm_ast_instruction.comment.clone().as_str());
+                }
                 self.string_buffer.push_str("\n");
             }
 

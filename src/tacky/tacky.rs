@@ -98,6 +98,7 @@ impl Argument {
     }
 }
 
+#[derive(Debug)]
 pub struct TopLevel {
     pub name: String,
     pub top_level_type: TopLevelType,
@@ -124,6 +125,7 @@ impl TopLevel {
     }
 }
 
+#[derive(Debug)]
 pub enum TopLevelType {
     Scope, // global scope without being a function. Just the global, top-level namespace
     Function,
@@ -323,8 +325,8 @@ impl fmt::Debug for ValueElement {
     }
 }
 
-pub fn print_tacky_program(program: &Program, string_buffer: &mut String, indent: usize) {
-
+pub fn print_tacky_program(program: &Program, string_buffer: &mut String, indent: usize)
+{
     // indent
     let indent_string = std::iter::repeat(" ").take(indent * 2).collect::<String>();
     string_buffer.push_str(&indent_string);
@@ -338,8 +340,8 @@ pub fn print_tacky_program(program: &Program, string_buffer: &mut String, indent
     }
 }
 
-pub fn print_tacky_top_level(top_level: &TopLevel, string_buffer: &mut String, indent: usize) {
-
+pub fn print_tacky_top_level(top_level: &TopLevel, string_buffer: &mut String, indent: usize)
+{
     // indent
     let indent_string = std::iter::repeat(" ").take(indent * 2).collect::<String>();
 
@@ -361,8 +363,8 @@ pub fn print_tacky_top_level(top_level: &TopLevel, string_buffer: &mut String, i
     }
 }
 
-pub fn print_tacky_function(function: &TopLevel, string_buffer: &mut String, indent: usize) {
-
+pub fn print_tacky_function(function: &TopLevel, string_buffer: &mut String, indent: usize)
+{
     // indent
     let indent_string = std::iter::repeat(" ").take(indent * 2).collect::<String>();
     string_buffer.push_str(&indent_string);
@@ -389,8 +391,8 @@ pub fn print_tacky_function(function: &TopLevel, string_buffer: &mut String, ind
     }
 }
 
-pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut String, indent: usize) {
-
+pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut String, indent: usize)
+{
     let debug: bool = false;
 
     // indent

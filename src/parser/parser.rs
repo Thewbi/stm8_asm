@@ -1430,7 +1430,6 @@ impl Parser<String> {
                                                 exp_ast_node.node_type = AstNodeType::Expression;
                                                 exp_ast_node.operator_type = AstNodeOperatorType::FunctionCall;
                                                 exp_ast_node.lhs = Some(function_call_ast_node.id);
-                                                // exp_ast_node.rhs = Some(function_call_ast_node.id);
                                                 exp_ast_node.file = file.clone();
                                                 exp_ast_node.line = line;
 

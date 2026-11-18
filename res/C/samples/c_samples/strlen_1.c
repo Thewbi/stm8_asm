@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\strlen_1.c
+
 int strlen(char *s)
 {
     int len = 0;

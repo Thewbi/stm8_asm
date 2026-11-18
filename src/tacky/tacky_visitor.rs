@@ -2069,7 +2069,7 @@ impl TackyVisitor {
 
                         // DEBUG
                         if self.debug {
-                            println!("{:?}", ast_node);
+                            println!("[TackyVisitor AstNodeOperatorType::FunctionCall] {:?}", ast_node);
                         }
 
                         // FunCall
@@ -2077,18 +2077,26 @@ impl TackyVisitor {
                         function_call_instruction.instruction_type = InstructionType::FunCall;
 
                         if let Some(lhs_ast_node_id) = ast_node.lhs {
+
                             let lhs_ast_node = node_map.get(&lhs_ast_node_id).unwrap().clone();
                             function_call_instruction.function_name = lhs_ast_node.string_val.clone();
 
-                            // PARAMETERS / ARGUMENTS
-                            for i in 0..lhs_ast_node.parameters.len() {
+                            let param_count = lhs_ast_node.parameters.len();
 
-                                let parameter_ast_node_id = &lhs_ast_node.parameters[lhs_ast_node.parameters.len()-1-i];
+                            // DEBUG
+                            if self.debug {
+                                println!("[TackyVisitor::FunctionCall] {}", param_count);
+                            }
+
+                            // PARAMETERS / ARGUMENTS
+                            for i in 0..param_count {
+
+                                let parameter_ast_node_id = &lhs_ast_node.parameters[param_count-1-i];
                                 let parameter_ast_node = node_map.get(&parameter_ast_node_id).unwrap().clone();
 
                                 // DEBUG
                                 if self.debug {
-                                    println!("ARGUMENT_{}: {:?}", i, parameter_ast_node);
+                                    println!("[TackyVisitor::FunctionCall] ARGUMENT_{}: {:?}", i, parameter_ast_node);
                                 }
 
                                 match parameter_ast_node.node_type {
@@ -2113,32 +2121,38 @@ impl TackyVisitor {
                                                 String::from(parameter_ast_node.string_val.clone()))));
                                     }
                                     AstNodeType::Expression => {
-                                        let mut br_cnt = 0;
-                                        let (value_element, data_type )
-                                            = self.visit(parameter_ast_node.id, node_map, &dst_name, &mut br_cnt);
+
+                                        //let data_type = ast_node.get_analyzed_data_type();
+                                        // let data_type = DataType::DataTypeDouble;
+                                        let data_type = DataType::DataTypeUnsignedLong;
+                                        // let data_type = DataType::DataTypeUnknown;
+
+                                        assert_ne!(data_type, DataTypeUnknown, "Needs type!");
 
                                         // DEBUG
                                         if self.debug {
-                                            println!("value_element: {:?}", value_element);
-                                            println!("data_type: {:?}", data_type);
+                                            println!("[TackyVisitor] data_type: {}", data_type);
+                                        }
+
+                                        let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
+                                        self.declare_temporary_variable(&temp_var_name, data_type);
+
+                                        // let last = self.program.top_level.len() - 1;
+                                        // self.program.top_level[last].body.push(Box::new(function_call_instruction));
+
+                                        let mut br_cnt = 0;
+                                        let (value_element, data_type )
+                                            = self.visit(parameter_ast_node.id, node_map, &temp_var_name, &mut br_cnt);
+
+                                        //self.declare_temporary_variable(&temp_var_name, data_type.clone());
+
+                                        // DEBUG
+                                        if self.debug {
+                                            println!("[TackyVisitor] value_element: {:?}", value_element);
+                                            println!("[TackyVisitor] data_type: {:?}", data_type);
                                         }
 
                                         function_call_instruction.parameters.push(Box::new(value_element));
-
-                                        //function_call_instruction.parameters.push(
-                                        //    Box::new(ValueElement::Variable(
-                                        //        String::from(parameter_ast_node.string_val.clone()))));
-
-                                        //match parameter_ast_node.operator_type {
-                                        //    AstNodeOperatorType::AddrOf => {
-                                        //        function_call_instruction.parameters.push(
-                                        //        Box::new(ValueElement::Variable(
-                                        //            String::from(parameter_ast_node.string_val.clone()))));
-                                        //    }
-                                        //    _ => {
-                                        //        todo!();
-                                        //    }
-                                        //}
                                     }
                                     _ => {
                                         panic!("Please add node_type for: '{:?}'! ast_node: {:?}",
@@ -2201,15 +2215,12 @@ impl TackyVisitor {
                         // source variable name is retrieved from LHS
                         if let Some(lhs_node_id) = ast_node.lhs {
                             let lhs_node = node_map.get(&lhs_node_id).unwrap();
-                            // get_address_instruction.src = ValueElement::Variable(lhs_node.string_val.clone());
                             get_address_instruction.src = ValueElement::Constant(lhs_node.string_val.clone());
                         }
 
-                        // the destination variable name is passed in as a parameter to this functino
+                        // the destination variable name is passed in as a parameter to this function
                         let dest_variable_element = ValueElement::Variable(dst_name.to_string());
                         get_address_instruction.dst = dest_variable_element.clone();
-
-                        // self.symbol_table.borrow_mut().insert(variable_identifier.clone(), symbol_table_entry);
 
                         // make the destination variable a pointer by setting the is_pointer flag to true
                         // in the symbol table
@@ -3515,3 +3526,21 @@ impl TackyVisitor {
         subscript_instruction
     }
 }
+
+
+
+//function_call_instruction.parameters.push(
+                                        //    Box::new(ValueElement::Variable(
+                                        //        String::from(parameter_ast_node.string_val.clone()))));
+
+                                        //match parameter_ast_node.operator_type {
+                                        //    AstNodeOperatorType::AddrOf => {
+                                        //        function_call_instruction.parameters.push(
+                                        //        Box::new(ValueElement::Variable(
+                                        //            String::from(parameter_ast_node.string_val.clone()))));
+                                        //    }
+                                        //    _ => {
+                                        //        todo!();
+                                        //    }
+                                        //}
+

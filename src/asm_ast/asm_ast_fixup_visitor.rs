@@ -91,13 +91,32 @@ impl AsmAstFixupVisitor {
 
         match &asm_ast_operand.operand_type {
 
-            AsmAstOperandType::Memory(register, stack_offset) => {
+            AsmAstOperandType::Imm(immediate_value) => {
                 // DEBUG
                 if self.debug {
-                    println!("Stack, offset:{}", stack_offset);
+                    println!("Imm");
                 }
+            }
 
-                return asm_ast_operand.clone();
+            AsmAstOperandType::Reg(register_name) => {
+                // DEBUG
+                if self.debug {
+                    println!("Reg, register_name:{:?}", register_name);
+                }
+            }
+
+            AsmAstOperandType::DerefReg(register_name) => {
+                // DEBUG
+                if self.debug {
+                    println!("DerefReg, register_name:{:?}", register_name);
+                }
+            }
+
+            AsmAstOperandType::BaseRegWithOffsetAndSize(base_reg, offset_reg, data_type_size) => {
+                // DEBUG
+                if self.debug {
+                    println!("BaseRegWithOffsetAndSize, base_reg:{:?}, offset_reg:{:?}, data_type_size:{:?}", base_reg, offset_reg, data_type_size);
+                }
             }
 
             AsmAstOperandType::Pseudo(pseudo_name) => {
@@ -270,29 +289,17 @@ impl AsmAstFixupVisitor {
                 }
             }
 
+            AsmAstOperandType::Memory(register, stack_offset) => {
+                // DEBUG
+                if self.debug {
+                    println!("Stack, offset:{}", stack_offset);
+                }
+
+                return asm_ast_operand.clone();
+            }
+
             AsmAstOperandType::DirectGetAddress(symbol_name) => {
                 // nothing
-            }
-
-            AsmAstOperandType::Imm(immediate_value) => {
-                // DEBUG
-                if self.debug {
-                    println!("Imm");
-                }
-            }
-
-            AsmAstOperandType::Reg(register_name) => {
-                // DEBUG
-                if self.debug {
-                    println!("Reg, register_name:{:?}", register_name);
-                }
-            }
-
-            AsmAstOperandType::DerefReg(register_name) => {
-                // DEBUG
-                if self.debug {
-                    println!("DerefReg, register_name:{:?}", register_name);
-                }
             }
 
             _ => {
@@ -795,6 +802,19 @@ impl AsmAstFixupVisitor {
                 // DEBUG
                 if self.debug {
                     println!("Lea {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
+                }
+
+                asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
+                asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+
+                // asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
+                new_body.push(Box::new(asm_ast_instruction));
+            }
+
+            AsmAstInstructionType::Xor => {
+                // DEBUG
+                if self.debug {
+                    println!("Xor {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
                 }
 
                 asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
