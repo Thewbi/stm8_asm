@@ -424,12 +424,6 @@ impl Parser<String> {
                     // If so, the amount of instructions in the function declaration
                     // needs to be incremented
 
-                    // let peek_ast_node_id = self.ast_stack_peek();
-                    // let peek_ast_node = node_map.get(&peek_ast_node_id).unwrap();
-                    // if peek_ast_node.node_type == AstNodeType::FunctionDeclaration {
-                    //     println!("test");
-                    // }
-
                     let mut function_found: bool = false;
 
                     for i in 0..self.ast_stack.len() {
@@ -472,6 +466,7 @@ impl Parser<String> {
                     // do not forward the token to the parser code
                     return true;
                 }
+
                 if self.parser_mode == ParserMode::InlineAssembly {
                     if val == "CLOSING_CURLY_BRACKET" {
 
@@ -508,22 +503,34 @@ impl Parser<String> {
             }
         }
 
+        // this is where incoming token are funneled into the inline assembly ast node
+        //
         match &self.parser_mode {
+
             ParserMode::InlineAssembly => {
+
+
+                println!("token: {:?}", token);
+
                 //
                 // Consume Inline Assembly code
                 //
                 match &token {
                     RuleElement::Terminal(val) => {
+
+                        println!("inline: '{}'", val);
+
                         if val == "WHITESPACE" {
                             // ignore whitespace token and only consume newline
                         } else {
                             //println!("[Parser::consume()] terminal: '{:?}', terminal_value: '{}'", token, terminal_value);
                             // TODO: add text into node
                         }
+
+
                     }
                     _ => {
-                        //println!("token: {:?}", token);
+
                     }
                 }
 

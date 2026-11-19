@@ -711,6 +711,13 @@ impl AsmAstMasmEmitterVisitor {
         self.string_buffer.push_str("\n");
         self.string_buffer.push_str("    .code\n");
 
+        // WinAPI calls
+        // extern GetStdHandle: proc
+        self.string_buffer.push_str("extern CreateFileA: proc\n");
+        // extern WriteFile: proc
+        // extern ReadFile: proc
+        // extern ExitProcess: proc
+
         // UCRT calls
         // if these calls are inserted, you need to link againts all the libs
         // link.exe /SUBSYSTEM:console /LARGEADDRESSAWARE:NO /ENTRY:main /OUT:build\main.exe /SUBSYSTEM:CONSOLE kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ucrt.lib build\main.obj >NUL 2>&1

@@ -2470,6 +2470,10 @@ The parser has self.defined_types where it stores typedeffed types!
 The lexer has a reference to the parser and uses it's defined_types member.
 Maybe, upgrade parser.defined_types to become the type system table?!?!??
 
+# Inline Assembly
+
+[InlineAssembly](md/inline_assembly.md)
+
 # Emitting Assembly Intructions
 
 ## Emission Infrastructure

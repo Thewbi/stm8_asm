@@ -204,16 +204,38 @@ impl<'a> Lexer<'a> {
                     println!("token_name: '{}'", &token_name);
                 }
 
-                // token_name required
-                assert_ne!(token_name, "", "{}",
-                    format!("Could not process or identify token! File:{}, Line:{}", file, line).as_str());
+                // // ERROR
+                // if token_name.len() <= 0 {
+                //     println!("trap_state_detected: '{}'", next_state_id);
+                //     println!("[LEXER.TRAP_STATE] Emitting '{}', Token-Id: {}, Token-Name: {} | File: {:?}, Line: {:?}",
+                //         self.token_string_buffer,
+                //         self.dfa.states[&self.current_state_id].token_id,
+                //         self.dfa.states[&self.current_state_id].token_name,
+                //         file,
+                //         line);
+                // }
+
+                // in default mode, error on unknown token.
+                // Once the lexer has entered inline assembly mode, ignore
+                // unknown token errors and just output unknown token.
+                // The reason is that unknown token from the view of the C-lexer
+                // occur when parsing inline assembly. For example inline assembly has
+                // a comment token (;) which the C-lexer does not understand at all
+                // and inside comments unknown token are valid. Since the C-lexer
+                // does not start inline assembly comments, invalid token reach the
+                // C-Lexer
+                if parser.parser_mode == ParserMode::Default {
+                    // token_name required
+                    assert_ne!(token_name, "", "{}",
+                        format!("Could not process or identify token! File: '{}', Line: {}", file, line).as_str());
+                }
 
                 let terminal = RuleElement::Terminal(token_name);
 
                 // DEBUG - this outputs the string and the token generated from the string
                 // This is a good starting point for debugging
                 if self.lexer_token_debug {
-                    println!("[LEXER.TRAP_STATE] {:?} ---> {:?} | File: {:?}, Line: {:?}",
+                    println!("[LEXER.TRAP_STATE] {:?} ---> {:?} | File: '{:?}', Line: {:?}",
                         self.token_string_buffer,
                         terminal,
                         file,
@@ -229,7 +251,8 @@ impl<'a> Lexer<'a> {
                         // if the parser has detected a token which turns on
                         // inline-assembly mode, the parser wants to consume whitespace
                         // characters to detect newlines which separate ASM lines from
-                        // each other.
+                        // each other. So even token of type whitespace (see above)
+                        // are passed to the lexer
                         if parser.parser_mode == ParserMode::InlineAssembly {
                             // pass token to the parser
                             parser.provide_input(
