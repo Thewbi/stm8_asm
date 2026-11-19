@@ -34,16 +34,27 @@ use crate::tacky::tacky::Argument;
 
 use crate::VariableNamingSource;
 
-//
-// Generates TACKY from an AST
-//
-// 0. parser - Creates parse tree and abstract syntax tree
-// 1. src\c_ast\identifier_resolution_visitor.rs - Checks for duplicate or undeclared variable names
-// 2. src\c_ast\type_checking_visitor.rs - Performs type checking. The rules that are checked are documented in the file itself
-// 3. src\tacky\tacky_visitor.rs (This file) - Generate TACKY instruction structs (from AST nodes) and insert the instructions into the current top-level scope (self.program.top_level). The serialization of the instruction into the build/tacky.tky file is done in main.rs using the pub fn print_tacky_program() function.
-// 4. asm_ast/AsmAstConversionVisitor - Converts the AST into a ASM AST for assembly with a precursory form of mnenomics
-// 5. asm_ast/AsmAstFixupVisitor - Replacing pseudo operands/variables with stack addresses
-// 6. src\asm_ast\asm_ast_masm_emitter_visitor.rs / asm_ast/AsmAstASEmitterVisitor / ...
+///
+/// Generates TACKY from an AST.
+///
+/// 0. parser - Creates parse tree and abstract syntax tree
+/// 1. src\c_ast\identifier_resolution_visitor.rs - Checks for duplicate or undeclared variable names
+/// 2. src\c_ast\type_checking_visitor.rs - Performs type checking. The rules that are checked are documented in the file itself
+/// 3. src\tacky\tacky_visitor.rs (This file) - Generate TACKY instruction structs (from AST nodes) and insert the instructions into the current top-level scope (self.program.top_level). The serialization of the instruction into the build/tacky.tky file is done in main.rs using the pub fn print_tacky_program() function.
+/// 4. asm_ast/AsmAstConversionVisitor - Converts the AST into a ASM AST for assembly with a precursory form of mnenomics
+/// 5. asm_ast/AsmAstFixupVisitor - Replacing pseudo operands/variables with stack addresses
+/// 6. src\asm_ast\asm_ast_masm_emitter_visitor.rs / asm_ast/AsmAstASEmitterVisitor / ...
+///
+/// IMPLEMENTATION:
+/// The visitor will visit each node in the AST.
+/// If it wants to generate TACKY code, it will create a struct of type Instruction and
+/// insert that struct into the current (top-level) scope.
+///
+/// ```
+/// // append instruction to latest top-level element of the program
+/// let last = self.program.top_level.len() - 1;
+/// self.program.top_level[last].body.push(Box::new(label_instruction));
+/// ```
 pub struct TackyVisitor {
     variable_naming_source: Rc<RefCell<VariableNamingSource>>, // https://www.youtube.com/watch?v=8O0Nt9qY_vo
     symbol_table: Rc<RefCell<SymbolTable>>, // https://www.youtube.com/watch?v=8O0Nt9qY_vo
@@ -1095,6 +1106,8 @@ impl TackyVisitor {
         ast_node: &AstNode,
         node_map: &mut Box<HashMap<usize, AstNode>>) -> ( ValueElement, DataType )
     {
+        let mut is_declaration_only: bool = false;
+
         //
         // LHS - body of function delaration
         //
@@ -1102,9 +1115,11 @@ impl TackyVisitor {
         // is a prototype and the TACKY visitor should not export any TACKY instruction
         if let Some(lhs_ast_node_id) = ast_node.lhs {
             // keep processing
+            is_declaration_only = false;
         } else {
-            let return_value: ValueElement = ValueElement::Constant(String::from("0"));
-            return ( return_value, DataType::DataTypeUnknown );
+            is_declaration_only = true;
+            // let return_value: ValueElement = ValueElement::Constant(String::from("0"));
+            // return ( return_value, DataType::DataTypeUnknown );
         }
 
         let mut function_name = String::new();
@@ -1142,18 +1157,14 @@ impl TackyVisitor {
                     let data_type = ts.get(&type_name).unwrap();
 
                     top_level_function.return_type = Some(data_type.clone());
-
-                    // function_definition_ast_node.set_analyzed_data_type(data_type.clone());
-
-                    // // Assumption: return-value data-type of function
-                    // // return-value data-type of function
-                    // function_definition_ast_node.rhs = Some(sub_ast_node.id);
                 }
                 _ => {
                     panic!();
                 }
             }
         }
+
+        let mut parameter_data_types = Vec::<DataType>::new();
 
         // arguments / formal parameters
         for param_ast_node_id in &ast_node.parameters {
@@ -1178,9 +1189,10 @@ impl TackyVisitor {
 
             // println!("param_ast_node: {:?}", param_ast_node);
 
-            // Honolulu
             // parameter data type
             argument.data_type = param_ast_node.get_analyzed_data_type().clone();
+
+            parameter_data_types.push(argument.data_type.clone());
 
             if argument.data_type == DataTypeUnknown {
                 // parameter data type
@@ -1206,6 +1218,21 @@ impl TackyVisitor {
             assert_ne!(argument.data_type, DataType::DataTypeUnknown, "Need a type!");
 
             top_level_function.arguments.push(Box::new(argument));
+        }
+
+        // insert into type system
+        {
+            let data_type = DataType::DataTypeFunctionDeclaration(
+                function_name.clone(), parameter_data_types);
+            let mut ts = self.type_system.borrow_mut();
+            ts.insert(function_name.clone(), data_type);
+        }
+
+        // the LHS node is optional. If it is missing, this FunctionDeclaration
+        // is a prototype and the TACKY visitor should not export any TACKY instruction
+        if is_declaration_only {
+            let return_value: ValueElement = ValueElement::Constant(String::from("0"));
+            return ( return_value, DataType::DataTypeUnknown );
         }
 
         // insert function into program
@@ -2168,7 +2195,11 @@ impl TackyVisitor {
                         // is passed in as a parameter to this visitor
                         //
 
-                        function_call_instruction.dst = ValueElement::Variable(dst_name.clone());
+                        if dst_name == "" {
+                            function_call_instruction.dst = ValueElement::None;
+                        } else {
+                            function_call_instruction.dst = ValueElement::Variable(dst_name.clone());
+                        }
 
                         // append instruction to latest top-level element of the program
                         let last = self.program.top_level.len() - 1;
@@ -3377,7 +3408,24 @@ impl TackyVisitor {
             }
 
             AstNodeType::InlineAssembly => {
+                // println!("[TackyVisitor] Inline Assembly");
 
+                let ast_node = node_map.get(&ast_node_id).unwrap().clone();
+
+                let value_element = ValueElement::Constant(ast_node.string_val.clone());
+
+                let mut label_instruction: Instruction = Instruction::new();
+                label_instruction.instruction_type = InstructionType::InlineAssembly;
+                label_instruction.src = value_element;
+                //label_instruction.label = continue_label_name.clone();
+                // append instruction to latest top-level element of the program
+                let last = self.program.top_level.len() - 1;
+                self.program.top_level[last].body.push(Box::new(label_instruction));
+
+                //return ( ValueElement::Variable(variable_identifier), DataType::DataTypeUnknown );
+
+                let result = ValueElement::Variable(dst_name.clone());
+                return ( result, DataType::DataTypeUnknown );
             }
 
             _ => {

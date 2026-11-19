@@ -2237,6 +2237,11 @@ impl TypeCheckingVisitor {
                                 println!("[OK] Arguments to {} match! Arguments expected: {}. Found: {}.", &function_name, existing_symbol_table_entry.parameter_count, ast_node.parameters.len());
                             }
 
+                            // DEBUG
+                            if self.debug {
+                                println!("[TCV] existing_symbol_table_entry: {:?}", existing_symbol_table_entry);
+                            }
+
                             // TODO: type check each individual argument.
                             // the type of the actual argument has to match
                             // or be convertible to the formal parameter's data type!
@@ -2244,6 +2249,11 @@ impl TypeCheckingVisitor {
                             // DEBUG
                             if self.debug {
                                 println!("ast_node: {:?}", ast_node);
+                            }
+
+                            // DEBUG
+                            if self.debug {
+                                println!("[TypeCheckingVisitor] Parameters: {:?}", ast_node.parameters);
                             }
 
                             let param_count = ast_node.parameters.len();
@@ -2257,8 +2267,8 @@ impl TypeCheckingVisitor {
                                 }
 
                                 // actual parameter
-                                //let actual_parameter_ast_node_id = &ast_node.parameters[param_count-1-i];
-                                let actual_parameter_ast_node_id = &ast_node.parameters[i];
+                                let actual_parameter_ast_node_id = &ast_node.parameters[param_count-1-i];
+                                //let actual_parameter_ast_node_id = &ast_node.parameters[i];
                                 let actual_parameter_ast_node = node_map.get(actual_parameter_ast_node_id).unwrap().clone();
 
                                 // DEBUG
@@ -2273,12 +2283,12 @@ impl TypeCheckingVisitor {
                                 }
 
                                 // formal parameter
-                                if self.debug {
-                                    println!("[TCV] existing_symbol_table_entry: {:?}",
-                                        existing_symbol_table_entry);
-                                }
-
                                 let formal_parameter_data_type = existing_symbol_table_entry.parameter_data_types[i].clone();
+
+                                // DEBUG
+                                if self.debug {
+                                    println!("[TCV] parameter #: {}", i);
+                                }
 
                                 // DEBUG
                                 if self.debug {
@@ -2312,10 +2322,23 @@ impl TypeCheckingVisitor {
                                         actual_parameter_datatype = DataType::DataTypeString;
                                     }
                                     _ => {
-                                        // println!("[TCV] Other");
+
                                         let string_val = actual_parameter_ast_node.string_val;
+
+                                        // DEBUG
+                                        // println!("[TCV] Other. NodeType: '{:?}', string_val: '{}'",
+                                        //     actual_parameter_ast_node.node_type,
+                                        //     string_val);
+
                                         let mut symbol_tbl = self.symbol_table.borrow_mut();
+
+                                        if !symbol_tbl.contains_key(&string_val) {
+                                            panic!("Symbol Table does not contain the key: '{:?}'", string_val);
+                                        }
+
                                         let symbol_table_entry = symbol_tbl.retrieve(&string_val);
+                                        // println!("[TypeCheckingVisitor] symbol_table_entry: {:?}", &symbol_table_entry);
+
                                         actual_parameter_datatype = symbol_table_entry.data_type;
 
                                         assert_ne!(actual_parameter_datatype, DataType::DataTypeUnknown, "Need data type!");
@@ -2324,8 +2347,7 @@ impl TypeCheckingVisitor {
 
                                 // DEBUG
                                 if self.debug {
-                                    println!("[TCV] actual_parameter_datatype: {}",
-                                        actual_parameter_datatype);
+                                    println!("[TCV] actual_parameter_datatype: {}", actual_parameter_datatype);
                                 }
 
                                 assert_ne!(actual_parameter_datatype, DataType::DataTypeUnknown,
@@ -2339,6 +2361,11 @@ impl TypeCheckingVisitor {
 
                                         DataType::DataTypePointer(inner_data_type) => {
 
+                                            // if the formal parameter is pointer-to-[char]
+                                            // and the actual parameter is a string, then
+                                            // insert a new AddrOf() node to convert the string
+                                            // constant into it's address so that the types match!
+
                                             let addr_of_ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
                                             let mut addr_of_ast_node = AstNode::new(addr_of_ast_node_id);
                                             addr_of_ast_node.node_type = AstNodeType::Expression;
@@ -2348,6 +2375,30 @@ impl TypeCheckingVisitor {
                                             addr_of_ast_node.string_val.push_str("_");
                                             addr_of_ast_node.string_val.push_str(&addr_of_ast_node_id.to_string());
 
+                                            /**/
+                                            {
+                                                // SYMBOL_TABLE_CONST_STRING
+                                                //
+                                                let string_val = ast_node.string_val.clone();
+
+                                                // insert param into the symbol table
+                                                let mut symbol_table_entry: SymbolTableEntry = SymbolTableEntry::new();
+                                                symbol_table_entry.name = addr_of_ast_node.string_val.clone();
+                                                symbol_table_entry.initial_name = addr_of_ast_node.string_val.clone();
+                                                symbol_table_entry.symbol_table_entry_type = SymbolTableEntryType::Variable;
+                                                symbol_table_entry.data_type = DataType::DataTypeString;
+                                                symbol_table_entry.parameter_count = 0usize;
+                                                symbol_table_entry.has_body = false;
+                                                symbol_table_entry.is_array = false;
+                                                symbol_table_entry.is_pointer = false;
+                                                symbol_table_entry.string_val = string_val.clone();
+                                                let mut symbol_tbl = self.symbol_table.borrow_mut();
+                                                // symbol_table.insert(string_val.clone(), symbol_table_entry);
+
+                                                // let symbol_tbl = self.symbol_table.borrow_mut();
+                                                symbol_tbl.insert(addr_of_ast_node.string_val.clone(), symbol_table_entry);
+                                            }
+
                                             addr_of_ast_node.lhs = Some(*actual_parameter_ast_node_id);
                                             addr_of_ast_node.rhs = Some(*actual_parameter_ast_node_id);
                                             node_map.insert(addr_of_ast_node.id, addr_of_ast_node);
@@ -2355,11 +2406,15 @@ impl TypeCheckingVisitor {
                                             self.visit(addr_of_ast_node_id, node_map, expected_return_data_type);
 
                                             // replace parameter
-                                            //ast_node.parameters[param_count-1-i] = addr_of_ast_node_id;
-                                            ast_node.parameters[i] = addr_of_ast_node_id;
+                                            ast_node.parameters[param_count-1-i] = addr_of_ast_node_id;
+                                            //ast_node.parameters[i] = addr_of_ast_node_id;
                                         }
 
                                         _ => {
+                                            println!("[TCV] parameter#: {}", i);
+                                            println!("[TCV] actual_parameter_datatype: {}", actual_parameter_datatype);
+                                            println!("[TCV] formal_parameter_datatype: {}", formal_parameter_data_type);
+
                                             panic!();
                                         }
                                     }

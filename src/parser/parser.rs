@@ -175,6 +175,7 @@ pub struct Parser<T> {
     struct_field_counter: usize,
 
     pub parser_mode: ParserMode,
+    pub inline_assembly_ast_node: AstNode,
 
     // TODO: improve the parser/lexer API.
     // Currently the lexer always needs a parser to function.
@@ -283,6 +284,7 @@ impl Parser<String> {
             struct_field_counter: 0,
 
             parser_mode: ParserMode::Default,
+            inline_assembly_ast_node: AstNode::new(0usize),
 
             // DEBUG
             disabled: false,
@@ -444,14 +446,14 @@ impl Parser<String> {
                     //
 
                     // Inline Assembly AST node
-                    let mut ast_node: AstNode = AstNode::new(self.get_ast_node_id());
-                    ast_node.node_type = AstNodeType::InlineAssembly;
-                    ast_node.file = file.clone();
-                    ast_node.line = line;
+                    self.inline_assembly_ast_node = AstNode::new(self.get_ast_node_id());
+                    self.inline_assembly_ast_node.node_type = AstNodeType::InlineAssembly;
+                    self.inline_assembly_ast_node.file = file.clone();
+                    self.inline_assembly_ast_node.line = line;
 
-                    self.ast_stack.push(ast_node.id);
+                    self.ast_stack.push(self.inline_assembly_ast_node.id);
 
-                    node_map.insert(ast_node.id, ast_node);
+                    node_map.insert(self.inline_assembly_ast_node.id, self.inline_assembly_ast_node.clone());
 
                     // because of Rule 187
                     // // compound_statement -> OPENING_CURLY_BRACKET declaration_or_statement_list CLOSING_CURLY_BRACKET
@@ -477,6 +479,15 @@ impl Parser<String> {
                         self.parser_mode = ParserMode::Default;
 
                         // println!("[Parser::consume()] Execute Exit Inline Assembly!");
+
+                        // DEBUG
+                        if debug {
+                            println!("[Parser::InlineAssembly] string_val: '{}'", self.inline_assembly_ast_node.string_val);
+                        }
+
+                        // update the node since it's string_val field has been
+                        // extended with inline_assembly code!
+                        node_map.insert(self.inline_assembly_ast_node.id, self.inline_assembly_ast_node.clone());
 
                         // do not forward the token to the parser code
                         return true;
@@ -510,7 +521,8 @@ impl Parser<String> {
             ParserMode::InlineAssembly => {
 
 
-                println!("token: {:?}", token);
+                // println!("token: {:?}, terminal_value: '{}'", token, terminal_value);
+
 
                 //
                 // Consume Inline Assembly code
@@ -518,15 +530,22 @@ impl Parser<String> {
                 match &token {
                     RuleElement::Terminal(val) => {
 
-                        println!("inline: '{}'", val);
+                        // println!("inline: '{}'", val);
 
-                        if val == "WHITESPACE" {
-                            // ignore whitespace token and only consume newline
+                        // if val == "WHITESPACE" {
+                        //     // ignore whitespace token and only consume newline
+                        // } else {
+                        //     //println!("[Parser::consume()] terminal: '{:?}', terminal_value: '{}'", token, terminal_value);
+                        //     // TODO: add text into node
+                        // }
+                        if terminal_value == "{" {
+
+                        } else if terminal_value == "}" {
+
                         } else {
-                            //println!("[Parser::consume()] terminal: '{:?}', terminal_value: '{}'", token, terminal_value);
-                            // TODO: add text into node
+                            // insert the inline assembly code into the inline assembly AST node
+                            self.inline_assembly_ast_node.string_val.push_str(terminal_value.clone().as_str());
                         }
-
 
                     }
                     _ => {

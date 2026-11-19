@@ -303,7 +303,9 @@ impl AsmAstFixupVisitor {
             }
 
             _ => {
-                panic!("{}", format!("Unhandled operand_type {:?}!\n", asm_ast_operand.operand_type).as_str());
+                println!("[ASM Fixup Visitor] asm_ast_operand: {:?}", asm_ast_operand);
+
+                panic!("{}", format!("ASM Fixup Visitor] Unhandled operand_type {:?}!\n", asm_ast_operand.operand_type).as_str());
 
                 return asm_ast_operand.clone();
             }
@@ -395,6 +397,11 @@ impl AsmAstFixupVisitor {
 
         if self.replace_pseudo {
 
+            let mut vv: usize = (self.stack_offset * -1) as usize;
+            vv = vv.next_multiple_of(16);
+
+            let val = vv as i32;
+
             // patch allocate stack because right now,
             // the required stack size is readily available
 
@@ -403,12 +410,12 @@ impl AsmAstFixupVisitor {
 
             // replace the src parameter
             asm_ast_allocate_stack.src = AsmAstOperand {
-                operand_type: AsmAstOperandType::Imm(self.stack_offset * -1)
+                operand_type: AsmAstOperandType::Imm(val)
             };
             asm_ast_allocate_stack.comment.push_str("    ; + Updated in AsmAstFixupVisitor::visit_asm_ast_function()\n");
 
             // update stack frame size
-            asm_ast_function.stack_frame_size = self.stack_offset * -1;
+            asm_ast_function.stack_frame_size = val;
         }
 
         // DEBUG - print the body
@@ -872,6 +879,10 @@ impl AsmAstFixupVisitor {
             }
 
             AsmAstInstructionType::GlobalConstantDeclaration => {
+                new_body.push(Box::new(asm_ast_instruction));
+            }
+
+            AsmAstInstructionType::InlineAssembly => {
                 new_body.push(Box::new(asm_ast_instruction));
             }
 

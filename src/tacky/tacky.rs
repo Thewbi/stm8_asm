@@ -244,6 +244,7 @@ pub enum InstructionType {
     RightShiftAssignment,
     SubscriptSrc,
     SubscriptDst,
+    InlineAssembly,
 
     Comment, // artifically added
 }
@@ -551,6 +552,13 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
                     instruction.dst,
                     instruction.data_type,
                     instruction.index)
+            .as_str());
+        }
+
+        InstructionType::InlineAssembly => {
+            string_buffer.push_str(
+                format!("InlineAssembly(src:{:?})\n",
+                    instruction.src)
             .as_str());
         }
     }

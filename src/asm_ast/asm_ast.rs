@@ -25,6 +25,7 @@ impl AsmAstProgram {
 #[derive(Debug)]
 pub struct AsmAstFunction {
     pub name: String,
+    // pub formal_parameters: Vec::<DataType>,
     pub body: Vec::<Box<AsmAstInstruction>>,
     pub stack_frame_size: i32,
     pub return_type: Option<DataType>,
@@ -34,6 +35,7 @@ impl AsmAstFunction {
     pub fn new() -> AsmAstFunction {
         AsmAstFunction {
             name: String::from(""),
+            // formal_parameters: Vec::<DataType>::new(),
             body: Vec::<Box<AsmAstInstruction>>::new(),
             stack_frame_size: 0i32,
             return_type: Option::None,
@@ -309,6 +311,10 @@ impl fmt::Display for AsmAstInstruction {
             AsmAstInstructionType::GlobalConstantDeclaration => {
                 write!(f, "{}", format!("GlobalConstantDeclaration(ImmString:{:?})", self.src).as_str()).expect("Write failed!");
             }
+
+            AsmAstInstructionType::InlineAssembly => {
+                todo!();
+            }
         }
 
         Ok(())
@@ -356,6 +362,7 @@ pub enum AsmAstInstructionType {
     // VariableDeclaration,
     ShiftRightArithmetic,
     GlobalConstantDeclaration,
+    InlineAssembly,
 }
 
 #[derive(Clone, Debug)]
@@ -425,6 +432,7 @@ pub enum AsmAstReg {
     R10,
 
     RBP, // stack frame base pointer register
+    RSP, // stack pointer
 }
 
 impl From<&str> for AsmAstReg {
@@ -625,6 +633,46 @@ impl AsmAstReg {
                 }
             }
 
+            AsmAstReg::R8 => {
+                string_buffer.push_str("r8");
+
+                // append suffix for data type
+                match data_type {
+                    AstAstAssemblyType::Doubleword => {
+                        string_buffer.push_str("d");
+                    }
+                    AstAstAssemblyType::Quadword => {
+                        string_buffer.push_str("");
+                    }
+                    AstAstAssemblyType::Unknown => {
+                        panic!("Has no type! Found: {:?}", data_type);
+                    }
+                    _ => {
+                        panic!("Unknown Type: {:?}", data_type);
+                    }
+                }
+            }
+
+            AsmAstReg::R9 => {
+                string_buffer.push_str("r9");
+
+                // append suffix for data type
+                match data_type {
+                    AstAstAssemblyType::Doubleword => {
+                        string_buffer.push_str("d");
+                    }
+                    AstAstAssemblyType::Quadword => {
+                        string_buffer.push_str("");
+                    }
+                    AstAstAssemblyType::Unknown => {
+                        panic!("Has no type! Found: {:?}", data_type);
+                    }
+                    _ => {
+                        panic!("Unknown Type: {:?}", data_type);
+                    }
+                }
+            }
+
             AsmAstReg::R10 => {
                 string_buffer.push_str("r10");
 
@@ -698,6 +746,7 @@ impl fmt::Display for AsmAstReg {
             // AsmAstReg::R10 => write!(f, "r10d"),
 
             AsmAstReg::RBP => write!(f, "rbp"),
+            AsmAstReg::RSP => write!(f, "rsp"),
         }
     }
 }
@@ -900,6 +949,9 @@ pub fn print_asm_ast_function(function: &AsmAstFunction, string_buffer: &mut Str
     }
 }
 
+/// The purpose of print_asm_ast_instruction() is it to print intermediate
+/// assembly into a string buffer so that string buffer can be written
+/// into a file on disk for debugging
 pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction,
     string_buffer: &mut String, indent: usize)
 {
@@ -1066,6 +1118,17 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction,
             string_buffer.push_str(format!("GlobalConstantDeclaration(immString:{:?})\n",
                 asm_ast_instruction.src
             ).as_str());
+        }
+
+        AsmAstInstructionType::InlineAssembly => {
+            // println!("[asm_ast.rs::print_asm_ast_instruction()] AsmAstInstructionType::InlineAssembly");
+            string_buffer.push_str(format!("InlineAssembly(immString:{:?})\n",
+                asm_ast_instruction.src
+            ).as_str());
+        }
+
+        AsmAstInstructionType::Push => {
+            todo!("");
         }
 
         _ => {

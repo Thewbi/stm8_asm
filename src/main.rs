@@ -1515,6 +1515,8 @@ fn main() {
                 let mut string_buffer = String::from("");
                 let indent = 0usize;
 
+                // print the asm_ast.intasm ast file to disk which contains
+                // intermediate assembly for debugging
                 print_asm_ast_program(&tacky_to_intermediate_asm_conversion_visitor.asm_ast_program,
                     &mut string_buffer, indent);
 

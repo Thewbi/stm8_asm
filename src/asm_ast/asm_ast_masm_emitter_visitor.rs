@@ -121,7 +121,7 @@ impl AsmAstMasmEmitterVisitor {
                     if self.print_to_console {
                         print!("dword ptr [rbp{}]", stack_val);
                     }
-                    format!("dword ptr [{}{}]", register.to_string(), stack_val)
+                    format!("dword ptr [{}+{}]", register.to_string(), stack_val)
                 }
             }
 
@@ -716,7 +716,7 @@ impl AsmAstMasmEmitterVisitor {
         self.string_buffer.push_str("extern CreateFileA: proc\n");
         // extern WriteFile: proc
         // extern ReadFile: proc
-        // extern ExitProcess: proc
+        self.string_buffer.push_str("extern ExitProcess: proc\n");
 
         // UCRT calls
         // if these calls are inserted, you need to link againts all the libs
@@ -863,7 +863,7 @@ impl AsmAstMasmEmitterVisitor {
                 // need data types for generating instructions
                 assert_ne!(asm_ast_instruction.assembly_type,
                     AstAstAssemblyType::Unknown,
-                    "\n\n[ERROR] asm_ast_instruction.id: {}, {:?} has data type unknown",
+                    "\n\n[ERROR] asm_ast_instruction.id: {}, {:?} has data type (assembly_type) unknown",
                     asm_ast_instruction.id,
                     asm_ast_instruction);
 
@@ -1162,7 +1162,10 @@ impl AsmAstMasmEmitterVisitor {
                         // comment
                         if asm_ast_instruction.comment.len() > 0 {
                             self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
+                        } else {
+                            self.string_buffer.push_str("AsmAstMASMEmitterVisitor::AsmAstInstructionType::AllocateStack::IMM");
                         }
+                        self.string_buffer.push_str("\n");
 
                         // instruction
                         self.string_buffer.push_str(format!("    sub rsp, {:?}\n", imm_value).as_str()); // save space on stack for all local variables
@@ -1267,8 +1270,20 @@ impl AsmAstMasmEmitterVisitor {
             }
 
             AsmAstInstructionType::GlobalConstantDeclaration => {
-                self.string_buffer.push_str("    blubb ");
+                self.string_buffer.push_str("    [AsmAstMasmEmitterVisitor] Fix GlobalConstantDeclaration ");
                 self.string_buffer.push_str("\n");
+            }
+
+            AsmAstInstructionType::InlineAssembly => {
+                match &asm_ast_instruction.src.operand_type {
+                    AsmAstOperandType::ImmString(inline_assembly_as_string) => {
+                        self.string_buffer.push_str(inline_assembly_as_string);
+                        self.string_buffer.push_str("\n");
+                    }
+                    _ => {
+                        panic!();
+                    }
+                }
             }
 
             _ => {

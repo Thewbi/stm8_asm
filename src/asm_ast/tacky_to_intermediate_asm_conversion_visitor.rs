@@ -192,13 +192,19 @@ impl TackyToIntermediateAsmConversionVisitor {
         }
 
         let mut asm_ast_function: AsmAstFunction = AsmAstFunction::new();
+
+        //
+        // Function Name
+        //
+
         asm_ast_function.name = function_name.clone();
         if tacky_node_top_level_function.return_type.is_some() {
             asm_ast_function.return_type =
                 Some(tacky_node_top_level_function.return_type.clone().expect("REASON"));
         }
 
-        // ALLOCATE_STACK
+        // ALLOCATE_STACK instruction
+        //
         // insert allocate stack instruction - page 42
         //
         // placeholder to reserve space for local variables
@@ -239,9 +245,11 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         for (i, param) in tacky_node_top_level_function.arguments.iter().enumerate() {
 
+            // asm_ast_function.formal_parameters.push(param.data_type.clone());
+
             // TODO: windows calling convention!
             // System-V ABI
-            // only process arguments 0 ot 5, the rest of the arguments is on the stack already
+            // only process arguments 0 to 5, the rest of the arguments is on the stack already
             if i > REGISTER_COUNT {
                 continue;
             }
@@ -420,6 +428,42 @@ impl TackyToIntermediateAsmConversionVisitor {
                     // EXAMPLE: arr[0] = 123;
                     //
                     self.visit_tacky_subscript_dst(&mut asm_ast_function, tacky_instruction);
+                }
+
+                InstructionType::InlineAssembly => {
+
+                    // println!("{:?}", tacky_instruction.src);
+
+                    let mut instruction: AsmAstInstruction = AsmAstInstruction::new();
+                    instruction.instruction_type = AsmAstInstructionType::InlineAssembly;
+                    instruction.assembly_type = AstAstAssemblyType::Unknown;
+
+                    match &tacky_instruction.src {
+                        ValueElement::Constant(string_val) => {
+                            instruction.src = AsmAstOperand { operand_type: AsmAstOperandType::ImmString(string_val.clone()) };
+                        }
+                        _ => {
+                            todo!();
+                        }
+                    }
+
+                    // instruction.dst = AsmAstOperand {
+                    //     operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX)
+                    // };
+                    // match instruction.src.clone() {
+                    //     ValueElement::Constant(constant_value) => {
+                    //         let value: i32 = i32::from_str_radix(&constant_value, 10).expect("REASON");
+                    //         sar_instruction.src = AsmAstOperand {
+                    //             operand_type: AsmAstOperandType::Imm(value)
+                    //         };
+                    //     }
+                    //     _ => {
+                    //         todo!();
+                    //     }
+                    // }
+                    // assert_ne!(sar_instruction.assembly_type, AstAstAssemblyType::Unknown);
+                    // println!("sar_instruction: {:?}", sar_instruction);
+                    asm_ast_function.body.push(Box::new(instruction));
                 }
 
                 _ => {
@@ -1442,7 +1486,6 @@ impl TackyToIntermediateAsmConversionVisitor {
         assert_ne!(mov_1.assembly_type, AstAstAssemblyType::Unknown);
         asm_ast_function.body.push(Box::new(mov_1));
 
-
         //
         // Purpose - register R10 contains an address of a value
         // no dereference the address to access the actual value
@@ -2041,12 +2084,19 @@ impl TackyToIntermediateAsmConversionVisitor {
         asm_ast_function: &mut AsmAstFunction,
         tacky_node_fun_call: &Instruction)
     {
+        let ts = self.type_system.borrow_mut();
+
         // DESCRIPTION
         //
         // Nora Sandler, page 195
 
         // DEBUG
         // println!("{:?}", tacky_node_fun_call);
+
+        let called_function_name = tacky_node_fun_call.function_name.clone();
+        let function_declaration_type_system_entry = ts.get(&called_function_name).unwrap();
+
+        println!("[T2InterASM] function_declaration_type_system_entry: {:?}", function_declaration_type_system_entry);
 
         //
         // allocate stack
@@ -2063,13 +2113,64 @@ impl TackyToIntermediateAsmConversionVisitor {
         // The address needs to be aligned correctly by moving it to an address
         // divisible by 16 bit
 
-        // System-V
-        let mut stack_padding: usize = 0usize;
-        if total_param_count > REGISTER_COUNT {
-            if total_param_count % 2 != 0 {
-                stack_padding = 8;
+        let mut formal_function_parameter_data_types: Vec::<DataType> = Vec::<DataType>::new();
+        match function_declaration_type_system_entry {
+            DataType::DataTypeFunctionDeclaration(func_name, func_parameters) => {
+                formal_function_parameter_data_types = func_parameters.clone();
+            }
+            _ => {
+
             }
         }
+
+        let mut stack_padding: usize = 0usize;
+
+        if total_param_count > REGISTER_COUNT {
+
+            for i in REGISTER_COUNT..total_param_count {
+
+                // let actual_parameter_value_element: &Box<ValueElement> = &tacky_node_fun_call.parameters[i];
+                // println!("test: {:?}", actual_parameter_value_element);
+                // println!("test");
+
+                let formal_param_data_type = formal_function_parameter_data_types.get(i).unwrap();
+                let size = DataType::get_size(&formal_param_data_type, &ts);
+
+                println!("{}) data_type: {}, size: {}", i, formal_param_data_type, size);
+
+                stack_padding = stack_padding + size;
+
+                // if asm_ast_function.formal_parameters.len() > i {
+                //     let data_type = asm_ast_function.formal_parameters.get(i).unwrap();
+
+                //
+                //     println!("size: {}", size);
+                // }
+            }
+        }
+
+        println!("stack_padding: {}", stack_padding);
+        let parameter_sizes = stack_padding;
+
+        // for windows calling convention add 32 bytes of space (shadow space)
+        let add_shadow_space: bool = true;
+        if add_shadow_space {
+            stack_padding = stack_padding + 32;
+        }
+
+        println!("stack_padding: {}", stack_padding);
+
+        // align to a 16 byte border, otherwise on windows WinAPI calls will fail
+        if stack_padding % 16 != 0 {
+            // Because 16 is a power of 2, clearing the lowest 4 bits after adding 16
+            // snaps the value to the next 16-byte boundary.
+            // stack_padding = (stack_padding + 16) & ~15;
+
+            // use the Rust built-in alignment
+            stack_padding = stack_padding.next_multiple_of(16);
+        }
+
+        println!("stack_padding: {}", stack_padding);
 
         // ALLOCATE_STACK
         // insert allocate stack instruction - page ???
@@ -2102,6 +2203,9 @@ impl TackyToIntermediateAsmConversionVisitor {
                 }
             }
 
+            // DEBUG
+            println!("[T2InterASM] Preparing parameters for function call. [REGISTER] Parameter#: {}", index);
+
             //
             // Mov
             //
@@ -2109,7 +2213,7 @@ impl TackyToIntermediateAsmConversionVisitor {
             let mut mov: AsmAstInstruction = AsmAstInstruction::new();
             mov.instruction_type = AsmAstInstructionType::Mov;
             mov.assembly_type = AstAstAssemblyType::Doubleword;
-            mov.comment = String::from(format!("    ; mov into register fun_call argument {}", index).to_string());
+            mov.comment = String::from(format!("    ; [TARGET:REGISTER] push/mov fun_call argument {}", index).to_string());
 
             match param.as_ref() {
                 ValueElement::Constant(constant_value) => {
@@ -2171,33 +2275,56 @@ impl TackyToIntermediateAsmConversionVisitor {
         }
 
         //
-        // Push arguments to the stack according to the ABI (first arguments go into register )
+        // Push arguments to the stack according to the ABI (first arguments go into register)
         //
 
-        // System-V ABI
-        for i in (REGISTER_COUNT..total_param_count).rev() {
+        let mut offset = 32i32;
+        offset = offset + parameter_sizes as i32;
 
-            // println!("test {}", i);
+        //for index in (REGISTER_COUNT..total_param_count).rev() {
+        for index in REGISTER_COUNT..total_param_count {
+
+            // DEBUG
+            println!("[T2InterASM] Preparing parameters for function call. [STACK] Parameter#: {}", index);
+
             // println!("{:?}", tacky_node_fun_call.parameters[i]);
 
-            let mut push: AsmAstInstruction = AsmAstInstruction::new();
-            push.instruction_type = AsmAstInstructionType::Push;
-            push.comment = String::from(format!("    ; push fun_call argument {}", i).to_string());
-            match tacky_node_fun_call.parameters[i].as_ref() {
+            let mut move_push: AsmAstInstruction = AsmAstInstruction::new();
+            //move_push.instruction_type = AsmAstInstructionType::Push;
+            move_push.instruction_type = AsmAstInstructionType::Mov;
+            move_push.comment = String::from(format!("    ; [TARGET:STACK] push/mov fun_call argument {}", index).to_string());
+
+            match tacky_node_fun_call.parameters[index].as_ref() {
+
                 ValueElement::Constant(constant_value) => {
-                    push.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(
+                    move_push.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(
                         i32::from_str_radix(&constant_value, 10).expect("REASON"))
                     };
                 }
+
                 ValueElement::Variable(variable_name) => {
-                    push.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+                    move_push.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
                 }
+
                 _ => {
-                    panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_fun_call.parameters[i]).as_str());
+                    panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_fun_call.parameters[index]).as_str());
                 }
             }
 
-            asm_ast_function.body.push(Box::new(push));
+            let formal_param_data_type = formal_function_parameter_data_types.get(index).unwrap();
+            offset = offset - formal_param_data_type.get_size(&ts) as i32;
+
+            move_push.dst = AsmAstOperand {
+                operand_type: AsmAstOperandType::Memory(AsmAstReg::RSP, offset)
+            };
+
+            //move_push.assembly_type = AstAstAssemblyType::Quadword;
+
+
+
+            move_push.assembly_type = AstAstAssemblyType::from_data_type(&formal_param_data_type);
+
+            asm_ast_function.body.push(Box::new(move_push));
         }
 
         //
@@ -2225,9 +2352,12 @@ impl TackyToIntermediateAsmConversionVisitor {
         // System-V ABI
         if total_param_count > REGISTER_COUNT {
 
+            println!("[visit_tacky_fun_call_system_v_abi] Fixme! Hardedcoded stack size");
+
             // more than 6 parameters go onto the stack and potentially cause
             // stack_padding (when odd-numbered)
-            let bytes_to_remove: usize = 8 * (total_param_count - REGISTER_COUNT) + stack_padding;
+            //let bytes_to_remove: usize = 8 * (total_param_count - REGISTER_COUNT) + stack_padding;
+            let bytes_to_remove = 48;
             if bytes_to_remove > 0 {
 
                 let mut deallocate_stack: AsmAstInstruction = AsmAstInstruction::new();
@@ -2249,42 +2379,54 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         // println!("tacky_node_fun_call.dst: {:?}", tacky_node_fun_call.dst);
 
-        //
-        // Mov - move value from EAX into the destination register as defined by TACKY
-        //
+        if tacky_node_fun_call.dst != ValueElement::None {
 
-        let mut mov: AsmAstInstruction = AsmAstInstruction::new();
-        mov.instruction_type = AsmAstInstructionType::Mov;
-        match tacky_node_fun_call.dst.clone() {
-            ValueElement::Variable(varname) => {
-                // println!("varname: {}", varname);
-                // TODO: why does borrow_mut() work but not borrow()?
-                // I only need a read-only variable?
-                let symbol_table_entry = self.symbol_table.borrow_mut().get(&varname).unwrap();
-                // println!("symbol_table_entry.data_type: {}", symbol_table_entry.data_type);
-                mov.assembly_type = AstAstAssemblyType::from_data_type(&symbol_table_entry.data_type);
-            }
-            _ => {
+            //
+            // Mov - move value from EAX into the destination register as defined by TACKY
+            //
 
+            let mut mov: AsmAstInstruction = AsmAstInstruction::new();
+            mov.instruction_type = AsmAstInstructionType::Mov;
+            match tacky_node_fun_call.dst.clone() {
+                ValueElement::Variable(varname) => {
+
+                    // DEBUG
+                    // if self.debug {
+                        println!("[T2InterASM] varname: '{}'", varname);
+                    // }
+
+                    if varname == "" {
+                        //panic!("Need variable name!");
+                    }
+
+                    // TODO: why does borrow_mut() work but not borrow()?
+                    // I only need a read-only variable?
+                    let symbol_table_entry = self.symbol_table.borrow_mut().get(&varname).unwrap();
+                    // println!("symbol_table_entry.data_type: {}", symbol_table_entry.data_type);
+                    mov.assembly_type = AstAstAssemblyType::from_data_type(&symbol_table_entry.data_type);
+                }
+                _ => {
+
+                }
             }
+            mov.comment = String::from(format!("    ; mov EAX into TACKY dst variable {:?}", tacky_node_fun_call.dst).to_string());
+            mov.src = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(AsmAstReg::AX) };
+
+            match &tacky_node_fun_call.dst {
+
+                ValueElement::Variable(value) => {
+                    mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(value.clone()) };
+                }
+
+                _ => {
+                    panic!("Need destination!");
+                }
+            }
+
+            assert_ne!(mov.assembly_type, AstAstAssemblyType::Unknown);
+
+            asm_ast_function.body.push(Box::new(mov));
         }
-        mov.comment = String::from(format!("    ; mov EAX into TACKY dst variable {:?}", tacky_node_fun_call.dst).to_string());
-        mov.src = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(AsmAstReg::AX) };
-
-        match &tacky_node_fun_call.dst {
-
-            ValueElement::Variable(value) => {
-                mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(value.clone()) };
-            }
-
-            _ => {
-                panic!("Need destination!");
-            }
-        }
-
-        assert_ne!(mov.assembly_type, AstAstAssemblyType::Unknown);
-
-        asm_ast_function.body.push(Box::new(mov));
     }
 
     pub fn visit_tacky_jump(&mut self, asm_ast_function: &mut AsmAstFunction, tacky_node_jump: &Instruction) {

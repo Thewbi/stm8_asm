@@ -2490,10 +2490,13 @@ impl AstNode {
     {
         let ast_node_id = self.id;
 
+        //let inline_assembly_code = self.string_val.clone();
+        let inline_assembly_code = String::new();
+
         if self.print_file_line {
-            string_buffer.push_str(format!("{} [label=\"{} InlineAssembly: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
+            string_buffer.push_str(format!("{} [label=\"{} InlineAssembly: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, inline_assembly_code, self.file, self.line).as_str());
         } else {
-            string_buffer.push_str(format!("{} [label=\"{} InlineAssembly: {}\"]\n", ast_node_id, ast_node_id, self.string_val).as_str());
+            string_buffer.push_str(format!("{} [label=\"{} InlineAssembly: {}\"]\n", ast_node_id, ast_node_id, inline_assembly_code).as_str());
         }
 
         ast_node_id

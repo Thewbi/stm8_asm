@@ -29,6 +29,7 @@ pub enum DataType {
     DataTypeBool,
     DataTypeUnknown,
     DataTypeString,
+    DataTypeFunctionDeclaration(String, Vec::<DataType>)
 }
 
 impl fmt::Display for DataType {
@@ -55,6 +56,9 @@ impl fmt::Display for DataType {
             DataType::DataTypeEnum(enum_identifier) => write!(f, "Enum-[{}]", enum_identifier),
             DataType::DataTypeBool => write!(f, "_Bool"),
             DataType::DataTypeString => write!(f, "string"),
+            DataType::DataTypeFunctionDeclaration(function_name, parameter_data_types)
+                => write!(f, "function_name: '{}', parameter_data_types: '{:?}'",
+                    function_name, parameter_data_types),
         }
     }
 }
