@@ -207,7 +207,8 @@ impl TackyToIntermediateAsmConversionVisitor {
         //
         // insert allocate stack instruction - page 42
         //
-        // placeholder to reserve space for local variables
+        // Placeholder to reserve space for local variables.
+        //
         // This instruction is later updated inside the
         // AsmAstFixupVisitor::visit_asm_ast_function() call
         let mut asm_ast_allocate_stack: AsmAstInstruction = AsmAstInstruction::new();
@@ -243,14 +244,14 @@ impl TackyToIntermediateAsmConversionVisitor {
             //println!("[T2IASM] {:?}", tacky_node_top_level_function.arguments);
         }
 
+        // move parameters, which have been passed in via registers, onto the stack
         for (i, param) in tacky_node_top_level_function.arguments.iter().enumerate() {
 
             // asm_ast_function.formal_parameters.push(param.data_type.clone());
 
-            // TODO: windows calling convention!
-            // System-V ABI
-            // only process arguments 0 to 5, the rest of the arguments is on the stack already
-            if i > REGISTER_COUNT {
+            // only process arguments 0 to REGISTER_COUNT-1,
+            // the rest of the arguments is on the stack already
+            if i >= REGISTER_COUNT {
                 continue;
             }
 
@@ -349,7 +350,7 @@ impl TackyToIntermediateAsmConversionVisitor {
                 }
 
                 InstructionType::VariableDeclaration => {
-                    self.visit_tacky_variable_declaration(&mut asm_ast_function);
+                    self.visit_tacky_variable_declaration(tacky_instruction);
                 }
 
                 InstructionType::Copy => {
@@ -604,7 +605,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         // stored inside the register A
         //
 
-    /*
+    /* START START START
         //
         // this works for res\C\samples\c_samples\array_0.c
         // where the array is a local variable. The address is the address of a
@@ -649,9 +650,12 @@ impl TackyToIntermediateAsmConversionVisitor {
         mov_1.offset = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX) };
         assert_ne!(mov_1.assembly_type, AstAstAssemblyType::Unknown);
         asm_ast_function.body.push(Box::new(mov_1));
+
+// END END END END
 */
 
-/**/
+
+/* START START START */
         //
         // this works for res\C\samples\c_samples\strlen_0.c
         // Where the array is accessed via function parameter which
@@ -693,13 +697,13 @@ impl TackyToIntermediateAsmConversionVisitor {
         let mut mov_1_2: AsmAstInstruction = AsmAstInstruction::new();
         mov_1_2.instruction_type = AsmAstInstructionType::Mov;
         mov_1_2.assembly_type = AstAstAssemblyType::from_data_type(&element_data_type);
-        mov_1_2.comment = String::from(format!("    ; [visit_tacky_subscript_src() - Subscript 2] dereference pointer").to_string());
+        mov_1_2.comment = String::from(format!("    ; [visit_tacky_subscript_src() - Subscript 2] mov_1_2 dereference pointer").to_string());
         mov_1_2.src = AsmAstOperand { operand_type: AsmAstOperandType::BaseRegWithOffsetAndSize(AsmAstReg::RBX, AsmAstReg::RAX, element_data_type.get_size(&self.type_system.borrow()) as i32) };
         mov_1_2.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX) };
         assert_ne!(mov_1_2.assembly_type, AstAstAssemblyType::Unknown);
         asm_ast_function.body.push(Box::new(mov_1_2));
 
-
+// END END END END
 
 
 
@@ -776,19 +780,15 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         let mut mov_index: AsmAstInstruction = AsmAstInstruction::new();
         mov_index.instruction_type = AsmAstInstructionType::Mov;
-        // Schnibbler
-        //mov_index.assembly_type = AstAstAssemblyType::Quadword;
         mov_index.assembly_type = AstAstAssemblyType::Doubleword;
-        //mov_index.assembly_type = AstAstAssemblyType::Byte;
-        // mov_index.assembly_type = AstAstAssemblyType::from_data_type(&tacky_instruction_subscript.data_type);
         mov_index.comment = String::from("    ; [visit_tacky_subscript_dst() - Subscript 1] Mov Index/Offset into RAX");
 
         // the index into the array is stored in tacky_instruction_subscript.index.
         // move this index into EAX
         let mut src_data_type: DataType = DataType::DataTypeUnknown;
         match &tacky_instruction_subscript.index {
+
             ValueElement::Variable(var_name) => {
-                // Schnibbler
                 let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name);
                 let symbol_table_entry: SymbolTableEntry = symbol_table_entry_option.expect(format!("No symbol for '{}' found in symbol table!\n", var_name).as_str());
                 src_data_type = symbol_table_entry.data_type;
@@ -796,11 +796,10 @@ impl TackyToIntermediateAsmConversionVisitor {
                 mov_index.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
                 mov_index.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
             }
+
             ValueElement::Constant(literal_value) => {
                 // println!("literal_value: {:?}", literal_value);
 
-                // Schnibbler
-                //src_data_type = DataType::DataTypeInt;
                 src_data_type = tacky_instruction_subscript.data_type.clone();
 
                 // TODO: convert base on number system
@@ -809,6 +808,7 @@ impl TackyToIntermediateAsmConversionVisitor {
                 mov_index.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(array_index.clone()) };
                 mov_index.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Imm(array_index.clone()) };
             }
+
             _ => {
                 panic!("[ERR] Unhandled type: {:?}", &tacky_instruction_subscript.index);
             }
@@ -816,10 +816,6 @@ impl TackyToIntermediateAsmConversionVisitor {
         mov_index.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::EAX) };
 
         // println!("[Tacky2Inter][visit_tacky_subscript_dst] src_data_type: {:?}", src_data_type);
-
-        // Schnibbler
-        //src_data_type = DataType::DataTypeChar;
-        //mov_index.assembly_type = AstAstAssemblyType::from_data_type(&src_data_type);
 
         assert_ne!(mov_index.assembly_type, AstAstAssemblyType::Unknown);
         asm_ast_function.body.push(Box::new(mov_index));
@@ -843,13 +839,20 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         let mut mov_1: AsmAstInstruction = AsmAstInstruction::new();
         mov_1.instruction_type = AsmAstInstructionType::Mov;
+        //mov_1.assembly_type = AstAstAssemblyType::from_data_type(&tacky_instruction_subscript.data_type);
 
-        // Schnibbler
-        //mov_1.assembly_type = AstAstAssemblyType::Doubleword;
-        //mov_1.assembly_type = AstAstAssemblyType::Byte;
-        mov_1.assembly_type = AstAstAssemblyType::from_data_type(&tacky_instruction_subscript.data_type);
+        match &tacky_instruction_subscript.data_type {
+            DataType::DataTypeArray(inner_element_data_type, array_element_count) => {
+                mov_1.assembly_type = AstAstAssemblyType::from_data_type(&inner_element_data_type);
+            }
+            _ => {
+                panic!("Only array expected in subscript!");
+            }
+        }
 
         mov_1.comment = String::from(format!("    ; [visit_tacky_subscript_dst() - Subscript 2] for subscript (applying an index to an array)").to_string());
+
+        // src is the literal value or variable to transfer into the array
         match &tacky_instruction_subscript.src {
             ValueElement::Variable(var_name) => {
                 // DEBUG
@@ -899,6 +902,8 @@ impl TackyToIntermediateAsmConversionVisitor {
                 panic!("Need variable! Got {:?}", &tacky_instruction_subscript.src);
             }
         }
+
+        // dest is the element of the array to copy source into
         match &tacky_instruction_subscript.dst {
             ValueElement::Variable(var_name) => {
                 // DEBUG
@@ -1942,9 +1947,13 @@ impl TackyToIntermediateAsmConversionVisitor {
         //
 
         let mut lea: AsmAstInstruction = AsmAstInstruction::new();
-        lea.instruction_type = AsmAstInstructionType::Lea;
+        lea.instruction_type = AsmAstInstructionType::Lea; // works for res\C\samples\c_samples\function_call_5.c
+        //lea.instruction_type = AsmAstInstructionType::Mov; // for ???
         lea.comment = String::from(format!("    ; lea for GetAddress()").to_string());
         lea.assembly_type = AstAstAssemblyType::Quadword; // address 8 byte on 64 bit
+
+        // println!("[T2IASM] {:?}", tacky_instruction_get_address.src);
+
         match &tacky_instruction_get_address.src {
 
             ValueElement::Variable(var_name) => {
@@ -2096,7 +2105,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         let called_function_name = tacky_node_fun_call.function_name.clone();
         let function_declaration_type_system_entry = ts.get(&called_function_name).unwrap();
 
-        println!("[T2InterASM] function_declaration_type_system_entry: {:?}", function_declaration_type_system_entry);
+        //println!("[T2InterASM] function_declaration_type_system_entry: {:?}", function_declaration_type_system_entry);
 
         //
         // allocate stack
@@ -2124,6 +2133,10 @@ impl TackyToIntermediateAsmConversionVisitor {
         }
 
         let mut stack_padding: usize = 0usize;
+        let mut parameter_sizes: usize = 0usize;
+
+        // [PARAMETER STACK PUSH - STEP 1] - all parameters which do not fit into registers any more
+        // and need to go on the stack need to get space reserved.
 
         if total_param_count > REGISTER_COUNT {
 
@@ -2136,52 +2149,59 @@ impl TackyToIntermediateAsmConversionVisitor {
                 let formal_param_data_type = formal_function_parameter_data_types.get(i).unwrap();
                 let size = DataType::get_size(&formal_param_data_type, &ts);
 
-                println!("{}) data_type: {}, size: {}", i, formal_param_data_type, size);
+                // DEBUG
+                // println!("{}) data_type: {}, size: {}", i, formal_param_data_type, size);
 
                 stack_padding = stack_padding + size;
 
                 // if asm_ast_function.formal_parameters.len() > i {
                 //     let data_type = asm_ast_function.formal_parameters.get(i).unwrap();
-
                 //
                 //     println!("size: {}", size);
                 // }
             }
+
+            // println!("[T2IASM] stack_padding: {}", stack_padding);
+
+            parameter_sizes = stack_padding;
+
+            // [PARAMETER STACK PUSH - STEP 2] - for windows calling convention
+            // add 32 bytes of space (shadow space)
+            let add_shadow_space: bool = true;
+            if add_shadow_space {
+                stack_padding = stack_padding + 32;
+            }
+
+            // println!("[T2IASM] stack_padding: {}", stack_padding);
+
+            // [PARAMETER STACK PUSH - STEP 3] - align to a 16 byte border,
+            // otherwise on windows WinAPI calls will fail
+            if stack_padding % 16 != 0 {
+                // Because 16 is a power of 2, clearing the lowest 4 bits after adding 16
+                // snaps the value to the next 16-byte boundary.
+                // stack_padding = (stack_padding + 16) & ~15;
+
+                // use the Rust built-in alignment
+                stack_padding = stack_padding.next_multiple_of(16);
+            }
         }
 
-        println!("stack_padding: {}", stack_padding);
-        let parameter_sizes = stack_padding;
+        // println!("[T2IASM] stack_padding: {}", stack_padding);
 
-        // for windows calling convention add 32 bytes of space (shadow space)
-        let add_shadow_space: bool = true;
-        if add_shadow_space {
-            stack_padding = stack_padding + 32;
+        if stack_padding > 0 {
+
+            // ALLOCATE_STACK
+            // insert allocate stack instruction - page ???
+            //
+            // allocate space for parameters that need to go onto the stack according to the ABI
+            let mut allocate_stack: AsmAstInstruction = AsmAstInstruction::new();
+            allocate_stack.instruction_type = AsmAstInstructionType::AllocateStack;
+            allocate_stack.src.operand_type = AsmAstOperandType::Imm(stack_padding as i32);
+            allocate_stack.comment = String::from("\n    ; FunctionCall - Allocate space for parameters that need to go onto the stack according to the ABI - [AsmAstConversionVisitor::visit_tacky_fun_call_system_v_abi()]");
+
+            asm_ast_function.body.push(Box::new(allocate_stack));
+
         }
-
-        println!("stack_padding: {}", stack_padding);
-
-        // align to a 16 byte border, otherwise on windows WinAPI calls will fail
-        if stack_padding % 16 != 0 {
-            // Because 16 is a power of 2, clearing the lowest 4 bits after adding 16
-            // snaps the value to the next 16-byte boundary.
-            // stack_padding = (stack_padding + 16) & ~15;
-
-            // use the Rust built-in alignment
-            stack_padding = stack_padding.next_multiple_of(16);
-        }
-
-        println!("stack_padding: {}", stack_padding);
-
-        // ALLOCATE_STACK
-        // insert allocate stack instruction - page ???
-        //
-        // allocate space for parameters that need to go onto the stack according to the ABI
-        let mut allocate_stack: AsmAstInstruction = AsmAstInstruction::new();
-        allocate_stack.instruction_type = AsmAstInstructionType::AllocateStack;
-        allocate_stack.src.operand_type = AsmAstOperandType::Imm(stack_padding as i32);
-        allocate_stack.comment = String::from("\n    ; FunctionCall - Allocate space for parameters that need to go onto the stack according to the ABI - [AsmAstConversionVisitor::visit_tacky_fun_call_system_v_abi()]");
-
-        asm_ast_function.body.push(Box::new(allocate_stack));
 
         //
         // Here the parameters are placed into registers and onto the stack
@@ -2204,7 +2224,7 @@ impl TackyToIntermediateAsmConversionVisitor {
             }
 
             // DEBUG
-            println!("[T2InterASM] Preparing parameters for function call. [REGISTER] Parameter#: {}", index);
+            //println!("[T2InterASM] Preparing parameters for function call. [REGISTER] Parameter#: {}", index);
 
             //
             // Mov
@@ -2249,10 +2269,12 @@ impl TackyToIntermediateAsmConversionVisitor {
                                 operand_type: AsmAstOperandType::Pseudo(String::from("msg_const_val"))
                             };
                     } else {
+                        // println!("[T2IntermediateASM] constant_value: '{}'", constant_value);
+                        let const_val: u32 = u32::from_str_radix(&constant_value, 10).expect("REASON");
+                        // println!("{}", const_val);
                         mov.src =
                             AsmAstOperand {
-                                operand_type: AsmAstOperandType::Imm(
-                                    i32::from_str_radix(&constant_value, 10).expect("REASON"))
+                                operand_type: AsmAstOperandType::UnsignedImm(const_val)
                             };
                     }
                 }
@@ -2285,7 +2307,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         for index in REGISTER_COUNT..total_param_count {
 
             // DEBUG
-            println!("[T2InterASM] Preparing parameters for function call. [STACK] Parameter#: {}", index);
+            //println!("[T2InterASM] Preparing parameters for function call. [STACK] Parameter#: {}", index);
 
             // println!("{:?}", tacky_node_fun_call.parameters[i]);
 
@@ -2352,7 +2374,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         // System-V ABI
         if total_param_count > REGISTER_COUNT {
 
-            println!("[visit_tacky_fun_call_system_v_abi] Fixme! Hardedcoded stack size");
+            println!("[visit_tacky_fun_call_system_v_abi] Fixme! Hardcoded stack size!");
 
             // more than 6 parameters go onto the stack and potentially cause
             // stack_padding (when odd-numbered)
@@ -2391,9 +2413,9 @@ impl TackyToIntermediateAsmConversionVisitor {
                 ValueElement::Variable(varname) => {
 
                     // DEBUG
-                    // if self.debug {
+                    if self.debug {
                         println!("[T2InterASM] varname: '{}'", varname);
-                    // }
+                    }
 
                     if varname == "" {
                         //panic!("Need variable name!");
@@ -2519,8 +2541,14 @@ impl TackyToIntermediateAsmConversionVisitor {
         asm_ast_function.body.push(Box::new(mov));
     }
 
-    pub fn visit_tacky_variable_declaration(&mut self, asm_ast_function: &mut AsmAstFunction) {
-        // println!("TODO: visit_tacky_variable_declaration()");
+    pub fn visit_tacky_variable_declaration(&mut self, var_decl_instruction: &Instruction) {
+        // // println!("TODO: visit_tacky_variable_declaration(): {:?}", var_decl_instruction);
+
+        // let mut var_decl: AsmAstInstruction = AsmAstInstruction::new();
+        // var_decl.instruction_type = AsmAstInstructionType::VariableDeclaration;
+        // var_decl.identifier = String::from("testest");
+        // var_decl.assembly_type = AstAstAssemblyType::Doubleword;
+        // var_decl.data_type = var_decl_instruction.data_type.clone();
     }
 
     pub fn visit_tacky_label(&mut self, asm_ast_function: &mut AsmAstFunction, tacky_node_label: &Instruction) {

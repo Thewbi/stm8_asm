@@ -1518,6 +1518,22 @@ impl TypeCheckingVisitor {
                 let data_type_name = ast_node.string_val;
                 let mut inner_data_type: DataType = DataType::from_str(&data_type_name).unwrap();
 
+                let mut array_element_count_option: Option<usize> = None;
+                // array element count
+                if let Some(left_node_id) = ast_node.lhs {
+
+                    let lhs_ast_node = node_map.get(&left_node_id).unwrap();
+                    // println!("lhs_ast_node: {:?}", lhs_ast_node);
+
+                    let value_as_i32: i32 = i32::from_str_radix(&lhs_ast_node.string_val, 10).expect("REASON");
+                    let value_as_usize: usize = value_as_i32 as usize;
+
+                    array_element_count_option = Some(value_as_usize);
+
+                    // let lhs_result = self.visit(left_node_id, node_map, &DataType::DataTypeUnknown);
+                    // println!("lhs_result: {:?}", lhs_result);
+                }
+
                 let node_data_type_id_option = ast_node.data_type;
                 if let Some(node_data_type_id) = node_data_type_id_option {
                     // println!("node_data_type_id: '{}'", node_data_type_id);
@@ -1527,7 +1543,7 @@ impl TypeCheckingVisitor {
                     inner_data_type = node_data_type_ast_node.get_analyzed_data_type();
                 }
 
-                return DataType::DataTypeArray(Box::new(inner_data_type), None)
+                return DataType::DataTypeArray(Box::new(inner_data_type), array_element_count_option)
             }
 
             AstNodeType::Expression => {
@@ -1868,11 +1884,21 @@ impl TypeCheckingVisitor {
                 // check if the data type is boolean
                 // if it is boolean, any non-zero assigned value is converted to
                 // the defined value true which is the constant 1!
-                let mut is_type_bool = false;
+                let is_type_bool = false;
 
                 // data type
                 if let Some(left_node_id) = ast_node.lhs {
 
+                    let lhs_data_type = self.visit(left_node_id, node_map, &DataType::DataTypeUnknown);
+
+                    // DEBUG
+                    if self.debug {
+                        println!("[TCV] lhs_data_type: {:?}", lhs_data_type);
+                    }
+
+                    symbol_table_entry.data_type = lhs_data_type;
+
+/*
                     let left_node = node_map.get(&left_node_id).unwrap();
 
                     // DEBUG
@@ -1951,7 +1977,12 @@ impl TypeCheckingVisitor {
 
                     symbol_table_entry.is_array = left_node.node_type == AstNodeType::Array;
 
+                    if symbol_table_entry.is_array {
+                        println!("test1122: {:?}", symbol_table_entry);
+                    }
+
                     // println!("[TCV] symbol_table_entry.is_array: {}", symbol_table_entry.is_array);
+*/
                 }
 
                 // identifier (RHS)
@@ -2283,7 +2314,7 @@ impl TypeCheckingVisitor {
                                 }
 
                                 // formal parameter
-                                let formal_parameter_data_type = existing_symbol_table_entry.parameter_data_types[i].clone();
+                                let formal_parameter_datatype = existing_symbol_table_entry.parameter_data_types[i].clone();
 
                                 // DEBUG
                                 if self.debug {
@@ -2292,10 +2323,10 @@ impl TypeCheckingVisitor {
 
                                 // DEBUG
                                 if self.debug {
-                                    println!("[TCV] formal_parameter_datatype: {}", formal_parameter_data_type);
+                                    println!("[TCV] formal_parameter_datatype: {}", formal_parameter_datatype);
                                 }
 
-                                assert_ne!(formal_parameter_data_type, DataType::DataTypeUnknown, "Need data type!");
+                                assert_ne!(formal_parameter_datatype, DataType::DataTypeUnknown, "Need data type!");
 
                                 let mut actual_parameter_datatype = DataType::DataTypeUnknown;
                                 match actual_parameter_ast_node.node_type {
@@ -2330,7 +2361,7 @@ impl TypeCheckingVisitor {
                                         //     actual_parameter_ast_node.node_type,
                                         //     string_val);
 
-                                        let mut symbol_tbl = self.symbol_table.borrow_mut();
+                                        let symbol_tbl = self.symbol_table.borrow_mut();
 
                                         if !symbol_tbl.contains_key(&string_val) {
                                             panic!("Symbol Table does not contain the key: '{:?}'", string_val);
@@ -2353,11 +2384,19 @@ impl TypeCheckingVisitor {
                                 assert_ne!(actual_parameter_datatype, DataType::DataTypeUnknown,
                                     "Need data type!");
 
+                                // ignore non-consequential type differences and make
+                                // types the same implicitly!
+                                if actual_parameter_datatype == DataType::DataTypeInt {
+                                    if formal_parameter_datatype == DataType::DataTypeLong {
+                                        actual_parameter_datatype = formal_parameter_datatype.clone();
+                                    }
+                                }
+
                                 // add cast or addr of operator
-                                if actual_parameter_datatype != formal_parameter_data_type {
+                                if actual_parameter_datatype != formal_parameter_datatype {
 
                                     // check if actual_parameter_datatype is a pointer
-                                    match formal_parameter_data_type {
+                                    match formal_parameter_datatype {
 
                                         DataType::DataTypePointer(inner_data_type) => {
 
@@ -2413,7 +2452,7 @@ impl TypeCheckingVisitor {
                                         _ => {
                                             println!("[TCV] parameter#: {}", i);
                                             println!("[TCV] actual_parameter_datatype: {}", actual_parameter_datatype);
-                                            println!("[TCV] formal_parameter_datatype: {}", formal_parameter_data_type);
+                                            println!("[TCV] formal_parameter_datatype: {}", formal_parameter_datatype);
 
                                             panic!();
                                         }

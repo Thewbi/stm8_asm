@@ -1,36 +1,34 @@
-// res\C\samples\c_samples\fopen_2.c
+// res\C\samples\c_samples\function_call_5.c
 
-int CreateFileA(char *lpFileName,
-    int dwDesiredAccess,
-    int dwShareMode,
-    int lpSecurityAttributes,
-    int dwCreationDisposition,
-    int dwFlagsAndAttributes,
-    int hTemplateFile);
+#define ARRAY_LENGTH 100
+
+int array_sum(char *lpBuffer, int length) {
+
+    int result = 0;
+    int i = 0;
+    for (i = 0; i < length; i++) {
+        //result += lpBuffer[i];
+        result = result + lpBuffer[i];
+    }
+
+    //return lpBuffer[15];
+    //return length;
+    return result;
+}
 
 int main() {
 
-    // https://learn.microsoft.com/de-de/windows/win32/api/fileapi/nf-fileapi-createfilea
-    //
-    // HANDLE CreateFileA(
-    //  [in]           LPCSTR                lpFileName,
-    //  [in]           DWORD                 dwDesiredAccess,
-    //  [in]           DWORD                 dwShareMode,
-    //  [in, optional] LPSECURITY_ATTRIBUTES lpSecurityAttributes,
-    //  [in]           DWORD                 dwCreationDisposition,
-    //  [in]           DWORD                 dwFlagsAndAttributes,
-    //  [in, optional] HANDLE                hTemplateFile
-    // );
+    char buffer[ARRAY_LENGTH];
 
-    CreateFileA(
-        "C:\\Users\\lapto\\source\\repos\\x64_test\\x64\\Debug\\test.txt", // lpFileName
-        0x10000000, // dwDesiredAccess
-        0,          // dwShareMode
-        0,          // lpSecurityAttributes
-        0,          // dwCreationDisposition
-        0x80,       // dwFlagsAndAttributes
-        4           // hTemplateFile
-    );
+    //buffer[10] = 10;
 
-    return 0;
+    int i = 0;
+    for (i = 0; i < ARRAY_LENGTH; i++) {
+        buffer[i] = i;
+    }
+
+    int result = array_sum(buffer, ARRAY_LENGTH);
+    //int result = array_sum("test");
+
+    return result;
 }

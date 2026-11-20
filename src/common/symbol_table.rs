@@ -125,15 +125,15 @@ impl SymbolTable {
         self.identifier_type_map.insert(varname, symbol_table_entry);
     }
 
-    pub fn contains(&mut self, varname: &String) -> bool {
+    pub fn contains(&self, varname: &String) -> bool {
         self.identifier_type_map.contains_key(varname)
     }
 
-    pub fn contains_key(&mut self, varname: &String) -> bool {
+    pub fn contains_key(&self, varname: &String) -> bool {
         self.identifier_type_map.contains_key(varname)
     }
 
-    pub fn retrieve(&mut self, varname: &String) -> SymbolTableEntry {
+    pub fn retrieve(&self, varname: &String) -> SymbolTableEntry {
         let symbol_table_entry_option = self.identifier_type_map.get(varname);
         if symbol_table_entry_option.is_none() {
             panic!();
@@ -141,7 +141,7 @@ impl SymbolTable {
         symbol_table_entry_option.unwrap().clone()
     }
 
-    pub fn get(&mut self, varname: &String) -> Option<SymbolTableEntry> {
+    pub fn get(&self, varname: &String) -> Option<SymbolTableEntry> {
         if let Some(mapped_value) = self.identifier_type_map.get(varname) {
             return Some(mapped_value.clone());
         } else {

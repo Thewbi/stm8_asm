@@ -157,7 +157,7 @@ if self.debug {
 }
 ```
 
-The stack frame layout is constructed in the TACKY-to-intermediate-ASM visitor
+The stack frame layout is prepared in the TACKY-to-intermediate-ASM visitor
  ```src\asm_ast\tacky_to_intermediate_asm_conversion_visitor.rs```,
 which converts TACKY to the intermediate ASM.
 
@@ -168,15 +168,13 @@ This is done, using a sub command on the rsp register such as
 sub rsp, 16
 ```
 
-This sub command is prepared inside ```tacky_to_intermediate_asm_conversion_visitor::visit_tacky_function()```. At this point,
-the size of the stack frame is not known yet so only a placeholder
-AsmAstInstruction is inserted.
+This sub command is prepared inside ```tacky_to_intermediate_asm_conversion_visitor::visit_tacky_function()``` but because the size of the stackframe is *not* know yet, it is a mere placeholder which is positioned at the correct location but with invalid values.
 
-The stack frame size is computed in ???
+At this point, the size of the stack frame is *not* known yet so only a placeholder AsmAstInstruction is inserted.
 
-The placeholder is updated inside the call to ```AsmAstFixupVisitor::visit_asm_ast_function()```.
-The ```AsmAstFixupVisitor``` inserts entries into the ```self.stack_offset_map``` for each
-local variable it finds.
+The stack frame size is computed inside ???
+
+The placeholder is updated inside the call to ```AsmAstFixupVisitor::visit_asm_ast_function()```. The ```AsmAstFixupVisitor``` inserts entries into the ```self.stack_offset_map``` for each local variable it finds.
 
 The stack_offset_map of the ```AsmAstFixupVisitor``` is then cloned in main and passed to the :
 
@@ -189,6 +187,9 @@ For different targets, there are different emitter visitors.
 The emitter visitor for MSVC on x64 is ```src\asm_ast\asm_ast_masm_emitter_visitor.rs```.
 
 Inside ```src\asm_ast\asm_ast_masm_emitter_visitor.rs```, ...
+
+
+
 
 ## How to debug the memory layout created for structs?
 

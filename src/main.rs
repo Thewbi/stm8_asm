@@ -1540,6 +1540,11 @@ fn main() {
                 // DEBUG
                 // println!("------------------------- Fix up Pseudo Variable -------------------------------");
 
+                // DEBUG
+                if debug {
+                    symbol_table_rc_3.borrow().print_symbol_table();
+                }
+
                 let mut asm_ast_fixup_visitor = AsmAstFixupVisitor::new(
                     symbol_table_rc_3,
                     type_system_rc_3);

@@ -160,6 +160,9 @@ const SIZEOF_ADDRESS_X64: usize = 8;
 
 impl DataType {
 
+    /// For arrays, the computed size is sizeof(inner element datatype) * element_count
+    /// only if the element_count is specified explicitly. If there is no element count
+    /// known, the function return the size of pointer (8 byte on x64) instead
     pub fn get_size(&self, type_system: &HashMap::<String, DataType>) -> usize
     {
         match self {

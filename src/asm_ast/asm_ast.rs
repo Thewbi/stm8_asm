@@ -115,6 +115,7 @@ pub struct AsmAstInstruction {
     pub comment: String,
     pub assembly_type: AstAstAssemblyType,
     pub offset: AsmAstOperand,
+    pub data_type: DataType,
 }
 
 impl AsmAstInstruction {
@@ -124,7 +125,7 @@ impl AsmAstInstruction {
 
         // unsafe {
         //     // DEBUG
-        //     if INSTRUCTION_ID == 6 {
+        //     if INSTRUCTION_ID == 29 {
         //         println!("temp!");
         //     }
         // }
@@ -144,6 +145,7 @@ impl AsmAstInstruction {
             comment: String::new(),
             assembly_type: AstAstAssemblyType::Unknown,
             offset: AsmAstOperand::new(),
+            data_type: DataType::DataTypeUnknown,
         }
     }
 }
@@ -278,6 +280,10 @@ impl fmt::Display for AsmAstInstruction {
                 write!(f, "{}", format!("FunctionCall(identifier:{:?})", self.identifier).as_str()).expect("Write failed!");
             }
 
+            AsmAstInstructionType::VariableDeclaration => {
+                write!(f, "{}", format!("VariableDeclaration(identifier:{:?})", self.identifier).as_str()).expect("Write failed!");
+            }
+
             AsmAstInstructionType::AllocateStack => {
                 match self.src.operand_type {
                     AsmAstOperandType::Imm(imm_value) => {
@@ -359,7 +365,7 @@ pub enum AsmAstInstructionType {
     // DoubleToInt,
     // UIntToDouble,
     // DoubleToUInt,
-    // VariableDeclaration,
+    VariableDeclaration,
     ShiftRightArithmetic,
     GlobalConstantDeclaration,
     InlineAssembly,
@@ -381,6 +387,7 @@ impl AsmAstOperand {
 #[derive(Clone, Debug, PartialEq)]
 pub enum AsmAstOperandType {
     Imm(i32),
+    UnsignedImm(u32),
     ImmString(String),
     Reg(AsmAstReg),
     DerefReg(AsmAstReg),
@@ -981,10 +988,11 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction,
         }
 
         AsmAstInstructionType::Mov => {
-            string_buffer.push_str(format!("Mov({:?}, src:{:?}, dst:{:?})\n",
+            string_buffer.push_str(format!("Mov({:?}, src:{:?}, dst:{:?}, offset:{:?})\n",
                 asm_ast_instruction.assembly_type,
                 asm_ast_instruction.src,
-                asm_ast_instruction.dst).as_str());
+                asm_ast_instruction.dst,
+                asm_ast_instruction.offset).as_str());
         }
 
         AsmAstInstructionType::Movsx => {

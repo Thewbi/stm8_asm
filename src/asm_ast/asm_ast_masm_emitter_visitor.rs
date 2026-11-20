@@ -137,7 +137,7 @@ impl AsmAstMasmEmitterVisitor {
                     if self.print_to_console {
                         print!("qword ptr [rbp{}]", stack_val);
                     }
-                    format!("qword ptr [{}{}]", register.to_string(), stack_val)
+                    format!("qword ptr [{}+{}]", register.to_string(), stack_val)
                 }
             }
 
@@ -212,7 +212,7 @@ impl AsmAstMasmEmitterVisitor {
                     if *stack_val < 0i32 {
                         format!("dword ptr [{}{}+{}*4]", register.to_string(), stack_val, offset_register)
                     } else {
-                        format!("dword ptr [{}-{}+{}*4]", register.to_string(), stack_val, offset_register)
+                        format!("dword ptr [{}{}+{}*4]", register.to_string(), stack_val, offset_register)
                     }
                 // }
             }
@@ -227,9 +227,9 @@ impl AsmAstMasmEmitterVisitor {
                 } else {
                     // DEBUG
                     if self.print_to_console {
-                        print!("qword ptr [rbp{}]", stack_val);
+                        print!("qword ptr [{}-{}+{}*8]", register.to_string(), stack_val, offset_register);
                     }
-                    format!("qword ptr [{}{}]", register.to_string(), stack_val)
+                    format!("   qword ptr [{}-{}+{}*8]", register.to_string(), stack_val, offset_register)
                 }
             }
 
@@ -409,6 +409,14 @@ impl AsmAstMasmEmitterVisitor {
         match &asm_ast_operand.operand_type {
 
             AsmAstOperandType::Imm(imm_val) => {
+                // DEBUG
+                if self.print_to_console {
+                    println!("{}", imm_val);
+                }
+                self.string_buffer.push_str(format!("{}", imm_val).as_str());
+            }
+
+            AsmAstOperandType::UnsignedImm(imm_val) => {
                 // DEBUG
                 if self.print_to_console {
                     println!("{}", imm_val);
@@ -714,7 +722,9 @@ impl AsmAstMasmEmitterVisitor {
         // WinAPI calls
         // extern GetStdHandle: proc
         self.string_buffer.push_str("extern CreateFileA: proc\n");
-        // extern WriteFile: proc
+        self.string_buffer.push_str("extern OpenFile: proc\n");
+        self.string_buffer.push_str("extern WriteFile: proc\n");
+        self.string_buffer.push_str("extern ReadFile: proc\n");
         // extern ReadFile: proc
         self.string_buffer.push_str("extern ExitProcess: proc\n");
 
@@ -853,14 +863,25 @@ impl AsmAstMasmEmitterVisitor {
         // DEBUG
         if self.debug {
             println!("\n");
-            println!("asm_ast_instruction id: {}, {:?}", asm_ast_instruction.id, asm_ast_instruction);
+            println!("[ASM_AST_MASM_EMITTER_VISITOR] asm_ast_instruction id: {}, {:?}", asm_ast_instruction.id, asm_ast_instruction);
         }
 
         match asm_ast_instruction.instruction_type {
 
             AsmAstInstructionType::Mov => {
 
-                // need data types for generating instructions
+                // DEBUG
+                if self.debug {
+                    println!("---------------------------------------..................................");
+                    println!("asm_ast_instruction: {:?}", asm_ast_instruction);
+                }
+
+                // DEBUG
+                // if asm_ast_instruction.id == 5 {
+                //     println!("[ASM_AST_EMITTER_VISITOR] test");
+                // }
+
+                // ASSERT - need data types for generating instructions
                 assert_ne!(asm_ast_instruction.assembly_type,
                     AstAstAssemblyType::Unknown,
                     "\n\n[ERROR] asm_ast_instruction.id: {}, {:?} has data type (assembly_type) unknown",
@@ -868,17 +889,20 @@ impl AsmAstMasmEmitterVisitor {
                     asm_ast_instruction);
 
                 self.string_buffer.push_str("    mov ");
+                // destination
                 self.emit_asm_ast_operand(
                     &asm_ast_instruction.dst,
                     &asm_ast_instruction.offset,
                     &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(", ");
+                // source
                 self.emit_asm_ast_operand(
                     &asm_ast_instruction.src,
                     &asm_ast_instruction.offset,
                     &asm_ast_instruction.assembly_type);
 
                 // comment
+                self.string_buffer.push_str(format!("    ; asm_ast_instruction.id: '{}'", asm_ast_instruction.id).as_str());
                 self.string_buffer.push_str(format!("{}", asm_ast_instruction.comment).as_str());
 
                 // newline

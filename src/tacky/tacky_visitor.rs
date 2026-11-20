@@ -2246,7 +2246,20 @@ impl TackyVisitor {
                         // source variable name is retrieved from LHS
                         if let Some(lhs_node_id) = ast_node.lhs {
                             let lhs_node = node_map.get(&lhs_node_id).unwrap();
-                            get_address_instruction.src = ValueElement::Constant(lhs_node.string_val.clone());
+
+                            // DEBUG
+                            if self.debug {
+                                println!("lhs_node: {:?}", lhs_node);
+                            }
+
+                            match lhs_node.node_type {
+                                AstNodeType::ConstString => {
+                                    get_address_instruction.src = ValueElement::Constant(lhs_node.string_val.clone());
+                                }
+                                _ => {
+                                    get_address_instruction.src = ValueElement::Variable(lhs_node.string_val.clone());
+                                }
+                            }
                         }
 
                         // the destination variable name is passed in as a parameter to this function

@@ -1,3 +1,4 @@
+use std::array;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -98,6 +99,13 @@ impl AsmAstFixupVisitor {
                 }
             }
 
+            AsmAstOperandType::UnsignedImm(immediate_value) => {
+                // DEBUG
+                if self.debug {
+                    println!("UnsignedImm");
+                }
+            }
+
             AsmAstOperandType::Reg(register_name) => {
                 // DEBUG
                 if self.debug {
@@ -150,12 +158,13 @@ impl AsmAstFixupVisitor {
                     } else {
 
                         // retrieve type
-                        if self.backend_symbol_table.borrow_mut().contains(&pseudo_name) {
+                        if self.backend_symbol_table.borrow().contains(&pseudo_name) {
 
                             // first, determine the data type. This is needed in order to determine
                             // the correct amount of bytes to increment the stack pointer with
-                            let symbol_table_entry
-                                = self.backend_symbol_table.borrow_mut().retrieve(&pseudo_name);
+
+                            let st = self.backend_symbol_table.borrow();
+                            let symbol_table_entry = st.retrieve(&pseudo_name);
 
                             // pointer or not a pointer?
                             if symbol_table_entry.is_pointer {
@@ -175,12 +184,19 @@ impl AsmAstFixupVisitor {
 
                                 let data_type = symbol_table_entry.data_type.clone();
 
-                                // println!("[AsmFixupVisitor] data_type: {}", data_type);
+                                let data_type_size = data_type.get_size(&self.type_system.borrow()) as i32;
+
+                                // if self.debug {
+                                    println!("[AsmFixupVisitor] variable-pseudo_name: '{}', data_type: {}, data_type_size: {}",
+                                        pseudo_name, data_type, data_type_size);
+                                // }
 
                                 // convert the data type into the offset in bytes
-                                self.stack_offset = self.stack_offset - data_type.get_size(&self.type_system.borrow()) as i32;
+                                self.stack_offset = self.stack_offset - data_type_size;
 
                             }
+
+                            println!("self.stack_offset: {}", self.stack_offset);
 
                             self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
                             self.stack_offset_to_symbol_map.insert(pseudo_name.to_string(), symbol_table_entry.clone());
@@ -193,7 +209,7 @@ impl AsmAstFixupVisitor {
                             println!("[AsmAstFixupVisitor][ERR] Printing symbol table for debugging ...");
                             // DEBUG
                             if self.debug {
-                                self.backend_symbol_table.borrow_mut().print_symbol_table();
+                                self.backend_symbol_table.borrow().print_symbol_table();
                             }
                             panic!("Cannot find symbol '{}' in backend_symbol_table", &pseudo_name);
                         }
@@ -234,12 +250,12 @@ impl AsmAstFixupVisitor {
                     } else {
 
                         // retrieve type
-                        if self.backend_symbol_table.borrow_mut().contains(&pseudo_name) {
+                        if self.backend_symbol_table.borrow().contains(&pseudo_name) {
 
                             // first, determine the data type. This is needed in order to determine
                             // the correct amount of bytes to increment the stack pointer with
                             let symbol_table_entry =
-                                self.backend_symbol_table.borrow_mut().retrieve(&pseudo_name);
+                                self.backend_symbol_table.borrow().retrieve(&pseudo_name);
 
                             // DEBUG
                             if self.debug {
@@ -274,8 +290,18 @@ impl AsmAstFixupVisitor {
                                     pseudo_name.to_string(), data_type, data_type_size);
                             }
 
+                            println!("data_type_size: {}", data_type_size);
+                            println!("array_element_count: {}", array_element_count);
+
                             // update stack offset (for normal variables and for arrays)
-                            self.stack_offset = self.stack_offset - data_type_size * array_element_count;
+
+                            //TODO: This is a problem with determining the size of a DataType
+                            //The data type of an array datatype !?!? is it the size of the array
+                            // Meaning type * element_count or only the inner element type?
+
+                            //self.stack_offset = self.stack_offset - data_type_size * array_element_count;
+                            self.stack_offset = self.stack_offset - data_type_size;
+
                             self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
                             self.stack_offset_to_symbol_map.insert(pseudo_name.to_string(), symbol_table_entry.clone());
 
@@ -362,7 +388,7 @@ impl AsmAstFixupVisitor {
         // To manage this feature of adding more nodes, a vector called new_body is inserted into the
         // recursion and instead of mutating the original body vector, the statements along with the
         // newly created statements are inserted in this 'new_body' statement.
-        //
+
         // During iteration over all statements in the body, each statement is visited.
         // If a visit encounters the use of a pseudo-variable, this pseudo-variable needs to be
         // replaced by a stack address. When using more memory on the stack, the visited element
@@ -395,6 +421,7 @@ impl AsmAstFixupVisitor {
             // }
         }
 
+        // if this is not the call which is used to print but the call which is used to compute
         if self.replace_pseudo {
 
             let mut vv: usize = (self.stack_offset * -1) as usize;
@@ -431,18 +458,22 @@ impl AsmAstFixupVisitor {
         }
 
         // DEBUG - output the stack frame layout
-        if self.debug {
-            println!("stack_offset_map for function: '{}' --------------------------------------------", &asm_ast_function.name);
+        // if self.debug {
+            println!("[ASM AST FIXUP Visitor] stack_offset_map for function: '{}' --------------------------------------------", &asm_ast_function.name);
             let mut index = 0;
             for (key, value) in self.stack_offset_map.clone().into_iter() {
                 //println!("{}) {} / {:?} ", index, key, value);
                 // println!("{} / {:?}", key, value.data_type);
                 let symbol_table_entry: &SymbolTableEntry = self.stack_offset_to_symbol_map.get(&key).unwrap();
-                println!("{}) name:'{}', offset: {:?}, size: {}", index, symbol_table_entry.initial_name, value, symbol_table_entry.data_type.get_size(&self.type_system.borrow_mut()));
+                println!("{}) name:'{}', offset: {:?}, size: {}",
+                    index,
+                    symbol_table_entry.initial_name,
+                    value,
+                    symbol_table_entry.data_type.get_size(&self.type_system.borrow_mut()));
                 index = index + 1;
             }
             println!("---------------------------------------------------------------------------------");
-        }
+        // }
 
         asm_ast_function.body = new_body;
     }
@@ -831,12 +862,34 @@ impl AsmAstFixupVisitor {
                 new_body.push(Box::new(asm_ast_instruction));
             }
 
+            AsmAstInstructionType::VariableDeclaration => {
+
+                let variable_name = asm_ast_instruction.identifier;
+
+                if self.stack_offset_map.contains_key(&variable_name) {
+
+                } else {
+
+
+                }
+            }
+
             AsmAstInstructionType::AllocateStack => {
                 // DEBUG
                 if self.debug {
                     println!("AllocateStack({:?})", asm_ast_instruction.src);
                     println!("{:?}", asm_ast_instruction);
                 }
+
+                // // debug, prevent zero local variables!
+                // match asm_ast_instruction.src.operand_type {
+                //     AsmAstOperandType::Imm(value) => {
+                //         assert_ne!(value, 0)
+                //     }
+                //     _ => {
+                //         panic!();
+                //     }
+                // }
 
                 new_body.push(Box::new(asm_ast_instruction));
             }
