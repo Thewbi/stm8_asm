@@ -280,14 +280,35 @@ impl TackyToIntermediateAsmConversionVisitor {
             // The AsmAstFixupVisitor has the purpose of generating addresses for
             // AsmAstOperandType::Pseudo defined in asm_ast.rs
 
-            let symbol_table_entry = self.symbol_table.borrow_mut().get(&param.name.clone()).unwrap();
+            let mut symbol_table_entry = self.symbol_table.borrow_mut().get(&param.name.clone()).unwrap();
 
             // DEBUG
             if self.debug {
-                println!("[T2InterASM] test {:?}", symbol_table_entry);
+                println!("[T2InterASM] symbol_table_entry {:?}", symbol_table_entry);
             }
 
             assert_ne!(symbol_table_entry.data_type, DataType::DataTypeUnknown);
+
+            // // because of pointer dereference problems when passed as parameters
+            // // into a function, register here if a parameter is a pointer and the
+            // // pointer is then moved into memory
+            // match symbol_table_entry.data_type {
+            //     DataType::DataTypePointer(_) => {
+            //         symbol_table_entry.symbol_table_entry_type
+            //             = SymbolTableEntryType::PointerInMemory;
+            //     }
+            //     _ => {
+            //     }
+            // }
+
+            // because of pointer dereference problems when passed as parameters
+            // into a function, register here if a parameter is a pointer and the
+            // pointer is then moved into memory
+            if symbol_table_entry.is_pointer {
+                symbol_table_entry.symbol_table_entry_type
+                        = SymbolTableEntryType::PointerInMemory;
+            }
+
             self.symbol_table.borrow_mut().insert(param.name.clone(), symbol_table_entry);
 
             //
@@ -505,7 +526,10 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         let mut element_data_type: DataType = DataType::DataTypeUnknown;
 
+        //
         // retrieve the data type of the array elements
+        //
+
         match &tacky_instruction_subscript.data_type {
             DataType::DataTypeArray(inner_data_type, array_element_count) => {
                 element_data_type = *inner_data_type.clone();
@@ -518,19 +542,41 @@ impl TackyToIntermediateAsmConversionVisitor {
                 panic!("Unhandled type: {:?}", &tacky_instruction_subscript.data_type);
             }
         }
-
         assert_ne!(element_data_type, DataType::DataTypeUnknown,
             "Need a inner element data type!");
+
+        let mut pointer_in_memory: bool = false;
+
+         match &tacky_instruction_subscript.src {
+            ValueElement::Variable(var_name) => {
+                // retrieve address
+                let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name).unwrap();
+
+                println!("symbol_table_entry_option: '{:?}'", &symbol_table_entry_option);
+                println!("");
+                pointer_in_memory = symbol_table_entry_option.symbol_table_entry_type == SymbolTableEntryType::PointerInMemory;
+            }
+            _ => {
+
+            }
+        }
+
+
+
+
 
         let offset_register_dword = AsmAstReg::EAX;
         let offset_register_qword = AsmAstReg::RAX;
 
-        // xor rax, rax -- clear rax
+        //
+        // clear rax -- xor rax, rax
+        //
+
         let mut xor: AsmAstInstruction = AsmAstInstruction::new();
         xor.instruction_type = AsmAstInstructionType::Xor;
         xor.assembly_type = AstAstAssemblyType::Quadword;
-        xor.src = AsmAstOperand { operand_type: AsmAstOperandType::Reg(offset_register_dword.clone()) };
-        xor.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(offset_register_dword.clone()) };
+        xor.src = AsmAstOperand { operand_type: AsmAstOperandType::Reg(offset_register_qword.clone()) };
+        xor.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(offset_register_qword.clone()) };
         assert_ne!(xor.assembly_type, AstAstAssemblyType::Unknown);
         asm_ast_function.body.push(Box::new(xor));
 
@@ -555,7 +601,6 @@ impl TackyToIntermediateAsmConversionVisitor {
         mov_index.instruction_type = AsmAstInstructionType::Mov;
         let index_data_type: AstAstAssemblyType;
         mov_index.comment = String::from("    ; [visit_tacky_subscript_src() - Subscript 1] Mov Index/Offset into RAX");
-        // let src_data_type: DataType;
         // the index into the array is stored in tacky_instruction_subscript.index.
         // move this index into EAX
         match &tacky_instruction_subscript.index {
@@ -572,7 +617,7 @@ impl TackyToIntermediateAsmConversionVisitor {
                 // TODO: convert base on number system (binary, octal, decimal, hexadecimal)!
                 // ERROR: Currently hard-coded!
                 let val = i32::from_str_radix(&literal_value, 10).expect("REASON");
-                // val = val * 4; // TODO DataType determinces into 4
+                // val = val * 4; // TODO DataType determins into 4
                 mov_index.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(val.clone()) };
                 mov_index.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Imm(val.clone()) };
             }
@@ -584,8 +629,13 @@ impl TackyToIntermediateAsmConversionVisitor {
         mov_index.assembly_type = index_data_type;
         assert_ne!(mov_index.assembly_type, AstAstAssemblyType::Unknown);
         asm_ast_function.body.push(Box::new(mov_index));
+
         // DEBUG
         //println!("mov_index.assembly_type: {:?}", mov_index.assembly_type);
+
+
+
+
 
         //
         // Subscript 2
@@ -605,108 +655,140 @@ impl TackyToIntermediateAsmConversionVisitor {
         // stored inside the register A
         //
 
-    /* START START START
-        //
-        // this works for res\C\samples\c_samples\array_0.c
-        // where the array is a local variable. The address is the address of a
-        // local array inside the current stack frame.
-        //
-        // A construct like: mov al, byte ptr [rbp-8+rax*1] which combines the
-        // start address and an element offset is required!
-        //
+        // AST after type-checking is the same for both options
+        // TACKY is the same for both options
+        // Intermediate AST differs
 
-        let mut mov_1: AsmAstInstruction = AsmAstInstruction::new();
-        mov_1.instruction_type = AsmAstInstructionType::Mov;
-        mov_1.assembly_type = AstAstAssemblyType::from_data_type(&element_data_type);
-        mov_1.comment = String::from(format!("    ; [visit_tacky_subscript_src() - Subscript 2] for subscript (applying an index to an array)").to_string());
-        match &tacky_instruction_subscript.src {
-            ValueElement::Variable(var_name) => {
-                // DEBUG
-                if self.debug {
-                    println!("{:?}", var_name);
+        // let var_val;
+        // match &tacky_instruction_subscript.src {
+        //     ValueElement::Variable(var_name) => {
+        //         self.variable_naming_source.borrow_mut().print_variable_naming_source();
+        //         println!("[T2IASM] var_name: '{:?}'", var_name);
+        //         var_val = self.variable_naming_source.borrow_mut().get_replaced_variable_name(var_name);
+        //     }
+        //     _ => {
+        //         println!("test");
+        //     }
+        // }
+
+        if !pointer_in_memory {
+
+            /* START START START */
+
+            //
+            // emits:
+            // mov eax, dword ptr [rbp-408+rax*4]
+            //
+            // this works for
+            // res\C\samples\c_samples\fread_0.c
+            // res\C\samples\c_samples\array_0.c
+            // res\C\samples\c_samples\array_8.c
+            //
+            // where the array is a 'local variable' !!!
+            // The address is the address of a local array inside the current stack frame.
+            //
+            // A construct like: mov al, byte ptr [rbp-8+rax*1]
+            // which combines the start address and an element offset is required!
+            //
+
+            let mut mov_1: AsmAstInstruction = AsmAstInstruction::new();
+            mov_1.instruction_type = AsmAstInstructionType::Mov;
+            mov_1.assembly_type = AstAstAssemblyType::from_data_type(&element_data_type);
+            mov_1.comment = String::from(format!("    ; [visit_tacky_subscript_src() - Subscript 2] for subscript (applying an index to an array)").to_string());
+            match &tacky_instruction_subscript.src {
+                ValueElement::Variable(var_name) => {
+                    // DEBUG
+                    if self.debug {
+                        println!("{:?}", var_name);
+                    }
+                    mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+                    mov_1.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
                 }
-                mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
-                mov_1.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
-            }
-            ValueElement::Constant(constant_value) => {
-                mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
-            }
-            _ => {
-                panic!("Need variable or constant! Got {:?}", &tacky_instruction_subscript.src);
-            }
-        }
-        match &tacky_instruction_subscript.dst {
-            ValueElement::Variable(var_name) => {
-                // DEBUG
-                if self.debug {
-                    println!("{:?}", var_name);
+                ValueElement::Constant(constant_value) => {
+                    mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
                 }
-                mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::EAX) };
-            }
-            _ => {
-                panic!("Need variable! Got {:?}", &tacky_instruction_subscript.src);
-            }
-        }
-        mov_1.offset = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX) };
-        assert_ne!(mov_1.assembly_type, AstAstAssemblyType::Unknown);
-        asm_ast_function.body.push(Box::new(mov_1));
-
-// END END END END
-*/
-
-
-/* START START START */
-        //
-        // this works for res\C\samples\c_samples\strlen_0.c
-        // Where the array is accessed via function parameter which
-        // contains a pointer (address) to the
-        // first element of the array.
-        //
-        // A construct is required, where in the first step the function parameter needs
-        // to be dereferenced into a pointer. Then in a second step, the
-        // pointer can be offset by an index to an element multiplied by
-        // the element size.
-        //
-
-        // step 1 - turn the function parameter into the pointer (base address) to the array
-        let mut mov_1: AsmAstInstruction = AsmAstInstruction::new();
-        mov_1.instruction_type = AsmAstInstructionType::Mov;
-        mov_1.assembly_type = AstAstAssemblyType::from_data_type(&DataType::DataTypeLong); // pointers are DataTypeLong on x64
-        mov_1.comment = String::from(format!("    ; [visit_tacky_subscript_src() - Subscript 2] dereference pointer").to_string());
-        match &tacky_instruction_subscript.src {
-            ValueElement::Variable(var_name) => {
-                // DEBUG
-                if self.debug {
-                    println!("{:?}", var_name);
+                _ => {
+                    panic!("Need variable or constant! Got {:?}", &tacky_instruction_subscript.src);
                 }
-                mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
-                mov_1.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
             }
-            ValueElement::Constant(constant_value) => {
-                mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+            match &tacky_instruction_subscript.dst {
+                ValueElement::Variable(var_name) => {
+                    // DEBUG
+                    if self.debug {
+                        println!("{:?}", var_name);
+                    }
+                    mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::EAX) };
+                }
+                _ => {
+                    panic!("Need variable! Got {:?}", &tacky_instruction_subscript.src);
+                }
             }
-            _ => {
-                panic!("Need variable or constant! Got {:?}", &tacky_instruction_subscript.src);
+            mov_1.offset = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX) };
+            assert_ne!(mov_1.assembly_type, AstAstAssemblyType::Unknown);
+            asm_ast_function.body.push(Box::new(mov_1));
+
+            // END END END END
+
+        } else {
+
+            /* START START START */
+
+            //
+            // emits:
+            // mov rbx, qword ptr [rbp+-408]
+            // mov eax, dword ptr[rbx+rax*4]
+            //
+            // this works for
+            // res\C\samples\c_samples\strlen_0.c
+            // res\C\samples\c_samples\function_call_5.c
+            //
+            // Where the array (or const string literal) is accessed via a
+            // function parameter which contains a pointer (address) to the
+            // first element of the array.
+            //
+            // A construct is required, where in the first step the function
+            // parameter needs to be dereferenced into a pointer. Then in a
+            // second step, the pointer can be offset by an index to an element
+            // multiplied by the element size.
+            //
+
+            // step 1 - turn the function parameter into the pointer (base address) to the array
+            let mut mov_1: AsmAstInstruction = AsmAstInstruction::new();
+            mov_1.instruction_type = AsmAstInstructionType::Mov;
+            mov_1.assembly_type = AstAstAssemblyType::from_data_type(&DataType::DataTypeLong); // pointers are DataTypeLong on x64
+            mov_1.comment = String::from(format!("    ; [visit_tacky_subscript_src() - Subscript 2] dereference pointer").to_string());
+            match &tacky_instruction_subscript.src {
+                ValueElement::Variable(var_name) => {
+                    // DEBUG
+                    if self.debug {
+                        println!("{:?}", var_name);
+                    }
+                    mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+                    mov_1.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+                }
+                ValueElement::Constant(constant_value) => {
+                    mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+                }
+                _ => {
+                    panic!("Need variable or constant! Got {:?}", &tacky_instruction_subscript.src);
+                }
             }
+            mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RBX) };
+            assert_ne!(mov_1.assembly_type, AstAstAssemblyType::Unknown);
+            asm_ast_function.body.push(Box::new(mov_1));
+
+            // step 2 apply the element offset multiplied by element size to the base address
+            let mut mov_1_2: AsmAstInstruction = AsmAstInstruction::new();
+            mov_1_2.instruction_type = AsmAstInstructionType::Mov;
+            mov_1_2.assembly_type = AstAstAssemblyType::from_data_type(&element_data_type);
+            mov_1_2.comment = String::from(format!("    ; [visit_tacky_subscript_src() - Subscript 2] mov_1_2 dereference pointer").to_string());
+            mov_1_2.src = AsmAstOperand { operand_type: AsmAstOperandType::BaseRegWithOffsetAndSize(AsmAstReg::RBX, AsmAstReg::RAX, element_data_type.get_size(&self.type_system.borrow()) as i32) };
+            mov_1_2.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX) };
+            assert_ne!(mov_1_2.assembly_type, AstAstAssemblyType::Unknown);
+            asm_ast_function.body.push(Box::new(mov_1_2));
+
+            // END END END END
         }
-        mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RBX) };
-        assert_ne!(mov_1.assembly_type, AstAstAssemblyType::Unknown);
-        asm_ast_function.body.push(Box::new(mov_1));
-
-        // step 2 apply the element offset multiplied by element size to the base address
-        let mut mov_1_2: AsmAstInstruction = AsmAstInstruction::new();
-        mov_1_2.instruction_type = AsmAstInstructionType::Mov;
-        mov_1_2.assembly_type = AstAstAssemblyType::from_data_type(&element_data_type);
-        mov_1_2.comment = String::from(format!("    ; [visit_tacky_subscript_src() - Subscript 2] mov_1_2 dereference pointer").to_string());
-        mov_1_2.src = AsmAstOperand { operand_type: AsmAstOperandType::BaseRegWithOffsetAndSize(AsmAstReg::RBX, AsmAstReg::RAX, element_data_type.get_size(&self.type_system.borrow()) as i32) };
-        mov_1_2.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX) };
-        assert_ne!(mov_1_2.assembly_type, AstAstAssemblyType::Unknown);
-        asm_ast_function.body.push(Box::new(mov_1_2));
-
-// END END END END
-
-
-
 
         //
         // Subscript 3
@@ -2067,7 +2149,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         let mut mov_2: AsmAstInstruction = AsmAstInstruction::new();
         // println!("AsmAstInstruction: id: {}", mov_2.id);
         mov_2.instruction_type = AsmAstInstructionType::Mov;
-        mov_2.comment = String::from("; lea cannot load into mem, so it loads into reg. This move loads reg into dest mem");
+        mov_2.comment = String::from("    ; lea cannot load into mem, so it loads into reg. This move loads reg into dest mem");
         mov_2.assembly_type = AstAstAssemblyType::Quadword;
         mov_2.src = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(AsmAstReg::BX) };
         match &tacky_instruction_get_address.dst {

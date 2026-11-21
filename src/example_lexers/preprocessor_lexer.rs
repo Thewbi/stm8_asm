@@ -191,6 +191,7 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('°'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\''));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\\'));
+    alphabet.insert(RegexBuildingBlock::CharacterLiteral('$'));
 
     // "\n" | "\r\n" | "\r"
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\n'));

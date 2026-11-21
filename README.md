@@ -235,6 +235,10 @@ clear about how to layout structs.
 
 [ConstStrings](md/const_string_data.md)
 
+## How are pointers dereferenced as local variables and as arguments to functions
+
+[ConstStrings](md/array_access.md)
+
 # The Preprocessor
 
 [Preprocessor](md/Preprocessor.md)

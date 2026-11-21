@@ -7,6 +7,7 @@ use crate::common::data_type::DataType;
 pub enum SymbolTableEntryType {
     Function,
     Variable,
+    PointerInMemory,
     Unknown,
 }
 

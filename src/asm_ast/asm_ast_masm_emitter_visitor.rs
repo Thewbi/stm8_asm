@@ -137,6 +137,10 @@ impl AsmAstMasmEmitterVisitor {
                     if self.print_to_console {
                         print!("qword ptr [rbp{}]", stack_val);
                     }
+                    if *stack_val == -112 {
+                        println!("test");
+                    }
+                    // 111aaa 111 aaa
                     format!("qword ptr [{}+{}]", register.to_string(), stack_val)
                 }
             }
@@ -855,10 +859,10 @@ impl AsmAstMasmEmitterVisitor {
         // DEBUG
         // println!("[AsmAstMasmEmitterVisitor::visit_asm_ast_instruction()] instruction={:?}", asm_ast_instruction);
 
-        // // DEBUG
-        // if asm_ast_instruction.id == 5 {
-        //     println!("asm_ast_instruction: {:?}", asm_ast_instruction);
-        // }
+        // DEBUG
+        if asm_ast_instruction.id == 28 {
+            println!("asm_ast_instruction: {:?}", asm_ast_instruction);
+        }
 
         // DEBUG
         if self.debug {
@@ -877,9 +881,9 @@ impl AsmAstMasmEmitterVisitor {
                 }
 
                 // DEBUG
-                // if asm_ast_instruction.id == 5 {
-                //     println!("[ASM_AST_EMITTER_VISITOR] test");
-                // }
+                if asm_ast_instruction.id == 28 {
+                    println!("[ASM_AST_EMITTER_VISITOR] test");
+                }
 
                 // ASSERT - need data types for generating instructions
                 assert_ne!(asm_ast_instruction.assembly_type,

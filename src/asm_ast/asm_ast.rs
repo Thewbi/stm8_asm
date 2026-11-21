@@ -948,6 +948,7 @@ pub fn print_asm_ast_function(function: &AsmAstFunction, string_buffer: &mut Str
     string_buffer.push_str(&indent_string);
 
     // add function
+    string_buffer.push_str("\n\n\n\n");
     string_buffer.push_str(format!("Function(\"{}\")\n", function.name).as_str());
 
     // print instructions in function

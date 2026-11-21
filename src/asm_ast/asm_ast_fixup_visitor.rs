@@ -186,17 +186,20 @@ impl AsmAstFixupVisitor {
 
                                 let data_type_size = data_type.get_size(&self.type_system.borrow()) as i32;
 
-                                // if self.debug {
+                                if self.debug {
                                     println!("[AsmFixupVisitor] variable-pseudo_name: '{}', data_type: {}, data_type_size: {}",
                                         pseudo_name, data_type, data_type_size);
-                                // }
+                                }
 
                                 // convert the data type into the offset in bytes
                                 self.stack_offset = self.stack_offset - data_type_size;
 
                             }
 
-                            println!("self.stack_offset: {}", self.stack_offset);
+                            // DEBUG
+                            if self.debug {
+                                println!("self.stack_offset: {}", self.stack_offset);
+                            }
 
                             self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
                             self.stack_offset_to_symbol_map.insert(pseudo_name.to_string(), symbol_table_entry.clone());
@@ -290,8 +293,11 @@ impl AsmAstFixupVisitor {
                                     pseudo_name.to_string(), data_type, data_type_size);
                             }
 
-                            println!("data_type_size: {}", data_type_size);
-                            println!("array_element_count: {}", array_element_count);
+                            // DEBUG
+                            if self.debug {
+                                println!("data_type_size: {}", data_type_size);
+                                println!("array_element_count: {}", array_element_count);
+                            }
 
                             // update stack offset (for normal variables and for arrays)
 
@@ -484,10 +490,10 @@ impl AsmAstFixupVisitor {
         new_body: &mut Vec::<Box<AsmAstInstruction>>,
         mut asm_ast_instruction: AsmAstInstruction)
     {
-        // // DEBUG
-        // if asm_ast_instruction.id == 122 {
-        //     println!("tset");
-        // }
+        // DEBUG
+        if asm_ast_instruction.id == 28 {
+            println!("asm_ast_instruction: {:?}", asm_ast_instruction);
+        }
 
         match asm_ast_instruction.instruction_type {
 
@@ -505,6 +511,11 @@ impl AsmAstFixupVisitor {
                 // DEBUG
                 if self.debug {
                     println!("Mov {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
+                }
+
+                // DEBUG
+                if asm_ast_instruction.id == 28 {
+                    println!("[ASM_AST_FIXUP_VISITOR] {:?}", asm_ast_instruction);
                 }
 
                 // replace pseudo operand by relative address on stack

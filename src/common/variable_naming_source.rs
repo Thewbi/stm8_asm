@@ -34,7 +34,7 @@ struct VarnameMapEntry {
     // If a entry is originating from lower down the stack it is not new by definition.
     is_new: bool,
 
-     // used to control whether the user-choosen identifier is replaced by a artificial
+     // used to control whether the user-choosen identifier is replaced by an artificial
      // unique name (for local variables) or if it is kept (for global symbols such as
      // functions that need to have the same name accross compilation units so the linker can link them)
     is_external_linkage: bool,
@@ -277,6 +277,11 @@ impl VariableNamingSource {
     }
 
     pub fn print_variable_naming_source(&mut self) {
+
+        if self.varname_map_stack.is_empty() {
+            println!("Empty variable naming source!");
+            return;
+        }
 
         for varname_map_entry_ref_cell in self.varname_map_stack.iter_mut() {
 
