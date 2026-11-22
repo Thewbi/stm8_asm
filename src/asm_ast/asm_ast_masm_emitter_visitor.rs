@@ -1128,20 +1128,48 @@ impl AsmAstMasmEmitterVisitor {
 
             AsmAstInstructionType::Binary => {
 
+                // https://www.felixcloutier.com/x86/mul
+                //
+                // This binary was generated inside: asm_ast_conversion_visitor
+
                 let mut instruction: String = String::new();
 
                 match asm_ast_instruction.binary_operator {
                     AsmAstBinaryOperator::Add => {
                         instruction = String::from("add");
+                        self.string_buffer.push_str(format!("    {} ", instruction).as_str());
+                        self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                        self.string_buffer.push_str(", ");
+                        self.emit_asm_ast_operand(&asm_ast_instruction.src_2, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                        self.string_buffer.push_str("\n");
                     }
                     AsmAstBinaryOperator::Subtract => {
                         instruction = String::from("sub");
+                        self.string_buffer.push_str(format!("    {} ", instruction).as_str());
+                        self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                        self.string_buffer.push_str(", ");
+                        self.emit_asm_ast_operand(&asm_ast_instruction.src_2, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                        self.string_buffer.push_str("\n");
                     }
                     AsmAstBinaryOperator::LeftShift => {
                         instruction = String::from("shl");
+                        self.string_buffer.push_str(format!("    {} ", instruction).as_str());
+                        self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                        self.string_buffer.push_str(", ");
+                        self.emit_asm_ast_operand(&asm_ast_instruction.src_2,
+                            &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, // no offset
+                            &AstAstAssemblyType::Byte); // has to be the byte part (xl) of the register!!!!!!
+                        self.string_buffer.push_str("\n");
                     }
                     AsmAstBinaryOperator::RightShift => {
                         instruction = String::from("shr");
+                        self.string_buffer.push_str(format!("    {} ", instruction).as_str());
+                        self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                        self.string_buffer.push_str(", ");
+                        self.emit_asm_ast_operand(&asm_ast_instruction.src_2,
+                            &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, // no offset
+                            &AstAstAssemblyType::Byte); // has to be the byte part (xl) of the register!!!!!!
+                        self.string_buffer.push_str("\n");
                     }
                     _ => {
                         //todo!("Handle: '{}'", asm_ast_instruction.binary_operator);
@@ -1149,14 +1177,8 @@ impl AsmAstMasmEmitterVisitor {
                     }
                 }
 
-                // https://www.felixcloutier.com/x86/mul
-                //
-                // This binary was generated inside: asm_ast_conversion_visitor
-                self.string_buffer.push_str(format!("    {} ", instruction).as_str());
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
-                self.string_buffer.push_str(", ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.src_2, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
-                self.string_buffer.push_str("\n");
+
+
             }
 
             AsmAstInstructionType::Ret => {

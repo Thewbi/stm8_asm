@@ -1,4 +1,4 @@
-// res\C\samples\c_sample_2\gameboy_decoder.c
+// res\C\samples\c_sample_2\gameboy_decoder_1.c
 
 // Links
 // https://gbdev.io/pandocs/The_Cartridge_Header.html
@@ -34,6 +34,30 @@
 //
 
 #define BYTE_BUFFER_SIZE 10240
+
+// res\C\samples\c_samples\print_string_0.c
+
+int putchar(int c);
+
+int print_string(char *s)
+{
+    int len = 0;
+    int val = 0;
+    do {
+        val = *s;           // retrieve current char
+        s = s + 1;          // increment pointer for next loop
+        if (val != 0) {     // increment string length
+            int result = putchar(val);
+            len++;
+        }
+    } while (val != 0);
+
+    return len;
+}
+
+
+
+
 
 int CreateFileA(char *lpFileName,
     int dwDesiredAccess,
@@ -79,5 +103,37 @@ int main() {
         0               // lpOverlapped
     );
 
-    return buffer[0x0150];
+    int pc = 0x0100;
+
+    int op_code = 0;
+    int temp = 0;
+    int i = 0;
+    for (i = 0; i < 10; i++) {
+        op_code = buffer[pc];
+        switch (op_code) {
+
+            case 0x00:
+                //print_string("NOP\n");
+                pc = pc + 1;
+                break;
+
+            case 0xC3: // 195dec
+                //print_string("JP\n");
+                temp = 0;
+                temp = (buffer[pc+2] << 8) + buffer[pc+1];
+                pc = temp;
+                break;
+
+            case 0xF3: // 243dec
+                //print_string("HALT Halt system clock\n");
+                break;
+
+            default:
+                //print_string("Unknown\n");
+                break;
+        }
+    }
+
+    print_string("end");
+    return 0;
 }

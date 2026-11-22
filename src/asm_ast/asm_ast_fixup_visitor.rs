@@ -346,6 +346,53 @@ impl AsmAstFixupVisitor {
         asm_ast_operand.clone()
     }
 
+    fn untangle_mem_mem(&mut self,
+        asm_ast_instruction: &mut AsmAstInstruction,
+        new_body: &mut Vec::<Box<AsmAstInstruction>>,
+        intermediate_register: AsmAstReg)
+    {
+        let mut fix: bool = false;
+
+        let mut new_asm_ast_instruction = asm_ast_instruction.clone();
+
+        // x86 mov cannot move from memory (stack or other memory) to memory directly!
+        if matches!(asm_ast_instruction.src_2.operand_type, AsmAstOperandType::Memory(_, _)) {
+            if matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::Memory(_, _)) {
+                fix = true;
+            }
+        }
+
+        if fix {
+
+            // mov dword ptr [ebp-8], R10
+            let mut mov_1 = new_asm_ast_instruction.clone();
+            mov_1.comment.push_str(" ; [AsmAstFixUpVisitor::untangle_mem_mem] - clone 2");
+            mov_1.instruction_type = AsmAstInstructionType::Mov;
+            mov_1.src = new_asm_ast_instruction.src_2.clone();
+            mov_1.dst = AsmAstOperand {
+                operand_type: AsmAstOperandType::Reg(intermediate_register.clone()) };
+            // insert instruction into the output
+            new_body.push(Box::new(mov_1));
+
+            // add
+            // https://www.felixcloutier.com/x86/add
+            // Adds the destination operand (first operand) and the source operand (second operand)
+            // and then stores the result in the destination operand.
+            new_asm_ast_instruction.src_2 = AsmAstOperand {
+                operand_type: AsmAstOperandType::Reg(intermediate_register.clone()) };
+            // // DEBUG
+            // if self.debug {
+            //     println!("{}", new_asm_ast_instruction);
+            // }
+            // insert instruction into the output
+            new_body.push(Box::new(new_asm_ast_instruction));
+
+        } else {
+
+            new_body.push(Box::new(new_asm_ast_instruction));
+
+        }
+    }
     //
     // Member/Impl Functions
     //
@@ -652,45 +699,8 @@ impl AsmAstFixupVisitor {
                 match asm_ast_instruction.binary_operator {
 
                     AsmAstBinaryOperator::Add | AsmAstBinaryOperator::Subtract => {
-
                         if self.replace_pseudo {
-
-                            let mut fix: bool = false;
-
-                            // x86 mov cannot move from memory (stack or other memory) to memory directly!
-                            if matches!(asm_ast_instruction.src_2.operand_type, AsmAstOperandType::Memory(_, _)) {
-                                if matches!(asm_ast_instruction.dst.operand_type, AsmAstOperandType::Memory(_, _)) {
-                                    fix = true;
-                                }
-                            }
-
-                            if fix {
-
-                                // mov dword ptr [ebp-8], R10
-                                let mut mov_1 = asm_ast_instruction.clone();
-                                mov_1.comment.push_str(" ; - clone 2");
-                                mov_1.instruction_type = AsmAstInstructionType::Mov;
-                                mov_1.src = asm_ast_instruction.src_2.clone();
-                                mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
-                                new_body.push(Box::new(mov_1));
-
-                                // add
-                                // https://www.felixcloutier.com/x86/add
-                                // Adds the destination operand (first operand) and the source operand (second operand)
-                                // and then stores the result in the destination operand.
-                                asm_ast_instruction.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
-
-                                // DEBUG
-                                if self.debug {
-                                    println!("{}", asm_ast_instruction.clone());
-                                }
-
-                                new_body.push(Box::new(asm_ast_instruction));
-
-                            } else {
-
-                                new_body.push(Box::new(asm_ast_instruction));
-                            }
+                            self.untangle_mem_mem(&mut asm_ast_instruction, new_body, AsmAstReg::R10);
                         } else {
                             new_body.push(Box::new(asm_ast_instruction));
                         }
@@ -701,8 +711,14 @@ impl AsmAstFixupVisitor {
                     }
 
                     AsmAstBinaryOperator::LeftShift => {
-                        // just forward, do not make any changes
-                        new_body.push(Box::new(asm_ast_instruction));
+                        if self.replace_pseudo {
+                            // if the shift amount is not an immediate value,
+                            // shift left is only able to use the CL register!
+                            // None of the other registers are allowed!
+                            self.untangle_mem_mem(&mut asm_ast_instruction, new_body, AsmAstReg::CX);
+                        } else {
+                            new_body.push(Box::new(asm_ast_instruction));
+                        }
                     }
 
                     AsmAstBinaryOperator::RightShift => {
