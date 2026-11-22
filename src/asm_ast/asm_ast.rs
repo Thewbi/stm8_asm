@@ -437,6 +437,11 @@ pub enum AsmAstReg {
     R8,
     R9,
     R10,
+    R11,
+    R12,
+    R13,
+    R14,
+    R15,
 
     RBP, // stack frame base pointer register
     RSP, // stack pointer
@@ -685,6 +690,31 @@ impl AsmAstReg {
 
                 // append suffix for data type
                 match data_type {
+                    AstAstAssemblyType::Byte => {
+                        string_buffer.push_str("b");
+                    }
+                    AstAstAssemblyType::Doubleword => {
+                        string_buffer.push_str("d");
+                    }
+                    AstAstAssemblyType::Quadword => {
+                        string_buffer.push_str("");
+                    }
+                    AstAstAssemblyType::Unknown => {
+                        panic!("Has no type! Found: {:?}", data_type);
+                    }
+                    _ => {
+                        panic!("Unknown Type: {:?}", data_type);
+                    }
+                }
+            }
+            AsmAstReg::R15 => {
+                string_buffer.push_str("r15");
+
+                // append suffix for data type
+                match data_type {
+                    AstAstAssemblyType::Byte => {
+                        string_buffer.push_str("b");
+                    }
                     AstAstAssemblyType::Doubleword => {
                         string_buffer.push_str("d");
                     }
@@ -750,7 +780,11 @@ impl fmt::Display for AsmAstReg {
             // AsmAstReg::R9 => write!(f, "r9d"),
 
             AsmAstReg::R10 => write!(f, "r10"),
-            // AsmAstReg::R10 => write!(f, "r10d"),
+            AsmAstReg::R11 => write!(f, "r11"),
+            AsmAstReg::R12 => write!(f, "r12"),
+            AsmAstReg::R13 => write!(f, "r13"),
+            AsmAstReg::R14 => write!(f, "r14"),
+            AsmAstReg::R15 => write!(f, "r15"),
 
             AsmAstReg::RBP => write!(f, "rbp"),
             AsmAstReg::RSP => write!(f, "rsp"),
@@ -926,7 +960,7 @@ impl fmt::Display for AsmAstBinaryOperator {
 //
 // This function is called to print the intermediate ASM to a file!
 // This is debug functionality to debug the intermediate AST generation!
-pub fn print_asm_ast_program(program: &AsmAstProgram, string_buffer: &mut String, indent: usize) {
+pub fn print_intermediate_asm_ast_program(program: &AsmAstProgram, string_buffer: &mut String, indent: usize) {
 
     // indent
     let indent_string = std::iter::repeat(" ").take(indent * 2).collect::<String>();
@@ -949,7 +983,7 @@ pub fn print_asm_ast_function(function: &AsmAstFunction, string_buffer: &mut Str
 
     // add function
     string_buffer.push_str("\n\n\n\n");
-    string_buffer.push_str(format!("Function(\"{}\")\n", function.name).as_str());
+    string_buffer.push_str(format!("Function(\"{}\")", function.name).as_str());
 
     // print instructions in function
     for i in 0..function.body.len() {
@@ -1005,14 +1039,14 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction,
         AsmAstInstructionType::Unary => {
             match asm_ast_instruction.src.operand_type {
                 AsmAstOperandType::Unknown => {
-                    string_buffer.push_str(format!("Unary(unary_operator:{:?}, assembly_type:{:?}, dst:{:?})",
+                    string_buffer.push_str(format!("Unary(unary_operator:{:?}, assembly_type:{:?}, dst:{:?})\n",
                         asm_ast_instruction.unary_operator,
                         asm_ast_instruction.assembly_type,
                         asm_ast_instruction.dst
                     ).as_str());
                 }
                 _ => {
-                    string_buffer.push_str(format!("Unary(unary_operator:{:?}, assembly_type:{:?}, dst:{:?}, src:{:?})",
+                    string_buffer.push_str(format!("Unary(unary_operator:{:?}, assembly_type:{:?}, dst:{:?}, src:{:?})\n",
                         asm_ast_instruction.unary_operator,
                         asm_ast_instruction.assembly_type,
                         asm_ast_instruction.dst,

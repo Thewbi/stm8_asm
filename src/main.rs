@@ -147,7 +147,7 @@ use crate::asm_ast::tacky_to_intermediate_asm_conversion_visitor::TackyToInterme
 use crate::asm_ast::asm_ast_fixup_visitor::AsmAstFixupVisitor;
 use crate::asm_ast::asm_ast_gas_emitter_visitor::AsmAstGASEmitterVisitor;
 use crate::asm_ast::asm_ast_masm_emitter_visitor::AsmAstMasmEmitterVisitor;
-use crate::asm_ast::asm_ast::print_asm_ast_program;
+use crate::asm_ast::asm_ast::print_intermediate_asm_ast_program;
 
 mod preprocessor;
 use crate::preprocessor::expression_parser::{self, ExpressionParser};
@@ -346,11 +346,11 @@ fn main() {
         let mut first = BTreeMap::<RuleElement::<String>, Vec::<RuleElement::<String>>>::new();
         compute_first_original(&grammar_rules, &nullable, &mut first);
 
-        if debug {
+        // if debug {
             println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
             println!("LALR(1) generation channel algorithm starts                                      ");
             println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-        }
+        // }
 
         let mut rule_ids = Vec::<usize>::new();
         let mut rule_id_to_state_id_map = HashMap::<usize, usize>::new();
@@ -364,31 +364,37 @@ fn main() {
             &first,
             &nullable);
 
-        if debug {
+        // if debug {
             println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-        }
+            println!("LALR(1) generation channel algorithm starts done.                                ");
+            println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+        // }
 
         //
         // Propagation Cycles
         //
 
         if debug {
-            println!("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+            println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+            println!("Propagation Cycles                                                               ");
+            println!(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
         }
         perform_propagation(&rule_ids,
             &rule_id_to_state_id_map,
             &rule_channel_map,
             &mut grammar_state_hashmap);
+
         if debug {
             println!("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
         }
 
-        if debug {
+        // if debug {
             println!("");
             println!("*********************************************************************************");
+            println!("Propagation Cycles                                                               ");
             println!("RESULT - FINISHED - READY - RESULT - FINISHED - READY - RESULT - FINISHED - READY");
             println!("*********************************************************************************");
-        }
+        // }
 
         //
         // DEBUG - print all states for comparison with online tools (e.g. https://cyberzhg.github.io/parsing-toys/tools/cfg_lalr1.html)
@@ -409,12 +415,12 @@ fn main() {
         // Building the Parse Table from the LALR(1) DFA
         //
 
-        if debug {
+        // if debug {
             println!("");
             println!("*********************************************************************************");
             println!("Building the Parse Table from the LALR(1) DFA                                    ");
             println!("*********************************************************************************");
-        }
+        // }
 
         build_parse_table(&mut parse_table,
             &mut grammar_state_hashmap,
@@ -422,12 +428,14 @@ fn main() {
             &augmented_start_symbol,
             &rule_id_to_state_id_map);
 
-        if debug {
+        // if debug {
             println!("*********************************************************************************");
-        }
+            println!("Building the Parse Table from the LALR(1) DFA done.");
+            println!("*********************************************************************************");
+        // }
 
         //
-        // Output Parse Table into CSV file
+        // output parse table into CSV file
         //
 
         let mut rule_map = BTreeMap::<usize, Rule<String>>::new();
@@ -439,7 +447,7 @@ fn main() {
         write_string_to_file("temp_toolchain/parse_table.txt", &parse_table_string_buffer);
 
         //
-        // Output Rule Table into file
+        // output rule table into file
         //
 
         // sort rules by rule-id
@@ -464,12 +472,12 @@ fn main() {
     // needs to be also serialized and deserialized when skipping LALR(1) generation!
     //
 
-    if debug {
+    // if debug {
         println!("");
         println!("*********************************************************************************");
         println!("Reading back the rule_map from file                                              ");
         println!("*********************************************************************************");
-    }
+    // }
 
     let mut rule_map = BTreeMap::<usize, Rule<String>>::new();
     let rule_map_filename = "temp_toolchain/rule_table.txt";
@@ -483,30 +491,30 @@ fn main() {
     // reading back pregenerated the parse table from file
     //
 
-    if debug {
+    // if debug {
         println!("");
         println!("*********************************************************************************");
         println!("Reading back the parse table from file                                           ");
         println!("*********************************************************************************");
-    }
+    // }
 
     parse_table.clear();
     read_parse_table_from_csv("temp_toolchain/parse_table.txt", &mut parse_table);
 
-    if debug {
+    // if debug {
         println!("*********************************************************************************");
-    }
+    // }
 
     //
     // Build the Lexer
     //
 
-    if debug {
+    // if debug {
         println!("");
         println!("*********************************************************************************");
         println!("Building the Lexer (This may take some time ...) or loading Lexer from file.     ");
         println!("*********************************************************************************");
-    }
+    // }
 
     let temp_q0 = State::new(0);
     let mut lexer_dfa = EpsilonNfa::new(temp_q0);
@@ -531,13 +539,13 @@ fn main() {
     // Build the Preprocessor Lexer
     //
 
-    if debug {
+    // if debug {
         println!("");
         println!("*********************************************************************************");
         println!("Building the Preprocessor Lexer (This may take some time ...).                   ");
         println!("Or loading the Preprocessor Lexer from file.                                     ");
         println!("*********************************************************************************");
-    }
+    // }
 
     let preprocessor_temp_q0 = State::new(0);
     let mut preprocessor_dfa = EpsilonNfa::new(preprocessor_temp_q0);
@@ -557,6 +565,10 @@ fn main() {
     if debug {
         println!("*********************************************************************************");
     }
+
+    println!("*********************************************************************************");
+    println!("Building the Preprocessor Lexer done.                                            ");
+    println!("*********************************************************************************");
 
     // static TEST_PREPROCESSOR_TREE_CONVERSION: bool = true;
     static TEST_PREPROCESSOR_TREE_CONVERSION: bool = false;
@@ -705,12 +717,12 @@ fn main() {
         // Driving the preprocessor against input
         //
 
-        if debug {
+        // if debug {
             println!("");
             println!("*********************************************************************************");
-            println!("Driving the preprocessor against input                                           ");
+            println!("Driving the preprocessor against input ...                                       ");
             println!("*********************************************************************************");
-        }
+        // }
 
         // 1. Create or overwrite the file
         let preprocessed_file = File::create("build/preprocessed.c").expect("Create file failed!");
@@ -721,9 +733,9 @@ fn main() {
         //
         // START TIME - PREPROCESSOR
         //
-        if debug {
-            println!("START - PREPROCESSOR.");
-        }
+        // if debug {
+            println!("START - PREPROCESSOR ...");
+        // }
 
         let now = Instant::now();
 
@@ -757,9 +769,9 @@ fn main() {
         //
 
         let elapsed = now.elapsed();
-        if debug {
+        // if debug {
             println!("STOP TIME - PREPROCESSOR. Elapsed: {:.2?}", elapsed);
-        }
+        // }
 
         //
         // DEBUG output all preprocessor symbols
@@ -893,6 +905,7 @@ fn main() {
 
     // should be _Bool, but everything is converted to lowercase during type system lookup
     type_system.insert("_bool".to_string(), DataType::DataTypeBool);
+    type_system.insert("_Bool".to_string(), DataType::DataTypeBool);
 
     //
     // Type System
@@ -1504,7 +1517,7 @@ fn main() {
                 }
 
                 //
-                // DEBUG: output intermedate assembler code to file
+                // DEBUG: output intermedate assembler code to file pre fixup
                 //
 
                 // DEBUG: print symbol table to console
@@ -1517,7 +1530,7 @@ fn main() {
 
                 // print the asm_ast.intasm ast file to disk which contains
                 // intermediate assembly for debugging
-                print_asm_ast_program(&tacky_to_intermediate_asm_conversion_visitor.asm_ast_program,
+                print_intermediate_asm_ast_program(&tacky_to_intermediate_asm_conversion_visitor.asm_ast_program,
                     &mut string_buffer, indent);
 
                 // 1. Create or overwrite the file
@@ -1562,6 +1575,36 @@ fn main() {
 
                 // DEBUG
                 // println!("---------------------------------------------------------------------------------");
+
+                //
+                // DEBUG: output intermedate assembler code to file post fixup
+                //
+
+                // // DEBUG: print symbol table to console
+                // if debug {
+                //     symbol_table_rc_3.borrow_mut().print_symbol_table();
+                // }
+
+                let mut string_buffer = String::from("");
+                let indent = 0usize;
+
+                // print the asm_ast.intasm ast file to disk which contains
+                // intermediate assembly for debugging
+                print_intermediate_asm_ast_program(&tacky_to_intermediate_asm_conversion_visitor.asm_ast_program,
+                    &mut string_buffer, indent);
+
+                // 1. Create or overwrite the file
+                // extension intasm == intermediate assembler code
+                let file = File::create("build/asm_ast_post_fixup.intasm").expect("Create file failed!");
+
+                // 2. Wrap the file in a BufWriter
+                let mut writer = BufWriter::new(file);
+
+                // 3. Write data
+                write!(writer, "{}", string_buffer);
+
+                // 4. Explicitly flush the remaining data to disk
+                writer.flush().expect("flush failed!");
 
                 //
                 // [Step 6] emit assembler instructions
@@ -1614,7 +1657,8 @@ fn main() {
                     // let file = File::create("main.asm").expect("Create file failed!");
                     //let file = File::create("C:\\Users\\U5353\\source\\repos\\test_1\\test_1\\main.asm").expect("Create file failed!");
                     //let file = File::create("C:\\Users\\U5353\\source\\repos\\x64_test\\main.asm").expect("Create file failed!");
-                    let file = File::create(BASE_PATH.to_owned() + "main.asm").expect("Create file failed!");
+                    let file = File::create("C:\\Users\\lapto\\source\\repos\\asm_test\\asm_test\\main.asm").expect("Create file failed!");
+                    // let file = File::create(BASE_PATH.to_owned() + "main.asm").expect("Create file failed!");
 
                     // 2. Wrap the file in a BufWriter
                     let mut writer = BufWriter::new(file);

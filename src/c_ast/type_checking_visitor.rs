@@ -1665,14 +1665,16 @@ impl TypeCheckingVisitor {
 
                 let mut data_type: DataType = DataType::DataTypeUnknown;
 
-                let left_node_id_option = ast_node.lhs;
+                let lhs_option = ast_node.lhs;
+                let rhs_option = ast_node.rhs;
+                let operator_option = ast_node.operator;
 
                 // let ast_node_clone = ast_node.clone();
 
                 let mut rhs_data_type = DataType::DataTypeUnknown;
 
-                // RHS - Parameter of the unary operator
-                if let Some(right_node_id) = ast_node.rhs {
+                // RHS - src parameter of the unary operator
+                if let Some(right_node_id) = rhs_option {
 
                     rhs_data_type = self.visit(right_node_id, node_map, expected_return_data_type);
 
@@ -1729,10 +1731,22 @@ impl TypeCheckingVisitor {
                     }
                 }
 
-                // LHS - the operator of the unary operation
-                if let Some(left_node_id) = left_node_id_option {
+                // // LHS - dest/target parameter of the unary operator
+                // let left_node_id_option = lhs_option;
+                // if let Some(left_node_id) = left_node_id_option {
 
-                    let left_node = node_map.get(&left_node_id).unwrap();
+                //     let left_node = node_map.get(&left_node_id).unwrap();
+                //     match left_node.node_type {
+                //         _ => {
+                //             todo!();
+                //         }
+                //     }
+                // }
+
+                // operator - the operator of the unary operation
+                if let Some(operator_node_id) = operator_option {
+
+                    let left_node = node_map.get(&operator_node_id).unwrap();
                     match left_node.node_type {
 
                         AstNodeType::Operator => {
@@ -1744,6 +1758,9 @@ impl TypeCheckingVisitor {
                                     return left_node.get_analyzed_data_type();
                                 }
                                 AstNodeOperatorType::Decrement => {
+                                    return left_node.get_analyzed_data_type();
+                                }
+                                AstNodeOperatorType::Not => {
                                     return left_node.get_analyzed_data_type();
                                 }
                                 AstNodeOperatorType::Dereference => {
@@ -1785,9 +1802,6 @@ impl TypeCheckingVisitor {
                                 AstNodeOperatorType::AddrOf => todo!(),
                                 AstNodeOperatorType::Increment => todo!(),
                                 AstNodeOperatorType::PrefixIncrement => {
-                                    //println!("left_node: {:?}", left_node);
-                                    // return left_node.get_analyzed_data_type();
-                                    //return DataType::DataTypeInt;
                                     return rhs_data_type;
                                 }
                                 AstNodeOperatorType::Decrement => todo!(),
@@ -1833,7 +1847,14 @@ impl TypeCheckingVisitor {
             }
 
             AstNodeType::DataType => {
-                return self.type_system.borrow_mut().get(&ast_node.string_val).unwrap().clone();
+                let ts = self.type_system.borrow();
+
+                let string_val = ast_node.string_val;
+                // println!("[TCV] '{}'", string_val);
+                assert_ne!(string_val, "");
+                let data_type_option = ts.get(&string_val);
+                assert!(data_type_option.is_some());
+                return data_type_option.unwrap().clone();
             }
 
             AstNodeType::Declaration => {
@@ -2414,7 +2435,6 @@ impl TypeCheckingVisitor {
                                             addr_of_ast_node.string_val.push_str("_");
                                             addr_of_ast_node.string_val.push_str(&addr_of_ast_node_id.to_string());
 
-                                            /**/
                                             {
                                                 // SYMBOL_TABLE_CONST_STRING
                                                 //
@@ -2432,9 +2452,7 @@ impl TypeCheckingVisitor {
                                                 symbol_table_entry.is_pointer = false;
                                                 symbol_table_entry.string_val = string_val.clone();
                                                 let mut symbol_tbl = self.symbol_table.borrow_mut();
-                                                // symbol_table.insert(string_val.clone(), symbol_table_entry);
 
-                                                // let symbol_tbl = self.symbol_table.borrow_mut();
                                                 symbol_tbl.insert(addr_of_ast_node.string_val.clone(), symbol_table_entry);
                                             }
 
@@ -2446,7 +2464,6 @@ impl TypeCheckingVisitor {
 
                                             // replace parameter
                                             ast_node.parameters[param_count-1-i] = addr_of_ast_node_id;
-                                            //ast_node.parameters[i] = addr_of_ast_node_id;
                                         }
 
                                         _ => {

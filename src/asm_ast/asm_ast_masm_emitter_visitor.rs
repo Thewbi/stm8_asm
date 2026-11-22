@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use crate::asm_ast::asm_ast::AsmAstReg::EAX;
 use crate::asm_ast::asm_ast::AstAstAssemblyType;
+use crate::common::data_type::DataType;
+use crate::common::data_type::DataType::DataTypeInt;
 use crate::common::string_handling::rem_first_and_last;
 use crate::common::string_handling::rem_first_and_last_matches;
 use crate::tacky::tacky::Program;
@@ -460,6 +462,8 @@ impl AsmAstMasmEmitterVisitor {
 
                 let mut string_buffer: String = String::new();
 
+                // string_buffer.push_str("    ; DerefReg ---------------------------------------");
+
                 match assembly_type {
                     AstAstAssemblyType::Byte => {
                         string_buffer.push_str("byte ptr[");
@@ -505,6 +509,8 @@ impl AsmAstMasmEmitterVisitor {
                 //string_buffer.push_str(&asm_ast_reg_val.to_string());
 
                 string_buffer.push_str("]");
+
+                // string_buffer.push_str("    ; -------------------------------------------------");
 
                 self.string_buffer.push_str(&string_buffer.to_string());
             }
@@ -619,7 +625,8 @@ impl AsmAstMasmEmitterVisitor {
             }
 
             _ => {
-                panic!("{}", format!("Unhandled AsmAstOperandType {:?}!\n", asm_ast_operand.operand_type).as_str());
+                panic!("{}", format!("Unhandled AsmAstOperandType {:?}!\n",
+                    asm_ast_operand.operand_type).as_str());
             }
         }
     }
@@ -857,17 +864,21 @@ impl AsmAstMasmEmitterVisitor {
         stack_frame_size: i32)
     {
         // DEBUG
-        // println!("[AsmAstMasmEmitterVisitor::visit_asm_ast_instruction()] instruction={:?}", asm_ast_instruction);
+        // if self.debug {
+            println!("[AsmAstMasmEmitterVisitor::visit_asm_ast_instruction()] instruction={:?}",
+                asm_ast_instruction);
+        // }
 
-        // DEBUG
-        if asm_ast_instruction.id == 28 {
-            println!("asm_ast_instruction: {:?}", asm_ast_instruction);
-        }
+        // // DEBUG
+        // if asm_ast_instruction.id == 28 {
+        //     println!("asm_ast_instruction: {:?}", asm_ast_instruction);
+        // }
 
         // DEBUG
         if self.debug {
             println!("\n");
-            println!("[ASM_AST_MASM_EMITTER_VISITOR] asm_ast_instruction id: {}, {:?}", asm_ast_instruction.id, asm_ast_instruction);
+            println!("[ASM_AST_MASM_EMITTER_VISITOR] asm_ast_instruction id: {}, {:?}",
+                asm_ast_instruction.id, asm_ast_instruction);
         }
 
         match asm_ast_instruction.instruction_type {
@@ -880,10 +891,10 @@ impl AsmAstMasmEmitterVisitor {
                     println!("asm_ast_instruction: {:?}", asm_ast_instruction);
                 }
 
-                // DEBUG
-                if asm_ast_instruction.id == 28 {
-                    println!("[ASM_AST_EMITTER_VISITOR] test");
-                }
+                // // DEBUG
+                // if asm_ast_instruction.id == 28 {
+                //     println!("[ASM_AST_EMITTER_VISITOR] test");
+                // }
 
                 // ASSERT - need data types for generating instructions
                 assert_ne!(asm_ast_instruction.assembly_type,
@@ -954,12 +965,104 @@ impl AsmAstMasmEmitterVisitor {
                         panic!("");
                     }
                     AsmAstUnaryOperator::Not => {
-                        panic!("");
+
+                        println!("[AsmAstMasmEmitterVisitor] asm_ast_instruction:{:?}",
+                            asm_ast_instruction);
+
+                        // https://stackoverflow.com/questions/13844115/how-are-booleans-notted-in-assembly
+
+                        // https://web.itu.edu.tr/kesgin/mul06/intel/instr/sete_setz.html
+
+                        self.string_buffer.push_str("    ; boolean negation -------------------------------------------------\n");
+
+                        // Strategy: clear register and load boolean value into it
+                        // execute the instruction 'test' which sets the Zero flag if the register contains zero
+                        // Exeute (8-bit) instruction setz which setz zero into register if the zero flag is set
+                        //
+                        // xor r10, r10
+                        // mov r10d, dword ptr [rbp+-4]
+                        // test r10d, r10d
+                        // setz r10b
+                        // mov dword ptr [rbp+-8], r10d
+
+                        // XOR
+                        self.string_buffer.push_str(format!("    xor r15, r15\n").as_str());
+
+                        // MOV
+                        self.string_buffer.push_str(format!("    mov ").as_str());
+                        self.emit_asm_ast_operand(&AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R15) },
+                            &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                            &AstAstAssemblyType::Doubleword
+                        );
+                        self.string_buffer.push_str(", ");
+                        self.emit_asm_ast_operand(&asm_ast_instruction.dst,
+                            &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                            &AstAstAssemblyType::Doubleword
+                        );
+                        self.string_buffer.push_str("\n");
+
+                        // TEST (32-Bit)
+                        self.string_buffer.push_str(format!("    test ").as_str());
+                        self.emit_asm_ast_operand(&AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R15) },
+                            &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                            &AstAstAssemblyType::Doubleword
+                        );
+                        self.string_buffer.push_str(", ");
+                        self.emit_asm_ast_operand(&AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R15) },
+                            &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                            &AstAstAssemblyType::Doubleword
+                        );
+                        self.string_buffer.push_str("\n");
+
+                        // SETZ (8-Bit)
+                        self.string_buffer.push_str(format!("    setz ").as_str());
+                        self.emit_asm_ast_operand(&AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R15) },
+                            &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                            &AstAstAssemblyType::Byte
+                        );
+                        // self.string_buffer.push_str(", ");
+                        // self.emit_asm_ast_operand(&AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R15) },
+                        //     &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                        //     &AstAstAssemblyType::Byte
+                        // );
+                        self.string_buffer.push_str("\n");
+
+                        // MOV
+                        self.string_buffer.push_str(format!("    mov ").as_str());
+                        self.emit_asm_ast_operand(&asm_ast_instruction.dst,
+                            &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                            &AstAstAssemblyType::Doubleword
+                        );
+                        self.string_buffer.push_str(", ");
+                        self.emit_asm_ast_operand(&AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R15) },
+                            &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                            &AstAstAssemblyType::Doubleword
+                        );
+                        self.string_buffer.push_str("\n");
+
+
+                        //mnemonic = "neg".to_string();
+                        //self.string_buffer.push_str(format!("    {} ", mnemonic).as_str());
+
+                        // // use dst as source
+                        // self.emit_asm_ast_operand(&asm_ast_instruction.dst,
+                        //     &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                        //     // &asm_ast_instruction.assembly_type
+                        //     &AstAstAssemblyType::Byte
+                        // );
+                        //self.emit_asm_ast_operand(&asm_ast_instruction.dst,
+                        //    &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                        //    &AstAstAssemblyType::Byte
+                        //);
+
+                        self.string_buffer.push_str("    ; ------------------------------------------------------------------\n");
                     }
                     AsmAstUnaryOperator::Increment => {
                         mnemonic = "inc".to_string();
                         self.string_buffer.push_str(format!("    {} ", mnemonic).as_str());
-                        self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                        self.emit_asm_ast_operand(&asm_ast_instruction.dst,
+                            &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                            &asm_ast_instruction.assembly_type);
                     }
                     AsmAstUnaryOperator::Decrement => {
                         mnemonic = "dec".to_string();

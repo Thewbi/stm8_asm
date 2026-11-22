@@ -547,13 +547,12 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         let mut pointer_in_memory: bool = false;
 
-         match &tacky_instruction_subscript.src {
+        match &tacky_instruction_subscript.src {
             ValueElement::Variable(var_name) => {
                 // retrieve address
                 let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name).unwrap();
-
-                println!("symbol_table_entry_option: '{:?}'", &symbol_table_entry_option);
-                println!("");
+                // println!("symbol_table_entry_option: '{:?}'", &symbol_table_entry_option);
+                // println!("");
                 pointer_in_memory = symbol_table_entry_option.symbol_table_entry_type == SymbolTableEntryType::PointerInMemory;
             }
             _ => {
@@ -671,65 +670,7 @@ impl TackyToIntermediateAsmConversionVisitor {
         //     }
         // }
 
-        if !pointer_in_memory {
-
-            /* START START START */
-
-            //
-            // emits:
-            // mov eax, dword ptr [rbp-408+rax*4]
-            //
-            // this works for
-            // res\C\samples\c_samples\fread_0.c
-            // res\C\samples\c_samples\array_0.c
-            // res\C\samples\c_samples\array_8.c
-            //
-            // where the array is a 'local variable' !!!
-            // The address is the address of a local array inside the current stack frame.
-            //
-            // A construct like: mov al, byte ptr [rbp-8+rax*1]
-            // which combines the start address and an element offset is required!
-            //
-
-            let mut mov_1: AsmAstInstruction = AsmAstInstruction::new();
-            mov_1.instruction_type = AsmAstInstructionType::Mov;
-            mov_1.assembly_type = AstAstAssemblyType::from_data_type(&element_data_type);
-            mov_1.comment = String::from(format!("    ; [visit_tacky_subscript_src() - Subscript 2] for subscript (applying an index to an array)").to_string());
-            match &tacky_instruction_subscript.src {
-                ValueElement::Variable(var_name) => {
-                    // DEBUG
-                    if self.debug {
-                        println!("{:?}", var_name);
-                    }
-                    mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
-                    mov_1.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
-                }
-                ValueElement::Constant(constant_value) => {
-                    mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
-                }
-                _ => {
-                    panic!("Need variable or constant! Got {:?}", &tacky_instruction_subscript.src);
-                }
-            }
-            match &tacky_instruction_subscript.dst {
-                ValueElement::Variable(var_name) => {
-                    // DEBUG
-                    if self.debug {
-                        println!("{:?}", var_name);
-                    }
-                    mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::EAX) };
-                }
-                _ => {
-                    panic!("Need variable! Got {:?}", &tacky_instruction_subscript.src);
-                }
-            }
-            mov_1.offset = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX) };
-            assert_ne!(mov_1.assembly_type, AstAstAssemblyType::Unknown);
-            asm_ast_function.body.push(Box::new(mov_1));
-
-            // END END END END
-
-        } else {
+        if pointer_in_memory {
 
             /* START START START */
 
@@ -786,6 +727,64 @@ impl TackyToIntermediateAsmConversionVisitor {
             mov_1_2.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX) };
             assert_ne!(mov_1_2.assembly_type, AstAstAssemblyType::Unknown);
             asm_ast_function.body.push(Box::new(mov_1_2));
+
+            // END END END END
+
+        } else {
+
+            /* START START START */
+
+            //
+            // emits:
+            // mov eax, dword ptr [rbp-408+rax*4]
+            //
+            // this works for
+            // res\C\samples\c_samples\fread_0.c
+            // res\C\samples\c_samples\array_0.c
+            // res\C\samples\c_samples\array_8.c
+            //
+            // where the array is a 'local variable' !!!
+            // The address is the address of a local array inside the current stack frame.
+            //
+            // A construct like: mov al, byte ptr [rbp-8+rax*1]
+            // which combines the start address and an element offset is required!
+            //
+
+            let mut mov_1: AsmAstInstruction = AsmAstInstruction::new();
+            mov_1.instruction_type = AsmAstInstructionType::Mov;
+            mov_1.assembly_type = AstAstAssemblyType::from_data_type(&element_data_type);
+            mov_1.comment = String::from(format!("    ; [visit_tacky_subscript_src() - Subscript 2] for subscript (applying an index to an array)").to_string());
+            match &tacky_instruction_subscript.src {
+                ValueElement::Variable(var_name) => {
+                    // DEBUG
+                    if self.debug {
+                        println!("{:?}", var_name);
+                    }
+                    mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+                    mov_1.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+                }
+                ValueElement::Constant(constant_value) => {
+                    mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+                }
+                _ => {
+                    panic!("Need variable or constant! Got {:?}", &tacky_instruction_subscript.src);
+                }
+            }
+            match &tacky_instruction_subscript.dst {
+                ValueElement::Variable(var_name) => {
+                    // DEBUG
+                    if self.debug {
+                        println!("{:?}", var_name);
+                    }
+                    mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::EAX) };
+                }
+                _ => {
+                    panic!("Need variable! Got {:?}", &tacky_instruction_subscript.src);
+                }
+            }
+            mov_1.offset = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX) };
+            assert_ne!(mov_1.assembly_type, AstAstAssemblyType::Unknown);
+            asm_ast_function.body.push(Box::new(mov_1));
 
             // END END END END
         }
@@ -2807,40 +2806,129 @@ impl TackyToIntermediateAsmConversionVisitor {
             UnaryOperator::Dereference => {
 
                 // DEBUG
-                // println!("tacky_node_unary: {:?}", tacky_node_unary);
+                println!("tacky_node_unary: {:?}", tacky_node_unary);
 
-                let mut mov: AsmAstInstruction = AsmAstInstruction::new();
-                mov.instruction_type = AsmAstInstructionType::Mov;
-                mov.assembly_type = AstAstAssemblyType::Doubleword;
+
+
+                let mut pointer_in_memory: bool = false;
                 match &tacky_node_unary.src {
-                    ValueElement::Constant(constant_value) => {
-                        mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(
-                            i32::from_str_radix(&constant_value, 10).expect("REASON"))
-                        };
-                    }
-                    ValueElement::Variable(variable_name) => {
-                        mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+                    ValueElement::Variable(var_name) => {
+                        // retrieve address
+                        let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name).unwrap();
+                        // println!("symbol_table_entry_option: '{:?}'", &symbol_table_entry_option);
+                        pointer_in_memory = symbol_table_entry_option.symbol_table_entry_type == SymbolTableEntryType::PointerInMemory;
                     }
                     _ => {
-                        panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_unary.src).as_str());
-                    }
-                }
-                match &tacky_node_unary.dst {
-                    ValueElement::Variable(variable_name) => {
-                        mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
-                    }
-                    _ => {
-                        panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_unary.dst).as_str());
+
                     }
                 }
 
-                assert_ne!(mov.assembly_type, AstAstAssemblyType::Unknown);
 
-                asm_ast_function.body.push(Box::new(mov));
+
+                if pointer_in_memory {
+                    // step 1 - turn the function parameter into the pointer (base address) to the array
+                    let mut mov_1: AsmAstInstruction = AsmAstInstruction::new();
+                    mov_1.instruction_type = AsmAstInstructionType::Mov;
+                    mov_1.assembly_type = AstAstAssemblyType::from_data_type(&DataType::DataTypeLong); // pointers are DataTypeLong on x64
+                    mov_1.comment = String::from(format!("    ; [visit_tacky_subscript_src() - Subscript 2] dereference pointer").to_string());
+                    match &tacky_node_unary.src {
+                        ValueElement::Variable(var_name) => {
+                            // DEBUG
+                            if self.debug {
+                                println!("{:?}", var_name);
+                            }
+                            mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+                            mov_1.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+                        }
+                        ValueElement::Constant(constant_value) => {
+                            mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+                        }
+                        _ => {
+                            panic!("Need variable or constant! Got {:?}", &tacky_node_unary.src);
+                        }
+                    }
+                    mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RBX) };
+                    assert_ne!(mov_1.assembly_type, AstAstAssemblyType::Unknown);
+                    asm_ast_function.body.push(Box::new(mov_1));
+
+                    //
+                    // clear rax -- xor rax, rax
+                    //
+
+                    let mut xor: AsmAstInstruction = AsmAstInstruction::new();
+                    xor.instruction_type = AsmAstInstructionType::Xor;
+                    xor.assembly_type = AstAstAssemblyType::Quadword;
+                    xor.src = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX) };
+                    xor.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX) };
+                    assert_ne!(xor.assembly_type, AstAstAssemblyType::Unknown);
+                    asm_ast_function.body.push(Box::new(xor));
+
+                    // step 2 apply the element offset multiplied by element size to the base address
+                    let mut mov_1_2: AsmAstInstruction = AsmAstInstruction::new();
+                    mov_1_2.instruction_type = AsmAstInstructionType::Mov;
+                    mov_1_2.assembly_type = AstAstAssemblyType::from_data_type(&tacky_node_unary.data_type);
+                    mov_1_2.comment = String::from(format!("    ; [visit_tacky_subscript_src() - Subscript 2] mov_1_2 dereference pointer").to_string());
+                    let sz = tacky_node_unary.data_type.get_size(&self.type_system.borrow()) as i32;
+                    mov_1_2.src = AsmAstOperand {
+                        operand_type: AsmAstOperandType::Memory(AsmAstReg::RBX, 0)
+                    };
+                    mov_1_2.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX) };
+                    assert_ne!(mov_1_2.assembly_type, AstAstAssemblyType::Unknown);
+                    asm_ast_function.body.push(Box::new(mov_1_2));
+
+
+
+/**/
+                    let mut mov_2: AsmAstInstruction = AsmAstInstruction::new();
+                    mov_2.instruction_type = AsmAstInstructionType::Mov;
+                    mov_2.comment = String::from("    ; abcdefgh.");
+                    mov_2.assembly_type = AstAstAssemblyType::Doubleword;
+                    mov_2.src = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX) };
+                    match &tacky_node_unary.dst {
+                        ValueElement::Variable(variable_name) => {
+                            mov_2.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+                        }
+                        _ => {
+                            panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_unary.dst).as_str());
+                        }
+                    }
+                    assert_ne!(mov_2.assembly_type, AstAstAssemblyType::Unknown);
+                    asm_ast_function.body.push(Box::new(mov_2));
+
+
+                } else {
+                    let mut mov: AsmAstInstruction = AsmAstInstruction::new();
+                    mov.instruction_type = AsmAstInstructionType::Mov;
+                    mov.comment = String::from("    ; Dereference Operation.");
+                    mov.assembly_type = AstAstAssemblyType::Doubleword;
+                    match &tacky_node_unary.src {
+                        ValueElement::Constant(constant_value) => {
+                            mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(
+                                i32::from_str_radix(&constant_value, 10).expect("REASON"))
+                            };
+                        }
+                        ValueElement::Variable(variable_name) => {
+                            mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+                        }
+                        _ => {
+                            panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_unary.src).as_str());
+                        }
+                    }
+                    match &tacky_node_unary.dst {
+                        ValueElement::Variable(variable_name) => {
+                            mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+                        }
+                        _ => {
+                            panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_unary.dst).as_str());
+                        }
+                    }
+
+                    assert_ne!(mov.assembly_type, AstAstAssemblyType::Unknown);
+                    asm_ast_function.body.push(Box::new(mov));
+                }
             }
             _ => {
 
-                //
                 // MOV
                 //
                 // TACKY Unary ==> Mov + Unary
@@ -2875,7 +2963,6 @@ impl TackyToIntermediateAsmConversionVisitor {
 
                 asm_ast_function.body.push(Box::new(mov));
 
-                //
                 // UNARY
                 //
                 // TACKY Unary ==> Mov + Unary
@@ -2911,12 +2998,19 @@ impl TackyToIntermediateAsmConversionVisitor {
                     UnaryOperator::AddAssignment => {
                         unary.unary_operator = AsmAstUnaryOperator::AddAssignment;
                     }
-                    // _ => {
-                    //     panic!("{}", format!("Unhandled unary_operator '{:?}'!\n", tacky_node_unary.unary_operator).as_str());
-                    // }
+                }
+                match &tacky_node_unary.src {
+                    ValueElement::Variable(variable_name) => {
+                        assert_ne!(variable_name, "", "Need variable name!");
+                        unary.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+                    }
+                    _ => {
+                        panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_unary.src).as_str());
+                    }
                 }
                 match &tacky_node_unary.dst {
                     ValueElement::Variable(variable_name) => {
+                        assert_ne!(variable_name, "", "Need variable name!");
                         unary.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
                     }
                     _ => {

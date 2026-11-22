@@ -1532,12 +1532,6 @@ impl Parser<String> {
                                                 member_ast_node.file = file.clone();
                                                 member_ast_node.line = line;
 
-                                                // let mut ast_node: AstNode = AstNode::new(self.get_ast_node_id());
-                                                // ast_node.node_type = AstNodeType::Unary;
-                                                // ast_node.operator = Some(operator_ast_node.id);
-                                                // ast_node.operator_type = AstNodeOperatorType::Increment;
-                                                // ast_node.lhs = Some(expression_ast_node.id);
-
                                                 let ast_node_id = AST_NODE_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
                                                 let mut ast_node: AstNode = AstNode::new(ast_node_id);
                                                 ast_node.node_type = AstNodeType::Dot;
@@ -1634,12 +1628,6 @@ impl Parser<String> {
                                                 member_ast_node.file = file.clone();
                                                 member_ast_node.line = line;
 
-                                                // let mut ast_node: AstNode = AstNode::new(self.get_ast_node_id());
-                                                // ast_node.node_type = AstNodeType::Unary;
-                                                // ast_node.operator = Some(operator_ast_node.id);
-                                                // ast_node.operator_type = AstNodeOperatorType::Increment;
-                                                // ast_node.lhs = Some(expression_ast_node.id);
-
                                                 let mut ast_node: AstNode = AstNode::new(self.get_ast_node_id());
                                                 ast_node.node_type = AstNodeType::Arrow;
                                                 ast_node.operator_type = AstNodeOperatorType::Arrow;
@@ -1657,6 +1645,7 @@ impl Parser<String> {
                                         }
 
                                         // postfix_expression -> postfix_expression INC_OP
+                                        // example: i++;
                                         14 => {
 
                                             // create new node id
@@ -1708,8 +1697,10 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(self.get_ast_node_id());
                                                 ast_node.node_type = AstNodeType::Unary;
                                                 ast_node.operator_type = AstNodeOperatorType::Increment;
-                                                ast_node.lhs = Some(operator_ast_node.id); // operator
-                                                ast_node.rhs = Some(expression_ast_node); // operand
+                                                ast_node.operator = Some(operator_ast_node.id); // operator
+                                                //ast_node.lhs = Some(operator_ast_node.id); // operator
+                                                ast_node.lhs = Some(expression_ast_node); // source
+                                                ast_node.rhs = Some(expression_ast_node); // target
                                                 ast_node.data_type = Some(data_type_ast_node.id);
                                                 ast_node.file = file.clone();
                                                 ast_node.line = line;
@@ -1771,6 +1762,7 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(self.get_ast_node_id());
                                                 ast_node.node_type = AstNodeType::Unary;
                                                 ast_node.operator_type = AstNodeOperatorType::Decrement;
+                                                ast_node.operator = Some(operator_ast_node.id); // operator
                                                 ast_node.lhs = Some(operator_ast_node.id); // operator
                                                 ast_node.rhs = Some(expression_ast_node); // operand
                                                 ast_node.data_type = Some(data_type_ast_node.id);
@@ -1844,6 +1836,8 @@ impl Parser<String> {
                                         }
 
                                         // unary_expression -> INC_OP unary_expression
+                                        // example: ++i;
+                                        // SideNode: i++; is covered by Rule 13!
                                         19 => {
                                             // create new node id
                                             // create new node with node id and label
@@ -1855,10 +1849,10 @@ impl Parser<String> {
                                             // INC_OP
                                             // create new node id
                                             // create new node with node id and label
-                                            let equals_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-                                            let equals_node = DebugNode::new(equals_node_id, String::from("INC_OP"));
-                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", equals_node_id, String::from("INC_OP")).as_str());
-                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, equals_node.id).as_str());
+                                            let operator_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+                                            let operator_node = DebugNode::new(operator_node_id, String::from("INC_OP"));
+                                            string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", operator_node_id, String::from("INC_OP")).as_str());
+                                            string_buffer.push_str(format!("  {:?} -> {:?}\n", debug_node_id, operator_node.id).as_str());
 
                                             // take old node from stack - unary_expression
                                             let old_debug_node = debug_node_stack.pop().unwrap();
@@ -1891,8 +1885,11 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(self.get_ast_node_id());
                                                 ast_node.node_type = AstNodeType::Unary;
-                                                ast_node.lhs = Some(operator_ast_node.id); // operator
-                                                ast_node.rhs = Some(expression_ast_node); // operand
+                                                ast_node.operator_type = AstNodeOperatorType::Increment;
+                                                ast_node.operator = Some(operator_ast_node.id); // operator
+                                                // ast_node.lhs = Some(operator_ast_node.id); // operator
+                                                ast_node.lhs = Some(expression_ast_node); // source
+                                                ast_node.rhs = Some(expression_ast_node); // target
                                                 ast_node.data_type = Some(data_type_ast_node.id);
                                                 ast_node.file = file.clone();
                                                 ast_node.line = line;
@@ -1953,6 +1950,8 @@ impl Parser<String> {
 
                                                 let mut ast_node: AstNode = AstNode::new(self.get_ast_node_id());
                                                 ast_node.node_type = AstNodeType::Unary;
+                                                ast_node.operator_type = AstNodeOperatorType::Decrement;
+                                                ast_node.operator = Some(operator_ast_node.id); // operator
                                                 ast_node.lhs = Some(operator_ast_node.id); // operator
                                                 ast_node.rhs = Some(expression_ast_node); // operand
                                                 ast_node.data_type = Some(data_type_ast_node.id);
@@ -1968,6 +1967,7 @@ impl Parser<String> {
                                         }
 
                                         // unary_expression -> unary_operator cast_expression
+                                        // example !var_1
                                         21 => {
                                             // create new node id
                                             // create new node with node id and label
@@ -2011,8 +2011,9 @@ impl Parser<String> {
                                                 let mut ast_node: AstNode = AstNode::new(self.get_ast_node_id());
                                                 ast_node.node_type = AstNodeType::Unary;
                                                 ast_node.operator_type = node_map.get(&operator_ast_node).unwrap().operator_type.clone();
-                                                ast_node.lhs = Some(operator_ast_node); // operator
-                                                ast_node.rhs = Some(expression_ast_node); // operand
+                                                ast_node.operator = Some(operator_ast_node); // operator
+                                                ast_node.lhs = Some(expression_ast_node); // dst
+                                                ast_node.rhs = Some(expression_ast_node); // src
                                                 ast_node.data_type = Some(data_type_ast_node.id);
                                                 ast_node.file = file.clone();
                                                 ast_node.line = line;
@@ -2301,7 +2302,6 @@ impl Parser<String> {
                                             // print new node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{:?} [label=\"{}\"]\n", debug_node_id, String::from("unary_operator")).as_str());
 
-                                            // break
                                             // create new node id
                                             // create new node with node id and label
                                             let equals_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -2313,7 +2313,7 @@ impl Parser<String> {
                                             debug_node_stack.push(debug_node);
 
                                             //
-                                            // AST - unary_operator -> TILDE
+                                            // AST - unary_operator -> EXCLAMATION_MARK
                                             //
 
                                             if self.construct_ast {

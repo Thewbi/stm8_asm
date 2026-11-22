@@ -651,9 +651,12 @@ impl Iterator for Lexer<'_> {
                         panic!();
                     }
 
+                    let dfa_state = &self.dfa.states[&self.current_state_id];
+                    let token_id = dfa_state.token_id;
+
                     // create token
                     let token = Token {
-                        token_id: self.dfa.states[&self.current_state_id].token_id,
+                        token_id: token_id,
                         text: self.token_string_buffer.clone(),
                         terminal: terminal.clone(),
                         file: self.file.clone(),

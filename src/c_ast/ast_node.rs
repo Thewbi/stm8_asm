@@ -1232,13 +1232,19 @@ impl AstNode {
 
         // print the child tree
 
-        // operator
+        // LHS - operator
         let mut lhs_ast_node_id = 0;
-        if let Some(left_node) = self.lhs.as_ref() {
-            lhs_ast_node_id = node_map.get(&left_node).unwrap().pretty_print_ast_dot(string_buffer, node_map);
+        if let Some(left_node_id) = self.lhs.as_ref() {
+            lhs_ast_node_id = node_map.get(&left_node_id).unwrap().pretty_print_ast_dot(string_buffer, node_map);
         }
 
-        // operand
+        // operator
+        let mut operator_ast_node_id = 0;
+        if let Some(operator_node_id) = self.operator.as_ref() {
+            operator_ast_node_id = node_map.get(&operator_node_id).unwrap().pretty_print_ast_dot(string_buffer, node_map);
+        }
+
+        // RHS - operand
         let mut rhs_ast_node_id = 0;
         if let Some(right_node) = self.rhs.as_ref() {
             rhs_ast_node_id = node_map.get(&right_node).unwrap().pretty_print_ast_dot(string_buffer, node_map);
@@ -1246,8 +1252,8 @@ impl AstNode {
 
         // data type
         let mut data_type_ast_node_id = 0;
-        if let Some(data_type_node) = self.data_type.as_ref() {
-            data_type_ast_node_id = node_map.get(&data_type_node).unwrap().pretty_print_ast_dot(string_buffer, node_map);
+        if let Some(data_type_node_id) = self.data_type.as_ref() {
+            data_type_ast_node_id = node_map.get(&data_type_node_id).unwrap().pretty_print_ast_dot(string_buffer, node_map);
         }
 
         // create node for this AstNode
@@ -1265,6 +1271,9 @@ impl AstNode {
         // operator
         // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
         string_buffer.push_str(format!("{} -> {} [label=\"LHS\"]\n", ast_node_id, lhs_ast_node_id).as_str());
+
+        // operator
+        string_buffer.push_str(format!("{} -> {} [label=\"operator\"]\n", ast_node_id, operator_ast_node_id).as_str());
 
         // operand
         // println!("{} -> {}", ast_node_id, rhs_ast_node_id);
@@ -2490,7 +2499,6 @@ impl AstNode {
     {
         let ast_node_id = self.id;
 
-        //let inline_assembly_code = self.string_val.clone();
         let inline_assembly_code = String::new();
 
         if self.print_file_line {

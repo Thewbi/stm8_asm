@@ -9,6 +9,7 @@ use crate::EpsilonNfa;
 use crate::State;
 use crate::RegexBuildingBlock;
 use crate::InfixPostfixConverter;
+use crate::regex::enfa::enfa_to_dot_directed_graph;
 use crate::regex::enfa::recurse_postfix_build_fragment_stack;
 use crate::Input;
 use crate::example_lexers::common::add_token_definition;
@@ -78,6 +79,8 @@ pub const PP_CONCATENATION_TOKEN_ID: usize = 1000;
 // Defines token for a lexer.
 // The grammar is defined in produce_grammar_c_full_if_else_4(); (c_full_if_else_4.rs)
 pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
+
+    println!("[preprocessor_lexer::produce_preprocessor_lexer()] starting ...");
 
     //
     // Phase 0 -
@@ -158,7 +161,6 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
 
     alphabet.insert(RegexBuildingBlock::CharacterLiteral(' ')); // WHITESPACE, SPACE
 
-
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('_'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('<'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('>'));
@@ -191,7 +193,7 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('°'));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\''));
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\\'));
-    alphabet.insert(RegexBuildingBlock::CharacterLiteral('$'));
+    // alphabet.insert(RegexBuildingBlock::CharacterLiteral('$'));
 
     // "\n" | "\r\n" | "\r"
     alphabet.insert(RegexBuildingBlock::CharacterLiteral('\n'));
@@ -229,7 +231,7 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
 
     // provide a regex in infix notation and let the converter produce a postfix notation
     // The result is stored within the state of the converter instance, this is why the converter can be reset
-    converter.infix_to_postfix("(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z)|(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z)(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z|0|1|2|3|4|5|6|7|8|9)+");
+    converter.infix_to_postfix("(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z|$)|(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z|$)(_|a|A|b|B|c|C|d|D|e|E|f|F|g|G|h|H|i|I|j|J|k|K|l|L|m|M|n|N|o|O|p|P|q|Q|r|R|s|S|t|T|u|U|v|V|w|W|x|X|y|Y|z|Z|0|1|2|3|4|5|6|7|8|9|$)+");
     // next, from the regex-items in the postfix notation, construct a eNFA
     // This function will go through the infix character by character and extend a eNFA as it goes.
     // Once done, the eNFA will accept all input described by the regex infix notation
@@ -473,7 +475,9 @@ pub fn produce_preprocessor_lexer() -> EpsilonNfa::<State, RegexBuildingBlock> {
     let dfa = enfa_to_dfa(&mut combined_fragment.enfa, &mut alphabet);
 
     // DEBUG - print to dot file format for debugging with https://dreampuf.github.io/GraphvizOnline
-    // enfa_to_dot_directed_graph(&mut dfa, "dot\\dfa_automaton.dot");
+    //enfa_to_dot_directed_graph(&mut dfa, "dot\\preprocessor_dfa_automaton.dot");
+
+    println!("[preprocessor_lexer::produce_preprocessor_lexer()] done ...");
 
     dfa
 }

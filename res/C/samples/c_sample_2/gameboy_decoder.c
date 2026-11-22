@@ -33,7 +33,7 @@
 // +0D	        21 00 80        LD HL, $8000	    Loads $8000 (start of VRAM tile data) into HL.
 //
 
-// res\C\samples\c_samples\fread_0.c
+#define BYTE_BUFFER_SIZE 10240
 
 int CreateFileA(char *lpFileName,
     int dwDesiredAccess,
@@ -69,12 +69,12 @@ int main() {
         3               // hTemplateFile
     );
 
-    char buffer[256];
+    char buffer[BYTE_BUFFER_SIZE];
 
     ReadFile(
         file_handle,    // hFile - file handle
         buffer,         // lpBuffer - the buffer to store read data into
-        256,            // nNumberOfBytesToRead
+        BYTE_BUFFER_SIZE,  // nNumberOfBytesToRead
         0,              // lpNumberOfBytesRead
         0               // lpOverlapped
     );

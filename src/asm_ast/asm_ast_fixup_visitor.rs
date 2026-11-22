@@ -490,10 +490,10 @@ impl AsmAstFixupVisitor {
         new_body: &mut Vec::<Box<AsmAstInstruction>>,
         mut asm_ast_instruction: AsmAstInstruction)
     {
-        // DEBUG
-        if asm_ast_instruction.id == 28 {
-            println!("asm_ast_instruction: {:?}", asm_ast_instruction);
-        }
+        // // DEBUG
+        // if asm_ast_instruction.id == 28 {
+        //     println!("asm_ast_instruction: {:?}", asm_ast_instruction);
+        // }
 
         match asm_ast_instruction.instruction_type {
 
@@ -513,10 +513,10 @@ impl AsmAstFixupVisitor {
                     println!("Mov {:?} {:?}", asm_ast_instruction.src, asm_ast_instruction.dst);
                 }
 
-                // DEBUG
-                if asm_ast_instruction.id == 28 {
-                    println!("[ASM_AST_FIXUP_VISITOR] {:?}", asm_ast_instruction);
-                }
+                // // DEBUG
+                // if asm_ast_instruction.id == 28 {
+                //     println!("[ASM_AST_FIXUP_VISITOR] {:?}", asm_ast_instruction);
+                // }
 
                 // replace pseudo operand by relative address on stack
                 asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
@@ -542,11 +542,12 @@ impl AsmAstFixupVisitor {
                     }
 
                     // if the operands won't assemble/compile, change them!
+                    // fix = false;
                     if fix {
 
                         let mut mov_1 = asm_ast_instruction.clone();
                         mov_1.instruction_type = AsmAstInstructionType::Mov;
-                        mov_1.comment.push_str(" ; - clone 1");
+                        mov_1.comment.push_str(" ; Added by FixupVistor - clone 1");
                         mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
                         // println!("{:?}", &mov_1);
                         new_body.push(Box::new(mov_1));
@@ -598,7 +599,6 @@ impl AsmAstFixupVisitor {
                     mov_1.src = asm_ast_instruction.src.clone();
                     mov_1.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::R10) };
 
-
                     //mov_1.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);
                     mov_1.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
 
@@ -618,7 +618,8 @@ impl AsmAstFixupVisitor {
                         println!("{}", asm_ast_instruction.clone());
                     }
 
-                    // println!("{:?}", &asm_ast_instruction);
+                    // DEBUG
+                    println!("[AsmFixupVisitor] asm_ast_instruction: {:?}", &asm_ast_instruction);
 
                     new_body.push(Box::new(asm_ast_instruction));
 
@@ -631,7 +632,8 @@ impl AsmAstFixupVisitor {
                         asm_ast_instruction.src = self.replace_pseudo_operand(&mut asm_ast_instruction.src);
                     }
 
-                    // println!("{:?}", &asm_ast_instruction);
+                    // DEBUG
+                    println!("[AsmFixupVisitor] asm_ast_instruction: {:?}", &asm_ast_instruction);
 
                     new_body.push(Box::new(asm_ast_instruction));
                 }

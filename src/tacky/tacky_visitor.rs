@@ -1855,9 +1855,12 @@ impl TackyVisitor {
                 //let mut value_element: ValueElement = ValueElement::None;
                 let mut touple = ( ValueElement::None, DataType::DataTypeUnknown );
                 for i in 0..ast_node.block_items.len() {
+
                     let mut br_cnt = 0;
-                    let bli = ast_node.block_items[ast_node.block_items.len()-1-i];
-                    touple = self.visit(bli, node_map, &String::from(""), &mut br_cnt);
+                    let current_block_item = ast_node.block_items[ast_node.block_items.len()-1-i];
+
+                    //touple = self.visit(current_block_item, node_map, &String::from(""), &mut br_cnt);
+                    touple = self.visit(current_block_item, node_map, &dst_name, &mut br_cnt);
                 }
                 return touple;
             }
@@ -1928,7 +1931,6 @@ impl TackyVisitor {
 
                                     match lhs_sub.node_type {
 
-                                        // HHHHHH
                                         AstNodeType::Dot | AstNodeType::Arrow => {
                                             copy_instruction.instruction_type = InstructionType::CopyToOffset;
                                             let value_element
@@ -2586,37 +2588,71 @@ impl TackyVisitor {
                             let mut unary_instruction: Instruction = Instruction::new();
                             unary_instruction.instruction_type = InstructionType::Unary;
 
+                            // println!("{:?}", ast_node);
+                            unary_instruction.data_type = ast_node.get_analyzed_data_type();
+
                             // // DEBUG
                             // println!("{:?}", ast_node.lhs);
                             // println!("{:?}", ast_node.rhs);
 
-                            //
                             // src
                             //
-
                             //
+
                             // dst
                             //
+                            //
+                            if let Some(lhs_id) = ast_node.lhs {
+                                let mut br_cnt = 0;
+                                let ( lhs_value_element, lhs_data_type ) = self.visit(lhs_id, node_map, &String::new(), &mut br_cnt);
+
+                                unary_instruction.dst = lhs_value_element;
+                            }
 
                             // RHS - contains the source
+                            //
+                            //
+
                             if let Some(rhs_id) = ast_node.rhs {
 
                                 let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
                                 self.declare_temporary_variable(&temp_var_name, DataType::DataTypeInt);
 
                                 let mut br_cnt = 0;
-                                let ( rhs_value_element, data_type ) = self.visit(rhs_id, node_map, &temp_var_name, &mut br_cnt);
+                                let ( rhs_value_element, rhs_data_type ) = self.visit(rhs_id, node_map, &temp_var_name, &mut br_cnt);
 
-                                // source and destination are the same thing
-                                unary_instruction.src = rhs_value_element.clone();
-                                unary_instruction.dst = rhs_value_element.clone();
+                                unary_instruction.src = rhs_value_element;
+
                             }
 
+                            // panic!();
+
+                            // // for (i++ etc) source and destination are the same thing
+                            // unary_instruction.src = rhs_value_element.clone();
+                            // unary_instruction.dst = rhs_value_element.clone();
+
+                            // // for (i++ etc) source and destination are the same thing
+                            // unary_instruction.src = rhs_value_element.clone();
+                            // unary_instruction.dst = lhs_value_element.clone();
+
+                            /*
+                            // for ''' while (!done) ```
+
+                            if dst_name == "" {
+                                println!("test");
+                            }
+                            assert_ne!(dst_name, "", "Need variable name!");
+
+                            unary_instruction.src = rhs_value_element.clone();
+                            unary_instruction.dst = ValueElement::Variable(dst_name.clone());
+                            */
+
+                            // operator - contains the operator
                             //
-                            // LHS - contains the operator operator
                             //
 
-                            if let Some(operator_id) = ast_node.lhs {
+                            if let Some(operator_id) = ast_node.operator {
+
                                 let operator = node_map.get(&operator_id).unwrap();
                                 match operator.operator_type {
 
@@ -2630,6 +2666,7 @@ impl TackyVisitor {
 
                                     AstNodeOperatorType::Not => {
                                         unary_instruction.unary_operator = UnaryOperator::Not;
+                                        unary_instruction.dst = ValueElement::Variable(dst_name.clone());
                                     }
 
                                     AstNodeOperatorType::Increment => {
@@ -2892,6 +2929,8 @@ impl TackyVisitor {
                 let exp_result_var_name
                     = self.expression_to_varname(&ast_node, node_map, branch_counter);
 
+                println!("exp_result_var_name: '{}'", exp_result_var_name);
+
                 // JumpIfZero
                 let mut jump_if_zero_instruction: Instruction = Instruction::new();
                 jump_if_zero_instruction.instruction_type = InstructionType::JumpIfZero;
@@ -3090,8 +3129,10 @@ impl TackyVisitor {
                     let temp_var_name = self.variable_naming_source.borrow_mut().new_temp_var();
                     self.declare_temporary_variable(&temp_var_name, DataType::DataTypeInt);
 
+                    // visit the expression AST Node
                     let mut br_cnt = 0;
-                    let ( lhs_value_element, data_type ) = self.visit(lhs_id, node_map, &temp_var_name, &mut br_cnt);
+                    let ( lhs_value_element, data_type )
+                        = self.visit(lhs_id, node_map, &temp_var_name, &mut br_cnt);
 
                     // JumpIfZero (jump to end label if the condition is false)
                     let mut jump_if_zero_instruction: Instruction = Instruction::new();
