@@ -1978,16 +1978,13 @@ impl AstNode {
         let mut expression_ast_node_id = 0;
         if let Some(expression_node) = self.expression.as_ref() {
             expression_ast_node_id = node_map.get(&expression_node).unwrap().pretty_print_ast_dot_ex(string_buffer, node_map, "Discriminator-Exp:");
-
             // connect parent and child
-            // println!("{} -> {}", ast_node_id, expression_ast_node_id);
             string_buffer.push_str(format!("{} -> {} [label=\"EXPRESSION\"]\n", ast_node_id, expression_ast_node_id).as_str());
         }
 
         for i in 0..self.block_items.len() {
             let block_item_ast_node_id = node_map.get(&self.block_items[i]).unwrap().pretty_print_ast_dot(string_buffer, node_map);
             // connect parent and child
-            // println!("{} -> {}", ast_node_id, block_item_ast_node_id);
             string_buffer.push_str(format!("{} -> {} [label=\"BLOCK_ITEM\"]\n", ast_node_id, block_item_ast_node_id).as_str());
         }
 

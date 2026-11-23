@@ -9383,6 +9383,7 @@ impl Parser<String> {
 
                                                             case_default.block_items.push(first_case_block_item_id);
                                                             case_default.node_type = AstNodeType::Case;
+                                                            case_default.expression = temp_node.expression;
 
                                                             switch_ast_node.block_items.push(case_default.id);
 

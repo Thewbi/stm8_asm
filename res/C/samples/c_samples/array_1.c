@@ -8,7 +8,7 @@ int main() {
     if (result == 30) {
         return 0;
     }
-    return 1;
+    return result;
 }
 
 
