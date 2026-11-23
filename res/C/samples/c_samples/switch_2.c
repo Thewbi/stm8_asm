@@ -5,17 +5,17 @@ int main() {
     int a = 0;
 
     switch (selector) {
-        case 1:
+        case 10:
             a = a + 1;
             break;
-        case 2:
-            a = a + 1;
-            a = a + 1;
+        case 20:
+            a = a + 2;
+            a = a + 3;
             break;
-        case 3:
-            a = a + 1;
-            a = a + 1;
-            a = a + 1;
+        case 30:
+            a = a + 4;
+            a = a + 5;
+            a = a + 6;
             break;
         default:
             break;

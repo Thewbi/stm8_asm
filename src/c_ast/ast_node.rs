@@ -932,7 +932,6 @@ impl AstNode {
             }
             AstNodeType::InlineAssembly => {
                 self.pretty_print_ast_inline_assembly_dot(string_buffer, node_map)
-                //panic!();
             }
             _ => {
                 panic!("{}", format!("Unhandled AST node_type: {:?}", self.node_type).as_str());
@@ -1523,8 +1522,10 @@ impl AstNode {
         ast_node_id
     }
 
-    fn pretty_print_ast_statement_dot(&self, string_buffer: &mut String,
-        node_map: &Box<HashMap<usize, AstNode>>, extended_string: &str) -> usize
+    fn pretty_print_ast_statement_dot(&self,
+        string_buffer: &mut String,
+        node_map: &Box<HashMap<usize, AstNode>>,
+        extended_string: &str) -> usize
     {
         let mut lhs_ast_node_id = 0;
         if let Some(left_node) = self.lhs.as_ref() {
@@ -1535,7 +1536,6 @@ impl AstNode {
         // create node for this AstNode
         let ast_node_id = self.id;
 
-        // println!("{} [label=\"{} Statement: {} {}\"]", ast_node_id, ast_node_id, extended_string, self.string_val);
         if self.print_file_line {
             string_buffer.push_str(format!("{} [label=\"{} Statement: {} {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, extended_string, self.string_val, self.file, self.line).as_str());
         } else {
@@ -1543,7 +1543,6 @@ impl AstNode {
         }
 
         // connect parent and child
-        // println!("{} -> {}", ast_node_id, lhs_ast_node_id);
         string_buffer.push_str(format!("{} -> {}\n", ast_node_id, lhs_ast_node_id).as_str());
 
         ast_node_id
@@ -1672,7 +1671,6 @@ impl AstNode {
         // create node for this AstNode
         let ast_node_id = self.id;
 
-        // println!("{} [label=\"{} Block: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         if self.print_file_line {
             string_buffer.push_str(format!("{} [label=\"{} Block: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
         } else {
@@ -1685,7 +1683,6 @@ impl AstNode {
             let block_item_ast_node_id = node_map.get(&self.block_items[self.block_items.len()-1-i]).unwrap().pretty_print_ast_dot(string_buffer, node_map);
 
             // connect parent and child
-            // println!("{} -> {}", ast_node_id, block_item_ast_node_id);
             string_buffer.push_str(format!("{} -> {}\n", ast_node_id, block_item_ast_node_id).as_str());
         }
 
@@ -1943,7 +1940,11 @@ impl AstNode {
 
         for i in 0..self.block_items.len() {
 
-            let block_item_ast_node_id = node_map.get(&self.block_items[self.block_items.len()-1-i]).unwrap().pretty_print_ast_dot(string_buffer, node_map);
+            let bock_item_ast_node
+                = node_map.get(&self.block_items[self.block_items.len()-1-i]).unwrap();
+
+            let block_item_ast_node_id
+                = bock_item_ast_node.pretty_print_ast_dot(string_buffer, node_map);
 
             // connect parent and child
             // println!("{} -> {}", ast_node_id, block_item_ast_node_id);
@@ -1998,6 +1999,9 @@ impl AstNode {
         // create node for this AstNode
         let ast_node_id = self.id;
 
+        let ast_node = node_map.get(&ast_node_id).unwrap();
+        println!("[AST_NODE] ast_node: {:?}", ast_node);
+
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         if self.print_file_line {
             string_buffer.push_str(format!("{} [label=\"{} Default: {} [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, self.string_val, self.file, self.line).as_str());
@@ -2014,9 +2018,14 @@ impl AstNode {
         // }
 
         for i in 0..self.block_items.len() {
-            let block_item_ast_node_id = node_map.get(&self.block_items[i]).unwrap().pretty_print_ast_dot(string_buffer, node_map);
+
+            let block_item_ast_node
+                = node_map.get(&self.block_items[i]).unwrap();
+
+            let block_item_ast_node_id
+                = block_item_ast_node.pretty_print_ast_dot(string_buffer, node_map);
+
             // connect parent and child
-            // println!("{} -> {}", ast_node_id, block_item_ast_node_id);
             string_buffer.push_str(format!("{} -> {}\n", ast_node_id, block_item_ast_node_id).as_str());
         }
 

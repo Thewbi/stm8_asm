@@ -170,7 +170,6 @@ pub struct Parser<T> {
     pub ast_stack: Vec::<usize>,
     child_counter: usize,
     parameter_counter: usize,
-    switch_case_default_counter: usize,
     direct_declarator_counter: usize,
     struct_field_counter: usize,
 
@@ -279,7 +278,6 @@ impl Parser<String> {
             ast_stack: Vec::<usize>::new(),
             child_counter: 0,
             parameter_counter: 0,
-            switch_case_default_counter: 0,
             direct_declarator_counter: 0,
             struct_field_counter: 0,
 
@@ -302,47 +300,30 @@ impl Parser<String> {
         parser
     }
 
-    // // removes the current node from the stack and replaces it by a new node,
-    // // inserting a transition line and a line for the new node.
-    // pub fn node_to_node(&mut self,
-    //     label: &str,
-    //     rule_id: usize,
-    //     string_buffer: &mut String,
-    //     debug_node_stack: &mut Vec::<DebugNode>) -> usize
-    // {
-    //     // leave this function empty for a compact Tree which could be an AST.
-    //     // Uncomment the code for a full parse tree that contains all production rules!
-
-    //     if !self.collapse_nodes {
-
-    //         // create new node id
-    //         // create new node with node id and label
-    //         let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
-    //         let debug_node = DebugNode::new(debug_node_id, String::from(label));
-    //         // print new node into string buffer. e.g.    0 [label="test"]
-    //         string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, rule_id, String::from(label)).as_str());
-
-    //         // take old node from stack
-    //         let old_debug_node = debug_node_stack.pop().unwrap();
-    //         // print transition from old node id to new node id into string buffer. e.g. 0 -> 1 [label="Symbol(h)"];
-    //         string_buffer.push_str(format!(" {:?} -> {:?}\n", debug_node_id, old_debug_node.id).as_str());
-
-    //         // push new node to stack
-    //         debug_node_stack.push(debug_node);
-
-    //         return debug_node_id;
-    //     }
-
-    //     0usize
-    // }
-
     fn ast_stack_pop(&mut self) -> Option<usize> {
         self.ast_stack.pop()
     }
 
     fn ast_stack_peek(&mut self) -> usize {
         let top_ast_node_id = self.ast_stack.get(0).unwrap();
+        let ast_stack_len = self.ast_stack.len();
+        if ast_stack_len == 0 {
+            panic!("Cannot peek on empty stack!");
+        }
+        let top_ast_node_id = self.ast_stack.get(ast_stack_len-1).unwrap();
         return *top_ast_node_id;
+    }
+
+    fn increment_child_counter(&mut self) {
+        self.child_counter = self.child_counter + 1;
+    }
+
+    fn decrement_child_counter(&mut self) {
+        self.child_counter = self.child_counter - 1;
+    }
+
+    fn reset_child_counter(&mut self) {
+        self.child_counter = 0;
     }
 
     // Given some input symbol, the current stack of parse elements
@@ -459,7 +440,8 @@ impl Parser<String> {
                     // // compound_statement -> OPENING_CURLY_BRACKET declaration_or_statement_list CLOSING_CURLY_BRACKET
                     // the variable self.child_counter needs to be incremented or otherwise the
                     // inline_assembly node will not be copied into the function declaration body
-                    self.child_counter = self.child_counter + 1;
+                    //self.child_counter = self.child_counter + 1;
+                    self.increment_child_counter();
 
                     //
                     // insert AST node
@@ -8619,6 +8601,10 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
+                                                if self.child_counter > 0 {
+                                                    panic!("CASE child_counter {}", self.child_counter);
+                                                }
+
                                                 // take the statement that this case contains from the stack
                                                 let body_ast_node = self.ast_stack_pop().unwrap();
 
@@ -8634,8 +8620,6 @@ impl Parser<String> {
                                                 ast_node.line = line;
 
                                                 self.ast_stack.push(ast_node.id);
-
-                                                self.switch_case_default_counter = self.switch_case_default_counter + 1;
 
                                                 node_map.insert(ast_node.id, ast_node);
                                             }
@@ -8699,17 +8683,19 @@ impl Parser<String> {
 
                                                 self.ast_stack.push(ast_node.id);
 
-                                                self.switch_case_default_counter = self.switch_case_default_counter + 1;
-
                                                 node_map.insert(ast_node.id, ast_node);
                                             }
                                         }
 
                                         // compound_statement -> OPENING_CURLY_BRACKET declaration_or_statement_list CLOSING_CURLY_BRACKET
                                         187 => {
+
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+
+                                            println!("{} Rule 187", debug_node_id);
+
                                             let debug_node = DebugNode::new(debug_node_id, String::from("compound_statement"));
                                             // print new node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("compound_statement")).as_str());
@@ -8743,15 +8729,11 @@ impl Parser<String> {
                                                 // take all Statements, Declarations or BlockItem nodes and insert them into the block
                                                 while self.child_counter > 0 {
 
-                                                    self.child_counter = self.child_counter - 1;
+                                                    self.decrement_child_counter();
 
                                                     let body_ast_node_id = self.ast_stack_pop().unwrap();
                                                     let body_ast_node = node_map.get(&body_ast_node_id).unwrap();
                                                     match body_ast_node.node_type {
-
-                                                        // AstNodeType::BlockItem => {
-                                                        //     block_ast_node.block_items.push(Box::new(body_ast_node));
-                                                        // }
 
                                                         AstNodeType::Declaration | AstNodeType::Statement => {
                                                             let mut block_item_ast_node: AstNode = AstNode::new(self.get_ast_node_id());
@@ -8765,14 +8747,6 @@ impl Parser<String> {
                                                             node_map.insert(block_item_ast_node.id, block_item_ast_node);
                                                         }
 
-                                                        // AstNodeType::Default | AstNodeType::Case => {
-                                                        //     block_ast_node.block_items.push(Box::new(body_ast_node));
-                                                        // }
-
-                                                        // AstNodeType::EmptyStatement => {
-                                                        //     block_ast_node.block_items.push(Box::new(body_ast_node));
-                                                        // }
-
                                                         _ => {
                                                             // println!("{:?}", body_ast_node);
                                                             // self.ast_stack.push(body_ast_node);
@@ -8781,6 +8755,8 @@ impl Parser<String> {
                                                     }
                                                 }
 
+                                                println!("{:?}", block_ast_node);
+
                                                 // create compound AST node - insert block
                                                 let mut compound_ast_node: AstNode = AstNode::new(self.get_ast_node_id());
                                                 compound_ast_node.node_type = AstNodeType::Compound;
@@ -8788,7 +8764,7 @@ impl Parser<String> {
                                                 compound_ast_node.file = file.clone();
                                                 compound_ast_node.line = line;
 
-                                                // println!("{:?}", compound_ast_node);
+                                                //println!("{:?}", compound_ast_node);
 
                                                 self.ast_stack.push(compound_ast_node.id);
 
@@ -8873,7 +8849,9 @@ impl Parser<String> {
 
                                                 // the child counter is used by rule 184 which will take that many
                                                 // children from the ast stack and insert them into the compound element
-                                                self.child_counter = self.child_counter + 1;
+                                                //self.child_counter = self.child_counter + 1;
+                                                self.increment_child_counter();
+
                                                 // println!("child_counter: {}", self.child_counter);
 
                                                 let wrap_into_block_item = false;
@@ -8907,16 +8885,32 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                self.child_counter = self.child_counter + 1;
+                                                // the child counter is used by the 184, 185, 186
+                                                // rules which constructs compound statements
+                                                //self.child_counter = self.child_counter + 1;
+                                                self.increment_child_counter();
+
+                                                // // DEBUG
                                                 // println!("child_counter: {}", self.child_counter);
+                                                // loop {
+                                                //     let temp_node = self.ast_stack_pop().unwrap();
+                                                //     println!("{:?}", temp_node);
+                                                //     if temp_node.node_type == AstNodeType::EmptyStatement {
+                                                //         break;
+                                                //     }
+                                                // }
                                             }
                                         }
 
                                         // declaration_or_statement_list -> statement declaration_or_statement_list
                                         191 => {
+
                                             // create new node id
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
+
+                                            println!("[parser::consume] {} Rule 191", debug_node_id);
+
                                             let debug_node = DebugNode::new(debug_node_id, String::from("declaration_or_statement_list"));
                                             // print new node into string buffer. e.g.    0 [label="test"]
                                             string_buffer.push_str(format!("{} [label=\"{} Rule:{} {}\"]\n", debug_node_id, debug_node_id, found_rule.original_id, String::from("declaration_or_statement_list")).as_str());
@@ -8944,10 +8938,12 @@ impl Parser<String> {
 
                                                 // affects: case-statements, default-statement,
 
-                                                // the child counter is used by the 184 rule which constructs compound statements
-                                                self.child_counter = self.child_counter + 1;
-                                                // println!("child_counter: {}", self.child_counter);
+                                                // the child counter is used by the 184, 185, 186
+                                                // rules which constructs compound statements
+                                                self.increment_child_counter();
 
+                                                // // DEBUG
+                                                // println!("child_counter: {}", self.child_counter);
                                                 // loop {
                                                 //     let temp_node = self.ast_stack_pop().unwrap();
                                                 //     println!("{:?}", temp_node);
@@ -8960,7 +8956,10 @@ impl Parser<String> {
 
                                         // declaration_or_statement_list -> statement
                                         192 => {
-                                            self.node_to_node("declaration_or_statement_list", found_rule.original_id, string_buffer, debug_node_stack);
+
+                                            let node_id = self.node_to_node("declaration_or_statement_list", found_rule.original_id, string_buffer, debug_node_stack);
+
+                                            println!("[parser::consume] {} Rule 192", node_id);
 
                                             //
                                             // AST
@@ -8968,8 +8967,19 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                self.child_counter = self.child_counter + 1;
+                                                // the child counter is used by the 184, 185, 186
+                                                // rules which constructs compound statements
+                                                self.increment_child_counter();
+
+                                                // // DEBUG
                                                 // println!("child_counter: {}", self.child_counter);
+                                                // loop {
+                                                //     let temp_node = self.ast_stack_pop().unwrap();
+                                                //     println!("{:?}", temp_node);
+                                                //     if temp_node.node_type == AstNodeType::EmptyStatement {
+                                                //         break;
+                                                //     }
+                                                // }
                                             }
                                         }
 
@@ -9303,6 +9313,10 @@ impl Parser<String> {
 
                                                 // println!("{:?}", debug_node_id);
 
+                                                if self.child_counter > 0 {
+                                                    panic!("SWITCH child_counter {}", self.child_counter);
+                                                }
+
                                                 // loop {
                                                 //     let temp_node = self.ast_stack_pop().unwrap();
                                                 //     println!("{:?}", temp_node);
@@ -9314,10 +9328,19 @@ impl Parser<String> {
                                                 let statement_ast_node_id = self.ast_stack_pop().unwrap();
                                                 let statement_ast_node = node_map.get(&statement_ast_node_id).unwrap();
                                                 // println!("{:?}", statement_ast_node);
-                                                let compound_ast_node_id = statement_ast_node.lhs.unwrap();
-                                                let compound_ast_node = node_map.get(&compound_ast_node_id).unwrap();
 
-                                                // let compound_ast_node = statement_ast_node.lhs.unwrap();
+                                                // let inner_ast_node_id = statement_ast_node.lhs.unwrap();
+                                                // let inner_ast_node = node_map.get(&inner_ast_node_id).unwrap();
+
+                                                // let compound_ast_node_id = inner_ast_node.lhs.unwrap();
+                                                // let compound_ast_node = node_map.get(&compound_ast_node_id).unwrap();
+
+                                                let compound_ast_node_id = statement_ast_node.lhs.unwrap();
+                                                let compound_ast_node = node_map.get(&compound_ast_node_id).unwrap().clone();
+
+                                                // println!("compound_ast_node: {:?}", compound_ast_node);
+
+                                                // let compound_ast_node_id = statement_ast_node.lhs.unwrap();
                                                 // let mut block_ast_node = compound_ast_node.lhs.unwrap();
 
                                                 let switch_expression_ast_node = self.ast_stack_pop().unwrap();
@@ -9329,39 +9352,87 @@ impl Parser<String> {
                                                 switch_ast_node.file = file.clone();
                                                 switch_ast_node.line = line;
 
-                                                let mut temp_items = Vec::<AstNode>::new();
+                                                // let mut temp_items = Vec::<AstNode>::new();
 
                                                 let mut case_default: AstNode = AstNode::new(self.get_ast_node_id());
+                                                //node_map.insert(case_default.id, case_default);
                                                 case_default.file = file.clone();
                                                 case_default.line = line;
 
                                                 let mut is_first: bool = true;
 
                                                 let all_statements_ast_node_id = compound_ast_node.lhs.unwrap();
-                                                let all_statements_ast_node = node_map.get(&all_statements_ast_node_id).unwrap();
-                                                for i in 0..all_statements_ast_node.block_items.len() {
+                                                let all_statements_ast_node = node_map.get(&all_statements_ast_node_id).unwrap().clone();
+
+                                                println!("all_statements_ast_node: {:?}", all_statements_ast_node);
+
+                                                let len = all_statements_ast_node.block_items.len();
+
+                                                println!("len = {}", len);
+
+                                                for i in 0..len {
 
                                                     let temp_node_id = all_statements_ast_node.block_items[i];
                                                     let temp_node = node_map.get(&temp_node_id).unwrap();
                                                     match temp_node.node_type {
 
-                                                        AstNodeType::Case | AstNodeType::Default => {
+                                                        AstNodeType::Case => {
+                                                            println!("{:?}", temp_node);
 
-                                                            // if there is an old case or default from an older iteration
-                                                            if !is_first {
+                                                            let first_case_block_item_id = temp_node.block_items[0];
 
-                                                                // put the old case or default into the switch
-                                                                //switch_ast_node.block_items.push(Box::new(case_default));
-                                                                temp_items.push(case_default);
-                                                            }
+                                                            case_default.block_items.push(first_case_block_item_id);
+                                                            case_default.node_type = AstNodeType::Case;
 
-                                                            is_first = false;
+                                                            switch_ast_node.block_items.push(case_default.id);
 
-                                                            // temp_node.block_items.push(temp_node.lhs.expect("REASON"));
-                                                            //let lhs_item = temp_node.lhs.unwrap();
+                                                            node_map.insert(case_default.id, case_default);
 
-                                                            case_default = temp_node.clone();
+
+                                                            // new node
+                                                            case_default = AstNode::new(self.get_ast_node_id());
+                                                            case_default.file = file.clone();
+                                                            case_default.line = line;
+                                                            //node_map.insert(case_default.id, case_default);
                                                         }
+
+                                                        AstNodeType::Default => {
+                                                            println!("{:?}", temp_node);
+
+                                                            let first_default_block_item_id = temp_node.block_items[0];
+
+                                                            case_default.block_items.push(first_default_block_item_id);
+                                                            case_default.node_type = AstNodeType::Default;
+
+                                                            switch_ast_node.block_items.push(case_default.id);
+
+                                                            node_map.insert(case_default.id, case_default);
+
+
+                                                            // new node
+                                                            case_default = AstNode::new(self.get_ast_node_id());
+                                                            case_default.file = file.clone();
+                                                            case_default.line = line;
+                                                            //node_map.insert(case_default.id, case_default);
+                                                        }
+
+                                                        // AstNodeType::Case | AstNodeType::Default => {
+
+                                                        //     // // if there is an old case or default from an older iteration
+                                                        //     // if !is_first {
+
+                                                        //     //     // put the old case or default into the switch
+                                                        //     //     //switch_ast_node.block_items.push(Box::new(case_default));
+                                                        //     //     temp_items.push(case_default);
+                                                        //     // }
+
+                                                        //     // is_first = false;
+
+                                                        //     // // temp_node.block_items.push(temp_node.lhs.expect("REASON"));
+                                                        //     // //let lhs_item = temp_node.lhs.unwrap();
+
+                                                        //     // case_default = temp_node.clone();
+                                                        // }
 
                                                         _ => {
                                                             // temp_items.push(*temp_node);
@@ -9376,22 +9447,18 @@ impl Parser<String> {
                                                     }
                                                 }
 
-                                                //switch_ast_node.block_items.push(Box::new(case_default));
-                                                // temp_items.push(case_default);
+                                                // for i in 0..temp_items.len() {
+                                                //     let temp_node = temp_items.pop().unwrap();
+                                                //     switch_ast_node.block_items.push(temp_node.id);
+                                                // }
 
-                                                for i in 0..temp_items.len() {
-                                                    let temp_node = temp_items.pop().unwrap();
-                                                    // let temp_lhs = temp_node.lhs.unwrap();
-                                                    // temp_node.block_items.push(temp_lhs);
-                                                    switch_ast_node.block_items.push(temp_node.id);
-                                                }
-
-                                                switch_ast_node.block_items.push(case_default.id);
+                                                // switch_ast_node.block_items.push(case_default.id);
+                                                // node_map.insert(case_default.id, case_default);
 
                                                 self.ast_stack.push(switch_ast_node.id);
 
                                                 node_map.insert(switch_ast_node.id, switch_ast_node);
-                                                node_map.insert(case_default.id, case_default);
+                                                // node_map.insert(case_default.id, case_default);
                                             }
                                         }
 
