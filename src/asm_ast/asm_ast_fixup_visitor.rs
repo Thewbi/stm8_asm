@@ -511,7 +511,7 @@ impl AsmAstFixupVisitor {
         }
 
         // DEBUG - output the stack frame layout
-        // if self.debug {
+        if self.debug {
             println!("[ASM AST FIXUP Visitor] stack_offset_map for function: '{}' --------------------------------------------", &asm_ast_function.name);
             let mut index = 0;
             for (key, value) in self.stack_offset_map.clone().into_iter() {
@@ -526,7 +526,7 @@ impl AsmAstFixupVisitor {
                 index = index + 1;
             }
             println!("---------------------------------------------------------------------------------");
-        // }
+        }
 
         asm_ast_function.body = new_body;
     }

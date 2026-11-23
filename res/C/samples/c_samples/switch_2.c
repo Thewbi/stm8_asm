@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\switch_2.c
+
 int main() {
     int selector = 3;
     int a = 0;

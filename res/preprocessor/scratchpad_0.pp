@@ -1,17 +1,11 @@
+// res\C\samples\c_samples\switch_3.c
+
 int main() {
-    int selector = 3;
+    int selector = 1;
     int a = 0;
 
     switch (selector) {
         case 1:
-            a = a + 1;
-            break;
-        case 2:
-            a = a + 1;
-            a = a + 1;
-            break;
-        case 3:
-            a = a + 1;
             a = a + 1;
             a = a + 1;
             break;

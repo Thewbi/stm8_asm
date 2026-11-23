@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\switch_0.c
+
 int main() {
     int wochentag = 3;
     int a = 0;

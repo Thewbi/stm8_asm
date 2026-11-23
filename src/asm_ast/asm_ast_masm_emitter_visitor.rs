@@ -864,10 +864,10 @@ impl AsmAstMasmEmitterVisitor {
         stack_frame_size: i32)
     {
         // DEBUG
-        // if self.debug {
+        if self.debug {
             println!("[AsmAstMasmEmitterVisitor::visit_asm_ast_instruction()] instruction={:?}",
                 asm_ast_instruction);
-        // }
+        }
 
         // // DEBUG
         // if asm_ast_instruction.id == 28 {

@@ -472,12 +472,12 @@ fn main() {
     // needs to be also serialized and deserialized when skipping LALR(1) generation!
     //
 
-    // if debug {
+    if debug {
         println!("");
         println!("*********************************************************************************");
         println!("Reading back the rule_map from file                                              ");
         println!("*********************************************************************************");
-    // }
+    }
 
     let mut rule_map = BTreeMap::<usize, Rule<String>>::new();
     let rule_map_filename = "temp_toolchain/rule_table.txt";
@@ -491,30 +491,30 @@ fn main() {
     // reading back pregenerated the parse table from file
     //
 
-    // if debug {
+    if debug {
         println!("");
         println!("*********************************************************************************");
         println!("Reading back the parse table from file                                           ");
         println!("*********************************************************************************");
-    // }
+    }
 
     parse_table.clear();
     read_parse_table_from_csv("temp_toolchain/parse_table.txt", &mut parse_table);
 
-    // if debug {
+    if debug {
         println!("*********************************************************************************");
-    // }
+    }
 
     //
     // Build the Lexer
     //
 
-    // if debug {
+    if debug {
         println!("");
         println!("*********************************************************************************");
         println!("Building the Lexer (This may take some time ...) or loading Lexer from file.     ");
         println!("*********************************************************************************");
-    // }
+    }
 
     let temp_q0 = State::new(0);
     let mut lexer_dfa = EpsilonNfa::new(temp_q0);
@@ -539,13 +539,13 @@ fn main() {
     // Build the Preprocessor Lexer
     //
 
-    // if debug {
+    if debug {
         println!("");
         println!("*********************************************************************************");
         println!("Building the Preprocessor Lexer (This may take some time ...).                   ");
         println!("Or loading the Preprocessor Lexer from file.                                     ");
         println!("*********************************************************************************");
-    // }
+    }
 
     let preprocessor_temp_q0 = State::new(0);
     let mut preprocessor_dfa = EpsilonNfa::new(preprocessor_temp_q0);
@@ -566,9 +566,11 @@ fn main() {
         println!("*********************************************************************************");
     }
 
-    println!("*********************************************************************************");
-    println!("Building the Preprocessor Lexer done.                                            ");
-    println!("*********************************************************************************");
+    if debug {
+        println!("*********************************************************************************");
+        println!("Building the Preprocessor Lexer done.                                            ");
+        println!("*********************************************************************************");
+    }
 
     // static TEST_PREPROCESSOR_TREE_CONVERSION: bool = true;
     static TEST_PREPROCESSOR_TREE_CONVERSION: bool = false;
@@ -717,12 +719,12 @@ fn main() {
         // Driving the preprocessor against input
         //
 
-        // if debug {
+        if debug {
             println!("");
             println!("*********************************************************************************");
             println!("Driving the preprocessor against input ...                                       ");
             println!("*********************************************************************************");
-        // }
+        }
 
         // 1. Create or overwrite the file
         let preprocessed_file = File::create("build/preprocessed.c").expect("Create file failed!");
@@ -733,9 +735,9 @@ fn main() {
         //
         // START TIME - PREPROCESSOR
         //
-        // if debug {
+        if debug {
             println!("START - PREPROCESSOR ...");
-        // }
+        }
 
         let now = Instant::now();
 
@@ -769,9 +771,9 @@ fn main() {
         //
 
         let elapsed = now.elapsed();
-        // if debug {
+        if debug {
             println!("STOP TIME - PREPROCESSOR. Elapsed: {:.2?}", elapsed);
-        // }
+        }
 
         //
         // DEBUG output all preprocessor symbols
