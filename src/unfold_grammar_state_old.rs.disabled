@@ -3055,3 +3055,114 @@ match asm_ast_instruction.binary_operator {
                                             //     self.last_type_specifier = String::new();
                                             //     self.last_source_type = String::new();
                                             // }
+
+
+
+
+
+//match &tacky_instruction_subscript.index {
+        //    ValueElement::Constant(literal_value) => {
+        //        let idx = i32::from_str_radix(&literal_value, 10).expect("REASON");
+        //        println!("idx: {}", idx);
+        //        mov_1.offset = AsmAstOperand { operand_type: AsmAstOperandType::Imm(idx) };
+        //    }
+        //    ValueElement::Variable(variable_name) => {
+        //        mov_1.offset = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::RAX) };
+        //    }
+        //    _ => {
+        //        todo!("{:?}", tacky_instruction_subscript.index);
+        //    }
+        //}
+
+
+
+
+        // match param.as_ref() {
+        //     ValueElement::Constant(constant_value) => {
+        //         mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+        //     }
+        //     ValueElement::Variable(variable_name) => {
+        //         mov.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+        //     }
+        //     _ => {
+        //         panic!("{}", format!("Unhandled InstructionType {:?}!\n", param).as_str());
+        //     }
+        // }
+        // match &tacky_node_copy.dst {
+        //     ValueElement::Variable(variable_name) => {
+        //         mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+        //     }
+        //     _ => {
+        //         panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_copy.dst).as_str());
+        //     }
+        // }
+        // mov.dst = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(SYSTEM_V_ABI_REGISTER_ORDER[index].clone()) };
+        // mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(tacky_node_fun_call.dst.variable_name.clone()) };
+
+
+        // ValueElement::Constant(value) => {
+            //     write!(f, "Constant({})", &value).expect("Write failed!");
+            // }
+
+
+
+            //     }
+                //     ValueElement::Constant(literal_value) => {
+                //         idx = i32::from_str_radix(&literal_value, 10).expect("REASON");
+                //         println!("idx: {}", idx);
+                //         mov_1.offset = AsmAstOperand { operand_type: AsmAstOperandType::Imm(idx) };
+                //     }
+                //     _ => {
+                //         panic!("[ERR] Unhandled type: {:?}", &tacky_instruction_subscript.index);
+                //     }
+                // }
+
+
+                //mov_1.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+                // when the src has a base address and an offset! such as in 'int x = arr[i];'
+                // Here i is the offset applied to the base address which is the address of arr.
+                //mov_1.offset = AsmAstOperand { operand_type: AsmAstOperandType::Reg(offset_register_qword.clone()) };
+                //mov_1.offset = AsmAstOperand { operand_type: AsmAstOperandType::PseudoMem(offset_register_qword.to_string(), 4) };
+                // mov_1.offset = AsmAstOperand { operand_type: AsmAstOperandType::Imm(0) };
+                // let mut idx = 0i32;
+                //match &tacky_instruction_subscript.index {
+                // match &tacky_instruction_subscript.src {
+                    // ValueElement::Variable(var_name) => {
+                        // println!("var_name: '{}'", var_name);
+                        // retrieve address
+                        // let symbol_table_entry_option = self.symbol_table.borrow_mut().get(var_name);
+                        // src_data_type = symbol_table_entry_option.expect(format!("No symbol for '{}' found in symbol table!\n", var_name).as_str()).data_type;
+
+
+
+                        //match &tacky_instruction_subscript.src {
+        //    ValueElement::Variable(var_name) => {
+        //        // DEBUG
+        //        if self.debug {
+        //            println!("{:?}", var_name);
+        //        }
+        //        mov_1_2.src = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+        //        mov_1_2.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(var_name.clone()) };
+        //    }
+        //    ValueElement::Constant(constant_value) => {
+        //        mov_1_2.src = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+        //    }
+        //    _ => {
+        //        panic!("Need variable or constant! Got {:?}", &tacky_instruction_subscript.src);
+        //    }
+        //}
+
+        //function_call_instruction.parameters.push(
+                                        //    Box::new(ValueElement::Variable(
+                                        //        String::from(parameter_ast_node.string_val.clone()))));
+
+                                        //match parameter_ast_node.operator_type {
+                                        //    AstNodeOperatorType::AddrOf => {
+                                        //        function_call_instruction.parameters.push(
+                                        //        Box::new(ValueElement::Variable(
+                                        //            String::from(parameter_ast_node.string_val.clone()))));
+                                        //    }
+                                        //    _ => {
+                                        //        todo!();
+                                        //    }
+                                        //}

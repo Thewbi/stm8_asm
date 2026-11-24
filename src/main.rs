@@ -1456,7 +1456,7 @@ fn main() {
                 tacky_visitor.program.name = String::from(input_tuple.1);
 
                 let mut br_cnt = 0;
-                tacky_visitor.visit(program_ast_node_id, &mut node_map, &String::from(""), &mut br_cnt);
+                tacky_visitor.visit(program_ast_node_id, &mut node_map, &String::from(""), &mut br_cnt, "", "");
 
                 //
                 // Print symbol table after TACKY conversion

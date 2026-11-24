@@ -76,6 +76,8 @@ impl FromStr for DataType {
             Ok(DataType::DataTypeChar)
         } else if s == "unsigned char" {
             Ok(DataType::DataTypeUnsignedChar)
+        } else if s == "uchar" {
+            Ok(DataType::DataTypeUnsignedChar)
         } else if s == "short" {
             Ok(DataType::DataTypeShort)
         } else if s == "long" {

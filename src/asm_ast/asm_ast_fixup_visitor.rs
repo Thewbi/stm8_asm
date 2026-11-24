@@ -380,10 +380,12 @@ impl AsmAstFixupVisitor {
             // and then stores the result in the destination operand.
             new_asm_ast_instruction.src_2 = AsmAstOperand {
                 operand_type: AsmAstOperandType::Reg(intermediate_register.clone()) };
+
             // // DEBUG
             // if self.debug {
             //     println!("{}", new_asm_ast_instruction);
             // }
+
             // insert instruction into the output
             new_body.push(Box::new(new_asm_ast_instruction));
 
@@ -393,6 +395,7 @@ impl AsmAstFixupVisitor {
 
         }
     }
+
     //
     // Member/Impl Functions
     //
@@ -543,6 +546,10 @@ impl AsmAstFixupVisitor {
         // }
 
         match asm_ast_instruction.instruction_type {
+
+            AsmAstInstructionType::Break => {
+                new_body.push(Box::new(asm_ast_instruction));
+            }
 
             AsmAstInstructionType::Ret => {
                 // DEBUG

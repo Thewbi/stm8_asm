@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\while_loop_3.c
+
 int main() {
 
     int i = 0;

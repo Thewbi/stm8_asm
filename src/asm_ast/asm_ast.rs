@@ -59,6 +59,9 @@ impl AstAstAssemblyType {
             DataType::DataTypeChar => {
                 AstAstAssemblyType::Byte // byte, 8 bit
             }
+            DataType::DataTypeUnsignedChar => {
+                AstAstAssemblyType::Byte // byte, 8 bit
+            }
             // DataType::DataTypeShort => {
             //     AstAstAssemblyType:: // byte, 16 bit
             // }
@@ -87,6 +90,9 @@ impl AstAstAssemblyType {
                 // array parameters are the pointer (address, 8 byte on x64)
                 // to the first element of the array
                 AstAstAssemblyType::Quadword
+            }
+            DataType::DataTypeBool => {
+                AstAstAssemblyType::Byte // byte, 8 bit
             }
             _ => {
                 unimplemented!("No implementation for {}", data_type);
@@ -198,6 +204,11 @@ impl fmt::Display for AsmAstInstruction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 
         match &self.instruction_type {
+
+            AsmAstInstructionType::Break => {
+                //write!(f, "{}", format!("Break {:?}", self).as_str()).expect("Write failed!");
+                write!(f, "{}", format!("Break ").as_str()).expect("Write failed!");
+            }
 
             AsmAstInstructionType::Ret => {
                 write!(f, "{}", format!("Ret {:?}", self).as_str()).expect("Write failed!");
@@ -329,6 +340,7 @@ impl fmt::Display for AsmAstInstruction {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum AsmAstInstructionType {
+    Break,
     Ret,
     Mov,
     Movsx,
@@ -1018,6 +1030,10 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction,
             string_buffer.push_str(format!("Idiv\n").as_str());
         }
 
+        AsmAstInstructionType::Break => {
+            string_buffer.push_str(format!("Break\n").as_str());
+        }
+
         AsmAstInstructionType::Ret => {
             string_buffer.push_str(format!("Ret\n").as_str());
         }
@@ -1057,7 +1073,7 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction,
         }
 
         AsmAstInstructionType::Binary => {
-            string_buffer.push_str(format!("Binary(binary_operator:{:?}, assembly_type:{:?}, src_2:{:?}, dst:{:?})",
+            string_buffer.push_str(format!("Binary(binary_operator:{:?}, assembly_type:{:?}, src_2:{:?}, dst:{:?})\n",
                 asm_ast_instruction.binary_operator,
                 asm_ast_instruction.assembly_type,
                 asm_ast_instruction.src_2,
@@ -1065,7 +1081,14 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction,
         }
 
         AsmAstInstructionType::Mul => {
-            string_buffer.push_str(format!("Mul(assembly_type:{:?}, src_2:{:?}, dst:{:?})",
+            string_buffer.push_str(format!("Mul(assembly_type:{:?}, src_2:{:?}, dst:{:?})\n",
+                asm_ast_instruction.assembly_type,
+                asm_ast_instruction.src_2,
+                asm_ast_instruction.dst).as_str());
+        }
+
+        AsmAstInstructionType::Mod => {
+            string_buffer.push_str(format!("Mod(assembly_type:{:?}, src_2:{:?}, dst:{:?})\n",
                 asm_ast_instruction.assembly_type,
                 asm_ast_instruction.src_2,
                 asm_ast_instruction.dst).as_str());

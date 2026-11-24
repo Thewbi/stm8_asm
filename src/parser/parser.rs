@@ -1660,7 +1660,7 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                let expression_ast_node = self.ast_stack_pop().unwrap();
+                                                let expression_ast_node_id = self.ast_stack_pop().unwrap();
 
                                                 // page 252 - every expression needs a type
                                                 let mut data_type_ast_node: AstNode = AstNode::new(self.get_ast_node_id());
@@ -1680,9 +1680,8 @@ impl Parser<String> {
                                                 ast_node.node_type = AstNodeType::Unary;
                                                 ast_node.operator_type = AstNodeOperatorType::Increment;
                                                 ast_node.operator = Some(operator_ast_node.id); // operator
-                                                //ast_node.lhs = Some(operator_ast_node.id); // operator
-                                                ast_node.lhs = Some(expression_ast_node); // source
-                                                ast_node.rhs = Some(expression_ast_node); // target
+                                                ast_node.lhs = Some(expression_ast_node_id); // source
+                                                ast_node.rhs = Some(expression_ast_node_id); // target
                                                 ast_node.data_type = Some(data_type_ast_node.id);
                                                 ast_node.file = file.clone();
                                                 ast_node.line = line;
@@ -1722,12 +1721,12 @@ impl Parser<String> {
                                             debug_node_stack.push(debug_node);
 
                                             //
-                                            // AST - postfix_expression -> postfix_expression INC_OP
+                                            // AST - postfix_expression -> postfix_expression DEC_OP
                                             //
 
                                             if self.construct_ast {
 
-                                                let expression_ast_node = self.ast_stack_pop().unwrap();
+                                                let expression_ast_node_id = self.ast_stack_pop().unwrap();
 
                                                 // page 252 - every expression needs a type
                                                 let mut data_type_ast_node: AstNode = AstNode::new(self.get_ast_node_id());
@@ -1745,8 +1744,8 @@ impl Parser<String> {
                                                 ast_node.node_type = AstNodeType::Unary;
                                                 ast_node.operator_type = AstNodeOperatorType::Decrement;
                                                 ast_node.operator = Some(operator_ast_node.id); // operator
-                                                ast_node.lhs = Some(operator_ast_node.id); // operator
-                                                ast_node.rhs = Some(expression_ast_node); // operand
+                                                ast_node.lhs = Some(expression_ast_node_id); // source
+                                                ast_node.rhs = Some(expression_ast_node_id); // target
                                                 ast_node.data_type = Some(data_type_ast_node.id);
                                                 ast_node.file = file.clone();
                                                 ast_node.line = line;
@@ -4693,6 +4692,8 @@ impl Parser<String> {
                                         }
 
                                         // declaration_specifiers -> type_specifier declaration_specifiers
+                                        // example:
+                                        // unsigned char a;
                                         82 => {
                                             // create new node id
                                             // create new node with node id and label
@@ -4722,22 +4723,53 @@ impl Parser<String> {
 
                                             if self.construct_ast {
 
-                                                // self.print_ast_stack(node_map);
+                                                // DEBUG
+                                                self.print_ast_stack(node_map);
 
-                                                let ast_node_id = self.ast_stack_pop().unwrap();
-                                                let mut ast_node = node_map.get(&ast_node_id).unwrap().clone();
+                                                let data_type_ast_node_id = self.ast_stack_pop().unwrap();
+                                                let mut data_type_ast_node = node_map.get(&data_type_ast_node_id).unwrap().clone();
 
-                                                // add UInt, ULong
-                                                let temp_string = ast_node.string_val.clone();
-                                                let mut new_type_string = String::from("u");
-                                                new_type_string.push_str(&temp_string);
-                                                ast_node.string_val = new_type_string;
+                                                // DEBUG
+                                                println!("[Parser] Rule 82 - data_type_ast_node: {:?}", data_type_ast_node);
 
-                                                self.ast_stack.push(ast_node_id);
+                                                let type_specifier_ast_node_id = self.ast_stack_pop().unwrap();
+                                                let type_specifier_ast_node = node_map.get(&type_specifier_ast_node_id).unwrap().clone();
+
+                                                // DEBUG
+                                                println!("[Parser] Rule 82 - type_specifier_ast_node: {:?}", type_specifier_ast_node);
+
+                                                // figure out which type specifier is added to the type and
+                                                // update the node accordingly
+                                                match type_specifier_ast_node.node_type {
+                                                    AstNodeType::TypeSpecifier(specifier_value) => {
+                                                        if specifier_value == "unsigned" {
+                                                            // add UInt, ULong
+                                                            let temp_string = data_type_ast_node.string_val.clone();
+                                                            let mut new_type_string = String::from("u");
+                                                            new_type_string.push_str(&temp_string);
+                                                            let new_data_type = DataType::from_str(new_type_string.as_str()).expect("");
+                                                            data_type_ast_node.string_val = new_type_string;
+                                                            data_type_ast_node.node_type = from_data_type(&new_data_type); // ConstUChar;
+                                                            data_type_ast_node.set_analyzed_data_type(new_data_type);
+                                                            // update node after change
+                                                            node_map.insert(data_type_ast_node.id, data_type_ast_node);
+                                                        } else {
+                                                            todo!("Handle: {:?}", specifier_value);
+                                                        }
+                                                    }
+                                                    _ => {
+                                                        todo!("Handle: {:?}", type_specifier_ast_node.node_type);
+                                                    }
+                                                }
+
+                                                // place changed not back onto the stack
+                                                self.ast_stack.push(data_type_ast_node_id);
                                             }
                                         }
 
                                         // declaration_specifiers -> type_specifier
+                                        // example:
+                                        // unsigned char a;
                                         83 => {
                                             self.node_to_node("declaration_specifiers", found_rule.original_id, string_buffer, debug_node_stack);
                                         }
@@ -5707,6 +5739,8 @@ impl Parser<String> {
                                                 type_ast_node.string_val = value.clone();
                                                 type_ast_node.file = file.clone();
                                                 type_ast_node.line = line;
+
+                                                println!("[Parser] Rule 104. ast_node: {:?}", type_ast_node);
 
                                                 self.ast_stack.push(type_ast_node.id);
 
@@ -9359,7 +9393,7 @@ impl Parser<String> {
                                                 case_default.file = file.clone();
                                                 case_default.line = line;
 
-                                                let mut is_first: bool = true;
+                                                let is_first: bool = true;
 
                                                 let all_statements_ast_node_id = compound_ast_node.lhs.unwrap();
                                                 let all_statements_ast_node = node_map.get(&all_statements_ast_node_id).unwrap().clone();

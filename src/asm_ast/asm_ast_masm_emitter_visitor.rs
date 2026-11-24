@@ -744,6 +744,7 @@ impl AsmAstMasmEmitterVisitor {
         // link.exe /SUBSYSTEM:console /LARGEADDRESSAWARE:NO /ENTRY:main /OUT:build\main.exe /SUBSYSTEM:CONSOLE kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ucrt.lib build\main.obj >NUL 2>&1
         self.string_buffer.push_str("extern putchar: proc\n");
         self.string_buffer.push_str("extern fopen: proc\n");
+        self.string_buffer.push_str("extern malloc: proc\n");
 
         // iterate over all functions
         for i in 0..asm_ast_program.functions.len() {
@@ -831,24 +832,37 @@ impl AsmAstMasmEmitterVisitor {
         let last_instruction = asm_ast_function.body[asm_ast_function.body.len()-1].as_ref();
         if last_instruction.instruction_type != AsmAstInstructionType::Ret {
 
-            // // Irvine, page 323
-            // println!("    pop ebp");
-            // println!("    add esp, {:?}", asm_ast_function.stack_frame_size);
+            // why was this disabled?
+            //
+            // If a function with a completely empty body is defined, the
+            // cleanup of the stack is required because a non-empty stack frame
+            // is created as acording to Nora Sandler, the parameters are moved
+            // from the registers onto the stack. This stack frame has to be
+            // destroyed / cleaned up
 
-            // // ; epilog - restore stack pointer
+            // Irvine, page 323
+            //println!("    pop ebp");
+            //println!("    add esp, {:?}", asm_ast_function.stack_frame_size);
+
+            // ; epilog - restore stack pointer
+
             // println!("\n    ; epilog - restore stack pointer");
-            // self.string_buffer.push_str("\n    ; epilog - restore stack pointer\n");
             // println!("    mov rsp, rbp");
-            // self.string_buffer.push_str("    mov rsp, rbp\n");
             // println!("    pop rbp");
-            // self.string_buffer.push_str("    pop rbp\n");
+
+            // ; epilog - restore stack pointer
+
+            self.string_buffer.push_str("\n");
+            self.string_buffer.push_str("    ; epilog - restore stack pointer\n");
+            self.string_buffer.push_str("    mov rsp, rbp\n");
+            self.string_buffer.push_str("    pop rbp\n");
 
             //
             // Add automatic ret in case the user forgot to add a return statement
             //
 
-            // println!("    ret");
-            // self.string_buffer.push_str("    ret\n");
+            //println!("    ret");
+            self.string_buffer.push_str("    ret\n");
         }
 
         // println!("{} ENDP", asm_ast_function.name);
@@ -1176,9 +1190,18 @@ impl AsmAstMasmEmitterVisitor {
                         todo!("Handle: '{:?}'", asm_ast_instruction);
                     }
                 }
+            }
 
+            AsmAstInstructionType::Break => {
+                println!("[AsmAstMASMEmitterVisitor::AsmAstInstructionType::Break]");
 
+                // // jmp while_42_end_label
+                // self.string_buffer.push_str("    break\n");
 
+                self.string_buffer.push_str("    jmp");
+                self.string_buffer.push_str(" ");
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                self.string_buffer.push_str("\n");
             }
 
             AsmAstInstructionType::Ret => {
@@ -1236,8 +1259,16 @@ impl AsmAstMasmEmitterVisitor {
             }
 
             AsmAstInstructionType::Idiv | AsmAstInstructionType::Mod => {
+
+                // DEBUG
+                println!("[AsmAstMASMEmitterVisitor::AsmAstInstructionType::Idiv] asm_ast_instruction: {:?}", asm_ast_instruction);
+
+                // parameter needs to be divisor
+                // e.g. in a = 100 / 10, then use 10 (= divisor)
+
                 self.string_buffer.push_str("    idiv ");
                 self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                //self.emit_asm_ast_operand(&asm_ast_instruction.src_2, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &AstAstAssemblyType::Doubleword);
                 self.string_buffer.push_str("\n");
             }
 
@@ -1320,8 +1351,41 @@ impl AsmAstMasmEmitterVisitor {
                         }
                         self.string_buffer.push_str("\n");
 
-                        // instruction
-                        self.string_buffer.push_str(format!("    sub rsp, {:?}\n", imm_value).as_str()); // save space on stack for all local variables
+                        let i_val = imm_value as u32;
+
+                        if i_val > 10240*2 {
+
+                            let page_size: u32 = 0x1000;
+                            let factor = i_val.div_ceil(page_size);
+
+                            // println!("factor: {}", factor);
+
+                            // https://stackoverflow.com/questions/15335658/is-there-any-restriction-on-the-maximum-limit-in-usage-of-stack-size
+
+                            // usually, MSVC calls __chkstk() when a function has a large stack in
+                            // order to get around the guard page issue.
+                            // A similar affect to __chkstk() is achieved by touching the stack pages
+                            // step-by-step until the entire stack is available.
+                            // So instead of a single large sub rsp, there are several small sub rsp
+                            // which cause no exeption!
+
+                            // this loop will successively touch pages until the stack frame
+                            // memory is provided. I do not understap how the stop condition
+                            // of this loop works!
+                            self.string_buffer.push_str("        xor eax, eax\n");
+                            self.string_buffer.push_str(format!("        mov ecx, {}     ; alloc {} pages\n", factor, factor).as_str());
+                            self.string_buffer.push_str("    l1:\n");
+                            self.string_buffer.push_str(format!("        sub esp, {}  ; move esp one page\n", page_size).as_str());
+                            self.string_buffer.push_str("        mov [esp], eax  ; touch the guard page\n");
+                            self.string_buffer.push_str("        loop l1         ; keep looping\n");
+                            self.string_buffer.push_str("\n");
+
+                        } else {
+
+                            // instruction
+                            self.string_buffer.push_str(format!("    sub rsp, {}\n", imm_value).as_str()); // save space on stack for all local variables
+
+                        }
 
                         // println!("\n    ; prelude - create stack frame and shadow area");
                         // self.string_buffer.push_str("\n    ; prelude - create stack frame and shadow area\n");

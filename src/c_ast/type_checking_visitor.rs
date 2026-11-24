@@ -1004,16 +1004,18 @@ impl TypeCheckingVisitor {
 
                 let ast_node = node_map.get(&parameter_ast_node_id);
 
-                if self.debug {
+                // DEBUG
+                // if self.debug {
                     println!("[TCV] parameter_ast_node: ast_node:{:?}", ast_node);
-                }
+                // }
 
                 let parameter_data_type
                     = self.visit(parameter_ast_node_id, node_map, expected_return_data_type);
 
-                if self.debug {
+                // DEBUG
+                // if self.debug {
                     println!("[TCV] parameter_data_type: {:?}", parameter_data_type);
-                }
+                // }
 
                 new_symbol_table_entry.parameter_data_types.push(parameter_data_type);
             }
@@ -1215,8 +1217,13 @@ impl TypeCheckingVisitor {
 
             left_node_id_retrieved = left_node_id;
 
+            // DEBUG
+            println!("left_node_id: {}", left_node_id);
+
             let analyzed_type = self.visit(left_node_id, node_map, expected_return_data_type);
-            // println!("LHS: analyzed_type: {:?}", analyzed_type);
+
+            // DEBUG
+            println!("LHS: analyzed_type: {:?}", analyzed_type);
 
             let mut left_node = node_map.get(&left_node_id).unwrap().clone();
             let left_node_symbol_name = left_node.string_val.clone();
@@ -1258,8 +1265,13 @@ impl TypeCheckingVisitor {
 
             right_node_id_retrieved = right_node_id;
 
+            // DEBUG
+            println!("[TCV] right_node_id: {}", right_node_id);
+
             let analyzed_type = self.visit(right_node_id.clone(), node_map, expected_return_data_type);
-            // println!("RHS: analyzed_type: {:?}", analyzed_type);
+
+            // DEBUG
+            println!("[TCV] RHS: analyzed_type: {:?}", analyzed_type);
 
             let mut right_node = node_map.get(&right_node_id).unwrap().clone();
             let right_node_symbol_name = right_node.string_val.clone();
@@ -1275,7 +1287,8 @@ impl TypeCheckingVisitor {
             // check if a function name is used where a variable name should be used (e.g. b = a + foo)
             if self.symbol_table.borrow_mut().contains(&right_node_symbol_name) {
 
-                let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&right_node_symbol_name);
+                let symbol_table_entry =
+                    self.symbol_table.borrow_mut().retrieve(&right_node_symbol_name);
 
                 // DEBUG
                 if self.debug {
@@ -1310,6 +1323,7 @@ impl TypeCheckingVisitor {
             }
 
             _ => {
+
                 common_data_type = self.get_common_type(&lhs_type, &rhs_type);
 
                 ast_node.set_analyzed_data_type(common_data_type.clone());
@@ -1321,12 +1335,15 @@ impl TypeCheckingVisitor {
                 if let Some(left_node_id) = ast_node.lhs {
 
                     let mut left_node = node_map.get(&left_node_id).unwrap().clone();
+
                     // DEBUG
                     if self.debug {
                         println!("left_node.analyzed_data_type: {}", left_node.get_analyzed_data_type());
                     }
-                    // the node needs a type!
+
+                    // ASSERT the node needs a type!
                     assert_ne!(left_node.get_analyzed_data_type(), DataType::DataTypeUnknown, "Node-Id: {}, Node has no analyzed_data_type!", left_node.id);
+
                     if left_node.get_analyzed_data_type() != common_data_type {
 
                         //
@@ -1483,6 +1500,10 @@ impl TypeCheckingVisitor {
 
             AstNodeType::ConstChar => {
                 return DataType::DataTypeChar;
+            }
+
+            AstNodeType::ConstUChar => {
+                return DataType::DataTypeUnsignedChar;
             }
 
             AstNodeType::ConstString => {
@@ -1669,8 +1690,6 @@ impl TypeCheckingVisitor {
                 let rhs_option = ast_node.rhs;
                 let operator_option = ast_node.operator;
 
-                // let ast_node_clone = ast_node.clone();
-
                 let mut rhs_data_type = DataType::DataTypeUnknown;
 
                 // RHS - src parameter of the unary operator
@@ -1764,9 +1783,7 @@ impl TypeCheckingVisitor {
                                     return left_node.get_analyzed_data_type();
                                 }
                                 AstNodeOperatorType::Dereference => {
-                                    // println!("{} {:?}", nnnn.id, nnnn);
                                     return DataType::DataTypePointer(Box::new(data_type));
-                                    // todo!();
                                 }
                                 _ => {
                                     todo!("Not implemented: '{:?}'", left_node.operator_type);
@@ -2304,8 +2321,13 @@ impl TypeCheckingVisitor {
                             }
 
                             // DEBUG
-                            if self.debug {
+                            // if self.debug {
                                 println!("[TypeCheckingVisitor] Parameters: {:?}", ast_node.parameters);
+                            // }
+
+                            // DEBUG
+                            if self.debug {
+                                println!("ast_node: {:?}", ast_node);
                             }
 
                             let param_count = ast_node.parameters.len();
@@ -2314,38 +2336,32 @@ impl TypeCheckingVisitor {
                             for i in 0..param_count {
 
                                 // DEBUG
-                                if self.debug {
-                                    println!("ast_node: {:?}", ast_node);
-                                }
+                                // if self.debug {
+                                    println!("[TCV] parameter #: {}", i);
+                                // }
 
                                 // actual parameter
                                 let actual_parameter_ast_node_id = &ast_node.parameters[param_count-1-i];
-                                //let actual_parameter_ast_node_id = &ast_node.parameters[i];
                                 let actual_parameter_ast_node = node_map.get(actual_parameter_ast_node_id).unwrap().clone();
 
                                 // DEBUG
-                                if self.debug {
+                                // if self.debug {
                                     println!("[TCV] actual_parameter_ast_node: {:?}", actual_parameter_ast_node);
-                                }
+                                // }
 
                                 // DEBUG
-                                if self.debug {
+                                // if self.debug {
                                     println!("[TCV] ActualParameter: ARGUMENT {}): node_id: {:?}, ast_node: {:?}",
                                         i, actual_parameter_ast_node_id, actual_parameter_ast_node);
-                                }
+                                // }
 
                                 // formal parameter
                                 let formal_parameter_datatype = existing_symbol_table_entry.parameter_data_types[i].clone();
 
                                 // DEBUG
-                                if self.debug {
-                                    println!("[TCV] parameter #: {}", i);
-                                }
-
-                                // DEBUG
-                                if self.debug {
+                                // if self.debug {
                                     println!("[TCV] formal_parameter_datatype: {}", formal_parameter_datatype);
-                                }
+                                // }
 
                                 assert_ne!(formal_parameter_datatype, DataType::DataTypeUnknown, "Need data type!");
 
@@ -2353,6 +2369,9 @@ impl TypeCheckingVisitor {
                                 match actual_parameter_ast_node.node_type {
                                     AstNodeType::ConstChar => {
                                         actual_parameter_datatype = DataType::DataTypeChar;
+                                    }
+                                    AstNodeType::ConstUChar => {
+                                        actual_parameter_datatype = DataType::DataTypeUnsignedChar;
                                     }
                                     AstNodeType::ConstInt => {
                                         actual_parameter_datatype = DataType::DataTypeInt;
@@ -2370,7 +2389,6 @@ impl TypeCheckingVisitor {
                                         actual_parameter_datatype = DataType::DataTypeDouble;
                                     }
                                     AstNodeType::ConstString => {
-                                        // println!("[TCV] ConstString");
                                         actual_parameter_datatype = DataType::DataTypeString;
                                     }
                                     _ => {
@@ -2407,8 +2425,24 @@ impl TypeCheckingVisitor {
 
                                 // ignore non-consequential type differences and make
                                 // types the same implicitly!
+
+                                // cast int -> long
                                 if actual_parameter_datatype == DataType::DataTypeInt {
                                     if formal_parameter_datatype == DataType::DataTypeLong {
+                                        actual_parameter_datatype = formal_parameter_datatype.clone();
+                                    }
+                                }
+
+                                // cast unsigned char -> int
+                                if actual_parameter_datatype == DataType::DataTypeUnsignedChar {
+                                    if formal_parameter_datatype == DataType::DataTypeInt {
+                                        actual_parameter_datatype = formal_parameter_datatype.clone();
+                                    }
+                                }
+
+                                // cast char -> int
+                                if actual_parameter_datatype == DataType::DataTypeChar {
+                                    if formal_parameter_datatype == DataType::DataTypeInt {
                                         actual_parameter_datatype = formal_parameter_datatype.clone();
                                     }
                                 }
@@ -2467,6 +2501,7 @@ impl TypeCheckingVisitor {
                                         }
 
                                         _ => {
+                                            println!("");
                                             println!("[TCV] parameter#: {}", i);
                                             println!("[TCV] actual_parameter_datatype: {}", actual_parameter_datatype);
                                             println!("[TCV] formal_parameter_datatype: {}", formal_parameter_datatype);

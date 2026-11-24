@@ -1,3 +1,5 @@
+// res\C\samples\c_samples\sub_0.c
+
 int main() {
     int a;
     int b;

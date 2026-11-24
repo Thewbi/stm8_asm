@@ -22,6 +22,7 @@ use crate::common::data_type::DataType;
 pub enum AstNodeType {
     Program,
     ConstChar,
+    ConstUChar,
     ConstInt,
     ConstLong,
     ConstUInt,
@@ -169,6 +170,15 @@ impl fmt::Display for AstNodeOperatorType {
             AstNodeOperatorType::Dereference => write!(f, "Deref *"),
 
             AstNodeOperatorType::NotApplicable => write!(f, "NotApplicable"),
+
+            AstNodeOperatorType::Addition => write!(f, "Addition"),
+            AstNodeOperatorType::Division => write!(f, "Division"),
+            AstNodeOperatorType::Remainder => write!(f, "Remainder"),
+
+            AstNodeOperatorType::Increment => write!(f, "Increment"),
+            AstNodeOperatorType::Decrement => write!(f, "Decrement"),
+
+            AstNodeOperatorType::Subtraction => write!(f, "Subtraction"),
 
             //_ => todo!("{}", format!("operator '{:?}' not covered!", *self).to_string()),
             _ => todo!("{:?}", self),
@@ -801,7 +811,8 @@ impl AstNode {
             | AstNodeType::ConstULong
             | AstNodeType::ConstDouble
             | AstNodeType::ConstString
-            | AstNodeType::ConstChar => {
+            | AstNodeType::ConstChar
+            | AstNodeType::ConstUChar => {
                 self.pretty_print_ast_constant_dot_ex(string_buffer, node_map, extended_string)
             }
             AstNodeType::Expression => {
@@ -1158,6 +1169,15 @@ impl AstNode {
                     string_buffer.push_str(format!("{} [label=\"{} {} ConstChar({}) [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, extended_string, without_quotes, self.analyzed_data_type, self.file, self.line).as_str());
                 } else {
                     string_buffer.push_str(format!("{} [label=\"{} {} ConstChar({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, without_quotes, self.analyzed_data_type).as_str());
+                }
+            }
+
+            AstNodeType::ConstUChar => {
+                let without_quotes = str::replace(&self.string_val, "\"", "\'");
+                if self.print_file_line {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstUChar({}) [{}] [File:{}, Line:{}]\"]\n", ast_node_id, ast_node_id, extended_string, without_quotes, self.analyzed_data_type, self.file, self.line).as_str());
+                } else {
+                    string_buffer.push_str(format!("{} [label=\"{} {} ConstUChar({}) [{}]\"]\n", ast_node_id, ast_node_id, extended_string, without_quotes, self.analyzed_data_type).as_str());
                 }
             }
 

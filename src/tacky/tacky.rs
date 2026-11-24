@@ -214,6 +214,7 @@ impl fmt::Debug for Instruction {
 
 #[derive(Debug)]
 pub enum InstructionType {
+    Break,
     Return,
     Unary,
     Binary,
@@ -406,6 +407,10 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
             string_buffer.push_str(format!("\n    // {}\n", instruction.label).as_str());
         }
 
+        InstructionType::Break => {
+            string_buffer.push_str(format!("Break\n").as_str());
+        }
+
         InstructionType::Return => {
             string_buffer.push_str(format!("Return({:?})\n", instruction.src).as_str());
         }
@@ -431,7 +436,7 @@ pub fn print_tacky_instruction(instruction: &Instruction, string_buffer: &mut St
         }
 
         InstructionType::Copy => {
-            string_buffer.push_str(format!("Copy(src:{:?}, dst:{:?})\n", instruction.src, instruction.dst).as_str());
+            string_buffer.push_str(format!("Copy(src:{:?}, dst:{:?}, data_type:{:?})\n", instruction.src, instruction.dst, instruction.data_type).as_str());
         }
 
         InstructionType::Load => {
