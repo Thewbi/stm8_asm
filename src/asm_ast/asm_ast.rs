@@ -71,12 +71,12 @@ impl AstAstAssemblyType {
                 AstAstAssemblyType::UnsignedByte // byte, 8 bit
             }
 
-            // DataType::DataTypeShort => {
-            //     AstAstAssemblyType:: // byte, 16 bit
-            // }
-            // DataType::DataTypeUnsignedShort => {
-            //     AstAstAssemblyType:: // byte, 16 bit
-            // }
+            DataType::DataTypeShort => {
+                AstAstAssemblyType::Word // byte, 16 bit
+            }
+            DataType::DataTypeUnsignedShort => {
+                AstAstAssemblyType::UnsignedWord // byte, 16 bit
+            }
 
             DataType::DataTypeInt => {
                 AstAstAssemblyType::Doubleword // dword, 32 bit
@@ -144,12 +144,12 @@ impl AsmAstInstruction {
         // TODO: REMOVE because it is used with the unsafe keyword
         unsafe { INSTRUCTION_ID = INSTRUCTION_ID + 1 };
 
-        // unsafe {
-        //     // DEBUG
-        //     if INSTRUCTION_ID == 29 {
-        //         println!("temp!");
-        //     }
-        // }
+        //unsafe {
+        //    // DEBUG
+        //    if INSTRUCTION_ID == 297 {
+        //        println!("temp!");
+        //    }
+        //}
 
         AsmAstInstruction {
             // TODO: REMOVE because it is used with the unsafe keyword
@@ -762,6 +762,9 @@ impl AsmAstReg {
                 match data_type {
                     AstAstAssemblyType::Byte => {
                         string_buffer.push_str("b");
+                    }
+                    AstAstAssemblyType::Word => {
+                        string_buffer.push_str("w");
                     }
                     AstAstAssemblyType::Doubleword => {
                         string_buffer.push_str("d");

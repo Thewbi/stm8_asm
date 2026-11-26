@@ -134,6 +134,7 @@ pub enum TopLevelType {
 }
 
 pub struct Instruction {
+    pub id: usize,
     pub instruction_type: InstructionType,
     pub src: ValueElement,
     pub src_2: ValueElement,
@@ -152,6 +153,7 @@ pub struct Instruction {
 impl Instruction {
     pub fn new() -> Instruction {
         Instruction {
+            id: 0usize,
             instruction_type: InstructionType::Return,
             src: ValueElement::None,
             src_2: ValueElement::None,

@@ -403,10 +403,21 @@ impl TackyToIntermediateAsmConversionVisitor {
                 InstructionType::Break => {
                     //self.visit_tacky_break(&mut asm_ast_function, tacky_instruction);
 
+                    // DEBUG
+                    if tacky_instruction.id == 123 {
+                        println!("[T2IASM] Break. test");
+                    }
+
+                    if tacky_instruction.label.len() == 0 {
+                        panic!("Need label!");
+                    }
+
                     // break
                     let mut break_instruction: AsmAstInstruction = AsmAstInstruction::new();
                     break_instruction.instruction_type = AsmAstInstructionType::Break;
-                    break_instruction.dst = AsmAstOperand { operand_type: AsmAstOperandType::Label(tacky_instruction.label.clone()) };
+                    break_instruction.dst
+                        = AsmAstOperand {
+                            operand_type: AsmAstOperandType::Label(tacky_instruction.label.clone()) };
 
                     asm_ast_function.body.push(Box::new(break_instruction));
                 }

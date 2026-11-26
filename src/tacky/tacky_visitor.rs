@@ -474,9 +474,8 @@ impl TackyVisitor {
         continue_label: &str,
         final_end_label: &str)
     {
+        // The goal is to convert the AST nodes of a switch-statement into TACKY instructions
         //
-        // The goal is to convert the AST nodes of a switch into
-        // TACKY instructions
         //
 
         // create the final end-label
@@ -484,16 +483,16 @@ impl TackyVisitor {
         final_end_label_instruction.instruction_type = InstructionType::Label;
         final_end_label_instruction.label = self.final_end_label(&ast_node, "switch_final_");
 
-        //
         // expression
+        //
         //
 
         let global_selector_var_name
             = self.expression_to_varname(&ast_node, node_map, branch_counter,
                 continue_label, final_end_label);
 
-        //
         // Body Statement - block_items (cases and a default statement)
+        //
         //
 
         let mut default_branch_option: Option::<usize> = None;
@@ -511,7 +510,6 @@ impl TackyVisitor {
 
                 AstNodeType::Case => {
 
-                    //
                     // For each case, first evaluate an equals expression
                     // between the switch-statements selector value and
                     // the case's local selector value. If they match,
@@ -571,7 +569,7 @@ impl TackyVisitor {
                     let last = self.program.top_level.len() - 1;
                     self.program.top_level[last].body.push(Box::new(comment));
 
-                    // compare the switch'S input variable (global selector) to the
+                    // compare the switch's input variable (global selector) to the
                     // case expression local selector
                     let mut cmp_equals_instruction: Instruction = Instruction::new();
                     cmp_equals_instruction.instruction_type = InstructionType::Binary;
@@ -607,10 +605,11 @@ impl TackyVisitor {
                     // append comment to latest top-level element of the program
                     let last = self.program.top_level.len() - 1;
                     self.program.top_level[last].body.push(Box::new(comment));
+
                     // output statements for the body
                     let mut br_cnt = 0;
                     self.visit(block_item_id, node_map, &String::from(""), &mut br_cnt,
-                        continue_label, final_end_label);
+                        continue_label, &final_end_label_instruction.label.clone());
 
                     // add a comment
                     let mut comment: Instruction = Instruction::new();
@@ -674,7 +673,7 @@ impl TackyVisitor {
 
             let mut br_cnt = 0;
             self.visit(default_branch_id, node_map, &String::from(""), &mut br_cnt,
-                continue_label, final_end_label);
+                continue_label, &final_end_label_instruction.label.clone());
         }
 
         // append instruction to latest top-level element of the program
@@ -1929,7 +1928,9 @@ impl TackyVisitor {
                     let compound = node_map.get(&compound_id).unwrap();
                     if let Some(left_node_id) = compound.lhs {
                         let mut br_cnt = 0;
-                        return self.visit(left_node_id, node_map, &String::from(""), &mut br_cnt, &continue_label, &final_end_label);
+                        return self.visit(
+                            left_node_id, node_map, &String::from(""),
+                            &mut br_cnt, &continue_label, &final_end_label);
                     }
                 }
             }
@@ -2406,6 +2407,10 @@ impl TackyVisitor {
 
             AstNodeType::Break => {
 
+                if final_end_label.len() == 0 {
+                    panic!("Need label!");
+                }
+
                 //
                 // add a comment
                 //
@@ -2423,9 +2428,12 @@ impl TackyVisitor {
                 //
 
                 let mut break_instruction: Instruction = Instruction::new();
+                break_instruction.id = 123;
+                println!("[TackyVisitor] BREAK: id: {}", &break_instruction.id);
                 break_instruction.instruction_type = InstructionType::Break;
                 break_instruction.data_type = ast_node.get_analyzed_data_type();
                 //break_instruction.dst = ValueElement::Constant(String::from("target_label"));
+                //break_instruction.dst = ValueElement::Label(final_end_label);
                 //break_instruction.label = String::from("target_label");
                 break_instruction.label = String::from(final_end_label);
 

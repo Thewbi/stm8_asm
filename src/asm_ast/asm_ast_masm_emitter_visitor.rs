@@ -1197,12 +1197,28 @@ impl AsmAstMasmEmitterVisitor {
             AsmAstInstructionType::Break => {
                 println!("[AsmAstMASMEmitterVisitor::AsmAstInstructionType::Break]");
 
+                println!("asm_ast_instruction: {:?}", asm_ast_instruction);
+
+                match &asm_ast_instruction.dst.operand_type {
+                    AsmAstOperandType::Label(destination_label) => {
+                        if destination_label.len() == 0 {
+                            panic!("Need destination label!")
+                        }
+                    }
+                    _ => {
+                        panic!("Need destination label!")
+                    }
+                }
+
                 // // jmp while_42_end_label
                 // self.string_buffer.push_str("    break\n");
 
                 self.string_buffer.push_str("    jmp");
                 self.string_buffer.push_str(" ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                self.emit_asm_ast_operand(
+                    &asm_ast_instruction.dst,
+                    &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                    &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str("\n");
             }
 
