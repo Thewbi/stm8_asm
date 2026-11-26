@@ -3,50 +3,182 @@ Program("build/preprocessed.c")
 
 
 
-Function("main")
+Function("print_unsigned_char_numeric_decimal")
 
-    ; Function Preamble - save space on stack for all local variables - [AsmAstConversionVisitor::visit_tacky_function()]    ; + Updated in AsmAstFixupVisitor::visit_asm_ast_function()
+    ; Function Preamble - save space on stack for all local variables - [AsmAstConversionVisitor::visit_tacky_function()]
+    ; Updated in AsmAstFixupVisitor::visit_asm_ast_function()
+    AllocateStack(48)
 
-    AllocateStack(16)
-    Mov(Doubleword, src:AsmAstOperand { operand_type: Imm(0) }, dst:AsmAstOperand { operand_type: Memory(RBP, -4) }, offset:AsmAstOperand { operand_type: Unknown })
-    Mov(Doubleword, src:AsmAstOperand { operand_type: Imm(0) }, dst:AsmAstOperand { operand_type: Memory(RBP, -8) }, offset:AsmAstOperand { operand_type: Unknown })
-    Mov(Doubleword, src:AsmAstOperand { operand_type: Imm(3) }, dst:AsmAstOperand { operand_type: Memory(RBP, -8) }, offset:AsmAstOperand { operand_type: Unknown })
-    Label(value:AsmAstOperand { operand_type: Label("for_49_start_label") })
+    ; INSIDE_FUNCTION. Moving Reg-To-MEM: Parameter 0) Argument { name: "userdef_var.2", data_type: DataTypeUnsignedChar } is located in register CX
+    Mov(UnsignedByte, src:AsmAstOperand { operand_type: Reg(CX) }, dst:AsmAstOperand { operand_type: Memory(RBP, -1) }, offset:AsmAstOperand { operand_type: Unknown })
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Imm(0) }, dst:AsmAstOperand { operand_type: Memory(RBP, -5) }, offset:AsmAstOperand { operand_type: Unknown })
+    Label(value:AsmAstOperand { operand_type: Label("while_96_continue_label") })
 
     ; binary_relational (2)
     Cmp(unary_operator:Not,
-            assembly_type:Doubleword,
+            assembly_type:UnsignedByte,
             dst:AsmAstOperand { operand_type: Imm(0) },
-            src_2:AsmAstOperand { operand_type: Memory(RBP, -8) })
+            src_2:AsmAstOperand { operand_type: Memory(RBP, -1) })
 
     ; binary_relational (3) - initialize temporary with zero
-    Mov(Doubleword, src:AsmAstOperand { operand_type: Imm(0) }, dst:AsmAstOperand { operand_type: Memory(RBP, -12) }, offset:AsmAstOperand { operand_type: Unknown })
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Imm(0) }, dst:AsmAstOperand { operand_type: Memory(RBP, -9) }, offset:AsmAstOperand { operand_type: Unknown })
 
     ; binary_relational (4) - Set result of comparision into temp variable (temp var see (3))
-    SetCC(dst:AsmAstOperand { operand_type: Memory(RBP, -12) }, src:AsmAstOperand { operand_type: ComparisonType("GE") })
+    SetCC(dst:AsmAstOperand { operand_type: Memory(RBP, -9) }, src:AsmAstOperand { operand_type: ComparisonType("a") })
 
     ; JumpIfZero
     Cmp(unary_operator:Not,
             assembly_type:Doubleword,
             dst:AsmAstOperand { operand_type: Imm(0) },
-            src_2:AsmAstOperand { operand_type: Memory(RBP, -12) })
-    JmpCC(dst:AsmAstOperand { operand_type: Label("for_49_end_label") }, src:AsmAstOperand { operand_type: ComparisonType("E") })
+            src_2:AsmAstOperand { operand_type: Memory(RBP, -9) })
+    JmpCC(dst:AsmAstOperand { operand_type: Label("while_96_end_label") }, src:AsmAstOperand { operand_type: ComparisonType("E") })
 
- ; [AsmAstFixUpVisitor::untangle_mem_mem] - clone 2
-    Mov(Doubleword, src:AsmAstOperand { operand_type: Memory(RBP, -8) }, dst:AsmAstOperand { operand_type: Reg(R10) }, offset:AsmAstOperand { operand_type: Unknown })
-    Binary(binary_operator:Add, assembly_type:Doubleword, src_2:AsmAstOperand { operand_type: Reg(R10) }, dst:AsmAstOperand { operand_type: Memory(RBP, -4) })
-    Label(value:AsmAstOperand { operand_type: Label("for_49_continue_label") })
+abc id = 62
+    Xor(src:AsmAstOperand { operand_type: Reg(AX) }, dst:AsmAstOperand { operand_type: Reg(AX) })
+    Mov(UnsignedByte, src:AsmAstOperand { operand_type: Memory(RBP, -1) }, dst:AsmAstOperand { operand_type: Reg(AX) }, offset:AsmAstOperand { operand_type: Unknown })
+    Cdq
+
+abc id = 63
+    Xor(src:AsmAstOperand { operand_type: Reg(BX) }, dst:AsmAstOperand { operand_type: Reg(BX) })
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Imm(10) }, dst:AsmAstOperand { operand_type: Reg(BX) }, offset:AsmAstOperand { operand_type: Unknown })
+    Mod(assembly_type:UnsignedByte, src_2:AsmAstOperand { operand_type: Unknown }, dst:AsmAstOperand { operand_type: Reg(BX) })
+    Mov(UnsignedByte, src:AsmAstOperand { operand_type: Reg(AH) }, dst:AsmAstOperand { operand_type: Memory(RBP, -13) }, offset:AsmAstOperand { operand_type: Unknown })
+
+abc id = 64
+    Xor(src:AsmAstOperand { operand_type: Reg(EAX) }, dst:AsmAstOperand { operand_type: Reg(EAX) })
+
+    ; [visit_tacky_subscript_dst() - Subscript 1] Mov Index/Offset into RAX
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Memory(RBP, -5) }, dst:AsmAstOperand { operand_type: Reg(EAX) }, offset:AsmAstOperand { operand_type: Unknown })
+
+abc id = 65
+    Xor(src:AsmAstOperand { operand_type: Reg(ECX) }, dst:AsmAstOperand { operand_type: Reg(ECX) })
+
+    ; [visit_tacky_subscript_dst() - Subscript 4] mov src variable's value into dst!
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Memory(RBP, -13) }, dst:AsmAstOperand { operand_type: Reg(ECX) }, offset:AsmAstOperand { operand_type: Unknown })
+
+    ; [visit_tacky_subscript_dst() - Subscript 2] for subscript (applying an index to an array)
+    Mov(UnsignedByte, src:AsmAstOperand { operand_type: Reg(ECX) }, dst:AsmAstOperand { operand_type: Memory(RBP, -16) }, offset:AsmAstOperand { operand_type: Reg(RAX) })
+    Binary(binary_operator:Add, assembly_type:Doubleword, src_2:AsmAstOperand { operand_type: Imm(1) }, dst:AsmAstOperand { operand_type: Memory(RBP, -5) })
+
+abc id = 66
+    Xor(src:AsmAstOperand { operand_type: Reg(AX) }, dst:AsmAstOperand { operand_type: Reg(AX) })
+    Mov(UnsignedByte, src:AsmAstOperand { operand_type: Memory(RBP, -1) }, dst:AsmAstOperand { operand_type: Reg(AX) }, offset:AsmAstOperand { operand_type: Unknown })
+    Cdq
+
+abc id = 67
+    Xor(src:AsmAstOperand { operand_type: Reg(BX) }, dst:AsmAstOperand { operand_type: Reg(BX) })
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Imm(10) }, dst:AsmAstOperand { operand_type: Reg(BX) }, offset:AsmAstOperand { operand_type: Unknown })
+    Div
+    Mov(UnsignedByte, src:AsmAstOperand { operand_type: Reg(AX) }, dst:AsmAstOperand { operand_type: Memory(RBP, -1) }, offset:AsmAstOperand { operand_type: Unknown })
+
+    ; binary_relational (2)
+    Cmp(unary_operator:Not,
+            assembly_type:UnsignedByte,
+            dst:AsmAstOperand { operand_type: Imm(0) },
+            src_2:AsmAstOperand { operand_type: Memory(RBP, -1) })
+
+    ; binary_relational (3) - initialize temporary with zero
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Imm(0) }, dst:AsmAstOperand { operand_type: Memory(RBP, -20) }, offset:AsmAstOperand { operand_type: Unknown })
+
+    ; binary_relational (4) - Set result of comparision into temp variable (temp var see (3))
+    SetCC(dst:AsmAstOperand { operand_type: Memory(RBP, -20) }, src:AsmAstOperand { operand_type: ComparisonType("E") })
+
+    ; JumpIfZero
+    Cmp(unary_operator:Not,
+            assembly_type:Doubleword,
+            dst:AsmAstOperand { operand_type: Imm(0) },
+            src_2:AsmAstOperand { operand_type: Memory(RBP, -20) })
+    JmpCC(dst:AsmAstOperand { operand_type: Label("if_90_end_label") }, src:AsmAstOperand { operand_type: ComparisonType("E") })
+    Break
+    Label(value:AsmAstOperand { operand_type: Label("if_90_end_label") })
+    Jmp(dst:AsmAstOperand { operand_type: Label("while_96_continue_label") }, src:AsmAstOperand { operand_type: Unknown })
+    Label(value:AsmAstOperand { operand_type: Label("while_96_end_label") })
+    Binary(binary_operator:Subtract, assembly_type:Doubleword, src_2:AsmAstOperand { operand_type: Imm(1) }, dst:AsmAstOperand { operand_type: Memory(RBP, -5) })
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Imm(0) }, dst:AsmAstOperand { operand_type: Memory(RBP, -24) }, offset:AsmAstOperand { operand_type: Unknown })
 
  ; Added by FixupVistor - clone 1
-    Mov(Doubleword, src:AsmAstOperand { operand_type: Memory(RBP, -8) }, dst:AsmAstOperand { operand_type: Reg(R10) }, offset:AsmAstOperand { operand_type: Unknown })
-    Mov(Doubleword, src:AsmAstOperand { operand_type: Reg(R10) }, dst:AsmAstOperand { operand_type: Memory(RBP, -8) }, offset:AsmAstOperand { operand_type: Unknown })
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Memory(RBP, -5) }, dst:AsmAstOperand { operand_type: Reg(R10) }, offset:AsmAstOperand { operand_type: Unknown })
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Reg(R10) }, dst:AsmAstOperand { operand_type: Memory(RBP, -24) }, offset:AsmAstOperand { operand_type: Unknown })
+    Label(value:AsmAstOperand { operand_type: Label("for_161_start_label") })
+
+    ; binary_relational (2)
+    Cmp(unary_operator:Not,
+            assembly_type:Doubleword,
+            dst:AsmAstOperand { operand_type: Imm(0) },
+            src_2:AsmAstOperand { operand_type: Memory(RBP, -24) })
+
+    ; binary_relational (3) - initialize temporary with zero
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Imm(0) }, dst:AsmAstOperand { operand_type: Memory(RBP, -28) }, offset:AsmAstOperand { operand_type: Unknown })
+
+    ; binary_relational (4) - Set result of comparision into temp variable (temp var see (3))
+    SetCC(dst:AsmAstOperand { operand_type: Memory(RBP, -28) }, src:AsmAstOperand { operand_type: ComparisonType("GE") })
+
+    ; JumpIfZero
+    Cmp(unary_operator:Not,
+            assembly_type:Doubleword,
+            dst:AsmAstOperand { operand_type: Imm(0) },
+            src_2:AsmAstOperand { operand_type: Memory(RBP, -28) })
+    JmpCC(dst:AsmAstOperand { operand_type: Label("for_161_end_label") }, src:AsmAstOperand { operand_type: ComparisonType("E") })
+    Xor(src:AsmAstOperand { operand_type: Reg(RAX) }, dst:AsmAstOperand { operand_type: Reg(RAX) })
+
+abc id = 68
+    Xor(src:AsmAstOperand { operand_type: Reg(EAX) }, dst:AsmAstOperand { operand_type: Reg(EAX) })
+
+    ; [visit_tacky_subscript_src() - Subscript 1] Mov Index/Offset into RAX
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Memory(RBP, -24) }, dst:AsmAstOperand { operand_type: Reg(EAX) }, offset:AsmAstOperand { operand_type: Unknown })
+
+    ; [visit_tacky_subscript_src() - Subscript 2] for subscript (applying an index to an array)
+    Mov(UnsignedByte, src:AsmAstOperand { operand_type: Memory(RBP, -16) }, dst:AsmAstOperand { operand_type: Reg(EAX) }, offset:AsmAstOperand { operand_type: Reg(RAX) })
+
+    ; [visit_tacky_subscript_src() - Subscript 3] mov_2
+    Mov(UnsignedByte, src:AsmAstOperand { operand_type: Reg(EAX) }, dst:AsmAstOperand { operand_type: Memory(RBP, -32) }, offset:AsmAstOperand { operand_type: Unknown })
+
+	; case 1 - (both srces are not destination) move operand src into dst ; Added by FixupVistor - clone 1
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Memory(RBP, -32) }, dst:AsmAstOperand { operand_type: Reg(R10) }, offset:AsmAstOperand { operand_type: Unknown })
+
+	; case 1 - (both srces are not destination) move operand src into dst
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Reg(R10) }, dst:AsmAstOperand { operand_type: Memory(RBP, -36) }, offset:AsmAstOperand { operand_type: Unknown })
+    Binary(binary_operator:Add, assembly_type:Doubleword, src_2:AsmAstOperand { operand_type: Imm(48) }, dst:AsmAstOperand { operand_type: Memory(RBP, -36) })
+
+abc id = 70
+    Xor(src:AsmAstOperand { operand_type: Reg(CX) }, dst:AsmAstOperand { operand_type: Reg(CX) })
+
+    ; [TARGET:REGISTER] push/mov fun_call argument 0
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Memory(RBP, -36) }, dst:AsmAstOperand { operand_type: Reg(CX) }, offset:AsmAstOperand { operand_type: Unknown })
+    FunctionCall(function_identifier:"putchar")
+    Label(value:AsmAstOperand { operand_type: Label("for_161_continue_label") })
+
+ ; Added by FixupVistor - clone 1
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Memory(RBP, -24) }, dst:AsmAstOperand { operand_type: Reg(R10) }, offset:AsmAstOperand { operand_type: Unknown })
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Reg(R10) }, dst:AsmAstOperand { operand_type: Memory(RBP, -24) }, offset:AsmAstOperand { operand_type: Unknown })
 
  ; FIXUP Visitor
-    Mov(Doubleword, src:AsmAstOperand { operand_type: Memory(RBP, -8) }, dst:AsmAstOperand { operand_type: Reg(R10) }, offset:AsmAstOperand { operand_type: Unknown })
-    Unary(unary_operator:Decrement, assembly_type:Doubleword, dst:AsmAstOperand { operand_type: Memory(RBP, -8) }, src:AsmAstOperand { operand_type: Reg(R10) })
-    Jmp(dst:AsmAstOperand { operand_type: Label("for_49_start_label") }, src:AsmAstOperand { operand_type: Unknown })
-    Label(value:AsmAstOperand { operand_type: Label("for_49_end_label") })
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Memory(RBP, -24) }, dst:AsmAstOperand { operand_type: Reg(R10) }, offset:AsmAstOperand { operand_type: Unknown })
+    Unary(unary_operator:Decrement, assembly_type:Doubleword, dst:AsmAstOperand { operand_type: Memory(RBP, -24) }, src:AsmAstOperand { operand_type: Reg(R10) })
+    Jmp(dst:AsmAstOperand { operand_type: Label("for_161_start_label") }, src:AsmAstOperand { operand_type: Unknown })
+    Label(value:AsmAstOperand { operand_type: Label("for_161_end_label") })
+    Ret
+  
+
+
+
+Function("main")
+
+    ; Function Preamble - save space on stack for all local variables - [AsmAstConversionVisitor::visit_tacky_function()]
+    ; Updated in AsmAstFixupVisitor::visit_asm_ast_function()
+    AllocateStack(16)
+    Mov(UnsignedByte, src:AsmAstOperand { operand_type: Imm(23) }, dst:AsmAstOperand { operand_type: Memory(RBP, -1) }, offset:AsmAstOperand { operand_type: Unknown })
+
+abc id = 71
+    Xor(src:AsmAstOperand { operand_type: Reg(CX) }, dst:AsmAstOperand { operand_type: Reg(CX) })
+
+    ; [TARGET:REGISTER] push/mov fun_call argument 0
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Memory(RBP, -1) }, dst:AsmAstOperand { operand_type: Reg(CX) }, offset:AsmAstOperand { operand_type: Unknown })
+    FunctionCall(function_identifier:"print_unsigned_char_numeric_decimal")
+
+abc id = 72
+    Xor(src:AsmAstOperand { operand_type: Reg(EAX) }, dst:AsmAstOperand { operand_type: Reg(EAX) })
 
     ; Generated by the Return keyword in TackyToIntermediateAsmConversionVisitor
-    Mov(Doubleword, src:AsmAstOperand { operand_type: Memory(RBP, -4) }, dst:AsmAstOperand { operand_type: Reg(EAX) }, offset:AsmAstOperand { operand_type: Unknown })
+    Mov(Doubleword, src:AsmAstOperand { operand_type: Imm(0) }, dst:AsmAstOperand { operand_type: Reg(EAX) }, offset:AsmAstOperand { operand_type: Unknown })
     Ret

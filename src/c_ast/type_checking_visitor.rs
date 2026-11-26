@@ -9,6 +9,7 @@ use crate::AstNode;
 use crate::AstNodeType;
 
 use crate::SymbolTable;
+use crate::asm_ast::asm_ast::AstAstAssemblyType;
 use crate::c_ast::ast_node::AstNodeOperatorType;
 use crate::c_ast::ast_node_id_counter::AST_NODE_ID_COUNTER;
 use crate::common::data_type::DataType;
@@ -139,7 +140,7 @@ impl TypeCheckingVisitor {
                             return pointer_data_type;
                         }
                         _ => {
-                            todo!("Unhandled: {}", left_node.operator_type);
+                            todo!("Unhandled: {:?}", left_node.operator_type);
                         }
                     }
                 }
@@ -1735,7 +1736,7 @@ impl TypeCheckingVisitor {
 
                         _ => {
                             if !self.symbol_table.borrow_mut().contains(&right_node.string_val) {
-                                panic!("ast_node.operator_type: {}, right-node-id: {}, Variable '{}' not contained!",
+                                panic!("ast_node.operator_type: {:?}, right-node-id: {}, Variable '{}' not contained!",
                                     ast_node.operator_type, right_node.id, &right_node.string_val);
                             }
                             let symbol_table_entry = self.symbol_table.borrow_mut().retrieve(&right_node.string_val);
@@ -2401,11 +2402,9 @@ impl TypeCheckingVisitor {
                                         //     string_val);
 
                                         let symbol_tbl = self.symbol_table.borrow_mut();
-
                                         if !symbol_tbl.contains_key(&string_val) {
                                             panic!("Symbol Table does not contain the key: '{:?}'", string_val);
                                         }
-
                                         let symbol_table_entry = symbol_tbl.retrieve(&string_val);
                                         // println!("[TypeCheckingVisitor] symbol_table_entry: {:?}", &symbol_table_entry);
 

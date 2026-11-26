@@ -3,7 +3,7 @@
 int putchar(int c);
 
 void print_unsigned_char_numeric_decimal(unsigned char data) {
-    char buffer[3];
+    unsigned char buffer[3];
     int text_len = 0;
     while (data >= 0) {
         buffer[text_len] = data % 10;

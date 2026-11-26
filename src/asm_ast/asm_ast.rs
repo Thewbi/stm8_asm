@@ -25,7 +25,6 @@ impl AsmAstProgram {
 #[derive(Debug)]
 pub struct AsmAstFunction {
     pub name: String,
-    // pub formal_parameters: Vec::<DataType>,
     pub body: Vec::<Box<AsmAstInstruction>>,
     pub stack_frame_size: i32,
     pub return_type: Option<DataType>,
@@ -35,7 +34,6 @@ impl AsmAstFunction {
     pub fn new() -> AsmAstFunction {
         AsmAstFunction {
             name: String::from(""),
-            // formal_parameters: Vec::<DataType>::new(),
             body: Vec::<Box<AsmAstInstruction>>::new(),
             stack_frame_size: 0i32,
             return_type: Option::None,
@@ -45,10 +43,19 @@ impl AsmAstFunction {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum AstAstAssemblyType {
-    Byte,           // byte,   8 bit
-    Word,           // short, 16 bit
-    Doubleword,     // dword, 32 bit
-    Quadword,       // qword, 64 bit
+
+    // signed
+    Byte,                   // byte,   8 bit
+    Word,                   // short, 16 bit
+    Doubleword,             // dword, 32 bit
+    Quadword,               // qword, 64 bit
+
+    // unsigned
+    UnsignedByte,           // unsigned byte,   8 bit
+    UnsignedWord,           // unsigned short, 16 bit
+    UnsignedDoubleword,     // unsigned dword, 32 bit
+    UnsignedQuadword,       // unsigned qword, 64 bit
+
     Unknown
 }
 
@@ -56,27 +63,35 @@ impl AstAstAssemblyType {
     pub fn from_data_type(data_type: &DataType) -> AstAstAssemblyType
     {
         match data_type {
+
             DataType::DataTypeChar => {
                 AstAstAssemblyType::Byte // byte, 8 bit
             }
             DataType::DataTypeUnsignedChar => {
-                AstAstAssemblyType::Byte // byte, 8 bit
+                AstAstAssemblyType::UnsignedByte // byte, 8 bit
             }
+
             // DataType::DataTypeShort => {
             //     AstAstAssemblyType:: // byte, 16 bit
             // }
-            DataType::DataTypeUnsignedInt => {
-                AstAstAssemblyType::Doubleword // dword, 32 bit
-            }
+            // DataType::DataTypeUnsignedShort => {
+            //     AstAstAssemblyType:: // byte, 16 bit
+            // }
+
             DataType::DataTypeInt => {
                 AstAstAssemblyType::Doubleword // dword, 32 bit
             }
+            DataType::DataTypeUnsignedInt => {
+                AstAstAssemblyType::UnsignedDoubleword // dword, 32 bit
+            }
+
             DataType::DataTypeLong => {
                 AstAstAssemblyType::Quadword // qword, 64 bit
             }
             DataType::DataTypeUnsignedLong => {
-                AstAstAssemblyType::Quadword // qword, 64 bit
+                AstAstAssemblyType::UnsignedQuadword // qword, 64 bit
             }
+
             DataType::DataTypeStruct(struct_decl) => {
                 // TODO: is this correct???
                 AstAstAssemblyType::Unknown
@@ -247,8 +262,8 @@ impl fmt::Display for AsmAstInstruction {
                 write!(f, "Cdq").expect("Write failed!");
             }
 
-            AsmAstInstructionType::Idiv => {
-                write!(f, "{}", format!("Idiv(dst:{:?})", self.dst).as_str()).expect("Write failed!");
+            AsmAstInstructionType::Div => {
+                write!(f, "{}", format!("Div(dst:{:?})", self.dst).as_str()).expect("Write failed!");
             }
 
             AsmAstInstructionType::Mod => {
@@ -347,8 +362,11 @@ pub enum AsmAstInstructionType {
     Unary,
     Binary,
     Cdq,
-    Idiv,
+
+    //Idiv,
+    Div,
     Mod,
+
     Mul,
     Cmp,
     Jmp,
@@ -422,7 +440,9 @@ pub enum AsmAstOperandType {
 #[derive(Clone, Debug, PartialEq)]
 pub enum AsmAstReg {
 
-    AX, // -> AX
+    AL,
+    AH,
+    AX,
     EAX,
     RAX,
 
@@ -430,6 +450,8 @@ pub enum AsmAstReg {
     EBX,
     RBX,
 
+    CL,
+    CH,
     CX,
     ECX,
     RCX,
@@ -457,6 +479,20 @@ pub enum AsmAstReg {
 
     RBP, // stack frame base pointer register
     RSP, // stack pointer
+}
+
+pub fn retrieve_base_register(asm_ast_reg: &AsmAstReg) -> AsmAstReg
+{
+    match asm_ast_reg {
+
+        AsmAstReg::AL | AsmAstReg::AH | AsmAstReg::AX | AsmAstReg::EAX | AsmAstReg::RAX => {
+            AsmAstReg::RAX
+        }
+
+        _ => {
+            panic!();
+        }
+    }
 }
 
 impl From<&str> for AsmAstReg {
@@ -501,19 +537,25 @@ impl AsmAstReg {
         let mut string_buffer = String::from("");
 
         match self {
+            AsmAstReg::AL => {
+                string_buffer.push_str("al");
+            }
+            AsmAstReg::AH => {
+                string_buffer.push_str("ah");
+            }
             AsmAstReg::AX | AsmAstReg::EAX | AsmAstReg::RAX => {
                 // append suffix for data type
                 match data_type {
-                    AstAstAssemblyType::Byte => {
+                    AstAstAssemblyType::Byte | AstAstAssemblyType::UnsignedByte => {
                         string_buffer.push_str("al");
                     }
-                    AstAstAssemblyType::Word => {
+                    AstAstAssemblyType::Word | AstAstAssemblyType::UnsignedWord => {
                         string_buffer.push_str("ax");
                     }
-                    AstAstAssemblyType::Doubleword => {
+                    AstAstAssemblyType::Doubleword | AstAstAssemblyType::UnsignedDoubleword => {
                         string_buffer.push_str("eax");
                     }
-                    AstAstAssemblyType::Quadword => {
+                    AstAstAssemblyType::Quadword | AstAstAssemblyType::UnsignedQuadword => {
                         string_buffer.push_str("rax");
                     }
                     _ => {
@@ -549,10 +591,13 @@ impl AsmAstReg {
 
             AsmAstReg::BX => {
                 match data_type {
-                    AstAstAssemblyType::Doubleword => {
+                    AstAstAssemblyType::Byte | AstAstAssemblyType::UnsignedByte => {
+                        string_buffer.push_str("bl");
+                    }
+                    AstAstAssemblyType::Doubleword | AstAstAssemblyType::UnsignedDoubleword => {
                         string_buffer.push_str("ebx");
                     }
-                    AstAstAssemblyType::Quadword => {
+                    AstAstAssemblyType::Quadword | AstAstAssemblyType::UnsignedQuadword=> {
                         string_buffer.push_str("rbx");
                     }
                     _ => {
@@ -567,15 +612,18 @@ impl AsmAstReg {
                 string_buffer.push_str("rbx");
             }
 
-            AsmAstReg::CX => {
+            AsmAstReg::CH | AsmAstReg::CL | AsmAstReg::CX | AsmAstReg::ECX | AsmAstReg::RCX => {
                 match data_type {
-                    AstAstAssemblyType::Byte => {
+                    AstAstAssemblyType::Byte | AstAstAssemblyType::UnsignedByte => {
                         string_buffer.push_str("cl");
                     }
-                    AstAstAssemblyType::Doubleword => {
+                    AstAstAssemblyType::Word | AstAstAssemblyType::UnsignedWord => {
+                        string_buffer.push_str("cx");
+                    }
+                    AstAstAssemblyType::Doubleword | AstAstAssemblyType::UnsignedDoubleword => {
                         string_buffer.push_str("ecx");
                     }
-                    AstAstAssemblyType::Quadword => {
+                    AstAstAssemblyType::Quadword | AstAstAssemblyType::UnsignedQuadword => {
                         string_buffer.push_str("rcx");
                     }
                     _ => {
@@ -583,19 +631,38 @@ impl AsmAstReg {
                     }
                 }
             }
-            AsmAstReg::ECX => {
-                string_buffer.push_str("ecx");
-            }
-            AsmAstReg::RCX => {
-                string_buffer.push_str("rcx");
-            }
+            // AsmAstReg::CX | AsmAstReg::ECX | AsmAstReg::RCX => {
+            //     match data_type {
+            //         AstAstAssemblyType::Byte | AstAstAssemblyType::UnsignedByte => {
+            //             string_buffer.push_str("cl");
+            //         }
+            //         AstAstAssemblyType::Doubleword | AstAstAssemblyType::UnsignedDoubleword => {
+            //             string_buffer.push_str("ecx");
+            //         }
+            //         AstAstAssemblyType::Quadword | AstAstAssemblyType::UnsignedQuadword => {
+            //             string_buffer.push_str("rcx");
+            //         }
+            //         _ => {
+            //             panic!("");
+            //         }
+            //     }
+            // }
+            // AsmAstReg::RCX => {
+            //     string_buffer.push_str("rcx");
+            // }
 
-            AsmAstReg::DX => {
+            AsmAstReg::DX | AsmAstReg::EDX | AsmAstReg::RDX => {
                 match data_type {
-                    AstAstAssemblyType::Doubleword => {
+                    AstAstAssemblyType::Byte | AstAstAssemblyType::UnsignedByte => {
+                        string_buffer.push_str("dl");
+                    }
+                    AstAstAssemblyType::Word | AstAstAssemblyType::UnsignedWord => {
+                        string_buffer.push_str("dx");
+                    }
+                    AstAstAssemblyType::Doubleword | AstAstAssemblyType::UnsignedDoubleword => {
                         string_buffer.push_str("edx");
                     }
-                    AstAstAssemblyType::Quadword => {
+                    AstAstAssemblyType::Quadword | AstAstAssemblyType::UnsignedQuadword => {
                         string_buffer.push_str("rdx");
                     }
                     _ => {
@@ -603,27 +670,21 @@ impl AsmAstReg {
                     }
                 }
             }
-            AsmAstReg::EDX => {
-                string_buffer.push_str("edx");
-            }
-            AsmAstReg::RDX => {
-                string_buffer.push_str("rdx");
-            }
 
             AsmAstReg::DI => {
                 // string_buffer.push_str("di");
                 // append suffix for data type
                 match data_type {
-                    AstAstAssemblyType::Byte => {
-                        string_buffer.push_str("dl");
+                    AstAstAssemblyType::Byte | AstAstAssemblyType::UnsignedByte => {
+                        string_buffer.push_str("dil");
                     }
-                    AstAstAssemblyType::Word => {
+                    AstAstAssemblyType::Word | AstAstAssemblyType::UnsignedWord => {
                         string_buffer.push_str("di");
                     }
-                    AstAstAssemblyType::Doubleword => {
+                    AstAstAssemblyType::Doubleword | AstAstAssemblyType::UnsignedDoubleword => {
                         string_buffer.push_str("edi");
                     }
-                    AstAstAssemblyType::Quadword => {
+                    AstAstAssemblyType::Quadword | AstAstAssemblyType::UnsignedQuadword => {
                         string_buffer.push_str("rdi");
                     }
                     _ => {
@@ -631,24 +692,21 @@ impl AsmAstReg {
                     }
                 }
             }
-            AsmAstReg::EDI => {
-                string_buffer.push_str("edi");
-            }
-            AsmAstReg::RDI => {
-                string_buffer.push_str("rdi");
-            }
 
             AsmAstReg::SI => {
                 // string_buffer.push_str("rsi");
                 // append suffix for data type
                 match data_type {
-                    AstAstAssemblyType::Word => {
+                    AstAstAssemblyType::Byte | AstAstAssemblyType::UnsignedByte => {
                         string_buffer.push_str("si");
                     }
-                    AstAstAssemblyType::Doubleword => {
+                    AstAstAssemblyType::Word | AstAstAssemblyType::UnsignedWord => {
+                        string_buffer.push_str("si");
+                    }
+                    AstAstAssemblyType::Doubleword | AstAstAssemblyType::UnsignedDoubleword => {
                         string_buffer.push_str("esi");
                     }
-                    AstAstAssemblyType::Quadword => {
+                    AstAstAssemblyType::Quadword | AstAstAssemblyType::UnsignedQuadword => {
                         string_buffer.push_str("rsi");
                     }
                     _ => {
@@ -761,6 +819,8 @@ impl fmt::Display for AsmAstReg {
             // AsmAstReg::DI => write!(f, "edi"),
             // AsmAstReg::SI => write!(f, "esi"),
 
+            AsmAstReg::AL => write!(f, "al"),
+            AsmAstReg::AH => write!(f, "ah"),
             AsmAstReg::AX => write!(f, "ax"),
             AsmAstReg::EAX => write!(f, "eax"),
             AsmAstReg::RAX => write!(f, "rax"),
@@ -769,6 +829,8 @@ impl fmt::Display for AsmAstReg {
             AsmAstReg::EBX => write!(f, "ebx"),
             AsmAstReg::RBX => write!(f, "rbx"),
 
+            AsmAstReg::CL => write!(f, "cl"),
+            AsmAstReg::CH => write!(f, "ch"),
             AsmAstReg::CX => write!(f, "cx"),
             AsmAstReg::ECX => write!(f, "ecx"),
             AsmAstReg::RCX => write!(f, "rcx"),
@@ -1026,8 +1088,8 @@ pub fn print_asm_ast_instruction(asm_ast_instruction: &AsmAstInstruction,
             string_buffer.push_str(format!("Cdq\n").as_str());
         }
 
-        AsmAstInstructionType::Idiv => {
-            string_buffer.push_str(format!("Idiv\n").as_str());
+        AsmAstInstructionType::Div => {
+            string_buffer.push_str(format!("Div\n").as_str());
         }
 
         AsmAstInstructionType::Break => {

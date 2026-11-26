@@ -27,7 +27,7 @@ use crate::asm_ast::asm_ast::AsmAstUnaryOperator;
 use crate::asm_ast::asm_ast::AsmAstBinaryOperator;
 use crate::asm_ast::asm_ast::AstAstAssemblyType;
 
-use crate::c_ast::ast_node::AstNodeOperatorType;
+use crate::c_ast::ast_node::{AstNodeOperatorType, from_data_type_and_operator};
 
 use crate::common::variable_naming_source::VariableNamingSource;
 use crate::common::data_type::DataType;
@@ -149,11 +149,14 @@ impl TackyToIntermediateAsmConversionVisitor {
         mov
     }
 
-    pub fn move_src_2_to_ax(&mut self, tacky_instruction: &Instruction) -> AsmAstInstruction
+    pub fn move_src_2_to_ax(&mut self,
+        tacky_instruction: &Instruction,
+        data_type: &DataType) -> AsmAstInstruction
     {
         let mut mov: AsmAstInstruction = AsmAstInstruction::new();
         mov.instruction_type = AsmAstInstructionType::Mov;
-        mov.assembly_type = AstAstAssemblyType::from_data_type(&tacky_instruction.data_type);
+        //mov.assembly_type = AstAstAssemblyType::from_data_type(&tacky_instruction.data_type);
+        mov.assembly_type = AstAstAssemblyType::from_data_type(data_type);
 
         match &tacky_instruction.src_2 {
 
@@ -175,6 +178,17 @@ impl TackyToIntermediateAsmConversionVisitor {
         assert_ne!(mov.assembly_type, AstAstAssemblyType::Unknown);
 
         mov
+    }
+
+    pub fn get_common_ast_asm_type(&self,
+        lhs_type: &AstAstAssemblyType,
+        rhs_type: &AstAstAssemblyType) -> AstAstAssemblyType
+    {
+        if lhs_type == rhs_type {
+            return lhs_type.clone();
+        }
+
+        panic!();
     }
 
     //
@@ -951,6 +965,7 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         let mut mov_1: AsmAstInstruction = AsmAstInstruction::new();
         mov_1.instruction_type = AsmAstInstructionType::Mov;
+        mov_1.comment = String::from(format!("    ; [visit_tacky_subscript_dst() - Subscript 2] for subscript (applying an index to an array)").to_string());
         //mov_1.assembly_type = AstAstAssemblyType::from_data_type(&tacky_instruction_subscript.data_type);
 
         match &tacky_instruction_subscript.data_type {
@@ -961,8 +976,6 @@ impl TackyToIntermediateAsmConversionVisitor {
                 panic!("Only array expected in subscript!");
             }
         }
-
-        mov_1.comment = String::from(format!("    ; [visit_tacky_subscript_dst() - Subscript 2] for subscript (applying an index to an array)").to_string());
 
         // src is the literal value or variable to transfer into the array
         match &tacky_instruction_subscript.src {
@@ -3072,31 +3085,39 @@ impl TackyToIntermediateAsmConversionVisitor {
         match &tacky_instruction.binary_operator {
 
             BinaryOperator::Division => {
-                self.visit_tacky_binary_division(asm_ast_function, tacky_instruction, &AsmAstInstructionType::Idiv);
+                self.visit_tacky_binary_division(asm_ast_function,
+                    tacky_instruction, &AsmAstInstructionType::Div);
             }
             BinaryOperator::Remainder => {
-                self.visit_tacky_binary_division(asm_ast_function, tacky_instruction, &AsmAstInstructionType::Mod);
+                self.visit_tacky_binary_division(asm_ast_function,
+                    tacky_instruction, &AsmAstInstructionType::Mod);
             }
             BinaryOperator::Multiply => {
                 self.visit_tacky_binary_multiplication(asm_ast_function, tacky_instruction);
             }
             BinaryOperator::Equal => {
-                self.visit_tacky_binary_relational(asm_ast_function, tacky_instruction, &AstNodeOperatorType::Equal);
+                self.visit_tacky_binary_relational(asm_ast_function,
+                    tacky_instruction, &AstNodeOperatorType::Equal);
             }
             BinaryOperator::NotEqual => {
-                self.visit_tacky_binary_relational(asm_ast_function, tacky_instruction, &AstNodeOperatorType::NotEqual);
+                self.visit_tacky_binary_relational(asm_ast_function,
+                    tacky_instruction, &AstNodeOperatorType::NotEqual);
             }
             BinaryOperator::LessThan => {
-                self.visit_tacky_binary_relational(asm_ast_function, tacky_instruction, &AstNodeOperatorType::LessThan);
+                self.visit_tacky_binary_relational(asm_ast_function,
+                    tacky_instruction, &AstNodeOperatorType::LessThan);
             }
             BinaryOperator::LessThanOrEqual => {
-                self.visit_tacky_binary_relational(asm_ast_function, tacky_instruction, &AstNodeOperatorType::LessThanOrEqual);
+                self.visit_tacky_binary_relational(asm_ast_function,
+                    tacky_instruction, &AstNodeOperatorType::LessThanOrEqual);
             }
             BinaryOperator::GreaterThan => {
-                self.visit_tacky_binary_relational(asm_ast_function, tacky_instruction, &AstNodeOperatorType::GreaterThan);
+                self.visit_tacky_binary_relational(asm_ast_function,
+                    tacky_instruction, &AstNodeOperatorType::GreaterThan);
             }
             BinaryOperator::GreaterThanOrEqual => {
-                self.visit_tacky_binary_relational(asm_ast_function, tacky_instruction, &AstNodeOperatorType::GreaterThanOrEqual);
+                self.visit_tacky_binary_relational(asm_ast_function,
+                    tacky_instruction, &AstNodeOperatorType::GreaterThanOrEqual);
             }
             _ => {
                 self.visit_tacky_binary_standard(asm_ast_function, tacky_instruction);
@@ -3137,12 +3158,19 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         let mut cmp: AsmAstInstruction = AsmAstInstruction::new();
         cmp.instruction_type = AsmAstInstructionType::Cmp;
-        cmp.assembly_type = AstAstAssemblyType::Doubleword;
-        // add a comment that is output to the intermediate assembly and the final assembly
+
+        cmp.assembly_type = AstAstAssemblyType::Unknown;
+
+        // add a comment that is output to the intermediate
+        // assembly and the final assembly
         // in order to debug assembly generation
         cmp.comment = String::from("    ; binary_relational (2)");
 
+        let mut data_type_src = AstAstAssemblyType::Unknown;
+        let mut data_type_src_2 = AstAstAssemblyType::Unknown;
+
         match &tacky_node_binary.src {
+
             ValueElement::Constant(constant_value) => {
                 // println!("constant_value: '{}'", constant_value);
                 if constant_value.starts_with("'") {
@@ -3154,7 +3182,8 @@ impl TackyToIntermediateAsmConversionVisitor {
                             operand_type: AsmAstOperandType::Imm(converted_value)
                         };
                 } else {
-                    let converted_value: i32 = i32::from_str_radix(&constant_value, 10).expect("REASON");
+                    let converted_value: i32 =
+                        i32::from_str_radix(&constant_value, 10).expect("REASON");
                     // why is dst used here?
                     cmp.dst =
                         AsmAstOperand {
@@ -3162,36 +3191,77 @@ impl TackyToIntermediateAsmConversionVisitor {
                         };
                 }
             }
+
             ValueElement::Variable(variable_name) => {
                 // why is dst used here?
-                cmp.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+                cmp.dst =
+                    AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+
+                // take the type from the destination (I do not know if this always works!)
+                let var_name = variable_name.clone();
+                let symbol_table_entry_option = self.symbol_table.borrow_mut().get(&var_name).unwrap();
+                // DEBUG
+                println!("[T2IASM] symbol_table_entry_option: {:?}", symbol_table_entry_option);
+                data_type_src = AstAstAssemblyType::from_data_type(&symbol_table_entry_option.data_type);
             }
+
             _ => {
                 panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_binary.src).as_str());
             }
         }
 
         match &tacky_node_binary.src_2 {
+
             ValueElement::Constant(constant_value) => {
-
-                // println!("constant_value: '{}'", constant_value);
-
-                // cmp.dst = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
-
                 let rest = match i32::from_str_radix(&constant_value, 10) {
                     Ok(result) => result,
                     Err(test) => panic!("Cannot parse with radix 10: '{}'", constant_value)
                 };
-                cmp.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Imm(rest) };
+                cmp.src_2 =
+                    AsmAstOperand { operand_type: AsmAstOperandType::Imm(rest) };
             }
+
             ValueElement::Variable(variable_name) => {
-                // cmp.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
-                cmp.src_2 = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+                cmp.src_2 =
+                    AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+
+                // take the type from the destination (I do not know if this always works!)
+                let var_name = variable_name.clone();
+                let symbol_table_entry_option = self.symbol_table.borrow_mut().get(&var_name).unwrap();
+                // DEBUG
+                println!("[T2IASM] symbol_table_entry_option: {:?}", symbol_table_entry_option);
+                data_type_src_2 =
+                    AstAstAssemblyType::from_data_type(&symbol_table_entry_option.data_type);
             }
+
             _ => {
                 panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_binary.src_2).as_str());
             }
         }
+
+        // DEBUG
+        println!("[T2IASM] data_type_src: {:?}", data_type_src);
+        println!("[T2IASM] data_type_src_2: {:?}", data_type_src_2);
+
+        if data_type_src == AstAstAssemblyType::Unknown {
+            if data_type_src_2 == AstAstAssemblyType::Unknown {
+                panic!("need data type");
+            } else {
+                cmp.assembly_type = data_type_src_2;
+            }
+        } else {
+            if data_type_src_2 == AstAstAssemblyType::Unknown {
+                cmp.assembly_type = data_type_src;
+            } else {
+                if data_type_src != data_type_src_2 {
+                    cmp.assembly_type = self.get_common_ast_asm_type(&data_type_src, &data_type_src_2);
+                } else {
+                    cmp.assembly_type = data_type_src;
+                }
+            }
+        }
+
+        let cmp_assembly_type = cmp.assembly_type.clone();
 
         assert_ne!(cmp.assembly_type, AstAstAssemblyType::Unknown);
 
@@ -3213,7 +3283,9 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         match &tacky_node_binary.dst {
             ValueElement::Constant(constant_value) => {
-                mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+                mov.dst = AsmAstOperand {
+                    operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON"))
+                };
             }
             ValueElement::Variable(variable_name) => {
                 mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
@@ -3258,8 +3330,37 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         let mut set_cc: AsmAstInstruction = AsmAstInstruction::new();
         set_cc.instruction_type = AsmAstInstructionType::SetCC;
-        set_cc.assembly_type = AstAstAssemblyType::Byte;
-        set_cc.src = AsmAstOperand { operand_type: AsmAstOperandType::ComparisonType(operator_type_param.to_string()) };
+
+        //set_cc.assembly_type = cmp_assembly_type;
+
+        // the setCC instruction always sets a byte! Convert anything to signed/unsigned byte
+        match cmp_assembly_type {
+            AstAstAssemblyType::Byte |
+            AstAstAssemblyType::Word |
+            AstAstAssemblyType::Doubleword |
+            AstAstAssemblyType::Quadword => {
+                set_cc.assembly_type = AstAstAssemblyType::Byte;
+            }
+            AstAstAssemblyType::UnsignedByte |
+            AstAstAssemblyType::UnsignedWord |
+            AstAstAssemblyType::UnsignedDoubleword |
+            AstAstAssemblyType::UnsignedQuadword => {
+                set_cc.assembly_type = AstAstAssemblyType::UnsignedByte;
+            }
+            _ => {
+                panic!();
+            }
+        }
+
+        set_cc.src =
+            AsmAstOperand {
+                // ComparisonType is later added as a postfix to the set mnemonic
+                // when output by the emitter visitor
+                // Calling to_string() on the operator_type_param will convert the
+                // operator_type_param to a single character which is then used as
+                // a suffix
+                operand_type: AsmAstOperandType::ComparisonType(from_data_type_and_operator(&set_cc.assembly_type, operator_type_param))
+            };
 
         match &tacky_node_binary.dst {
             ValueElement::Constant(constant_value) => {
@@ -3283,10 +3384,37 @@ impl TackyToIntermediateAsmConversionVisitor {
 
     pub fn visit_tacky_binary_division(&mut self,
         asm_ast_function: &mut AsmAstFunction,
-        tacky_node_binary: &Instruction,
+        instruction_binary: &Instruction,
         instruction_type: &AsmAstInstructionType)
     {
+        // DEBUG
         println!("[AsmAstConversionVisitor::visit_tacky_binary_division()]");
+        println!("instruction_type: {:?}", instruction_type);
+
+        println!("instruction_binary: {:?}", instruction_binary);
+
+        let mut dst_data_type: DataType = DataType::DataTypeUnknown;
+
+        match &instruction_binary.src_2 {
+
+            ValueElement::Variable(variable_name) => {
+
+                let symbol_tbl = self.symbol_table.borrow_mut();
+                if !symbol_tbl.contains_key(&variable_name) {
+                    panic!("Symbol Table does not contain the key: '{:?}'", variable_name);
+                }
+                let symbol_table_entry = symbol_tbl.retrieve(&variable_name);
+                dst_data_type = symbol_table_entry.data_type;
+
+                println!("dst_data_type: {}", &dst_data_type);
+
+                println!("unsigned char");
+            }
+
+            _ => {
+                panic!();
+            }
+        }
 
         //
         // MOV, Nora Sandler, page 63
@@ -3294,8 +3422,8 @@ impl TackyToIntermediateAsmConversionVisitor {
         // TACKY Binary ==> Mov(src1, dst) + Binary(binary_operator, src2, dst)
         //
 
-        //asm_ast_function.body.push(Box::new(self.move_src_to_ax(tacky_node_binary)));
-        asm_ast_function.body.push(Box::new(self.move_src_2_to_ax(tacky_node_binary)));
+        //asm_ast_function.body.push(Box::new(self.move_src_to_ax(instruction_binary)));
+        asm_ast_function.body.push(Box::new(self.move_src_2_to_ax(instruction_binary, &dst_data_type)));
 
         //
         // Cdq, page 63
@@ -3321,13 +3449,13 @@ impl TackyToIntermediateAsmConversionVisitor {
         //
         // Idiv, page 63
         //
+        // idiv - Signed Integer Divide
+        // div  - Unsigned Integer Divide
+        //
 
         let mut idiv: AsmAstInstruction = AsmAstInstruction::new();
-        idiv.instruction_type = instruction_type.clone();
-        idiv.assembly_type = AstAstAssemblyType::Doubleword;
 
-        match &tacky_node_binary.src {
-        // match &tacky_node_binary.src_2 {
+        match &instruction_binary.src {
 
             ValueElement::Constant(constant_value) => {
 
@@ -3345,14 +3473,58 @@ impl TackyToIntermediateAsmConversionVisitor {
                 asm_ast_function.body.push(Box::new(mov));
 
                 idiv.dst = AsmAstOperand { operand_type: AsmAstOperandType::Reg(AsmAstReg::BX) };
+
+                // for signed use idiv, for unsigned use div
+                idiv.instruction_type = instruction_type.clone();
             }
+
             ValueElement::Variable(variable_name) => {
                 idiv.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+
+                let symbol_tbl = self.symbol_table.borrow_mut();
+                if !symbol_tbl.contains_key(&variable_name) {
+                    panic!("Symbol Table does not contain the key: '{:?}'", variable_name);
+                }
+                let symbol_table_entry = symbol_tbl.retrieve(&variable_name);
+                let dst_data_type = symbol_table_entry.data_type;
+
+                //idiv.assembly_type = AstAstAssemblyType::from_data_type(&dst_data_type);
+
+                // let mut unsigned = false;
+
+                // match idiv.assembly_type {
+                //     AstAstAssemblyType::Byte |
+                //     AstAstAssemblyType::Word |
+                //     AstAstAssemblyType::Doubleword |
+                //     AstAstAssemblyType::Quadword => {
+                //          unsigned = false;
+                //     }
+                //     AstAstAssemblyType::UnsignedByte |
+                //     AstAstAssemblyType::UnsignedWord |
+                //     AstAstAssemblyType::UnsignedDoubleword |
+                //     AstAstAssemblyType::UnsignedQuadword => {
+                //          unsigned = true;
+                //     }
+                //     _ => {
+                //         panic!();
+                //     }
+                // }
+
+                // if unsigned {
+                //     if instruction_type == AsmAstInstructionType::Div {
+                //         idiv.instruction_type = AsmAstInstructionType::UnsignedDiv
+                //     }
+                // }
+
+                // // for signed use idiv, for unsigned use div
+                // idiv.instruction_type = instruction_type.clone();
             }
             _ => {
-                panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_binary.dst).as_str());
+                panic!("{}", format!("Unhandled InstructionType {:?}!\n", instruction_binary.dst).as_str());
             }
         }
+
+        idiv.assembly_type = AstAstAssemblyType::from_data_type(&dst_data_type);
 
         assert_ne!(idiv.assembly_type, AstAstAssemblyType::Unknown);
 
@@ -3366,23 +3538,31 @@ impl TackyToIntermediateAsmConversionVisitor {
 
         let mut mov: AsmAstInstruction = AsmAstInstruction::new();
         mov.instruction_type = AsmAstInstructionType::Mov;
-        mov.assembly_type = AstAstAssemblyType::Doubleword;
-
-
+        //mov.assembly_type = AstAstAssemblyType::Doubleword;
+        mov.assembly_type = AstAstAssemblyType::from_data_type(&dst_data_type);
 
         match instruction_type {
-            AsmAstInstructionType::Idiv => {
+            AsmAstInstructionType::Div => {
                 mov.src = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(AsmAstReg::AX) };
             }
             AsmAstInstructionType::Mod => {
-                mov.src = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(AsmAstReg::DX) };
+                match dst_data_type {
+                    DataType::DataTypeChar | DataType::DataTypeUnsignedChar => {
+                        // the remainder is in AH for 8 bit! (quotient is in AL for 8 bit)
+                        mov.src = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(AsmAstReg::AH) };
+                    }
+                    _ => {
+                        // the remainder is stored in the D register for all datatypes other than 8 bit
+                        mov.src = AsmAstOperand{ operand_type: AsmAstOperandType::Reg(AsmAstReg::DX) };
+                    }
+                }
             }
             _ => {
                 todo!();
             }
         }
 
-        match &tacky_node_binary.dst {
+        match &instruction_binary.dst {
             ValueElement::Constant(constant_value) => {
                 mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
             }
@@ -3390,7 +3570,7 @@ impl TackyToIntermediateAsmConversionVisitor {
                 mov.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
             }
             _ => {
-                panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_binary.dst).as_str());
+                panic!("{}", format!("Unhandled InstructionType {:?}!\n", instruction_binary.dst).as_str());
             }
         }
 
@@ -3806,7 +3986,9 @@ impl TackyToIntermediateAsmConversionVisitor {
                         // println!("variable_name_type_system_entry: {:?}", variable_name_type_system_entry);
 
                         let symbol_table_entry_option = self.symbol_table.borrow_mut().get(&variable_name).unwrap();
-                        println!("symbol_table_entry_option: {:?}", symbol_table_entry_option);
+
+                        // DEBUG
+                        println!("[T2IASM] symbol_table_entry_option: {:?}", symbol_table_entry_option);
 
                         //binary.assembly_type = AstAstAssemblyType::from_data_type(&tacky_node_binary.data_type);
                         //binary.assembly_type = AstAstAssemblyType::Byte;

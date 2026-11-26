@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::asm_ast::asm_ast::AstAstAssemblyType;
+use crate::asm_ast::asm_ast::retrieve_base_register;
 use crate::common::data_type::DataType;
 use crate::common::symbol_table::SymbolTable;
 use crate::common::symbol_table::SymbolTableEntry;
@@ -35,7 +36,7 @@ use crate::asm_ast::asm_ast::AsmAstReg;
 // 2. src\c_ast\type_checking_visitor.rs - performs type checking. The rules that are checked are documented in the file itself
 // 3. src\tacky\tacky_visitor.rs - Generate TACKY (from AST)
 // 4. asm_ast/TackyToIntermediateAsmConversionVisitor - Converts the AST into a ASM AST for assembly with a precursory form of mnenomics
-// 5. asm_ast/AsmAstFixupVisitor - replacing pseudo operands/variables with stack addresses
+// 5. asm_ast/AsmAstFixupVisitor - In the intermediate ASM language, replacing pseudo operands/variables with stack addresses
 // 6. asm_ast/AsmAstMasmEmitterVisitor / asm_ast/AsmAstASEmitterVisitor / ...
 //
 
@@ -446,35 +447,25 @@ impl AsmAstFixupVisitor {
         // newly created statements are inserted in this 'new_body' statement.
 
         // During iteration over all statements in the body, each statement is visited.
+        //
         // If a visit encounters the use of a pseudo-variable, this pseudo-variable needs to be
         // replaced by a stack address. When using more memory on the stack, the visited element
         // needs to update the self.stack_offset member variable to extend the stack frame.
         //
-        // To replace a pseudo variable, each visited element will call the function: replace_pseudo_operand().
-        // Check for the usage of replace_pseudo_operand() in this visitor to see where pseudo variables are
-        // replaced.
+        // To replace a pseudo variable, each visited element will call the function:
+        // replace_pseudo_operand(). Check for the usage of replace_pseudo_operand() in this
+        // visitor to see where pseudo variables are replaced.
         let mut new_body = Vec::<Box<AsmAstInstruction>>::new();
         for i in 0..asm_ast_function.body.len() {
 
             // DEBUG
             if self.debug {
-                let instr = &asm_ast_function.body[i].as_ref().clone();
-                println!("\n\ninstr: {:?}", instr);
+                let instruction = &asm_ast_function.body[i].as_ref().clone();
+                println!("\n\n instruction: {:?}", instruction);
             }
 
             let instruction = asm_ast_function.body[i].as_ref().clone();
-
-            // // DEBUG
-            // let i_id = instruction.id;
-            // if i_id == 4 {
-            //     println!("[FixVisitor] {:?}", &instruction);
-            // }
-
             self.visit_asm_ast_instruction(&mut new_body, instruction);
-
-            // if i_id == 4 {
-            //     println!("[FixVisitor] {:?}", instruction);
-            // }
         }
 
         // if this is not the call which is used to print but the call which is used to compute
@@ -495,7 +486,7 @@ impl AsmAstFixupVisitor {
             asm_ast_allocate_stack.src = AsmAstOperand {
                 operand_type: AsmAstOperandType::Imm(val)
             };
-            asm_ast_allocate_stack.comment.push_str("    ; + Updated in AsmAstFixupVisitor::visit_asm_ast_function()\n");
+            asm_ast_allocate_stack.comment.push_str("\n    ; Updated in AsmAstFixupVisitor::visit_asm_ast_function()");
 
             // update stack frame size
             asm_ast_function.stack_frame_size = val;
@@ -578,6 +569,52 @@ impl AsmAstFixupVisitor {
 
                 if self.replace_pseudo {
 
+                    // clear the destination register of stale data if parts of the register are
+                    // not overwritten by the move (which is the case for all types != quadword)
+                    //
+                    // only clear the destination register, if it is not part of the pointer
+                    // expression!
+
+                    if asm_ast_instruction.assembly_type != AstAstAssemblyType::Quadword
+                        && asm_ast_instruction.assembly_type != AstAstAssemblyType::UnsignedQuadword {
+
+                        match &asm_ast_instruction.dst.operand_type {
+
+                            AsmAstOperandType::Reg(register_name) => {
+
+                                let mut xor_asm_ast_instruction: AsmAstInstruction = AsmAstInstruction::new();
+                                xor_asm_ast_instruction.instruction_type = AsmAstInstructionType::Xor;
+                                xor_asm_ast_instruction.assembly_type = AstAstAssemblyType::Quadword;
+                                xor_asm_ast_instruction.comment = String::from(format!("abc id = {}", xor_asm_ast_instruction.id).as_str());
+                                xor_asm_ast_instruction.src.operand_type = AsmAstOperandType::Reg(register_name.clone());
+                                xor_asm_ast_instruction.dst.operand_type = AsmAstOperandType::Reg(register_name.clone());
+
+                                if xor_asm_ast_instruction.id == 69 {
+                                    println!("test: {:?}", asm_ast_instruction);
+                                }
+
+                                let mut insert_clear_register: bool = true;
+                                match &asm_ast_instruction.offset.operand_type {
+                                    AsmAstOperandType::Reg(offset_register_name) => {
+                                        if retrieve_base_register(register_name) == retrieve_base_register(offset_register_name) {
+                                            insert_clear_register = false;
+                                        }
+                                    }
+                                    _ => {
+                                    }
+                                }
+
+                                if insert_clear_register {
+                                    new_body.push(Box::new(xor_asm_ast_instruction));
+                                }
+                            }
+
+                            _ => {
+                                // panic!();
+                            }
+                        }
+                    }
+
                     // does this instruction require a fix?
                     let mut fix: bool = false;
 
@@ -614,8 +651,11 @@ impl AsmAstFixupVisitor {
                         new_body.push(Box::new(asm_ast_instruction));
 
                     }
+
                 } else {
+
                     new_body.push(Box::new(asm_ast_instruction));
+
                 }
             }
 
@@ -748,10 +788,10 @@ impl AsmAstFixupVisitor {
                 new_body.push(Box::new(asm_ast_instruction));
             }
 
-            AsmAstInstructionType::Idiv => {
+            AsmAstInstructionType::Div => {
                 // DEBUG
                 if self.debug {
-                    println!("Idiv {:?}", asm_ast_instruction.dst);
+                    println!("Div {:?}", asm_ast_instruction.dst);
                 }
 
                 asm_ast_instruction.dst = self.replace_pseudo_operand(&mut asm_ast_instruction.dst);

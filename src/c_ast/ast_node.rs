@@ -6,6 +6,7 @@ use std::str::FromStr;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use crate::asm_ast::asm_ast::AstAstAssemblyType;
 use crate::common::data_type::DataType;
 
 // Just to be fair, I asked AI on how to design a recursive data structure in rust
@@ -104,6 +105,88 @@ pub fn from_data_type(data_type: &DataType) -> AstNodeType {
     }
 }
 
+pub fn from_data_type_and_operator(
+    ast_ast_assembly_type: &AstAstAssemblyType,
+    ast_node_operator_type: &AstNodeOperatorType) -> String {
+
+    //
+    // SetCC(relational_operator, dst)
+    //
+    // The setcc (set conditional) instruction series in x86-64 assembly sets
+    // a single-byte destination register or memory location to 1 or 0 based
+    // on the status of specific processor flags.
+    //
+    // Common Variants
+    // sete  / setz     — Set if equal / set if zero
+    // setne / setnz    — Set if not equal / set if not zero
+    //
+    // --------------------------- signed ----------------------------
+    // setg  / setnle   — Set if greater (signed)
+    // setge / setnl    — Set if greater or equal (signed)
+    // setl  / setnge   — Set if less (signed)
+    // setle / setng    — Set if less or equal (signed)
+    //
+    // --------------------------- unsigned --------------------------
+    // seta  / setnbe   — Set if above (unsigned)
+    // setb  / setC     — Set if below / set if carry (unsigned)
+    //
+    // FLAGS - Visual Studio
+    // | Overflow  | OV |	1 = Overflow	| 0 = No Overflow
+    // | Direction | UP |	1 = Down	    | 0 = Up
+    // | Interrupt | EI |	1 = Enabled	    | 0 = Disabled
+    // | Sign      | PL |	1 = Negative	| 0 = Positive
+    // | Zero      | ZR |	1 = Zero	    | 0 = Not Zero
+    // | Auxiliary | AC |                   |
+    // | Parity    | PE |	1 = Even	    | 0 = Odd
+    // | Carry     | CY |	1 = Carry	    | 0 = No Carry
+
+    match ast_node_operator_type {
+
+        // binary
+        AstNodeOperatorType::Equal => String::from("E"),
+        AstNodeOperatorType::NotEqual => String::from("NE"),
+        AstNodeOperatorType::LessThan => String::from("L"),
+        AstNodeOperatorType::LessThanOrEqual => String::from("LE"),
+        AstNodeOperatorType::GreaterThan => {
+            match ast_ast_assembly_type {
+                AstAstAssemblyType::UnsignedByte |
+                AstAstAssemblyType::UnsignedWord |
+                AstAstAssemblyType::UnsignedDoubleword |
+                AstAstAssemblyType::UnsignedQuadword => {
+                    String::from("a")
+                }
+                AstAstAssemblyType::Byte |
+                AstAstAssemblyType::Word |
+                AstAstAssemblyType::Doubleword |
+                AstAstAssemblyType::Quadword => {
+                    String::from("g")
+                }
+                _ => {
+                    todo!();
+                }
+            }
+        }
+        AstNodeOperatorType::GreaterThanOrEqual =>String::from("GE"),
+
+        // pointers / memory
+        AstNodeOperatorType::AddrOf => String::from("AddrOf"),
+        AstNodeOperatorType::Dereference => String::from("Deref *"),
+
+        AstNodeOperatorType::NotApplicable => String::from("NotApplicable"),
+
+        AstNodeOperatorType::Addition => String::from("Addition"),
+        AstNodeOperatorType::Division => String::from("Division"),
+        AstNodeOperatorType::Remainder => String::from("Remainder"),
+
+        AstNodeOperatorType::Increment => String::from("Increment"),
+        AstNodeOperatorType::Decrement => String::from("Decrement"),
+
+        AstNodeOperatorType::Subtraction => String::from("Subtraction"),
+
+        _ => todo!("{:?}", ast_node_operator_type),
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum AstNodeOperatorType {
     Negate,
@@ -152,6 +235,7 @@ pub enum AstNodeOperatorType {
     NotApplicable,
 }
 
+/*
 impl fmt::Display for AstNodeOperatorType {
 
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -185,6 +269,7 @@ impl fmt::Display for AstNodeOperatorType {
         }
     }
 }
+*/
 
 #[derive(Clone)]
 pub struct AstNode {
@@ -232,7 +317,7 @@ impl fmt::Debug for AstNode {
         write!(f, "  analyzed_data_type: {}\n", &self.analyzed_data_type).expect("Write failed!");
         write!(f, "  expression: {:?}\n", &self.expression).expect("Write failed!");
         write!(f, "  operator: {:?}\n", &self.operator).expect("Write failed!");
-        write!(f, "  operator_type: {}\n", &self.operator_type).expect("Write failed!");
+        write!(f, "  operator_type: {:?}\n", &self.operator_type).expect("Write failed!");
         write!(f, "  string_val: {}\n", &self.string_val).expect("Write failed!");
         write!(f, "  initial_string_val: {}\n", &self.initial_string_val).expect("Write failed!");
         write!(f, "  block_items: {:?}\n", &self.block_items).expect("Write failed!");

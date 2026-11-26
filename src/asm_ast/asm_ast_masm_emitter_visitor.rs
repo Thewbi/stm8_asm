@@ -79,7 +79,7 @@ impl AsmAstMasmEmitterVisitor {
     {
         match assembly_type {
 
-            AstAstAssemblyType::Byte => {
+            AstAstAssemblyType::Byte | AstAstAssemblyType::UnsignedByte => {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
@@ -95,7 +95,7 @@ impl AsmAstMasmEmitterVisitor {
                 }
             }
 
-            AstAstAssemblyType::Word => {
+            AstAstAssemblyType::Word | AstAstAssemblyType::UnsignedWord => {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
@@ -111,7 +111,7 @@ impl AsmAstMasmEmitterVisitor {
                 }
             }
 
-            AstAstAssemblyType::Doubleword => {
+            AstAstAssemblyType::Doubleword | AstAstAssemblyType::UnsignedDoubleword => {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
@@ -127,7 +127,7 @@ impl AsmAstMasmEmitterVisitor {
                 }
             }
 
-            AstAstAssemblyType::Quadword => {
+            AstAstAssemblyType::Quadword | AstAstAssemblyType::UnsignedQuadword => {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
@@ -161,7 +161,7 @@ impl AsmAstMasmEmitterVisitor {
     {
         match data_type_size {
 
-            AstAstAssemblyType::Byte => {
+            AstAstAssemblyType::Byte | AstAstAssemblyType::UnsignedByte => {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
@@ -187,7 +187,7 @@ impl AsmAstMasmEmitterVisitor {
                 }
             }
 
-            AstAstAssemblyType::Word => {
+            AstAstAssemblyType::Word | AstAstAssemblyType::UnsignedWord => {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
@@ -203,7 +203,7 @@ impl AsmAstMasmEmitterVisitor {
                 }
             }
 
-            AstAstAssemblyType::Doubleword => {
+            AstAstAssemblyType::Doubleword | AstAstAssemblyType::UnsignedDoubleword => {
                 // if *stack_val == 0 {
                 //     // DEBUG
                 //     if self.print_to_console {
@@ -223,7 +223,7 @@ impl AsmAstMasmEmitterVisitor {
                 // }
             }
 
-            AstAstAssemblyType::Quadword => {
+            AstAstAssemblyType::Quadword | AstAstAssemblyType::UnsignedQuadword => {
                 if *stack_val == 0 {
                     // DEBUG
                     if self.print_to_console {
@@ -743,6 +743,7 @@ impl AsmAstMasmEmitterVisitor {
         // if these calls are inserted, you need to link againts all the libs
         // link.exe /SUBSYSTEM:console /LARGEADDRESSAWARE:NO /ENTRY:main /OUT:build\main.exe /SUBSYSTEM:CONSOLE kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ucrt.lib build\main.obj >NUL 2>&1
         self.string_buffer.push_str("extern putchar: proc\n");
+        self.string_buffer.push_str("extern getchar: proc\n");
         self.string_buffer.push_str("extern fopen: proc\n");
         self.string_buffer.push_str("extern malloc: proc\n");
 
@@ -796,13 +797,14 @@ impl AsmAstMasmEmitterVisitor {
 
         // Irvine, page 323
         // println!("{} PROC", asm_ast_function.name);
+        self.string_buffer.push_str("\n\n\n\n");
         self.string_buffer.push_str(format!("{} PROC\n", asm_ast_function.name).as_str());
 
         //
         // Prelude
         //
 
-        self.string_buffer.push_str("\n\n    ; prelude - create stack frame and shadow area\n");
+        self.string_buffer.push_str("\n    ; prelude - create stack frame and shadow area\n");
 
         // 32_BIT
         // self.string_buffer.push_str("    push ebp ; save base of current stack frame to restore it later\n"); // save base of current stack frame to restore it later
@@ -905,10 +907,10 @@ impl AsmAstMasmEmitterVisitor {
                     println!("asm_ast_instruction: {:?}", asm_ast_instruction);
                 }
 
-                // // DEBUG
-                // if asm_ast_instruction.id == 28 {
-                //     println!("[ASM_AST_EMITTER_VISITOR] test");
-                // }
+                // DEBUG
+                if asm_ast_instruction.id == 43 {
+                    println!("[ASM_AST_EMITTER_VISITOR] test");
+                }
 
                 // ASSERT - need data types for generating instructions
                 assert_ne!(asm_ast_instruction.assembly_type,
@@ -1258,17 +1260,54 @@ impl AsmAstMasmEmitterVisitor {
                 self.string_buffer.push_str("    cdq\n");
             }
 
-            AsmAstInstructionType::Idiv | AsmAstInstructionType::Mod => {
+            AsmAstInstructionType::Div | AsmAstInstructionType::Mod => {
 
                 // DEBUG
-                println!("[AsmAstMASMEmitterVisitor::AsmAstInstructionType::Idiv] asm_ast_instruction: {:?}", asm_ast_instruction);
+                println!("[AsmAstMASMEmitterVisitor::AsmAstInstructionType::Div] asm_ast_instruction: {:?}", asm_ast_instruction);
 
-                // parameter needs to be divisor
-                // e.g. in a = 100 / 10, then use 10 (= divisor)
+                // example:
+                // e.g. in a = 100 / 10,
+                //
+                // divisor (10) is expected as parameter (reg or memory)
+                // parameter (reg or memory) needs to be divisor
+                // then use 10 (= divisor)
+                //
+                // dividend (100) is expected in EDX:EAX or EAX only
+                //
+                // result is in EDX:EAX
+                // EAX - the quotient
+                // EDX - the remainder
 
-                self.string_buffer.push_str("    idiv ");
+                // IDIV - Signed Integer Divide
+                // DIV  - Unsigned Integer Divide
+
+                println!("[EmitterVisitor] asm_ast_instruction: {:?}", asm_ast_instruction);
+                //println!("[EmitterVisitor] asm_ast_instruction.dst: {:?}", asm_ast_instruction.dst);
+
+                match asm_ast_instruction.assembly_type {
+
+                    AstAstAssemblyType::Byte |
+                    AstAstAssemblyType::Word |
+                    AstAstAssemblyType::Doubleword |
+                    AstAstAssemblyType::Quadword  => {
+                        // idiv mnemonic for signed data types
+                        self.string_buffer.push_str("    idiv ");
+                    }
+
+                    AstAstAssemblyType::UnsignedByte |
+                    AstAstAssemblyType::UnsignedWord |
+                    AstAstAssemblyType::UnsignedDoubleword |
+                    AstAstAssemblyType::UnsignedQuadword  => {
+                        // div mnemonic for signed data types
+                        self.string_buffer.push_str("    div ");
+                    }
+
+                    _ => {
+                        panic!("Need type");
+                    }
+                }
+
                 self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
-                //self.emit_asm_ast_operand(&asm_ast_instruction.src_2, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &AstAstAssemblyType::Doubleword);
                 self.string_buffer.push_str("\n");
             }
 
@@ -1333,9 +1372,16 @@ impl AsmAstMasmEmitterVisitor {
 
             AsmAstInstructionType::SetCC => {
                 self.string_buffer.push_str("    set");
-                self.emit_asm_ast_operand(&asm_ast_instruction.src, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                // this call will add the suffix to complete the set mnemonic
+                // according to the asm_ast_instruction.src.
+                // If src is ComparisonType, then ComparisonType internally stores the suffix
+                self.emit_asm_ast_operand(&asm_ast_instruction.src,
+                    &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                    &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str(" ");
-                self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                self.emit_asm_ast_operand(&asm_ast_instruction.dst,
+                    &AsmAstOperand { operand_type: AsmAstOperandType::Unknown },
+                    &asm_ast_instruction.assembly_type);
                 self.string_buffer.push_str("\n");
             }
 
