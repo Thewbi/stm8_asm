@@ -1,5 +1,54 @@
 # Open
 
+
+
+
+
+
+## Unsigned comparisons
+
+There is no single instruction for >= for specifically unsigned char!
+For unsigned, there is only
+
+seta - set if above (>)
+setb - set if below (<)
+
+In order to implement a >= b, make it b < a which is available using setb!
+
+
+```
+// sete / setz      — Set if equal / set if zero
+// setne / setnz    — Set if not equal / set if not zero
+//
+// --------------------------- signed ----------------------------
+// setg / setnle    — Set if greater (signed)
+// setge / setnl    — Set if greater or equal (signed)
+// setl / setnge    — Set if less (signed)
+// setle / setng    — Set if less or equal (signed)
+//
+// --------------------------- unsigned --------------------------
+// seta / setnbe    — Set if above (unsigned)
+// setb / setC      — Set if below / set if carry (unsigned)
+```
+
+
+
+
+## Expression is not evaluated
+
+```
+int vv = 0;
+int index = 100;
+vv = index - 10 + 65;
+```
+
+The value stored inside vv is now incorrect!
+
+
+
+
+
+
 ## Parser output has no file and line information
 
 This makes it hard to find the issue.
@@ -32,6 +81,11 @@ int main() {
 }
 ```
 
+
+
+
+
+
 ## List von interger values
 
 lists of parameters are not covered
@@ -41,8 +95,18 @@ int fahr, celsius;
 int lower, upper, step;
 ```
 
+
+
+
+
+
 ## need main()
 The system currently does not work if there is not main() in the compilation unit!
+
+
+
+
+
 
 ## No global namespace
 It is impossible to create variables outside main() in the global namespace
@@ -51,15 +115,29 @@ during variable creation there is
 an incorrect index when accesing the scope stack or the scope stack is empty
 and is accessed with index 0 or something along the lines ...
 
+
+
+
+
+
 ## Cannot process: res\C\samples\c_samples\struct_5.c
 The dot-chain cannot be correctly resolved.
 Needs to be resolved into successive offset additions until the total offset is found.
 
+
+
+
+
 ## Cannot process: res\C\samples\c_samples\typedef_5.c
+
 ```
 PIXEL_DATA** pixel_data;
 ```
 pointer-to-pointer not handled yet!
+
+
+
+
 
 ## Character '°' kills the lexer
 
@@ -125,6 +203,9 @@ int main()
     return 17;
 }
 ```
+
+
+
 
 
 # Closed

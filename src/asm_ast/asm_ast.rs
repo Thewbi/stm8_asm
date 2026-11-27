@@ -760,16 +760,16 @@ impl AsmAstReg {
 
                 // append suffix for data type
                 match data_type {
-                    AstAstAssemblyType::Byte => {
+                    AstAstAssemblyType::Byte | AstAstAssemblyType::UnsignedByte => {
                         string_buffer.push_str("b");
                     }
-                    AstAstAssemblyType::Word => {
+                    AstAstAssemblyType::Word | AstAstAssemblyType::UnsignedWord=> {
                         string_buffer.push_str("w");
                     }
-                    AstAstAssemblyType::Doubleword => {
+                    AstAstAssemblyType::Doubleword | AstAstAssemblyType::UnsignedDoubleword=> {
                         string_buffer.push_str("d");
                     }
-                    AstAstAssemblyType::Quadword => {
+                    AstAstAssemblyType::Quadword | AstAstAssemblyType::UnsignedQuadword => {
                         string_buffer.push_str("");
                     }
                     AstAstAssemblyType::Unknown => {

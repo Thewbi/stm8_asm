@@ -3151,9 +3151,9 @@ impl TackyToIntermediateAsmConversionVisitor {
         operator_type_param: &AstNodeOperatorType)
     {
         // DEBUG
-        if self.debug {
+        // if self.debug {
             println!("[AsmAstConversionVisitor::visit_tacky_binary_relational()] {:?}", tacky_node_binary);
-        }
+        // }
 
         // nora sandler, page 87
         //
@@ -3322,10 +3322,14 @@ impl TackyToIntermediateAsmConversionVisitor {
         // Common Variants
         // sete / setz      — Set if equal / set if zero
         // setne / setnz    — Set if not equal / set if not zero
+        //
+        // --------------------------- signed ----------------------------
         // setg / setnle    — Set if greater (signed)
         // setge / setnl    — Set if greater or equal (signed)
         // setl / setnge    — Set if less (signed)
         // setle / setng    — Set if less or equal (signed)
+        //
+        // --------------------------- unsigned --------------------------
         // seta / setnbe    — Set if above (unsigned)
         // setb / setC      — Set if below / set if carry (unsigned)
         //
@@ -3342,22 +3346,23 @@ impl TackyToIntermediateAsmConversionVisitor {
         let mut set_cc: AsmAstInstruction = AsmAstInstruction::new();
         set_cc.instruction_type = AsmAstInstructionType::SetCC;
 
-        //set_cc.assembly_type = cmp_assembly_type;
-
         // the setCC instruction always sets a byte! Convert anything to signed/unsigned byte
         match cmp_assembly_type {
+
             AstAstAssemblyType::Byte |
             AstAstAssemblyType::Word |
             AstAstAssemblyType::Doubleword |
             AstAstAssemblyType::Quadword => {
                 set_cc.assembly_type = AstAstAssemblyType::Byte;
             }
+
             AstAstAssemblyType::UnsignedByte |
             AstAstAssemblyType::UnsignedWord |
             AstAstAssemblyType::UnsignedDoubleword |
             AstAstAssemblyType::UnsignedQuadword => {
                 set_cc.assembly_type = AstAstAssemblyType::UnsignedByte;
             }
+
             _ => {
                 panic!();
             }
@@ -3370,15 +3375,18 @@ impl TackyToIntermediateAsmConversionVisitor {
                 // Calling to_string() on the operator_type_param will convert the
                 // operator_type_param to a single character which is then used as
                 // a suffix
-                operand_type: AsmAstOperandType::ComparisonType(from_data_type_and_operator(&set_cc.assembly_type, operator_type_param))
+                operand_type: AsmAstOperandType::ComparisonType(
+                    from_data_type_and_operator(&set_cc.assembly_type, operator_type_param))
             };
 
         match &tacky_node_binary.dst {
             ValueElement::Constant(constant_value) => {
-                set_cc.dst = AsmAstOperand { operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
+                set_cc.dst = AsmAstOperand {
+                    operand_type: AsmAstOperandType::Imm(i32::from_str_radix(&constant_value, 10).expect("REASON")) };
             }
             ValueElement::Variable(variable_name) => {
-                set_cc.dst = AsmAstOperand { operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
+                set_cc.dst = AsmAstOperand {
+                    operand_type: AsmAstOperandType::Pseudo(variable_name.clone()) };
             }
             _ => {
                 panic!("{}", format!("Unhandled InstructionType {:?}!\n", tacky_node_binary.dst).as_str());
@@ -3390,7 +3398,6 @@ impl TackyToIntermediateAsmConversionVisitor {
         assert_ne!(set_cc.assembly_type, AstAstAssemblyType::Unknown);
 
         asm_ast_function.body.push(Box::new(set_cc));
-
     }
 
     pub fn visit_tacky_binary_division(&mut self,

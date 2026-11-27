@@ -745,6 +745,17 @@ impl AsmAstFixupVisitor {
 
                 match asm_ast_instruction.binary_operator {
 
+                    AsmAstBinaryOperator::LogicalAnd => {
+                        // just forward, do not make any changes
+                        // new_body.push(Box::new(asm_ast_instruction));
+
+                        if self.replace_pseudo {
+                            self.untangle_mem_mem(&mut asm_ast_instruction, new_body, AsmAstReg::R10);
+                        } else {
+                            new_body.push(Box::new(asm_ast_instruction));
+                        }
+                    }
+
                     AsmAstBinaryOperator::Add | AsmAstBinaryOperator::Subtract => {
                         if self.replace_pseudo {
                             self.untangle_mem_mem(&mut asm_ast_instruction, new_body, AsmAstReg::R10);

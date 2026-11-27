@@ -66,8 +66,6 @@ int print_string(char* s)
     return len;
 }
 
-int putchar(int c);
-
 void print_unsigned_char_numeric_decimal(unsigned char data) {
     unsigned char buffer[3];
     int text_len = 0;
@@ -120,6 +118,75 @@ void print_unsigned_char_numeric_decimal(unsigned char data) {
          int temp = buffer[i];
          int vv = temp + 48;
          putchar(vv);
+    }
+
+    putchar(13); // \r (Carriage Return, ASCII 13 / 0x0D)
+    putchar(10); // \n (Line Feed / Newline, ASCII 10 / 0x0A)
+}
+
+void print_unsigned_char_numeric_hexadecimal(unsigned char data) {
+
+    unsigned char buffer[3];
+    buffer[0] = 0;
+    buffer[1] = 0;
+    buffer[2] = 0;
+
+    //unsigned char data = 1; // 0x01
+    //unsigned char data = 11; // 0x0B
+    //unsigned char data = 15; // 0x0F
+    //unsigned char data = 16; // 0x10
+    //unsigned char data = 17; // 0x11
+    //unsigned char data = 64; // 0x40
+    //unsigned char data = 127; // 0x7F
+    //unsigned char data = 128; // 0x80
+    //unsigned char data = 168; // 0xA8
+    // unsigned char data = 255; // 0xFF
+
+    unsigned char remainder = 0;
+    unsigned char quotient = 0;
+
+    int text_len = 0;
+    //while (data > 0) {
+    while (data != 0) {
+
+        remainder = data % 16;
+        buffer[text_len] = remainder;
+        data = data / 16;
+        //text_len = text_len + 1;
+        text_len++;
+
+        if (data == 0) {
+            break;
+        }
+    }
+
+    // in reverse order, walk through the buffer
+    int i = 0;
+    for (i = text_len; i > 0; i--) {
+
+        // retrieve the number to output
+        //unsigned char index = buffer[i-1];
+        int index = buffer[i-1];
+        int vv = 0;
+
+        // convert decimal number to hex digit
+        if ((index >= 0) && (index <= 9)) {
+
+            vv = index + 48;
+
+        } else if ((index >= 10) && (index <= 15)) {
+
+            // 65 is the ASCII code for 'A'
+            // As we want to map the number 10 to 'A'
+            // first subtract 10 to arrive at an offset from zero,
+            // then add 65 to arrive at an offset from 'A'
+
+            //vv = index - 10 + 65; // this does not work!
+
+            vv = index + 55; // this works!
+        }
+
+        putchar(vv);
     }
 
     putchar(13); // \r (Carriage Return, ASCII 13 / 0x0D)
@@ -208,149 +275,187 @@ int main() {
 
         op_code = buffer[pc];
 
-        print_unsigned_char_numeric_decimal(op_code);
+        //print_unsigned_char_numeric_decimal(op_code);
+        print_unsigned_char_numeric_hexadecimal(op_code);
 
         // https://meganesu.github.io/generate-gb-opcodes/
         switch (op_code) {
 
-        case 0x00:
-            //print_string("[NOP]");
+            case 0x00:
+                //print_string("[NOP]");
 
-            pc = pc + 1;
-            break;
+                pc = pc + 1;
+                break;
 
-        case 0x20:
-            //print_string("[JR]");
+            case 0x20:
+                //print_string("[JR]");
 
-            // JR NZ, s8
+                // JR NZ, s8
 
-            a_idx = pc + 1;
-            char jump_offset = buffer[a_idx];
+                a_idx = pc + 1;
+                char jump_offset = buffer[a_idx];
 
-            pc = pc + 2;
+                pc = pc + 2;
+                if (z_flag == 0) {
+                    pc = pc + jump_offset;
+                }
 
-            if (z_flag == 0) {
-                pc = pc + jump_offset;
-            }
+                //if (z_flag == 0) {
+                //    pc = pc + jump_offset;
+                //} else {
+                //    pc = pc + 2;
+                //}
+                break;
 
-            //if (z_flag == 0) {
-            //    pc = pc + jump_offset;
-            //} else {
-            //    pc = pc + 2;
-            //}
-            break;
+            case 0x31: // 49dec
+                //print_string("[LD] 7.3 16-bit load instructions\n");
 
-        case 0x31: // 49dec
-            //print_string("[LD] 7.3 16-bit load instructions\n");
+                // 7.3 16-bit load instructions
+                // LD rr, nn // general form
+                // LD SP, nn // this specific form (register rr is hardset to SP. SP is the stack pointer register)
+                // the two bytes following the opcode are nn. nn is a 16 bit value. nn is stored MSB
+                // Load to the 16-bit register rr, the immediate 16-bit data nn.
+                // Here, the register
 
-            // 7.3 16-bit load instructions
-            // LD rr, nn // general form
-            // LD SP, nn // this specific form (register rr is hardset to SP. SP is the stack pointer register)
-            // the two bytes following the opcode are nn. nn is a 16 bit value. nn is stored MSB
-            // Load to the 16-bit register rr, the immediate 16-bit data nn.
-            // Here, the register
+                a_idx = pc + 1;
+                b_idx = pc + 2;
+                temp_addr = 0;
+                temp_addr = (buffer[b_idx] << 8) + buffer[a_idx];
 
-            a_idx = pc + 1;
-            b_idx = pc + 2;
-            temp_addr = 0;
-            temp_addr = (buffer[b_idx] << 8) + buffer[a_idx];
+                SP = temp_addr;
 
-            SP = temp_addr;
+                // TODO: load temp into stack pointer register SP
 
-            // TODO: load temp into stack pointer register SP
+                pc = pc + 3;
+                break;
 
-            pc = pc + 3;
-            break;
+            case 0xAF:
+                // page 72, 1 Byte, 1 Cycle
+                //print_string("Wurst");
+                //print_unsigned_char_numeric_hexadecimal(0xAF);
 
-        case 0xAF:
-            print_string("Wurst");
-            break;
+                // opcode 0xAF is XOR A (also written XOR A, A),
+                // which performs a bitwise exclusive-OR of register A
+                // with itself and stores 0x00 back into A.
 
-        case 0xC3: // 195dec
-            //print_string("[JP] JP");
+                // XOR A            Sets A to $00.
+                A = 0;
 
-            temp_addr = 0;
+                pc = pc + 1;
+                break;
 
-            //temp = (buffer[pc+2] << 8) + buffer[pc+1];
-            //pc = temp;
+            case 0xC3: // 195dec
+                //print_string("[JP] JP");
 
-            //if (temp == 0x0150) {
-            //    print_string("Korrekt");
-            //} else {
-            //    print_string("Inkorrekt");
-            //}
+                temp_addr = 0;
 
-            a_idx = pc + 1;
-            b_idx = pc + 2;
-            temp_addr = 0;
-            temp_addr = (buffer[b_idx] << 8) + buffer[a_idx];
+                //temp = (buffer[pc+2] << 8) + buffer[pc+1];
+                //pc = temp;
 
-            //if (temp == 0x0150) {
-            //    print_string("Korrekt");
-            //} else {
-            //    print_string("Inkorrekt");
-            //}
+                //if (temp == 0x0150) {
+                //    print_string("Korrekt");
+                //} else {
+                //    print_string("Inkorrekt");
+                //}
 
-            pc = temp_addr;
-            break;
+                a_idx = pc + 1;
+                b_idx = pc + 2;
+                temp_addr = 0;
+                temp_addr = (buffer[b_idx] << 8) + buffer[a_idx];
 
-        case 0xF0:
-            //print_string("[LDH] LDH A, (n): Load accumulator (direct 0xFF00+n)");
+                //if (temp == 0x0150) {
+                //    print_string("Korrekt");
+                //} else {
+                //    print_string("Inkorrekt");
+                //}
 
-            //
-            // reads one byte (n) from memory
-            // extends the byte to 0xFF00+n
-            // treats the extended immediate 16-bit value as an address
-            // loads a byte from said address and transfers the byte into the 8-bit register A (Accumulator)
-            //
+                pc = temp_addr;
+                break;
 
-            a_idx = pc + 1;
-            temp_addr = 0;
-            temp_addr = (0xFF << 8) + buffer[a_idx];
+            case 0xE0:
+                // page 36, 2 bytes, 3 cycles
 
-            //printf("temp_addr %d\n", temp_addr);
+                // The name load h of the operation is misleading!
+                // the operation writes to memory!
+                // It also first loads part of the address from memory
+                // so it really first loads, then stores
 
-            // load byte from memory at address temp
-            A = buffer[temp_addr];
+                // 1. load the byte after the opcode. The value is called n
+                // 2. construct a 16 bit address from 0xFF and n (0xFF00+n)
+                // 3. take the accumulator 8-bit value
+                // 4. write the 8-bit accumulator to the address
 
-            if (A == 0x00) {
-                print_string("Korrekt A");
-            } else {
-                print_string("Inkorrekt A");
-                //print_unsigned_char_numeric_decimal(A);
-            }
+                // load and construct address
+                a_idx = pc + 1;
+                temp_addr = 0;
+                temp_addr = (0xFF << 8) + buffer[a_idx];
 
-            pc = pc + 2;
-            break;
+                // store
+                buffer[temp_addr] = A;
 
-        case 0xF3: // 243dec
-            //print_string("[HALT] Halt system clock");
+                pc = pc + 2;
+                break;
 
-            pc = pc + 1;
-            break;
+            case 0xF0:
+                //print_string("[LDH] LDH A, (n): Load accumulator (direct 0xFF00+n)");
 
-        case 0xFE: // 254dec
-            //print_string("[CP] Compare (immediate)");
+                //
+                // reads one byte (n) from memory
+                // extends the byte to 0xFF00+n
+                // treats the extended immediate 16-bit value as an address
+                // loads a byte from said address and transfers the byte into the 8-bit register A (Accumulator)
+                //
 
-            // CP n: Compare (immediate)
+                a_idx = pc + 1;
+                temp_addr = 0;
+                temp_addr = (0xFF << 8) + buffer[a_idx];
 
-            // Subtracts from the 8-bit A register, the immediate data n,
-            // and updates flags based on the result.
-            //
-            // This instruction is basically identical to SUB n, but does not update the A register.
+                //printf("temp_addr %d\n", temp_addr);
 
-            a_idx = pc + 1;
-            temp_addr = 0;
-            temp_compute = buffer[a_idx];
+                // load byte from memory at address temp
+                A = buffer[temp_addr];
 
-            temp_compute = A - temp_compute;
+                //if (A == 0x00) {
+                //    print_string("Korrekt A");
+                //} else {
+                //    print_string("Inkorrekt A");
+                //    //print_unsigned_char_numeric_decimal(A);
+                //}
 
-            pc = pc + 2;
-            break;
+                pc = pc + 2;
+                break;
 
-        default:
-            print_string("Unknown");
-            break;
+            case 0xF3: // 243dec
+                //print_string("[HALT] Halt system clock");
+
+                // TODO: what does this mean "Halt system clock"
+                // what is the emulator supposed to do here?
+
+                pc = pc + 1;
+                break;
+
+            case 0xFE: // 254dec
+                //print_string("[CP] Compare (immediate)");
+
+                // CP n: Compare (immediate)
+
+                // Subtracts from the 8-bit A register, the immediate data n,
+                // and updates flags based on the result.
+                //
+                // This instruction is basically identical to SUB n, but does not update the A register.
+
+                a_idx = pc + 1;
+                temp_addr = 0;
+                temp_compute = buffer[a_idx];
+
+                temp_compute = A - temp_compute;
+
+                pc = pc + 2;
+                break;
+
+            default:
+                print_string("Unknown");
+                break;
         }
     }
 

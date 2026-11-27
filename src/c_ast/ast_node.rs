@@ -127,7 +127,7 @@ pub fn from_data_type_and_operator(
     // setle / setng    — Set if less or equal (signed)
     //
     // --------------------------- unsigned --------------------------
-    // seta  / setnbe   — Set if above (unsigned)
+    // seta  / setnbe   — Set if above (unsigned). nbe == not below or equal
     // setb  / setC     — Set if below / set if carry (unsigned)
     //
     // FLAGS - Visual Studio
@@ -140,6 +140,8 @@ pub fn from_data_type_and_operator(
     // | Parity    | PE |	1 = Even	    | 0 = Odd
     // | Carry     | CY |	1 = Carry	    | 0 = No Carry
 
+    // setnl - Set Byte if Not Less
+
     match ast_node_operator_type {
 
         // binary
@@ -147,6 +149,7 @@ pub fn from_data_type_and_operator(
         AstNodeOperatorType::NotEqual => String::from("NE"),
         AstNodeOperatorType::LessThan => String::from("L"),
         AstNodeOperatorType::LessThanOrEqual => String::from("LE"),
+
         AstNodeOperatorType::GreaterThan => {
             match ast_ast_assembly_type {
                 AstAstAssemblyType::UnsignedByte |
@@ -166,7 +169,28 @@ pub fn from_data_type_and_operator(
                 }
             }
         }
-        AstNodeOperatorType::GreaterThanOrEqual =>String::from("GE"),
+
+        AstNodeOperatorType::GreaterThanOrEqual => {
+            match ast_ast_assembly_type {
+                AstAstAssemblyType::UnsignedByte |
+                AstAstAssemblyType::UnsignedWord |
+                AstAstAssemblyType::UnsignedDoubleword |
+                AstAstAssemblyType::UnsignedQuadword => {
+                    //String::from("a")
+                    todo!("How to implement this case?");
+                }
+                AstAstAssemblyType::Byte |
+                AstAstAssemblyType::Word |
+                AstAstAssemblyType::Doubleword |
+                AstAstAssemblyType::Quadword => {
+                    String::from("ge")
+                }
+                _ => {
+                    todo!();
+                }
+            }
+        }
+        //    String::from("GE"),
 
         // pointers / memory
         AstNodeOperatorType::AddrOf => String::from("AddrOf"),

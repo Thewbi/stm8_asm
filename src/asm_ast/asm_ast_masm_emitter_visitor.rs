@@ -1151,6 +1151,14 @@ impl AsmAstMasmEmitterVisitor {
                 let mut instruction: String = String::new();
 
                 match asm_ast_instruction.binary_operator {
+                    AsmAstBinaryOperator::LogicalAnd => {
+                        instruction = String::from("and");
+                        self.string_buffer.push_str(format!("    {} ", instruction).as_str());
+                        self.emit_asm_ast_operand(&asm_ast_instruction.dst, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                        self.string_buffer.push_str(", ");
+                        self.emit_asm_ast_operand(&asm_ast_instruction.src_2, &AsmAstOperand { operand_type: AsmAstOperandType::Unknown }, &asm_ast_instruction.assembly_type);
+                        self.string_buffer.push_str("\n");
+                    }
                     AsmAstBinaryOperator::Add => {
                         instruction = String::from("add");
                         self.string_buffer.push_str(format!("    {} ", instruction).as_str());
