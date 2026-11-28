@@ -2126,7 +2126,11 @@ impl AstNode {
         let ast_node_id = self.id;
 
         let ast_node = node_map.get(&ast_node_id).unwrap();
-        println!("[AST_NODE] ast_node: {:?}", ast_node);
+
+        // DEBUG
+        if self.debug {
+            println!("[AST_NODE] ast_node: {:?}", ast_node);
+        }
 
         // println!("{} [label=\"{} Conditional: {}\"]\n", ast_node_id, ast_node_id, self.string_val);
         if self.print_file_line {

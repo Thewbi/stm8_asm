@@ -296,7 +296,6 @@ int main() {
                 char jump_offset = buffer[a_idx];
 
                 pc = pc + 2;
-
                 if (z_flag == 0) {
                     pc = pc + jump_offset;
                 }
@@ -339,7 +338,7 @@ int main() {
                 // which performs a bitwise exclusive-OR of register A
                 // with itself and stores 0x00 back into A.
 
-                // XOR A	            Sets A to $00.
+                // XOR A            Sets A to $00.
                 A = 0;
 
                 pc = pc + 1;
@@ -428,6 +427,9 @@ int main() {
 
             case 0xF3: // 243dec
                 //print_string("[HALT] Halt system clock");
+
+                // TODO: what does this mean "Halt system clock"
+                // what is the emulator supposed to do here?
 
                 pc = pc + 1;
                 break;

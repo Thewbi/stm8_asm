@@ -1421,7 +1421,9 @@ impl TackyVisitor {
             data_type_as_string = left_node.string_val.clone();
 
             // DEBUG
-            println!("[TackyVisitor] data_type_as_string: '{}'", data_type_as_string);
+            if self.debug {
+                println!("[TackyVisitor] data_type_as_string: '{}'", data_type_as_string);
+            }
 
             // LHS of left node itself.
             //
@@ -1469,9 +1471,9 @@ impl TackyVisitor {
         assert_ne!(lhs_data_type, DataType::DataTypeUnknown);
 
         // DEBUG
-        // if self.debug {
+        if self.debug {
             println!("[TackyVisitor::variable_declaration_handler()] lhs_data_type: {:?}", lhs_data_type);
-        // }
+        }
 
         let mut implicit_array_element_count: i32 = -1;
 
@@ -1817,7 +1819,7 @@ impl TackyVisitor {
 
                                 // DEBUG
                                 if self.debug {
-                                    println!("LHS: {:?}", left_node_id);
+                                    println!("[TackyVisitor] LHS: {:?}", left_node_id);
                                 }
 
                                 let left_node = node_map.get(&left_node_id).unwrap();
@@ -2020,7 +2022,10 @@ impl TackyVisitor {
                                             let st = self.symbol_table.borrow_mut();
                                             let symbol_table_entry = st.get(&dst_name).unwrap();
 
-                                            println!("symbol_table_entry: {:?}", symbol_table_entry);
+                                            // DEBUG
+                                            if self.debug {
+                                                println!("[TackyVisitor] symbol_table_entry: {:?}", symbol_table_entry);
+                                            }
 
                                             // copy_instruction.data_type = ast_node.get_analyzed_data_type();
                                             copy_instruction.data_type = symbol_table_entry.data_type;
@@ -2031,7 +2036,7 @@ impl TackyVisitor {
 
                                     // DEBUG
                                     if self.debug {
-                                        println!("LHS: {:?}", lhs_subnode);
+                                        println!("[TackyVisitor] LHS: {:?}", lhs_subnode);
                                     }
 
                                     match lhs_subnode.operator_type {
@@ -2370,7 +2375,7 @@ impl TackyVisitor {
                             let lhs_sub = node_map.get(&lhs_sub_id).unwrap();
                             // DEBUG
                             if self.debug {
-                                println!("LHS: {:?}", lhs_sub);
+                                println!("[TackyVisitor] LHS: {:?}", lhs_sub);
                             }
                             dst_name = lhs_sub.string_val.clone();
                             add_assignment_instruction.dst = ValueElement::Variable(dst_name.clone());
@@ -2428,13 +2433,12 @@ impl TackyVisitor {
                 //
 
                 let mut break_instruction: Instruction = Instruction::new();
-                break_instruction.id = 123;
-                println!("[TackyVisitor] BREAK: id: {}", &break_instruction.id);
+                // DEBUG
+                if self.debug {
+                    println!("[TackyVisitor] BREAK: id: {}", &break_instruction.id);
+                }
                 break_instruction.instruction_type = InstructionType::Break;
                 break_instruction.data_type = ast_node.get_analyzed_data_type();
-                //break_instruction.dst = ValueElement::Constant(String::from("target_label"));
-                //break_instruction.dst = ValueElement::Label(final_end_label);
-                //break_instruction.label = String::from("target_label");
                 break_instruction.label = String::from(final_end_label);
 
                 // append comment to latest top-level element of the program
@@ -2847,7 +2851,9 @@ impl TackyVisitor {
                         = self.visit(lhs_id, node_map, &temp_var_name, &mut br_cnt, &continue_label, &final_end_label);
 
                     // DEBUG
-                    println!("[TackyVisitor] Binary lhs_value_element: {:?}", lhs_value_element);
+                    if self.debug {
+                        println!("[TackyVisitor] Binary lhs_value_element: {:?}", lhs_value_element);
+                    }
 
                     binary_instruction.src_2 = lhs_value_element;
                 }
@@ -2862,7 +2868,9 @@ impl TackyVisitor {
                         = self.visit(rhs_id, node_map, &temp_var_name, &mut br_cnt, &continue_label, &final_end_label);
 
                     // DEBUG
-                    println!("[TackyVisitor] Binary rhs_value_element: {:?}", rhs_value_element);
+                    if self.debug {
+                        println!("[TackyVisitor] Binary rhs_value_element: {:?}", rhs_value_element);
+                    }
 
                     binary_instruction.src = rhs_value_element;
                 }
@@ -2954,7 +2962,9 @@ impl TackyVisitor {
                 binary_instruction.data_type = ast_node.get_analyzed_data_type().clone();
 
                 // DEBUG
-                println!("[TackyVisitor::visit()::AstNodeType::Binary] ast_node: {:?}", ast_node);
+                if self.debug {
+                    println!("[TackyVisitor::visit()::AstNodeType::Binary] ast_node: {:?}", ast_node);
+                }
 
                 // ASSERT
                 assert_ne!(binary_instruction.data_type, DataType::DataTypeUnknown,
@@ -3052,7 +3062,10 @@ impl TackyVisitor {
                 let exp_result_var_name
                     = self.expression_to_varname(&ast_node, node_map, branch_counter, &continue_label, &final_end_label);
 
-                println!("exp_result_var_name: '{}'", exp_result_var_name);
+                // DEBUG
+                if self.debug {
+                    println!("exp_result_var_name: '{}'", exp_result_var_name);
+                }
 
                 // JumpIfZero
                 let mut jump_if_zero_instruction: Instruction = Instruction::new();

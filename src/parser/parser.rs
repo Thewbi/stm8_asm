@@ -587,6 +587,7 @@ impl Parser<String> {
 
                     ParseStackElementType::StateId(current_state_id) => {
 
+                        // DEBUG
                         if debug {
                             println!("[Parser::consume] StateId2: {}", current_state_id);
                         }
@@ -603,6 +604,7 @@ impl Parser<String> {
                         match idk {
 
                             ParseTableCell::Goto(next_state_id) => {
+                                // DEBUG
                                 if debug {
                                     println!("[Parser::consume] GOTO: {:?}", *next_state_id);
                                 }
@@ -653,7 +655,7 @@ impl Parser<String> {
                 if debug {
 
                     // state id
-                    println!("[Parser::consume] StateId4: {}", current_state_id);
+                    println!("[Parser::consume] StateId 4: {}", current_state_id);
 
                     // DEBUG - entire state with indetification and normal rules (Spammy!)
                     // let state = grammar_state_hashmap.get(&current_state_id).unwrap();
@@ -728,6 +730,7 @@ impl Parser<String> {
                             match command {
 
                                 ParseTableCell::Goto(state_id) => {
+                                    // DEBUG
                                     if debug {
                                         println!("[Parser::consume] GOTO: {:?}", *state_id);
                                     }
@@ -756,6 +759,7 @@ impl Parser<String> {
                                 }
 
                                 ParseTableCell::Shift(state_id) => {
+                                    // DEBUG
                                     if debug {
                                         println!("[Parser::consume] SHIFT: {:?}", *state_id);
                                     }
@@ -853,6 +857,7 @@ impl Parser<String> {
                             if !found {
                                 panic!("[Parser::consume] Rule not found!");
                             } else {
+                                // DEBUG
                                 if debug {
                                     println!("[Parser::consume] rule: {:?}", found_rule);
                                 }
@@ -4656,13 +4661,17 @@ impl Parser<String> {
 
                                                         let rhs_node_id = self.ast_stack_pop().unwrap();
                                                         // DEBUG
-                                                        let rhs_ast_node = node_map.get(&rhs_node_id).unwrap().clone();
-                                                        println!("RHS: '{}'", &rhs_ast_node.string_val);
+                                                        if debug {
+                                                            let rhs_ast_node = node_map.get(&rhs_node_id).unwrap().clone();
+                                                            println!("[Parser] RHS: '{}'", &rhs_ast_node.string_val);
+                                                        }
 
                                                         let lhs_node_id = self.ast_stack_pop().unwrap();
                                                         // DEBUG
-                                                        let LHS_ast_node = node_map.get(&rhs_node_id).unwrap().clone();
-                                                        println!("LHS: '{}'", &rhs_ast_node.string_val);
+                                                        if debug {
+                                                            let lhs_ast_node = node_map.get(&rhs_node_id).unwrap().clone();
+                                                            println!("[Parser] LHS: '{}'", &lhs_ast_node.string_val);
+                                                        }
 
                                                         let mut typedef_ast_node: AstNode = AstNode::new(self.get_ast_node_id());
                                                         typedef_ast_node.node_type = AstNodeType::Typedef;
@@ -4724,19 +4733,25 @@ impl Parser<String> {
                                             if self.construct_ast {
 
                                                 // DEBUG
-                                                self.print_ast_stack(node_map);
+                                                if debug {
+                                                    self.print_ast_stack(node_map);
+                                                }
 
                                                 let data_type_ast_node_id = self.ast_stack_pop().unwrap();
                                                 let mut data_type_ast_node = node_map.get(&data_type_ast_node_id).unwrap().clone();
 
                                                 // DEBUG
-                                                println!("[Parser] Rule 82 - data_type_ast_node: {:?}", data_type_ast_node);
+                                                if debug {
+                                                    println!("[Parser] Rule 82 - data_type_ast_node: {:?}", data_type_ast_node);
+                                                }
 
                                                 let type_specifier_ast_node_id = self.ast_stack_pop().unwrap();
                                                 let type_specifier_ast_node = node_map.get(&type_specifier_ast_node_id).unwrap().clone();
 
                                                 // DEBUG
-                                                println!("[Parser] Rule 82 - type_specifier_ast_node: {:?}", type_specifier_ast_node);
+                                                if debug {
+                                                    println!("[Parser] Rule 82 - type_specifier_ast_node: {:?}", type_specifier_ast_node);
+                                                }
 
                                                 // figure out which type specifier is added to the type and
                                                 // update the node accordingly
@@ -5740,7 +5755,7 @@ impl Parser<String> {
                                                 type_ast_node.file = file.clone();
                                                 type_ast_node.line = line;
 
-                                                println!("[Parser] Rule 104. ast_node: {:?}", type_ast_node);
+                                                // println!("[Parser] Rule 104. ast_node: {:?}", type_ast_node);
 
                                                 self.ast_stack.push(type_ast_node.id);
 
@@ -8728,7 +8743,7 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
 
-                                            println!("{} Rule 187", debug_node_id);
+                                            //println!("{} Rule 187", debug_node_id);
 
                                             let debug_node = DebugNode::new(debug_node_id, String::from("compound_statement"));
                                             // print new node into string buffer. e.g.    0 [label="test"]
@@ -8789,7 +8804,7 @@ impl Parser<String> {
                                                     }
                                                 }
 
-                                                println!("{:?}", block_ast_node);
+                                                // println!("[Parser] ASTNode: {:?}", block_ast_node);
 
                                                 // create compound AST node - insert block
                                                 let mut compound_ast_node: AstNode = AstNode::new(self.get_ast_node_id());
@@ -8943,7 +8958,7 @@ impl Parser<String> {
                                             // create new node with node id and label
                                             let debug_node_id = DEBUG_NODE_COUNTER.fetch_add(1, Ordering::SeqCst);
 
-                                            println!("[parser::consume] {} Rule 191", debug_node_id);
+                                            //println!("[parser::consume] {} Rule 191", debug_node_id);
 
                                             let debug_node = DebugNode::new(debug_node_id, String::from("declaration_or_statement_list"));
                                             // print new node into string buffer. e.g.    0 [label="test"]
@@ -8993,7 +9008,7 @@ impl Parser<String> {
 
                                             let node_id = self.node_to_node("declaration_or_statement_list", found_rule.original_id, string_buffer, debug_node_stack);
 
-                                            println!("[parser::consume] {} Rule 192", node_id);
+                                            //println!("[parser::consume] {} Rule 192", node_id);
 
                                             //
                                             // AST
@@ -9398,11 +9413,17 @@ impl Parser<String> {
                                                 let all_statements_ast_node_id = compound_ast_node.lhs.unwrap();
                                                 let all_statements_ast_node = node_map.get(&all_statements_ast_node_id).unwrap().clone();
 
-                                                println!("all_statements_ast_node: {:?}", all_statements_ast_node);
+                                                // DEBUG
+                                                if debug {
+                                                    println!("all_statements_ast_node: {:?}", all_statements_ast_node);
+                                                }
 
                                                 let len = all_statements_ast_node.block_items.len();
 
-                                                println!("len = {}", len);
+                                                // DEBUG
+                                                if debug {
+                                                    println!("len = {}", len);
+                                                }
 
                                                 for i in 0..len {
 
@@ -9411,7 +9432,10 @@ impl Parser<String> {
                                                     match temp_node.node_type {
 
                                                         AstNodeType::Case => {
-                                                            println!("{:?}", temp_node);
+                                                            // DEBUG
+                                                            if debug {
+                                                                println!("{:?}", temp_node);
+                                                            }
 
                                                             let first_case_block_item_id = temp_node.block_items[0];
 
@@ -9428,11 +9452,10 @@ impl Parser<String> {
                                                             case_default = AstNode::new(self.get_ast_node_id());
                                                             case_default.file = file.clone();
                                                             case_default.line = line;
-                                                            //node_map.insert(case_default.id, case_default);
                                                         }
 
                                                         AstNodeType::Default => {
-                                                            println!("{:?}", temp_node);
+                                                            // println!("{:?}", temp_node);
 
                                                             let first_default_block_item_id = temp_node.block_items[0];
 
@@ -9443,12 +9466,10 @@ impl Parser<String> {
 
                                                             node_map.insert(case_default.id, case_default);
 
-
                                                             // new node
                                                             case_default = AstNode::new(self.get_ast_node_id());
                                                             case_default.file = file.clone();
                                                             case_default.line = line;
-                                                            //node_map.insert(case_default.id, case_default);
                                                         }
 
                                                         // AstNodeType::Case | AstNodeType::Default => {
@@ -10088,10 +10109,12 @@ impl Parser<String> {
                         }
 
                         ParseTableCell::Accept => {
+                            // DEBUG
                             if debug {
                                 println!("[Parser::consume] ACCEPT !!!!");
                             }
 
+                            // DEBUG
                             if debug {
                                 println!(".:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.:.");
                                 println!("[Parser::consume] Step: {}", step);
@@ -10417,6 +10440,7 @@ pub fn output_parse_table_to_csv(
                     // start search with identification rules
                     for i in 0..state.identification_rules.len() {
                         if state.identification_rules[i].id == *rule_id {
+                            // DEBUG
                             if debug {
                                 println!("[Parser::consume] rule: {:?}", state.identification_rules[i]);
                             }
@@ -10429,6 +10453,7 @@ pub fn output_parse_table_to_csv(
                         // now, finish the search with the normal rules
                         for i in 0..state.rules.len() {
                             if state.rules[i].id == *rule_id {
+                                // DEBUG
                                 if debug {
                                     println!("[Parser::consume] rule: {:?}", state.rules[i]);
                                 }

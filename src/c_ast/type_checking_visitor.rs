@@ -1006,17 +1006,17 @@ impl TypeCheckingVisitor {
                 let ast_node = node_map.get(&parameter_ast_node_id);
 
                 // DEBUG
-                // if self.debug {
+                if self.debug {
                     println!("[TCV] parameter_ast_node: ast_node:{:?}", ast_node);
-                // }
+                }
 
                 let parameter_data_type
                     = self.visit(parameter_ast_node_id, node_map, expected_return_data_type);
 
                 // DEBUG
-                // if self.debug {
+                if self.debug {
                     println!("[TCV] parameter_data_type: {:?}", parameter_data_type);
-                // }
+                }
 
                 new_symbol_table_entry.parameter_data_types.push(parameter_data_type);
             }
@@ -1219,12 +1219,16 @@ impl TypeCheckingVisitor {
             left_node_id_retrieved = left_node_id;
 
             // DEBUG
-            println!("left_node_id: {}", left_node_id);
+            if self.debug {
+                println!("[TCV] left_node_id: {}", left_node_id);
+            }
 
             let analyzed_type = self.visit(left_node_id, node_map, expected_return_data_type);
 
             // DEBUG
-            println!("LHS: analyzed_type: {:?}", analyzed_type);
+            if self.debug {
+                println!("[TCV] LHS: analyzed_type: {:?}", analyzed_type);
+            }
 
             let mut left_node = node_map.get(&left_node_id).unwrap().clone();
             let left_node_symbol_name = left_node.string_val.clone();
@@ -1267,12 +1271,16 @@ impl TypeCheckingVisitor {
             right_node_id_retrieved = right_node_id;
 
             // DEBUG
-            println!("[TCV] right_node_id: {}", right_node_id);
+            if self.debug {
+                println!("[TCV] right_node_id: {}", right_node_id);
+            }
 
             let analyzed_type = self.visit(right_node_id.clone(), node_map, expected_return_data_type);
 
             // DEBUG
-            println!("[TCV] RHS: analyzed_type: {:?}", analyzed_type);
+            if self.debug {
+                println!("[TCV] RHS: analyzed_type: {:?}", analyzed_type);
+            }
 
             let mut right_node = node_map.get(&right_node_id).unwrap().clone();
             let right_node_symbol_name = right_node.string_val.clone();
@@ -2322,9 +2330,9 @@ impl TypeCheckingVisitor {
                             }
 
                             // DEBUG
-                            // if self.debug {
+                            if self.debug {
                                 println!("[TypeCheckingVisitor] Parameters: {:?}", ast_node.parameters);
-                            // }
+                            }
 
                             // DEBUG
                             if self.debug {
@@ -2337,32 +2345,32 @@ impl TypeCheckingVisitor {
                             for i in 0..param_count {
 
                                 // DEBUG
-                                // if self.debug {
+                                if self.debug {
                                     println!("[TCV] parameter #: {}", i);
-                                // }
+                                }
 
                                 // actual parameter
                                 let actual_parameter_ast_node_id = &ast_node.parameters[param_count-1-i];
                                 let actual_parameter_ast_node = node_map.get(actual_parameter_ast_node_id).unwrap().clone();
 
                                 // DEBUG
-                                // if self.debug {
+                                if self.debug {
                                     println!("[TCV] actual_parameter_ast_node: {:?}", actual_parameter_ast_node);
-                                // }
+                                }
 
                                 // DEBUG
-                                // if self.debug {
+                                if self.debug {
                                     println!("[TCV] ActualParameter: ARGUMENT {}): node_id: {:?}, ast_node: {:?}",
                                         i, actual_parameter_ast_node_id, actual_parameter_ast_node);
-                                // }
+                                }
 
                                 // formal parameter
                                 let formal_parameter_datatype = existing_symbol_table_entry.parameter_data_types[i].clone();
 
                                 // DEBUG
-                                // if self.debug {
+                                if self.debug {
                                     println!("[TCV] formal_parameter_datatype: {}", formal_parameter_datatype);
-                                // }
+                                }
 
                                 assert_ne!(formal_parameter_datatype, DataType::DataTypeUnknown, "Need data type!");
 

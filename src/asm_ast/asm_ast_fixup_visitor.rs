@@ -152,8 +152,8 @@ impl AsmAstFixupVisitor {
 
                     if self.stack_offset_map.contains_key(pseudo_name) {
 
-                        // variable with 'pseudo_name' has already been resolved.
-                        // Reuse existing value.
+                        // variable with 'pseudo_name' has already
+                        // been resolved. Reuse existing value
                         stack_offset_value = *self.stack_offset_map.get(pseudo_name).unwrap();
 
                     } else {
@@ -161,8 +161,10 @@ impl AsmAstFixupVisitor {
                         // retrieve type
                         if self.backend_symbol_table.borrow().contains(&pseudo_name) {
 
-                            // first, determine the data type. This is needed in order to determine
-                            // the correct amount of bytes to increment the stack pointer with
+                            // first, determine the data type.
+                            // This is needed in order to determine
+                            // the correct amount of bytes to increment
+                            // the stack pointer with
 
                             let st = self.backend_symbol_table.borrow();
                             let symbol_table_entry = st.retrieve(&pseudo_name);
@@ -180,20 +182,33 @@ impl AsmAstFixupVisitor {
 
                             } else {
 
-                                // if the type is a normal data type, use the data types size
-                                // to store it on the stack
+                                // if the type is a normal data type, use the
+                                // data types size to store it on the stack
 
                                 let data_type = symbol_table_entry.data_type.clone();
 
-                                let data_type_size = data_type.get_size(&self.type_system.borrow()) as i32;
+                                let ts = &self.type_system.borrow();
+                                let data_type_size = data_type.get_size(&ts) as i32;
 
+                                // DEBUG
                                 if self.debug {
                                     println!("[AsmFixupVisitor] variable-pseudo_name: '{}', data_type: {}, data_type_size: {}",
                                         pseudo_name, data_type, data_type_size);
                                 }
 
+                                let mut array_element_count = symbol_table_entry.array_element_count;
+                                if symbol_table_entry.is_array {
+                                    // DEBUG
+                                    if self.debug {
+                                        println!("is_array. ElementCount: {}", symbol_table_entry.array_element_count);
+                                    }
+                                    assert_ne!(symbol_table_entry.array_element_count, 0, "An array type variable should not have a length of zero!");
+                                } else {
+                                    array_element_count = 1;
+                                }
+
                                 // convert the data type into the offset in bytes
-                                self.stack_offset = self.stack_offset - data_type_size;
+                                self.stack_offset = self.stack_offset - data_type_size * array_element_count;
 
                             }
 
@@ -286,7 +301,8 @@ impl AsmAstFixupVisitor {
                             let data_type = symbol_table_entry.data_type.clone();
 
                             // convert the data type into the offset in bytes
-                            let data_type_size = data_type.get_size(&self.type_system.borrow()) as i32;
+                            let ts = self.type_system.borrow();
+                            let data_type_size = data_type.get_size(&ts) as i32;
 
                             // DEBUG
                             if self.debug {
@@ -302,12 +318,21 @@ impl AsmAstFixupVisitor {
 
                             // update stack offset (for normal variables and for arrays)
 
-                            //TODO: This is a problem with determining the size of a DataType
-                            //The data type of an array datatype !?!? is it the size of the array
-                            // Meaning type * element_count or only the inner element type?
+                            // TODO: This is a problem with determining the size of a DataType
+                            // The data type of an array datatype !?!? is it the size of the array
+                            // Meaning sizeof(type) * element_count or only the inner element type?
 
-                            //self.stack_offset = self.stack_offset - data_type_size * array_element_count;
-                            self.stack_offset = self.stack_offset - data_type_size;
+                            // Askaban!
+
+                            println!("self.stack_offset: {}", self.stack_offset);
+                            println!("self.data_type_size: {}", data_type_size);
+                            println!("array_element_count: {}", array_element_count);
+
+                            // THIS LINE WORKS FOR res\C\samples\c_samples\bubblesort_3.c
+                            self.stack_offset = self.stack_offset - data_type_size * array_element_count;
+
+                            // THIS LINE WORKS FOR res\C\samples\c_sample_2\gameboy_decoder_1.c
+                            //self.stack_offset = self.stack_offset - data_type_size;
 
                             self.stack_offset_map.insert(pseudo_name.to_string(), self.stack_offset);
                             self.stack_offset_to_symbol_map.insert(pseudo_name.to_string(), symbol_table_entry.clone());
@@ -505,22 +530,41 @@ impl AsmAstFixupVisitor {
         }
 
         // DEBUG - output the stack frame layout
-        if self.debug {
-            println!("[ASM AST FIXUP Visitor] stack_offset_map for function: '{}' --------------------------------------------", &asm_ast_function.name);
+        // if self.debug {
+            println!("[ASM AST FIXUP Visitor] stack_offset_map for function: '{}' --------------", &asm_ast_function.name);
             let mut index = 0;
             for (key, value) in self.stack_offset_map.clone().into_iter() {
-                //println!("{}) {} / {:?} ", index, key, value);
+                // println!("{}) {} / {:?} ", index, key, value);
                 // println!("{} / {:?}", key, value.data_type);
+
                 let symbol_table_entry: &SymbolTableEntry = self.stack_offset_to_symbol_map.get(&key).unwrap();
-                println!("{}) name:'{}', offset: {:?}, size: {}",
-                    index,
-                    symbol_table_entry.initial_name,
-                    value,
-                    symbol_table_entry.data_type.get_size(&self.type_system.borrow_mut()));
+
+                if symbol_table_entry.is_array {
+
+                    println!("{}) name:'{}', offset: {:?}, size: {}, is_array: {}, array_element_count: {}",
+                        index,
+                        symbol_table_entry.initial_name,
+                        value,
+                        symbol_table_entry.data_type.get_size(&self.type_system.borrow_mut()),
+                        symbol_table_entry.is_array,
+                        symbol_table_entry.array_element_count
+                    );
+
+                } else {
+
+                    println!("{}) name:'{}', offset: {:?}, size: {}",
+                        index,
+                        symbol_table_entry.initial_name,
+                        value,
+                        symbol_table_entry.data_type.get_size(&self.type_system.borrow_mut())
+                    );
+
+                }
+
                 index = index + 1;
             }
             println!("---------------------------------------------------------------------------------");
-        }
+        // }
 
         asm_ast_function.body = new_body;
     }
@@ -713,7 +757,9 @@ impl AsmAstFixupVisitor {
                     }
 
                     // DEBUG
-                    println!("[AsmFixupVisitor] asm_ast_instruction: {:?}", &asm_ast_instruction);
+                    if self.debug {
+                        println!("[AsmFixupVisitor] asm_ast_instruction: {:?}", &asm_ast_instruction);
+                    }
 
                     new_body.push(Box::new(asm_ast_instruction));
 
@@ -727,7 +773,7 @@ impl AsmAstFixupVisitor {
                     }
 
                     // DEBUG
-                    println!("[AsmFixupVisitor] asm_ast_instruction: {:?}", &asm_ast_instruction);
+                    // println!("[AsmFixupVisitor] asm_ast_instruction: {:?}", &asm_ast_instruction);
 
                     new_body.push(Box::new(asm_ast_instruction));
                 }

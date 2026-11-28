@@ -162,8 +162,16 @@ const SIZEOF_ADDRESS_X64: usize = 8;
 
 impl DataType {
 
-    /// For arrays, the computed size is sizeof(inner element datatype) * element_count
-    /// only if the element_count is specified explicitly. If there is no element count
+    /// OLD:
+    /// For arrays, the computed size is
+    /// sizeof(inner element datatype) * element_count
+    /// only if the element_count is specified explicitly.
+    ///
+    /// NEW:
+    /// For arrays, the computed size is
+    /// sizeof(inner element datatype)
+    ///
+    /// If there is no element count
     /// known, the function return the size of pointer (8 byte on x64) instead
     pub fn get_size(&self, type_system: &HashMap::<String, DataType>) -> usize
     {
@@ -202,10 +210,11 @@ impl DataType {
                 todo!("{}", self);
             }
             DataType::DataTypeArray(data_type, size_option) => {
-                if let Some(size) = size_option {
+                if let Some(array_element_count) = size_option {
                     // println!("size: {}, data_type: {}", size, data_type);
                     let data_type_size = data_type.get_size(type_system);
-                    return data_type_size * size;
+                    //return data_type_size * array_element_count;
+                    return data_type_size;
                 } else {
                     // a formal parameter of array type has no size.
                     // In this case, assume the address of the first element.

@@ -907,10 +907,10 @@ impl AsmAstMasmEmitterVisitor {
                     println!("asm_ast_instruction: {:?}", asm_ast_instruction);
                 }
 
-                // DEBUG
-                if asm_ast_instruction.id == 43 {
-                    println!("[ASM_AST_EMITTER_VISITOR] test");
-                }
+                // // DEBUG
+                // if asm_ast_instruction.id == 43 {
+                //     println!("[ASM_AST_EMITTER_VISITOR] test");
+                // }
 
                 // ASSERT - need data types for generating instructions
                 assert_ne!(asm_ast_instruction.assembly_type,
@@ -1203,9 +1203,8 @@ impl AsmAstMasmEmitterVisitor {
             }
 
             AsmAstInstructionType::Break => {
-                println!("[AsmAstMASMEmitterVisitor::AsmAstInstructionType::Break]");
-
-                println!("asm_ast_instruction: {:?}", asm_ast_instruction);
+                // println!("[AsmAstMASMEmitterVisitor::AsmAstInstructionType::Break]");
+                // println!("asm_ast_instruction: {:?}", asm_ast_instruction);
 
                 match &asm_ast_instruction.dst.operand_type {
                     AsmAstOperandType::Label(destination_label) => {
@@ -1287,7 +1286,9 @@ impl AsmAstMasmEmitterVisitor {
             AsmAstInstructionType::Div | AsmAstInstructionType::Mod => {
 
                 // DEBUG
-                println!("[AsmAstMASMEmitterVisitor::AsmAstInstructionType::Div] asm_ast_instruction: {:?}", asm_ast_instruction);
+                if self.debug {
+                    println!("[AsmAstMASMEmitterVisitor::AsmAstInstructionType::Div] asm_ast_instruction: {:?}", asm_ast_instruction);
+                }
 
                 // example:
                 // e.g. in a = 100 / 10,
@@ -1305,8 +1306,11 @@ impl AsmAstMasmEmitterVisitor {
                 // IDIV - Signed Integer Divide
                 // DIV  - Unsigned Integer Divide
 
-                println!("[EmitterVisitor] asm_ast_instruction: {:?}", asm_ast_instruction);
-                //println!("[EmitterVisitor] asm_ast_instruction.dst: {:?}", asm_ast_instruction.dst);
+                // DEBUG
+                if self.debug {
+                    println!("[EmitterVisitor] asm_ast_instruction: {:?}", asm_ast_instruction);
+                    //println!("[EmitterVisitor] asm_ast_instruction.dst: {:?}", asm_ast_instruction.dst);
+                }
 
                 match asm_ast_instruction.assembly_type {
 

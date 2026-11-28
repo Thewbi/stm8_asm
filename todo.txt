@@ -4,6 +4,21 @@
 
 
 
+## formal parameter needs name
+
+works:
+```
+int putchar(int c);
+```
+
+fails:
+```
+int putchar(int);
+```
+
+
+
+
 
 ## Unsigned comparisons
 
